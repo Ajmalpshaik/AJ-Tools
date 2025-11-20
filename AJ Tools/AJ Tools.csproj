@@ -54,7 +54,7 @@
     <Compile Include="App.cs" />
     <Compile Include="CmdAutoDimensions.cs" />
     <Compile Include="CmdAbout.cs" />
-    <Compile Include="CmdAutoDimensions.cs" />
+    <Compile Include="CmdDimensionByLine.cs" />
     <Compile Include="CmdUnhideAll.cs" />
     <Compile Include="CmdResetOverrides.cs" />
     <Compile Include="CmdResetDatums.cs" />
@@ -62,6 +62,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Dimensions by Line.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="information.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

@@ -44,6 +44,7 @@ namespace AJTools
             BitmapImage aboutIcon = LoadIcon(assemblyFolder, "information.png");
             BitmapImage dimensionsIcon = LoadIcon(assemblyFolder, "Dimensions.png");
             BitmapImage datumIcon = LoadIcon(assemblyFolder, "Resetto3DExtents.png");
+            BitmapImage dimByLineIcon = LoadIcon(assemblyFolder, "Dimensions by Line.png");
 
             // Graphics panel - Toggle Links button
             PushButtonData pbdToggleLinks = new PushButtonData(
@@ -167,6 +168,49 @@ namespace AJTools
                         btnDimsCombined.LargeImage = dimensionsIcon;
                         btnDimsCombined.Image = dimensionsIcon;
                     }
+                }
+            }
+
+            // Dimensions panel - Dimension by Line pulldown
+            PulldownButtonData pbdDimsByLine = new PulldownButtonData(
+                "CmdDimensionByLinePulldown",
+                "Dims by\nLine");
+
+            PulldownButton btnDimsByLine = panelDimensions.AddItem(pbdDimsByLine) as PulldownButton;
+
+            if (btnDimsByLine != null)
+            {
+                btnDimsByLine.ToolTip = "Pick two points to place grid or level dimensions along a custom line.";
+                if (dimByLineIcon != null)
+                {
+                    btnDimsByLine.LargeImage = dimByLineIcon;
+                    btnDimsByLine.Image = dimByLineIcon;
+                }
+
+                PushButton btnGridsByLine = btnDimsByLine.AddPushButton(new PushButtonData(
+                    "CmdDimensionGridsByLine",
+                    "Grids by Line",
+                    asmPath,
+                    "AJTools.CmdDimensionGridsByLine")) as PushButton;
+
+                if (btnGridsByLine != null && dimByLineIcon != null)
+                {
+                    btnGridsByLine.ToolTip = "Create a dimension string across intersecting grids using a picked line.";
+                    btnGridsByLine.LargeImage = dimByLineIcon;
+                    btnGridsByLine.Image = dimByLineIcon;
+                }
+
+                PushButton btnLevelsByLine = btnDimsByLine.AddPushButton(new PushButtonData(
+                    "CmdDimensionLevelsByLine",
+                    "Levels by Line",
+                    asmPath,
+                    "AJTools.CmdDimensionLevelsByLine")) as PushButton;
+
+                if (btnLevelsByLine != null && dimByLineIcon != null)
+                {
+                    btnLevelsByLine.ToolTip = "Create a dimension string across levels within the picked vertical range.";
+                    btnLevelsByLine.LargeImage = dimByLineIcon;
+                    btnLevelsByLine.Image = dimByLineIcon;
                 }
             }
 

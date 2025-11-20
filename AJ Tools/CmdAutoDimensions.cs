@@ -62,12 +62,13 @@ namespace AJTools
                 switch (mode)
                 {
                     case AutoDimensionMode.GridsOnly:
-                        if (!isPlan)
-                        {
-                            TaskDialog.Show(title, "This tool only works in plan views with visible grids.");
-                            return Result.Cancelled;
-                        }
-                        return CreatePlanGridDimensions(doc, view, title);
+                        if (isPlan)
+                            return CreatePlanGridDimensions(doc, view, title);
+                        if (isSection)
+                            return CreateSectionDimensions(doc, view, title, includeLevels: false, includeGrids: true);
+
+                        TaskDialog.Show(title, "This tool works only in Plan, Section, or Elevation views.");
+                        return Result.Cancelled;
 
                     case AutoDimensionMode.LevelsOnly:
                         if (!isSection)
