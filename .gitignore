@@ -22,6 +22,3 @@ Thumbs.db
 # NuGet
 packages/
 *.nupkg
-
-# Revit add-in deployment artifacts (if copied locally)
-*.addin

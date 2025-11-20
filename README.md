@@ -26,4 +26,9 @@ All three options live under the `Reset to 3D Extents` pulldown.
 2. Build the project in Release; the output DLL and PNG assets will land in `AJ Tools/AJ Tools/AJ Tools/bin/Release`.
 
 ## Installing
-Copy the compiled DLL and image assets into a Revit add-in folder (e.g. `%APPDATA%\Autodesk\Revit\Addins\2020`) along with an `.addin` manifest pointing at the DLL. Launch Revit 2020 and the **AJ Tools** tab will appear.
+Option A (recommended): download the latest release ZIP, extract, and run `install.ps1`. This copies `AJ Tools.dll`, icons, and the `AJ Tools.addin` manifest into `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools`.
+
+Option B (manual):
+- Copy `AJ Tools.dll` and PNGs into `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools`
+- Copy `AJ Tools.addin` into `%APPDATA%\Autodesk\Revit\Addins\2020`
+- Restart Revit 2020 and look for the **AJ Tools** tab.
