@@ -12,6 +12,10 @@ namespace AJTools
         private const string PANEL_GRAPHICS = "Graphics";
         private const string PANEL_DIMENSIONS = "Dimensions";
         private const string PANEL_DATUMS = "Datums";
+        private const string PANEL_VIEWS = "Views";
+        private const string PANEL_MEP = "MEP";
+        private const string PANEL_ANNOTATIONS = "Annotations";
+        private const string PANEL_FUN = "Fun";
         private const string PANEL_INFO = "Info";   // always last
 
         public Result OnStartup(UIControlledApplication app)
@@ -31,6 +35,22 @@ namespace AJTools
             if (panelDatums == null)
                 return Result.Failed;
 
+            RibbonPanel panelViews = GetOrCreatePanel(app, PANEL_VIEWS);
+            if (panelViews == null)
+                return Result.Failed;
+
+            RibbonPanel panelMep = GetOrCreatePanel(app, PANEL_MEP);
+            if (panelMep == null)
+                return Result.Failed;
+
+            RibbonPanel panelAnnotations = GetOrCreatePanel(app, PANEL_ANNOTATIONS);
+            if (panelAnnotations == null)
+                return Result.Failed;
+
+            RibbonPanel panelFun = GetOrCreatePanel(app, PANEL_FUN);
+            if (panelFun == null)
+                return Result.Failed;
+
             RibbonPanel panelInfo = GetOrCreatePanel(app, PANEL_INFO);
             if (panelInfo == null)
                 return Result.Failed;
@@ -45,6 +65,12 @@ namespace AJTools
             BitmapImage dimensionsIcon = LoadIcon(assemblyFolder, "Dimensions.png");
             BitmapImage datumIcon = LoadIcon(assemblyFolder, "Resetto3DExtents.png");
             BitmapImage dimByLineIcon = LoadIcon(assemblyFolder, "Dimensions by Line.png");
+            BitmapImage copyViewRangeIcon = LoadIcon(assemblyFolder, "Copy View Range.png");
+            BitmapImage flipGridBubbleIcon = LoadIcon(assemblyFolder, "Grid bubble Flip.png");
+            BitmapImage resetTextIcon = LoadIcon(assemblyFolder, "Rest Position.png");
+            BitmapImage copyDimTextIcon = LoadIcon(assemblyFolder, "Copy Dim Text.png");
+            BitmapImage matchElevationIcon = LoadIcon(assemblyFolder, "Match Elevation.png");
+            BitmapImage snakeIcon = LoadIcon(assemblyFolder, "SnakeGame.png");
 
             // Graphics panel - Toggle Links button
             PushButtonData pbdToggleLinks = new PushButtonData(
@@ -214,6 +240,26 @@ namespace AJTools
                 }
             }
 
+            // Dimensions panel - Copy dimension text
+            PushButtonData pbdCopyDimText = new PushButtonData(
+                "CmdCopyDimensionText",
+                "Copy Dim\nText",
+                asmPath,
+                "AJTools.CmdCopyDimensionText"
+            );
+
+            PushButton btnCopyDimText = panelDimensions.AddItem(pbdCopyDimText) as PushButton;
+
+            if (btnCopyDimText != null)
+            {
+                btnCopyDimText.ToolTip = "Copy Above/Below/Prefix/Suffix text from one dimension to others.";
+                if (copyDimTextIcon != null)
+                {
+                    btnCopyDimText.LargeImage = copyDimTextIcon;
+                    btnCopyDimText.Image = copyDimTextIcon;
+                }
+            }
+
             // Datums panel - Reset Datums pulldown
             PulldownButtonData pbdResetDatums = new PulldownButtonData(
                 "CmdResetDatumsPulldown",
@@ -267,6 +313,102 @@ namespace AJTools
                     btnResetBoth.ToolTip = "Reset both grids and levels visible in this view.";
                     btnResetBoth.LargeImage = datumIcon;
                     btnResetBoth.Image = datumIcon;
+                }
+
+                PushButton btnFlipGridBubble = panelDatums.AddItem(new PushButtonData(
+                    "CmdFlipGridBubble",
+                    "Flip Grid\nBubble",
+                    asmPath,
+                    "AJTools.CmdFlipGridBubble")) as PushButton;
+
+                if (btnFlipGridBubble != null)
+                {
+                    btnFlipGridBubble.ToolTip = "Toggle which grid end shows the bubble, one grid at a time.";
+                    if (flipGridBubbleIcon != null)
+                    {
+                        btnFlipGridBubble.LargeImage = flipGridBubbleIcon;
+                        btnFlipGridBubble.Image = flipGridBubbleIcon;
+                    }
+                }
+            }
+
+            // Views panel - Copy View Range button
+            PushButtonData pbdCopyViewRange = new PushButtonData(
+                "CmdCopyViewRange",
+                "Copy View\nRange",
+                asmPath,
+                "AJTools.CmdCopyViewRange"
+            );
+
+            PushButton btnCopyViewRange = panelViews.AddItem(pbdCopyViewRange) as PushButton;
+
+            if (btnCopyViewRange != null)
+            {
+                btnCopyViewRange.ToolTip = "Copy the active plan view's range and paste it to other plan views.";
+                if (copyViewRangeIcon != null)
+                {
+                    btnCopyViewRange.LargeImage = copyViewRangeIcon;
+                    btnCopyViewRange.Image = copyViewRangeIcon;
+                }
+            }
+
+            // MEP panel - Match elevation tool
+            PushButtonData pbdMatchElevation = new PushButtonData(
+                "CmdMatchElevation",
+                "Match\nElevation",
+                asmPath,
+                "AJTools.CmdMatchElevation"
+            );
+
+            PushButton btnMatchElevation = panelMep.AddItem(pbdMatchElevation) as PushButton;
+
+            if (btnMatchElevation != null)
+            {
+                btnMatchElevation.ToolTip = "Match the middle elevation from a source MEP element to others.";
+                if (matchElevationIcon != null)
+                {
+                    btnMatchElevation.LargeImage = matchElevationIcon;
+                    btnMatchElevation.Image = matchElevationIcon;
+                }
+            }
+
+            // Annotations panel - Reset text offset
+            PushButtonData pbdResetText = new PushButtonData(
+                "CmdResetTextPosition",
+                "Reset\nText",
+                asmPath,
+                "AJTools.CmdResetTextPosition"
+            );
+
+            PushButton btnResetText = panelAnnotations.AddItem(pbdResetText) as PushButton;
+
+            if (btnResetText != null)
+            {
+                btnResetText.ToolTip = "Reset selected text notes/tags back to their default text offset.";
+                if (resetTextIcon != null)
+                {
+                    btnResetText.LargeImage = resetTextIcon;
+                    btnResetText.Image = resetTextIcon;
+                }
+            }
+
+            // Fun panel - Snake mini-game
+            PushButtonData pbdSnakeGame = new PushButtonData(
+                "CmdSnakeGame",
+                "Cyber\nSnake",
+                asmPath,
+                "AJTools.CmdSnakeGame"
+            );
+
+            PushButton btnSnakeGame = panelFun.AddItem(pbdSnakeGame) as PushButton;
+
+            if (btnSnakeGame != null)
+            {
+                btnSnakeGame.ToolTip = "Launch a small Snake mini-game (Windows Forms) for fun breaks.";
+                if (snakeIcon != null)
+                {
+                    btnSnakeGame.LargeImage = snakeIcon;
+                    btnSnakeGame.Image = snakeIcon;
                 }
             }
 

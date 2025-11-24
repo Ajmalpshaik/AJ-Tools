@@ -65,13 +65,13 @@ namespace AJTools
 
                 List<string> parts = new List<string>();
                 if (gridCount > 0)
-                    parts.Add($"{gridCount} grid(s)");
+                    parts.Add(string.Format("{0} grid(s)", gridCount));
                 if (levelCount > 0)
-                    parts.Add($"{levelCount} level(s)");
+                    parts.Add(string.Format("{0} level(s)", levelCount));
 
                 TaskDialog.Show(
                     title,
-                    $"Successfully reset {string.Join(" and ", parts)} to 3D extents in this view.");
+                    string.Format("Successfully reset {0} to 3D extents in this view.", string.Join(" and ", parts)));
                 return Result.Succeeded;
             }
             catch (Exception ex)

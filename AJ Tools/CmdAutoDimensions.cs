@@ -25,6 +25,12 @@ namespace AJTools
             ViewType.EngineeringPlan
         };
 
+        private class GridEntry
+        {
+            public double Coord;
+            public Grid Grid;
+        }
+
         internal static Result Execute(
             ExternalCommandData commandData,
             AutoDimensionMode mode,
@@ -208,9 +214,9 @@ namespace AJTools
                 return Result.Cancelled;
             }
 
-            string summary = $"Created {individualCount} grid dimension string(s)";
+            string summary = string.Format("Created {0} grid dimension string(s)", individualCount);
             if (overallCount > 0)
-                summary += $" with {overallCount} overall string(s)";
+                summary += string.Format(" with {0} overall string(s)", overallCount);
             summary += ".";
 
             TaskDialog.Show(title, summary);
@@ -274,7 +280,7 @@ namespace AJTools
 
                 if (includeGrids)
                 {
-                    List<(double coord, Grid grid)> gridEntries = new List<(double, Grid)>();
+                    List<GridEntry> gridEntries = new List<GridEntry>();
                     foreach (Grid grid in grids)
                     {
                         IList<Curve> curves = null;
@@ -308,30 +314,33 @@ namespace AJTools
                         XYZ local0 = inverse.OfPoint(line.GetEndPoint(0));
                         XYZ local1 = inverse.OfPoint(line.GetEndPoint(1));
                         double rightCoord = (local0.X + local1.X) / 2.0;
-                        gridEntries.Add((rightCoord, grid));
+                        gridEntries.Add(new GridEntry { Coord = rightCoord, Grid = grid });
                     }
 
                     if (gridEntries.Count >= 2)
                     {
-                        gridEntries.Sort((a, b) => a.coord.CompareTo(b.coord));
+                        gridEntries.Sort((a, b) => a.Coord.CompareTo(b.Coord));
 
                         ReferenceArray refAllGrids = new ReferenceArray();
-                        foreach ((double _, Grid grid) in gridEntries)
-                            refAllGrids.Append(new Reference(grid));
+                        foreach (GridEntry entry in gridEntries)
+                            refAllGrids.Append(new Reference(entry.Grid));
 
                         double viewDepth = crop.Min.Z;
                         double dimY = crop.Max.Y + offset;
                         double overallY = dimY + gridOverallOffset;
 
-                        XYZ start = transform.OfPoint(new XYZ(gridEntries.First().coord, dimY, viewDepth));
-                        XYZ end = transform.OfPoint(new XYZ(gridEntries.Last().coord, dimY, viewDepth));
+                        GridEntry firstEntry = gridEntries[0];
+                        GridEntry lastEntry = gridEntries[gridEntries.Count - 1];
+
+                        XYZ start = transform.OfPoint(new XYZ(firstEntry.Coord, dimY, viewDepth));
+                        XYZ end = transform.OfPoint(new XYZ(lastEntry.Coord, dimY, viewDepth));
                         doc.Create.NewDimension(view, Line.CreateBound(start, end), refAllGrids);
 
                         ReferenceArray refOverall = new ReferenceArray();
-                        refOverall.Append(new Reference(gridEntries.First().grid));
-                        refOverall.Append(new Reference(gridEntries.Last().grid));
-                        XYZ startOverall = transform.OfPoint(new XYZ(gridEntries.First().coord, overallY, viewDepth));
-                        XYZ endOverall = transform.OfPoint(new XYZ(gridEntries.Last().coord, overallY, viewDepth));
+                        refOverall.Append(new Reference(firstEntry.Grid));
+                        refOverall.Append(new Reference(lastEntry.Grid));
+                        XYZ startOverall = transform.OfPoint(new XYZ(firstEntry.Coord, overallY, viewDepth));
+                        XYZ endOverall = transform.OfPoint(new XYZ(lastEntry.Coord, overallY, viewDepth));
                         doc.Create.NewDimension(view, Line.CreateBound(startOverall, endOverall), refOverall);
 
                         gridsDimmed = true;
@@ -398,7 +407,9 @@ namespace AJTools
             catch
             {
                 Line line = curve as Line;
-                return line?.Direction;
+                if (line != null)
+                    return line.Direction;
+                return null;
             }
         }
     }

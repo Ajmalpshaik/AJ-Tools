@@ -270,7 +270,8 @@ namespace AJTools
             if (c == null)
                 return null;
 
-            if (c is Line line)
+            Line line = c as Line;
+            if (line != null)
             {
                 var d = line.Direction;
                 return d.IsZeroLength() ? null : d.Normalize();
