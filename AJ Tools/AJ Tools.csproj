@@ -71,6 +71,7 @@
     <Compile Include="CmdSnakeGame.cs" />
     <Compile Include="CmdCopyViewRange.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\AutoDimensionService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Copy View Range.png">
