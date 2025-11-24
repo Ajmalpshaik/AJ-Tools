@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Command">
+    <Name>AJ Tools</Name>
+    <Assembly>AJ Tools.dll</Assembly>
+    <AddInId>FE1F581F-9EA0-4752-B870-7192AE828B82</AddInId>
+    <FullClassName>AJTools.App</FullClassName>
+    <Vendor>Ajmal</Vendor>
+  </AddIn>
+</RevitAddIns>

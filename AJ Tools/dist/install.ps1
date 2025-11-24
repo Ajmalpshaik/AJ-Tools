@@ -1,6 +1,8 @@
 $ErrorActionPreference = "Stop"
 
-$addinsRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\2020"
+param([string]$RevitYear = '2020')
+
+$addinsRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$RevitYear"
 $targetDir = Join-Path $addinsRoot "AJ Tools"
 $srcDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -32,4 +34,4 @@ $addinContent = @"
 
 Set-Content -Path $addinPath -Value $addinContent -Encoding UTF8
 
-Write-Host "Done. Restart Revit 2020 and look for the AJ Tools tab."
+Write-Host "Done. Restart Revit $RevitYear and look for the AJ Tools tab."
