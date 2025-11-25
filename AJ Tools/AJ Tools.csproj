@@ -120,5 +120,11 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="dist\AJ Tools 2020.addin" />
+    <None Include="dist\AJ Tools.addin" />
+    <None Include="dist\install.ps1" />
+    <None Include="dist\uninstall.ps1" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
