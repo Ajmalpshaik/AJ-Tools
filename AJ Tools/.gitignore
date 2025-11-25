@@ -1,0 +1,9 @@
+﻿[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+install_log.txt
+*.zip
+REF/
+installer/
