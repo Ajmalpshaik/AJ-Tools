@@ -6,6 +6,19 @@ $src = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $log = Join-Path $src 'install_log.txt'
 Add-Content -Path $log -Value "`n=== Install started: $(Get-Date) ===`n"
 
+# Check if Revit is running to avoid file lock errors
+$revitProcess = Get-Process -Name "Revit" -ErrorAction SilentlyContinue
+if ($revitProcess) {
+    Write-Host "WARNING: Revit is currently running." -ForegroundColor Yellow
+    Write-Host "Please close Revit before installing to ensure files can be updated." -ForegroundColor Yellow
+    $confirmation = Read-Host "Type 'Y' to continue anyway, or any other key to exit"
+    if ($confirmation -ne 'Y') {
+        Add-Content -Path $log -Value "Install aborted by user because Revit was running."
+        Write-Host "Installation cancelled." -ForegroundColor Yellow
+        exit
+    }
+}
+
 try {
     $addinsRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$RevitYear"
     $targetDir = Join-Path $addinsRoot "AJ Tools"

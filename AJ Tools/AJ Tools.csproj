@@ -60,9 +60,7 @@
     <Compile Include="CmdAutoDimensions.cs" />
     <Compile Include="CmdAbout.cs" />
     <Compile Include="CmdDimensionByLine.cs" />
-    <Compile Include="CmdFlipGridBubble.cs" />
     <Compile Include="CmdUnhideAll.cs" />
-    <Compile Include="CmdResetOverrides.cs" />
     <Compile Include="CmdResetDatums.cs" />
     <Compile Include="CmdToggleRevitLinks.cs" />
     <Compile Include="CmdResetTextPosition.cs" />
@@ -70,6 +68,8 @@
     <Compile Include="CmdMatchElevation.cs" />
     <Compile Include="CmdSnakeGame.cs" />
     <Compile Include="CmdCopyViewRange.cs" />
+    <Compile Include="Commands\CmdFlipGridBubble.cs" />
+    <Compile Include="Commands\CmdResetOverrides.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AutoDimensionService.cs" />
   </ItemGroup>
