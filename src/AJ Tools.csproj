@@ -72,6 +72,7 @@
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
     <Compile Include="Commands\CmdResetOverrides.cs" />
     <Compile Include="Commands\CmdNeonDefender.cs" />
+    <Compile Include="Commands\CmdFilterPro.cs" />
     <Compile Include="FilterProHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AutoDimensionService.cs" />
