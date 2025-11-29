@@ -6,6 +6,10 @@ using Autodesk.Revit.UI;
 
 namespace AJTools
 {
+    /// <summary>
+    /// Main application entry point for the AJ Tools Revit add-in.
+    /// Creates the ribbon tab and panels with all available commands.
+    /// </summary>
     public class App : IExternalApplication
     {
         private const string TAB_NAME = "AJ Tools";
@@ -16,14 +20,15 @@ namespace AJTools
         private const string PANEL_MEP = "MEP";
         private const string PANEL_ANNOTATIONS = "Annotations";
         private const string PANEL_FUN = "Refresh Mind";
-        private const string PANEL_INFO = "Info";   // always last
+        private const string PANEL_INFO = "Info";
 
         public Result OnStartup(UIControlledApplication app)
         {
             try
             {
+                // Create the custom ribbon tab (suppress exception if it already exists)
                 try { app.CreateRibbonTab(TAB_NAME); }
-                catch { }
+                catch { /* Tab may already exist from a previous session */ }
 
                 RibbonPanel panelGraphics = GetOrCreatePanel(app, PANEL_GRAPHICS);
                 if (panelGraphics == null)

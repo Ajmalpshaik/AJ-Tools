@@ -4,32 +4,41 @@ using Autodesk.Revit.UI;
 
 namespace AJTools
 {
+    /// <summary>
+    /// Command to display information about the AJ Tools add-in.
+    /// </summary>
     [Autodesk.Revit.Attributes.Transaction(
         Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
     public class CmdAbout : IExternalCommand
     {
+        private const string Version = "1.1.0";
+
         public Result Execute(
             ExternalCommandData commandData,
             ref string message,
             ElementSet elements)
         {
             TaskDialog about = new TaskDialog("About AJ Tools");
-            about.MainInstruction = "AJ Tools - Revit 2020 Companion";
+            about.MainInstruction = $"AJ Tools v{Version} for Revit 2020";
             about.MainContent =
-                "A lightweight toolkit focused on day-to-day documentation productivity.\n\n" +
-                "Highlights:\n" +
-                "  - Graphics helpers (toggle links, unhide all, reset overrides)\n" +
-                "  - Documentation helpers (auto dimension grids/levels, datum reset)\n" +
-                "  - Designed specifically around Ajmal P.S workflows\n\n" +
-                "Have an idea or found a bug? Reach out anytime.";
+                "A lightweight, productivity-focused add-in designed to streamline\n" +
+                "day-to-day documentation and modeling workflows.\n\n" +
+                "Features:\n" +
+                "  • Graphics helpers (toggle links, unhide all, reset overrides)\n" +
+                "  • Auto dimensions for grids and levels\n" +
+                "  • Datum management tools\n" +
+                "  • View range copy/paste\n" +
+                "  • MEP elevation matching\n" +
+                "  • Filter Pro for quick parameter-based filters\n" +
+                "  • Mini-games for refreshing your mind\n\n" +
+                "Have an idea or found a bug? Reach out anytime!";
 
             string url = "https://www.linkedin.com/in/ajmalps/";
 
             about.FooterText =
-                "Developed by Ajmal P.S  -  ajmalnattika@gmail.com  -  LinkedIn Profile";
+                "© 2025 Ajmal P.S  •  ajmalnattika@gmail.com";
 
-            // Provide an explicit command link so the user can open the profile if they choose.
-            about.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open LinkedIn profile");
+            about.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Visit LinkedIn Profile");
 
             TaskDialogResult result = about.Show();
 
