@@ -22,6 +22,12 @@ Lightweight productivity add-in for Autodesk Revit 2020 (v1.1.0).
 1. Navigate to `dist/`.
 2. Run `uninstall.cmd` (or `uninstall.ps1`).
 
+## Update
+Updates are **manual**. To get the latest version:
+1. Download (or `git pull`) the latest release from GitHub.
+2. Navigate to `dist/` and run `install.cmd` (or `install.ps1`) to reinstall.
+3. Restart Revit 2020 to load the updated add-in.
+
 ## Publishing to GitHub
 Commit the cleaned structure and push:
 ```bash
