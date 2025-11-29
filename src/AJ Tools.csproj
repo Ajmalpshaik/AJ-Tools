@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -34,6 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="RevitAPI">
       <HintPath>C:\Program Files\Autodesk\Revit 2020\RevitAPI.dll</HintPath>
@@ -70,56 +71,47 @@
     <Compile Include="Commands\CmdCopyViewRange.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
     <Compile Include="Commands\CmdResetOverrides.cs" />
+    <Compile Include="Commands\CmdNeonDefender.cs" />
+    <Compile Include="FilterProHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AutoDimensionService.cs" />
+    <Compile Include="FilterProWindow.xaml.cs">
+      <DependentUpon>FilterProWindow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Images\Copy View Range.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Dimensions by Line.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\information.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\ToggleLinks.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\ResetOverrides.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Rest Position.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Copy Dim Text.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Match Elevation.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\SnakeGame.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Grid bubble Flip.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\UnhideAll.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Dimensions.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Images\Resetto3DExtents.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <Page Include="FilterProWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
-    <None Include="dist\AJ Tools 2020.addin" />
-    <None Include="dist\AJ Tools.addin" />
-    <None Include="dist\install.ps1" />
-    <None Include="dist\uninstall.ps1" />
   </ItemGroup>
+  <PropertyGroup>
+    <RevitAddinUserRoot>$(APPDATA)\Autodesk\Revit\Addins\2020</RevitAddinUserRoot>
+    <RevitAddinDeployDir>$(RevitAddinUserRoot)\AJ Tools</RevitAddinDeployDir>
+    <RevitAddinManifest>$(RevitAddinUserRoot)\AJ Tools.addin</RevitAddinManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ImageFiles Include="Images\**\*.*" />
+    <AddinManifestLines Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+    <AddinManifestLines Include="&lt;RevitAddIns&gt;" />
+    <AddinManifestLines Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
+    <AddinManifestLines Include="    &lt;Name&gt;AJ Tools&lt;/Name&gt;" />
+    <AddinManifestLines Include="    &lt;AddInId&gt;{C14A253D-96C6-42B7-889A-CFE737556BA9}&lt;/AddInId&gt;" />
+    <AddinManifestLines Include="    &lt;FullClassName&gt;AJTools.App&lt;/FullClassName&gt;" />
+    <AddinManifestLines Include="    &lt;Assembly&gt;$(RevitAddinDeployDir)\AJ Tools.dll&lt;/Assembly&gt;" />
+    <AddinManifestLines Include="    &lt;VendorId&gt;AJT&lt;/VendorId&gt;" />
+    <AddinManifestLines Include="    &lt;VendorDescription&gt;Ajmal P.S - ajmalnattika@gmail.com&lt;/VendorDescription&gt;" />
+    <AddinManifestLines Include="  &lt;/AddIn&gt;" />
+    <AddinManifestLines Include="&lt;/RevitAddIns&gt;" />
+  </ItemGroup>
+  <Target Name="DeployRevitAddin" AfterTargets="Build">
+    <MakeDir Directories="$(RevitAddinUserRoot);$(RevitAddinDeployDir);$(RevitAddinDeployDir)\Images" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(RevitAddinDeployDir)" SkipUnchangedFiles="true" />
+    <Copy Condition="Exists('$(TargetDir)AJ Tools.pdb')" SourceFiles="$(TargetDir)AJ Tools.pdb" DestinationFolder="$(RevitAddinDeployDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ImageFiles)" DestinationFolder="$(RevitAddinDeployDir)\Images" SkipUnchangedFiles="true" />
+    <WriteLinesToFile File="$(RevitAddinManifest)" Lines="@(AddinManifestLines)" Overwrite="true" Encoding="UTF-8" />
+  </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
-

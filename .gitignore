@@ -1,7 +1,14 @@
-﻿[Bb]in/
+# Build outputs
+[Bb]in/
 [Oo]bj/
+src/bin/
+src/obj/
+
+# IDE
 .vs/
 *.user
 *.suo
+
+# Logs / archives
 install_log.txt
 *.zip

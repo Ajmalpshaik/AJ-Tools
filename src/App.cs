@@ -15,7 +15,7 @@ namespace AJTools
         private const string PANEL_VIEWS = "Views";
         private const string PANEL_MEP = "MEP";
         private const string PANEL_ANNOTATIONS = "Annotations";
-        private const string PANEL_FUN = "Fun";
+        private const string PANEL_FUN = "Refresh Mind";
         private const string PANEL_INFO = "Info";   // always last
 
         public Result OnStartup(UIControlledApplication app)
@@ -73,6 +73,8 @@ namespace AJTools
                 BitmapImage copyDimTextIcon = LoadIcon(assemblyFolder, "Copy Dim Text.png");
                 BitmapImage matchElevationIcon = LoadIcon(assemblyFolder, "Match Elevation.png");
                 BitmapImage snakeIcon = LoadIcon(assemblyFolder, "SnakeGame.png");
+                BitmapImage neonIcon = LoadIcon(assemblyFolder, "NeonDefender.png");
+                BitmapImage filterProIcon = LoadIcon(assemblyFolder, "FilterPro.png");
 
                 // Graphics panel - Toggle Links button
                 PushButtonData pbdToggleLinks = new PushButtonData(
@@ -374,6 +376,26 @@ namespace AJTools
                     }
                 }
 
+                // MEP panel - Filter Pro
+                PushButtonData pbdFilterPro = new PushButtonData(
+                    "CmdFilterPro",
+                    "Filter\nPro",
+                    asmPath,
+                    "AJTools.CmdFilterPro"
+                );
+
+                PushButton btnFilterPro = panelMep.AddItem(pbdFilterPro) as PushButton;
+
+                if (btnFilterPro != null)
+                {
+                    btnFilterPro.ToolTip = "Create parameter filters quickly (category, parameter, values) and apply them to the active view.";
+                    if (filterProIcon != null)
+                    {
+                        btnFilterPro.LargeImage = filterProIcon;
+                        btnFilterPro.Image = filterProIcon;
+                    }
+                }
+
                 // Annotations panel - Reset text offset
                 PushButtonData pbdResetText = new PushButtonData(
                     "CmdResetTextPosition",
@@ -394,7 +416,7 @@ namespace AJTools
                     }
                 }
 
-                // Fun panel - Snake mini-game
+                // Refresh Mind panel - Snake mini-game
                 PushButtonData pbdSnakeGame = new PushButtonData(
                     "CmdSnakeGame",
                     "Cyber\nSnake",
@@ -411,6 +433,26 @@ namespace AJTools
                     {
                         btnSnakeGame.LargeImage = snakeIcon;
                         btnSnakeGame.Image = snakeIcon;
+                    }
+                }
+
+                // Refresh Mind panel - Neon Defender (WPF)
+                PushButtonData pbdNeonDefender = new PushButtonData(
+                    "CmdNeonDefender",
+                    "Neon\nDefender",
+                    asmPath,
+                    "AJTools.CmdNeonDefender"
+                );
+
+                PushButton btnNeonDefender = panelFun.AddItem(pbdNeonDefender) as PushButton;
+
+                if (btnNeonDefender != null)
+                {
+                    btnNeonDefender.ToolTip = "Launch the Neon Defender mini-game (WPF).";
+                    if (neonIcon != null)
+                    {
+                        btnNeonDefender.LargeImage = neonIcon;
+                        btnNeonDefender.Image = neonIcon;
                     }
                 }
 
