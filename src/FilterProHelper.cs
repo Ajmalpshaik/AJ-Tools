@@ -16,6 +16,7 @@ namespace AJTools
             var viewTargets = (selection?.ApplyToView == true && targetViews != null)
                 ? targetViews.Where(v => v != null).ToList()
                 : new List<View>();
+            var newFilterIds = new List<ElementId>();
             int created = 0;
             foreach (FilterValueItem value in selection.Values)
             {
@@ -29,26 +30,26 @@ namespace AJTools
                 string filterName = ComposeFilterName(selection, value, doc);
                 ParameterFilterElement existing = FindFilterByName(doc, filterName);
 
-                if (existing != null && !selection.OverrideExisting)
-                {
-                    skipped.Add($"{filterName} (already exists)");
-                    continue;
-                }
-
                 ElementParameterFilter elementFilter = new ElementParameterFilter(rules);
                 ParameterFilterElement filter = existing;
+
                 if (filter == null)
                 {
                     filter = ParameterFilterElement.Create(doc, filterName, selection.CategoryIds, elementFilter);
+                    created++;
+                    newFilterIds.Add(filter.Id);
                 }
                 else
                 {
-                    filter.Name = filterName;
-                    filter.SetCategories(selection.CategoryIds);
-                    filter.SetElementFilter(elementFilter);
+                    if (selection.OverrideExisting)
+                    {
+                        filter.Name = filterName;
+                        filter.SetCategories(selection.CategoryIds);
+                        filter.SetElementFilter(elementFilter);
+                        created++;
+                        newFilterIds.Add(filter.Id);
+                    }
                 }
-
-                created++;
 
                 if (selection.ApplyToView && viewTargets.Any())
                 {
@@ -59,13 +60,71 @@ namespace AJTools
                 }
             }
 
+            if (selection.PlaceNewFiltersFirst && newFilterIds.Any() && viewTargets.Any())
+            {
+                foreach (var view in viewTargets)
+                {
+                    try
+                    {
+                        var existingOrder = view.GetFilters()?.ToList() ?? new List<ElementId>();
+                        var newSet = new HashSet<ElementId>(newFilterIds);
+
+                        // Preserve overrides before we reorder
+                        var overrides = new Dictionary<ElementId, OverrideGraphicSettings>();
+                        foreach (var id in existingOrder)
+                            overrides[id] = view.GetFilterOverrides(id);
+                        foreach (var id in newFilterIds)
+                        {
+                            if (!overrides.ContainsKey(id))
+                                overrides[id] = view.GetFilterOverrides(id);
+                        }
+
+                        // Build new order: all new filters first (in creation order), then old ones without duplicates
+                        var reordered = new List<ElementId>();
+                        reordered.AddRange(newFilterIds);
+                        foreach (var id in existingOrder)
+                        {
+                            if (!newSet.Contains(id))
+                                reordered.Add(id);
+                        }
+
+                        // Remove all and re-add in new order with overrides reapplied
+                        foreach (var id in view.GetFilters()?.ToList() ?? Enumerable.Empty<ElementId>())
+                            view.RemoveFilter(id);
+
+                        foreach (var id in reordered)
+                        {
+                            view.AddFilter(id);
+                            if (overrides.TryGetValue(id, out var ogsSaved))
+                                view.SetFilterOverrides(id, ogsSaved);
+                        }
+                    }
+                    catch
+                    {
+                        // ignore if API calls not supported in this Revit version
+                    }
+                }
+            }
+
             return created;
         }
 
         private static IList<FilterRule> BuildRules(FilterParameterItem parameter, FilterValueItem value, string ruleType)
         {
             const bool caseSensitive = false; // Revit string rules should be case-insensitive for predictable results
-            var rules = new List<FilterRule>();
+            
+            // Special handling for the composite "Family and Type" parameter
+            if (value.RawValue is Tuple<string, string> familyAndType)
+            {
+                var rules = new List<FilterRule>();
+                var familyNameRule = ParameterFilterRuleFactory.CreateEqualsRule(new ElementId(BuiltInParameter.ALL_MODEL_FAMILY_NAME), familyAndType.Item1, caseSensitive);
+                var typeNameRule = ParameterFilterRuleFactory.CreateEqualsRule(new ElementId(BuiltInParameter.ALL_MODEL_TYPE_NAME), familyAndType.Item2, caseSensitive);
+                rules.Add(familyNameRule);
+                rules.Add(typeNameRule);
+                return rules;
+            }
+
+            var single_rules = new List<FilterRule>();
             switch (parameter.StorageType)
             {
                 case StorageType.String:
@@ -73,34 +132,34 @@ namespace AJTools
                     switch (ruleType)
                     {
                         case RuleTypes.Equals:
-                            rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.Contains:
-                            rules.Add(ParameterFilterRuleFactory.CreateContainsRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateContainsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.BeginsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateBeginsWithRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateBeginsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.EndsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateEndsWithRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateEndsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotEquals:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotContains:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotContainsRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateNotContainsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotBeginsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotBeginsWithRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateNotBeginsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotEndsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotEndsWithRule(parameter.Id, text, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateNotEndsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.HasValue:
-                            rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
                             break;
                         case RuleTypes.HasNoValue:
-                            rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, string.Empty, caseSensitive));
+                            single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, string.Empty, caseSensitive));
                             break;
                         default:
                             return null;
@@ -113,61 +172,61 @@ namespace AJTools
                         return null;
 
                     if (ruleType == RuleTypes.NotEquals)
-                        rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, id));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, id));
                     else if (ruleType == RuleTypes.HasValue)
-                        rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
                     else if (ruleType == RuleTypes.HasNoValue)
-                        rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, ElementId.InvalidElementId));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, ElementId.InvalidElementId));
                     else
-                        rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, id));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, id));
                     break;
 
                 case StorageType.Integer:
                     int intVal = Convert.ToInt32(value.RawValue);
                     if (ruleType == RuleTypes.NotEquals)
-                        rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, intVal));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, intVal));
                     else if (ruleType == RuleTypes.Greater)
-                        rules.Add(ParameterFilterRuleFactory.CreateGreaterRule(parameter.Id, intVal));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateGreaterRule(parameter.Id, intVal));
                     else if (ruleType == RuleTypes.GreaterOrEqual)
-                        rules.Add(ParameterFilterRuleFactory.CreateGreaterOrEqualRule(parameter.Id, intVal));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateGreaterOrEqualRule(parameter.Id, intVal));
                     else if (ruleType == RuleTypes.Less)
-                        rules.Add(ParameterFilterRuleFactory.CreateLessRule(parameter.Id, intVal));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateLessRule(parameter.Id, intVal));
                     else if (ruleType == RuleTypes.LessOrEqual)
-                        rules.Add(ParameterFilterRuleFactory.CreateLessOrEqualRule(parameter.Id, intVal));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateLessOrEqualRule(parameter.Id, intVal));
                     else if (ruleType == RuleTypes.HasValue)
-                        rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
                     else if (ruleType == RuleTypes.HasNoValue)
-                        rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, 0));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, 0));
                     else
-                        rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, intVal));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, intVal));
                     break;
 
                 case StorageType.Double:
                     double dblVal = Convert.ToDouble(value.RawValue);
                     const double tolerance = 1e-6;
                     if (ruleType == RuleTypes.NotEquals)
-                        rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, dblVal, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, dblVal, tolerance));
                     else if (ruleType == RuleTypes.Greater)
-                        rules.Add(ParameterFilterRuleFactory.CreateGreaterRule(parameter.Id, dblVal, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateGreaterRule(parameter.Id, dblVal, tolerance));
                     else if (ruleType == RuleTypes.GreaterOrEqual)
-                        rules.Add(ParameterFilterRuleFactory.CreateGreaterOrEqualRule(parameter.Id, dblVal, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateGreaterOrEqualRule(parameter.Id, dblVal, tolerance));
                     else if (ruleType == RuleTypes.Less)
-                        rules.Add(ParameterFilterRuleFactory.CreateLessRule(parameter.Id, dblVal, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateLessRule(parameter.Id, dblVal, tolerance));
                     else if (ruleType == RuleTypes.LessOrEqual)
-                        rules.Add(ParameterFilterRuleFactory.CreateLessOrEqualRule(parameter.Id, dblVal, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateLessOrEqualRule(parameter.Id, dblVal, tolerance));
                     else if (ruleType == RuleTypes.HasValue)
-                        rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
                     else if (ruleType == RuleTypes.HasNoValue)
-                        rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, 0.0, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, 0.0, tolerance));
                     else
-                        rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, dblVal, tolerance));
+                        single_rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, dblVal, tolerance));
                     break;
 
                 default:
                     return null;
             }
 
-            return rules;
+            return single_rules;
         }
 
         private static void ApplyToView(Document doc, View view, ElementId filterId, FilterSelection selection)
@@ -192,56 +251,60 @@ namespace AJTools
             if (ogs == null)
                 ogs = new OverrideGraphicSettings();
 
-            bool applyProjLines = selection.ColorProjectionLines;
-            bool applyProjPatterns = selection.ColorProjectionPatterns;
-            bool applyCutLines = selection.ColorCutLines;
-            bool applyCutPatterns = selection.ColorCutPatterns;
-            bool applyHalftone = selection.ColorHalftone;
-
-            // If nothing was specified, fall back to lines (old behavior)
-            if (!applyProjLines && !applyProjPatterns && !applyCutLines && !applyCutPatterns && !applyHalftone)
+            if (selection.ApplyGraphics)
             {
-                applyProjLines = true;
-                applyCutLines = true;
+                bool applyProjLines = selection.ColorProjectionLines;
+                bool applyProjPatterns = selection.ColorProjectionPatterns;
+                bool applyCutLines = selection.ColorCutLines;
+                bool applyCutPatterns = selection.ColorCutPatterns;
+                bool applyHalftone = selection.ColorHalftone;
+
+                if (!applyProjLines && !applyProjPatterns && !applyCutLines && !applyCutPatterns && !applyHalftone)
+                {
+                    applyProjLines = true;
+                    applyCutLines = true;
+                }
+
+                Color chosenColor = GetColor(selection, filterId);
+                ElementId patternId = ResolvePatternId(doc, selection.PatternId);
+
+                if (applyProjLines)
+                    ogs.SetProjectionLineColor(chosenColor);
+                if (applyCutLines)
+                    ogs.SetCutLineColor(chosenColor);
+                if (applyProjPatterns)
+                {
+                    if (patternId != ElementId.InvalidElementId)
+                        ogs.SetSurfaceForegroundPatternId(patternId);
+                    ogs.SetSurfaceForegroundPatternColor(chosenColor);
+                }
+                if (applyCutPatterns)
+                {
+                    if (patternId != ElementId.InvalidElementId)
+                        ogs.SetCutForegroundPatternId(patternId);
+                    ogs.SetCutForegroundPatternColor(chosenColor);
+                }
+                if (applyHalftone)
+                    ogs.SetHalftone(true);
             }
-
-            // Only touch the components the user requested
-            Color chosenColor = GetColor(selection, filterId);
-
-            if (applyProjLines)
-                ogs.SetProjectionLineColor(chosenColor);
-
-            if (applyCutLines)
-                ogs.SetCutLineColor(chosenColor);
-
-            if (applyProjPatterns)
-            {
-                var solidId = GetSolidFillId(doc);
-                if (solidId != ElementId.InvalidElementId)
-                    ogs.SetSurfaceForegroundPatternId(solidId);
-                ogs.SetSurfaceForegroundPatternColor(chosenColor);
-            }
-
-            if (applyCutPatterns)
-            {
-                var solidId = GetSolidFillId(doc);
-                if (solidId != ElementId.InvalidElementId)
-                    ogs.SetCutForegroundPatternId(solidId);
-                ogs.SetCutForegroundPatternColor(chosenColor);
-            }
-
-            if (applyHalftone)
-                ogs.SetHalftone(true);
 
             view.SetFilterOverrides(filterId, ogs);
         }
-
         private static Color GetColor(FilterSelection selection, ElementId filterId)
         {
             return selection.RandomColors ? ColorPalette.GetRandomColor() : ColorPalette.GetColorFor(filterId);
         }
 
         private static ElementId _solidFillId = ElementId.InvalidElementId;
+
+        private static ElementId ResolvePatternId(Document doc, ElementId requested)
+        {
+            if (requested != null && requested != ElementId.InvalidElementId)
+                return requested;
+
+            return GetSolidFillId(doc);
+        }
+
         private static ElementId GetSolidFillId(Document doc)
         {
             if (_solidFillId != ElementId.InvalidElementId)
@@ -249,16 +312,18 @@ namespace AJTools
 
             try
             {
-                var fpe = FillPatternElement.GetFillPatternElementByName(doc, FillPatternTarget.Drafting, "Solid fill");
-                if (fpe == null)
-                    fpe = FillPatternElement.GetFillPatternElementByName(doc, FillPatternTarget.Model, "Solid fill");
-                _solidFillId = fpe != null ? fpe.Id : ElementId.InvalidElementId;
+                // Find the solid fill pattern by its property, not by name
+                var solidPattern = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(p => p.GetFillPattern().IsSolidFill);
+                
+                _solidFillId = solidPattern != null ? solidPattern.Id : ElementId.InvalidElementId;
             }
             catch
             {
                 _solidFillId = ElementId.InvalidElementId;
             }
-
             return _solidFillId;
         }
 
@@ -311,7 +376,8 @@ namespace AJTools
             if (string.IsNullOrWhiteSpace(name))
                 return "Filter";
 
-            char[] invalid = { '<', '>', '{', '}', '[', ']', '|', ';' };
+            // Replace characters Revit disallows in names
+            char[] invalid = { '<', '>', '{', '}', '[', ']', '|', ';', ':', '\\', '/', '?', '*', '"' };
             foreach (char c in invalid)
                 name = name.Replace(c, '_');
             return name.Trim();

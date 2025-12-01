@@ -1,11 +1,12 @@
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Mechanical;
+using Autodesk.Revit.UI;
 
 namespace AJTools
 {
@@ -17,7 +18,6 @@ namespace AJTools
         private readonly Document _doc;
         private readonly View _activeView;
 
-        private readonly List<RuleTypeItem> _allRuleTypes;
         private readonly List<FilterValueItem> _currentValues = new List<FilterValueItem>();
         private static FilterProState _lastState;
         private bool _restoringState;
@@ -30,30 +30,14 @@ namespace AJTools
             _doc = doc;
             _activeView = activeView;
 
-            _allRuleTypes = new List<RuleTypeItem>
-            {
-                new RuleTypeItem(RuleTypes.Equals, "Equals", true, true, true),
-                new RuleTypeItem(RuleTypes.NotEquals, "Does not equal", true, true, true),
-                new RuleTypeItem(RuleTypes.Greater, "Is greater than", false, true, false),
-                new RuleTypeItem(RuleTypes.GreaterOrEqual, "Is greater than or equal to", false, true, false),
-                new RuleTypeItem(RuleTypes.Less, "Is less than", false, true, false),
-                new RuleTypeItem(RuleTypes.LessOrEqual, "Is less than or equal to", false, true, false),
-                new RuleTypeItem(RuleTypes.Contains, "Contains", true, false, false),
-                new RuleTypeItem(RuleTypes.NotContains, "Does not contain", true, false, false),
-                new RuleTypeItem(RuleTypes.BeginsWith, "Begins with", true, false, false),
-                new RuleTypeItem(RuleTypes.NotBeginsWith, "Does not begin with", true, false, false),
-                new RuleTypeItem(RuleTypes.EndsWith, "Ends with", true, false, false),
-                new RuleTypeItem(RuleTypes.NotEndsWith, "Does not end with", true, false, false),
-                new RuleTypeItem(RuleTypes.HasValue, "Has a value", true, true, true),
-                new RuleTypeItem(RuleTypes.HasNoValue, "Has no value", true, true, true)
-            };
-
             WireEvents();
             SetActiveViewName();
             LoadCategories();
             LoadViewsForApply();
             LoadPatterns();
+#pragma warning disable 4014
             RestoreLastSelection();
+#pragma warning restore 4014
             if (_lastState == null)
                 UpdateStatus("Select categories to begin.");
             UpdateApplyScopeLabel();
@@ -68,8 +52,8 @@ namespace AJTools
             refresh_views_button.Click += (s, e) => LoadViewsForApply();
 
             // List selection changes
-            categories_listbox.SelectionChanged += (s, e) => { LoadParameters(); UpdateNamePreview(); };
-            parameters_listbox.SelectionChanged += (s, e) => { LoadValues(); UpdateNamePreview(); };
+            categories_listbox.SelectionChanged += async (s, e) => { await LoadParameters(); UpdateNamePreview(); };
+            parameters_listbox.SelectionChanged += async (s, e) => { await LoadValues(); UpdateNamePreview(); };
             values_listbox.SelectionChanged += (s, e) => UpdateNamePreview();
             views_listbox.SelectionChanged += (s, e) => UpdateApplyScopeLabel();
 
@@ -355,7 +339,7 @@ namespace AJTools
             return results;
         }
 
-        private void RestoreLastSelection()
+        private async void RestoreLastSelection()
         {
             if (_lastState == null) return;
 
@@ -374,7 +358,7 @@ namespace AJTools
                     }
 
                     if (!parameters_listbox.Items.Cast<object>().Any())
-                        LoadParameters();
+                        await LoadParameters();
                 }
 
                 if (_lastState.ParameterId != null)
@@ -390,7 +374,7 @@ namespace AJTools
                 }
 
                 if (!values_listbox.Items.Cast<object>().Any())
-                    LoadValues();
+                    await LoadValues();
 
                 if (_lastState.Values != null && _lastState.Values.Any())
                 {
@@ -458,19 +442,20 @@ namespace AJTools
 
         private void ApplyRuleTypeSelection(string ruleType)
         {
-            radio_equals.IsChecked = string.IsNullOrEmpty(ruleType) || ruleType == RuleTypes.Equals;
-            radio_not_equals.IsChecked = ruleType == RuleTypes.NotEquals;
-            radio_contains.IsChecked = ruleType == RuleTypes.Contains;
-            radio_not_contains.IsChecked = ruleType == RuleTypes.NotContains;
-            radio_starts.IsChecked = ruleType == RuleTypes.BeginsWith;
-            radio_not_starts.IsChecked = ruleType == RuleTypes.NotBeginsWith;
-            radio_ends.IsChecked = ruleType == RuleTypes.EndsWith;
-            radio_not_ends.IsChecked = ruleType == RuleTypes.NotEndsWith;
-            radio_has_value.IsChecked = ruleType == RuleTypes.HasValue;
-            radio_not_has_value.IsChecked = ruleType == RuleTypes.HasNoValue;
+            if (string.IsNullOrEmpty(ruleType))
+                ruleType = RuleTypes.Equals;
+
+            foreach (var child in (LogicalTreeHelper.GetChildren(rule_type_panel).OfType<RadioButton>()))
+            {
+                if (child.Tag as string == ruleType)
+                {
+                    child.IsChecked = true;
+                    return;
+                }
+            }
         }
 
-        private void RememberState(FilterSelection selection, IList<FilterValueItem> selectedValues)
+        private void RememberState(FilterSelection selection)
         {
             _lastState = new FilterProState
             {
@@ -490,7 +475,8 @@ namespace AJTools
                 ColorCutPatterns = selection.ColorCutPatterns,
                 ColorHalftone = selection.ColorHalftone,
                 PatternId = selection.PatternId,
-                Values = BuildValueKeys(selectedValues)
+                PlaceNewFiltersFirst = selection.PlaceNewFiltersFirst,
+                Values = BuildValueKeys(selection.Values)
             };
         }
 
@@ -499,9 +485,19 @@ namespace AJTools
             var keys = new List<FilterValueKey>();
             if (selectedValues == null) return keys;
 
+            const string separator = "|||";
+            const string prefix = "__FAMILY_AND_TYPE__";
+
             foreach (var v in selectedValues)
             {
                 if (v == null) continue;
+
+                if (v.RawValue is Tuple<string, string> familyAndType)
+                {
+                    string key = $"{prefix}{familyAndType.Item1}{separator}{familyAndType.Item2}";
+                    keys.Add(FilterValueKey.ForString(key));
+                    continue;
+                }
 
                 switch (v.StorageType)
                 {
@@ -533,8 +529,32 @@ namespace AJTools
         {
             if (item == null || keys == null || keys.Count == 0) return false;
 
+            const string separator = "|||";
+            const string prefix = "__FAMILY_AND_TYPE__";
+
             foreach (var key in keys)
             {
+                if (key.StorageType == StorageType.String && key.StringValue.StartsWith(prefix))
+                {
+                    if (item.RawValue is Tuple<string, string> familyAndType)
+                    {
+                        string savedKey = key.StringValue;
+                        string content = savedKey.Substring(prefix.Length);
+                        var parts = content.Split(new[] { separator }, StringSplitOptions.None);
+                        if (parts.Length == 2)
+                        {
+                            string savedFamily = parts[0];
+                            string savedType = parts[1];
+                            if (familyAndType.Item1.Equals(savedFamily, StringComparison.OrdinalIgnoreCase) &&
+                                familyAndType.Item2.Equals(savedType, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    continue; // Move to the next key
+                }
+
                 if (key.StorageType != item.StorageType) continue;
 
                 switch (key.StorageType)
@@ -584,63 +604,76 @@ namespace AJTools
             TaskDialog.Show("Warning", msg);
         }
 
-        private void CreateButton_Click(object sender, RoutedEventArgs e)
+        private FilterSelection BuildFilterSelection(bool requiresTargetViews, out List<View> targetViews, out List<FilterValueItem> selectedValues)
         {
+            targetViews = new List<View>();
+            selectedValues = new List<FilterValueItem>();
+
             var catIds = categories_listbox.SelectedItems.Cast<FilterCategoryItem>().Select(c => c.Id).ToList();
             if (!catIds.Any())
             {
                 TaskDialog.Show("Validation", "Please select at least one category.");
-                return;
+                return null;
             }
 
             var param = parameters_listbox.SelectedItem as FilterParameterItem;
             if (param == null)
             {
                 TaskDialog.Show("Validation", "Please select a parameter.");
-                return;
+                return null;
             }
-            
-            var ruleType = GetSelectedRuleType();
 
-            var selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
+            var ruleType = GetSelectedRuleType();
+            selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
+
             if (selectedValues.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
             {
                 TaskDialog.Show("Validation", "Please select at least one value for the chosen rule.");
-                return;
+                return null;
             }
 
-            // For HasValue/HasNoValue, create a dummy value
-            var valuesForCreation = selectedValues;
-            if (valuesForCreation.Count == 0)
+            if (requiresTargetViews)
             {
-                valuesForCreation = new List<FilterValueItem>
-                {
-                    new FilterValueItem("Any", null, param.StorageType)
-                };
+                targetViews = ResolveTargetViews(out var targetIds);
+                if (!targetViews.Any())
+                    return null;
             }
 
-            var selection = new FilterSelection
+            var valuesForCreation = selectedValues.Count == 0
+                ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) }
+                : selectedValues;
+
+            return new FilterSelection
             {
                 CategoryIds = catIds,
                 Parameter = param,
                 Values = valuesForCreation,
                 RuleType = ruleType,
-                ApplyToView = false,
-                ApplyToActiveView = apply_active_radio.IsChecked == true,
-                TargetViewIds = GetSelectedViewIds(),
                 OverrideExisting = override_existing_checkbox.IsChecked == true,
-                RandomColors = false,
                 ColorProjectionLines = color_proj_lines_checkbox.IsChecked == true,
                 ColorProjectionPatterns = color_proj_patterns_checkbox.IsChecked == true,
                 ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
                 ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
                 ColorHalftone = color_halftone_checkbox.IsChecked == true,
                 PatternId = GetSelectedPatternId(),
+                PlaceNewFiltersFirst = true,
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
-                IncludeParameter = include_param_checkbox.IsChecked == true
+                IncludeParameter = include_param_checkbox.IsChecked == true,
+                TargetViewIds = targetViews.Select(v => v.Id).ToList(),
+                ApplyToActiveView = apply_active_radio.IsChecked == true
             };
+        }
+
+        private void CreateButton_Click(object sender, RoutedEventArgs e)
+        {
+            var selection = BuildFilterSelection(false, out _, out var selectedValues);
+            if (selection == null) return;
+
+            selection.ApplyToView = false;
+            selection.ApplyGraphics = false;
+            selection.RandomColors = false;
 
             var skipped = new List<string>();
             int created = 0;
@@ -649,12 +682,11 @@ namespace AJTools
                 using (var t = new Transaction(_doc, "Create Filters"))
                 {
                     t.Start();
-                    var targetViews = _activeView != null ? new List<View> { _activeView } : new List<View>();
-                    created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
+                    created = FilterProHelper.CreateFilters(_doc, new List<View>(), selection, skipped);
                     t.Commit();
                 }
 
-                RememberState(selection, selectedValues);
+                RememberState(selection);
                 UpdateStatus(BuildResultStatus("created", created, skipped));
                 ShowWarningIfNeeded(skipped);
             }
@@ -702,7 +734,7 @@ namespace AJTools
             }
         }
 
-        private void LoadParameters()
+        private async Task LoadParameters()
         {
             try
             {
@@ -716,13 +748,29 @@ namespace AJTools
                 }
 
                 var catIds = selectedCategories.Select(c => c.Id).ToList();
-                ICollection<ElementId> paramIds = ParameterFilterUtilities.GetFilterableParametersInCommon(_doc, catIds);
+                var paramIds = new HashSet<ElementId>(ParameterFilterUtilities.GetFilterableParametersInCommon(_doc, catIds));
+
+                // Manually add Family Name and Type Name to ensure they are always available
+                paramIds.Add(new ElementId(BuiltInParameter.ALL_MODEL_FAMILY_NAME));
+                paramIds.Add(new ElementId(BuiltInParameter.ALL_MODEL_TYPE_NAME));
+
                 var parameters = new List<FilterParameterItem>();
+
+                // Add our special composite parameter at the top of the list
+                const int familyAndTypeParamId = -100;
+                parameters.Add(new FilterParameterItem(new ElementId(familyAndTypeParamId), "Family and Type", StorageType.String));
+
 
                 foreach (ElementId pid in paramIds)
                 {
                     Parameter sample = GetSampleParameter(pid, catIds);
+                    // For our manually added params, the sample might be null but we know the storage type is string.
                     StorageType storage = sample?.StorageType ?? StorageType.None;
+                    if (pid.IntegerValue == (int)BuiltInParameter.ALL_MODEL_FAMILY_NAME || pid.IntegerValue == (int)BuiltInParameter.ALL_MODEL_TYPE_NAME)
+                    {
+                        storage = StorageType.String;
+                    }
+
                     string name = ResolveParameterName(pid, sample);
                     if (storage != StorageType.None)
                     {
@@ -733,6 +781,8 @@ namespace AJTools
                 parameters_listbox.ItemsSource = parameters.OrderBy(p => p.Name);
                 parameters_listbox.DisplayMemberPath = "Name";
                 UpdateStatus("Select a parameter to load its values.");
+
+                await LoadValues();
             }
             catch (Exception ex)
             {
@@ -740,7 +790,7 @@ namespace AJTools
             }
         }
 
-        private void LoadValues()
+        private async Task LoadValues()
         {
             values_listbox.ItemsSource = null;
             var param = parameters_listbox.SelectedItem as FilterParameterItem;
@@ -755,59 +805,99 @@ namespace AJTools
             UpdateStatus("Collecting values...");
             try
             {
-                const int elementScanLimit = 10000; // performance cap
-                int scanned = 0;
-
-                var filter = new ElementMulticategoryFilter(catIds);
-                var collector = new FilteredElementCollector(_doc).WherePasses(filter);
-
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var values = new List<FilterValueItem>();
-
-                foreach (Element elem in collector)
+                // Special handling for the composite "Family and Type" parameter
+                if (param.Name == "Family and Type")
                 {
-                    scanned++;
-                    if (scanned > elementScanLimit)
-                        break; // stop scanning further elements
+                    var familyAndTypeValues = await Task.Run(() =>
+                    {
+                        var collector = new FilteredElementCollector(_doc).WherePasses(new ElementMulticategoryFilter(catIds));
+                        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        var collectedValues = new List<FilterValueItem>();
 
-                    Parameter p = null;
-                    // Try built-in parameter first
-                    if (Enum.IsDefined(typeof(BuiltInParameter), param.Id.IntegerValue))
-                    {
-                        p = elem.get_Parameter((BuiltInParameter)param.Id.IntegerValue);
-                    }
-                    // Try as shared/project parameter
-                    if (p == null)
-                    {
-                        foreach (Parameter elemParam in elem.Parameters)
+                        foreach (Element elem in collector)
                         {
-                            if (elemParam.Id.IntegerValue == param.Id.IntegerValue)
+                            string familyName = elem.get_Parameter(BuiltInParameter.ALL_MODEL_FAMILY_NAME)?.AsString();
+                            string typeName = elem.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME)?.AsString();
+
+                            if (string.IsNullOrWhiteSpace(familyName) || string.IsNullOrWhiteSpace(typeName)) continue;
+                            
+                            string display = $"{familyName} — {typeName}";
+                            if (seen.Add(display))
                             {
-                                p = elemParam;
-                                break;
+                                collectedValues.Add(new FilterValueItem(display, new Tuple<string, string>(familyName, typeName), StorageType.String));
                             }
                         }
-                    }
-                    if (p == null || p.StorageType == StorageType.None || !p.HasValue) continue;
+                        return collectedValues;
+                    });
 
-                    FilterValueItem item = ExtractValueItem(p, elem, param.StorageType, param.Name);
-                    if (item?.RawValue == null) continue;
-
-                    string key = item.StorageType == StorageType.String ? item.RawValue as string : item.Display;
-                    if (!string.IsNullOrEmpty(key) && seen.Add(key))
-                        values.Add(item);
+                    _currentValues.Clear();
+                    _currentValues.AddRange(familyAndTypeValues);
+                    values_listbox.ItemsSource = familyAndTypeValues.OrderBy(v => v.Display).ToList();
+                    values_listbox.DisplayMemberPath = "Display";
+                    UpdateStatus($"Loaded {familyAndTypeValues.Count} unique Family/Type combination(s).");
+                    return;
                 }
 
-                _currentValues.Clear();
-                _currentValues.AddRange(values);
+                // Existing logic for regular parameters
+                var values = await Task.Run(() =>
+                {
+                    const int elementScanLimit = 10000; // performance cap
+                    int scanned = 0;
 
-                values_listbox.ItemsSource = values.OrderBy(v => v.Display);
+                    var filter = new ElementMulticategoryFilter(catIds);
+                    var collector = new FilteredElementCollector(_doc).WherePasses(filter);
+
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var collectedValues = new List<FilterValueItem>();
+
+                    foreach (Element elem in collector)
+                    {
+                        scanned++;
+                        if (scanned > elementScanLimit)
+                            break; // stop scanning further elements
+
+                        Parameter p = null;
+                        if (Enum.IsDefined(typeof(BuiltInParameter), param.Id.IntegerValue))
+                        {
+                            p = elem.get_Parameter((BuiltInParameter)param.Id.IntegerValue);
+                        }
+                        if (p == null)
+                        {
+                            p = elem.LookupParameter(param.Name);
+                        }
+                        if (p == null)
+                        {
+                            foreach (Parameter elemParam in elem.Parameters)
+                            {
+                                if (elemParam.Id.IntegerValue == param.Id.IntegerValue)
+                                {
+                                    p = elemParam;
+                                    break;
+                                }
+                            }
+                        }
+                        if (p == null || p.StorageType == StorageType.None || !p.HasValue) continue;
+
+                        FilterValueItem item = ExtractValueItem(p, elem, param.StorageType, param.Name);
+                        if (item?.RawValue == null) continue;
+
+                        string key = item.StorageType == StorageType.String ? item.RawValue as string : item.Display;
+                        if (!string.IsNullOrEmpty(key) && seen.Add(key))
+                            collectedValues.Add(item);
+                    }
+                    return new { Collected = collectedValues, ScannedCount = scanned, LimitReached = scanned > elementScanLimit };
+                });
+
+                _currentValues.Clear();
+                _currentValues.AddRange(values.Collected);
+
+                values_listbox.ItemsSource = values.Collected.OrderBy(v => v.Display).ToList();
                 values_listbox.DisplayMemberPath = "Display";
 
-                if (scanned > elementScanLimit)
-                    UpdateStatus($"Loaded {values.Count} unique value(s). Stopped after scanning {elementScanLimit:N0} elements for performance.");
+                if (values.LimitReached)
+                    UpdateStatus($"Loaded {values.Collected.Count} unique value(s). Stopped after scanning {values.ScannedCount:N0} elements for performance.");
                 else
-                    UpdateStatus($"Loaded {values.Count} unique value(s). Scanned {scanned:N0} elements.");
+                    UpdateStatus($"Loaded {values.Collected.Count} unique value(s). Scanned {values.ScannedCount:N0} elements.");
             }
             catch (Exception ex)
             {
@@ -850,24 +940,45 @@ namespace AJTools
             if (element == null) return "#" + id.IntegerValue;
 
             // Prefer family + type when available for clarity
+            string familyName = null;
+            string typeName = null;
+
             if (element is FamilyInstance inst && inst.Symbol != null)
             {
-                string fam = inst.Symbol.FamilyName;
-                string type = inst.Symbol.Name;
-                if (!string.IsNullOrWhiteSpace(fam) && !string.IsNullOrWhiteSpace(type))
-                    return $"{fam} : {type}";
+                familyName = inst.Symbol.FamilyName;
+                typeName = inst.Symbol.Name;
+            }
+            else if (element is FamilySymbol fs)
+            {
+                familyName = fs.FamilyName;
+                typeName = fs.Name;
+            }
+            else if (element is ElementType et)
+            {
+                typeName = et.Name;
+                Parameter famParam = et.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)
+                                     ?? et.get_Parameter(BuiltInParameter.ALL_MODEL_FAMILY_NAME);
+                if (famParam != null && famParam.HasValue)
+                    familyName = famParam.AsString();
             }
 
-            if (element is FamilySymbol fs)
+            // If the parameter name suggests a system/type name, prefer the raw element name (avoids extra prefixes)
+            if (!string.IsNullOrWhiteSpace(paramName) &&
+                paramName.IndexOf("system", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                !string.IsNullOrWhiteSpace(element.Name))
             {
-                string fam = fs.FamilyName;
-                string type = fs.Name;
-                if (!string.IsNullOrWhiteSpace(fam) && !string.IsNullOrWhiteSpace(type))
-                    return $"{fam} : {type}";
+                return element.Name;
             }
+
+            if (!string.IsNullOrWhiteSpace(familyName) && !string.IsNullOrWhiteSpace(typeName))
+                return $"{familyName} : {typeName}";
+
+            if (!string.IsNullOrWhiteSpace(typeName))
+                return typeName;
 
             string label = element.Name;
-            if (!string.IsNullOrWhiteSpace(label)) return label;
+            if (!string.IsNullOrWhiteSpace(label))
+                return label;
 
             if (element is MechanicalSystemType)
             {
@@ -987,59 +1098,12 @@ namespace AJTools
 
         private void ApplyViewButton_Click(object sender, RoutedEventArgs e)
         {
-            var catIds = categories_listbox.SelectedItems.Cast<FilterCategoryItem>().Select(c => c.Id).ToList();
-            if (!catIds.Any())
-            {
-                TaskDialog.Show("Validation", "Please select at least one category.");
-                return;
-            }
+            var selection = BuildFilterSelection(true, out var targetViews, out var selectedValues);
+            if (selection == null) return;
 
-            var param = parameters_listbox.SelectedItem as FilterParameterItem;
-            if (param == null)
-            {
-                TaskDialog.Show("Validation", "Please select a parameter.");
-                return;
-            }
-            
-            var ruleType = GetSelectedRuleType();
-            var selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
-            
-            if (selectedValues.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
-            {
-                TaskDialog.Show("Validation", "Please select at least one value for the chosen rule.");
-                return;
-            }
-
-            var targetViews = ResolveTargetViews(out var targetIds);
-            if (!targetViews.Any())
-                return;
-
-            var valuesForCreation = selectedValues.Count == 0
-                ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) }
-                : selectedValues;
-
-            var selection = new FilterSelection
-            {
-                CategoryIds = catIds,
-                Parameter = param,
-                Values = valuesForCreation,
-                RuleType = ruleType,
-                ApplyToView = true,
-                ApplyToActiveView = apply_active_radio.IsChecked == true,
-                TargetViewIds = targetIds,
-                OverrideExisting = override_existing_checkbox.IsChecked == true,
-                RandomColors = false,
-                ColorProjectionLines = color_proj_lines_checkbox.IsChecked == true,
-                ColorProjectionPatterns = color_proj_patterns_checkbox.IsChecked == true,
-                ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
-                ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
-                ColorHalftone = color_halftone_checkbox.IsChecked == true,
-                PatternId = GetSelectedPatternId(),
-                Prefix = prefix_textbox.Text,
-                Suffix = suffix_textbox.Text,
-                IncludeCategory = include_cat_checkbox.IsChecked == true,
-                IncludeParameter = include_param_checkbox.IsChecked == true
-            };
+            selection.ApplyToView = true;
+            selection.ApplyGraphics = false;
+            selection.RandomColors = false;
 
             var skipped = new List<string>();
             int created = 0;
@@ -1052,7 +1116,7 @@ namespace AJTools
                     t.Commit();
                 }
 
-                RememberState(selection, selectedValues);
+                RememberState(selection);
                 UpdateStatus(BuildResultStatus("created and applied to view", created, skipped));
                 ShowWarningIfNeeded(skipped);
             }
@@ -1065,59 +1129,12 @@ namespace AJTools
 
         private void ShuffleColorsButton_Click(object sender, RoutedEventArgs e)
         {
-            var catIds = categories_listbox.SelectedItems.Cast<FilterCategoryItem>().Select(c => c.Id).ToList();
-            if (!catIds.Any())
-            {
-                TaskDialog.Show("Validation", "Please select at least one category.");
-                return;
-            }
+            var selection = BuildFilterSelection(true, out var targetViews, out var selectedValues);
+            if (selection == null) return;
 
-            var param = parameters_listbox.SelectedItem as FilterParameterItem;
-            if (param == null)
-            {
-                TaskDialog.Show("Validation", "Please select a parameter.");
-                return;
-            }
-            
-            var ruleType = GetSelectedRuleType();
-            var selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
-            
-            if (selectedValues.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
-            {
-                TaskDialog.Show("Validation", "Please select at least one value for the chosen rule.");
-                return;
-            }
-
-            var targetViews = ResolveTargetViews(out var targetIds);
-            if (!targetViews.Any())
-                return;
-
-            var valuesForCreation = selectedValues.Count == 0
-                ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) }
-                : selectedValues;
-
-            var selection = new FilterSelection
-            {
-                CategoryIds = catIds,
-                Parameter = param,
-                Values = valuesForCreation,
-                RuleType = ruleType,
-                ApplyToView = true,
-                ApplyToActiveView = apply_active_radio.IsChecked == true,
-                TargetViewIds = targetIds,
-                OverrideExisting = override_existing_checkbox.IsChecked == true,
-                RandomColors = true,
-                ColorProjectionLines = color_proj_lines_checkbox.IsChecked == true,
-                ColorProjectionPatterns = color_proj_patterns_checkbox.IsChecked == true,
-                ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
-                ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
-                ColorHalftone = color_halftone_checkbox.IsChecked == true,
-                PatternId = GetSelectedPatternId(),
-                Prefix = prefix_textbox.Text,
-                Suffix = suffix_textbox.Text,
-                IncludeCategory = include_cat_checkbox.IsChecked == true,
-                IncludeParameter = include_param_checkbox.IsChecked == true
-            };
+            selection.ApplyToView = true;
+            selection.ApplyGraphics = true;
+            selection.RandomColors = true;
 
             var skipped = new List<string>();
             int created = 0;
@@ -1130,7 +1147,7 @@ namespace AJTools
                     t.Commit();
                 }
 
-                RememberState(selection, selectedValues);
+                RememberState(selection);
                 UpdateStatus(BuildResultStatus("created with random colors and applied to view", created, skipped));
                 ShowWarningIfNeeded(skipped);
             }
@@ -1159,7 +1176,9 @@ namespace AJTools
         public bool ColorCutLines { get; set; }
         public bool ColorCutPatterns { get; set; }
         public bool ColorHalftone { get; set; }
+        public bool ApplyGraphics { get; set; }
         public ElementId PatternId { get; set; }
+        public bool PlaceNewFiltersFirst { get; set; } = true;
         public string Prefix { get; set; }
         public string Suffix { get; set; }
         public bool IncludeCategory { get; set; }
@@ -1184,6 +1203,8 @@ namespace AJTools
         public bool ColorCutLines { get; set; }
         public bool ColorCutPatterns { get; set; }
         public bool ColorHalftone { get; set; }
+        public bool ApplyGraphics { get; set; }
+        public bool PlaceNewFiltersFirst { get; set; } = true;
         public ElementId PatternId { get; set; }
     }
 
@@ -1301,16 +1322,23 @@ namespace AJTools
         private static readonly Random _rand = new Random();
         private static readonly Color[] Palette =
         {
-            new Color((byte)230, (byte)126, (byte)34),
-            new Color((byte)52, (byte)152, (byte)219),
-            new Color((byte)46, (byte)204, (byte)113),
-            new Color((byte)155, (byte)89, (byte)182),
-            new Color((byte)241, (byte)196, (byte)15),
-            new Color((byte)26, (byte)188, (byte)156),
-            new Color((byte)231, (byte)76, (byte)60),
-            new Color((byte)149, (byte)165, (byte)166),
-            new Color((byte)99, (byte)110, (byte)114),
-            new Color((byte)127, (byte)140, (byte)141)
+            // Highly distinct / vivid palette (warm, jewel, neon mix)
+            new Color(255, 0, 54),    // Neon Red
+            new Color(0, 255, 102),   // Neon Green
+            new Color(0, 191, 255),   // Deep Sky Blue
+            new Color(255, 215, 0),   // Gold
+            new Color(186, 85, 211),  // Medium Orchid
+            new Color(255, 69, 0),    // Orange Red
+            new Color(0, 255, 255),   // Aqua
+            new Color(255, 20, 147),  // Deep Pink
+            new Color(50, 205, 50),   // Lime Green
+            new Color(138, 43, 226),  // Blue Violet
+            new Color(255, 140, 0),   // Dark Orange
+            new Color(64, 224, 208),  // Turquoise
+            new Color(255, 99, 71),   // Tomato
+            new Color(72, 61, 139),   // Dark Slate Blue
+            new Color(0, 206, 209),   // Dark Turquoise
+            new Color(199, 21, 133),  // Medium Violet Red
         };
 
         public static Color GetColorFor(ElementId id)

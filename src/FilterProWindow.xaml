@@ -392,11 +392,14 @@
                                 </ComboBox>
                             </Grid>
                             
-                            <ListBox x:Name="values_listbox" 
-                                     Grid.Row="2"
-                                     Style="{StaticResource ModernListBox}"
-                                     ItemContainerStyle="{StaticResource ModernListBoxItemSuccess}"
-                                     SelectionMode="Extended" />
+                                <ListBox x:Name="values_listbox" 
+                                         Grid.Row="2"
+                                         Style="{StaticResource ModernListBox}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItemSuccess}"
+                                         SelectionMode="Extended"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True" />
                         </Grid>
                     </GroupBox>
                 </Grid>
@@ -410,38 +413,48 @@
                         <!-- Filter Rule Type -->
                         <GroupBox Header="Filter Rule Type" Style="{StaticResource ModernGroupBox}">
                             <StackPanel>
-                                <UniformGrid Columns="2" Margin="10" Rows="5">
+                                <UniformGrid x:Name="rule_type_panel" Columns="2" Margin="10" Rows="5">
                                     <RadioButton x:Name="radio_equals" 
                                                  Content="Equals (exact match)" 
                                                  IsChecked="True" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="equals"/>
                                     <RadioButton x:Name="radio_not_equals" 
                                                  Content="Does Not Equal" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="not_equals"/>
                                     <RadioButton x:Name="radio_contains" 
                                                  Content="Contains" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="contains"/>
                                     <RadioButton x:Name="radio_not_contains" 
                                                  Content="Does Not Contain" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="not_contains"/>
                                     <RadioButton x:Name="radio_starts" 
                                                  Content="Begins With" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="begins_with"/>
                                     <RadioButton x:Name="radio_not_starts" 
                                                  Content="Does Not Begin With" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="not_begins_with"/>
                                     <RadioButton x:Name="radio_ends" 
                                                  Content="Ends With" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="ends_with"/>
                                     <RadioButton x:Name="radio_not_ends" 
                                                  Content="Does Not End With" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="not_ends_with"/>
                                     <RadioButton x:Name="radio_has_value" 
                                                  Content="Has Value" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="has_value"/>
                                     <RadioButton x:Name="radio_not_has_value" 
                                                  Content="Has No Value" 
-                                                 Style="{StaticResource ModernRadioButton}"/>
+                                                 Style="{StaticResource ModernRadioButton}"
+                                                 Tag="has_no_value"/>
                                 </UniformGrid>
                                 <CheckBox x:Name="case_sensitive_checkbox" 
                                           Content="Case Sensitive" 
@@ -565,25 +578,49 @@
 
                     <Grid Grid.Row="1">
                         <GroupBox Header="Color Overrides (Shuffle / Apply)" Style="{StaticResource ModernGroupBox}">
-                            <UniformGrid Columns="3">
-                                <CheckBox x:Name="color_proj_lines_checkbox"
-                                          Content="Projection / Surface Lines"
-                                          Style="{StaticResource ModernCheckBox}"
-                                          IsChecked="True"/>
-                                <CheckBox x:Name="color_proj_patterns_checkbox"
-                                          Content="Projection / Surface Patterns"
-                                          Style="{StaticResource ModernCheckBox}"/>
-                                <CheckBox x:Name="color_cut_lines_checkbox"
-                                          Content="Cut Lines"
-                                          Style="{StaticResource ModernCheckBox}"
-                                          IsChecked="True"/>
-                                <CheckBox x:Name="color_cut_patterns_checkbox"
-                                          Content="Cut Patterns"
-                                          Style="{StaticResource ModernCheckBox}"/>
-                                <CheckBox x:Name="color_halftone_checkbox"
-                                          Content="Halftone"
-                                          Style="{StaticResource ModernCheckBox}"/>
-                            </UniformGrid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <CheckBox x:Name="color_proj_lines_checkbox"
+                                              Content="Projection / Surface Lines"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              IsChecked="True"/>
+                                    <CheckBox x:Name="color_cut_lines_checkbox"
+                                              Content="Cut Lines"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              IsChecked="True"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="0" Grid.Column="1">
+                                    <CheckBox x:Name="color_proj_patterns_checkbox"
+                                              Content="Projection / Surface Patterns"
+                                              Style="{StaticResource ModernCheckBox}"/>
+                                    <CheckBox x:Name="color_cut_patterns_checkbox"
+                                              Content="Cut Patterns"
+                                              Style="{StaticResource ModernCheckBox}"/>
+                                    <CheckBox x:Name="color_halftone_checkbox"
+                                              Content="Halftone"
+                                              Style="{StaticResource ModernCheckBox}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <TextBlock Text="Pattern:" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="pattern_combo"
+                                              Width="240"
+                                              IsEditable="False"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="Id"
+                                              ToolTip="Fill pattern to use when pattern overrides are enabled."/>
+                                </StackPanel>
+                            </Grid>
                         </GroupBox>
                     </Grid>
 
@@ -620,6 +657,9 @@
                                          ItemContainerStyle="{StaticResource ModernListBoxItem}"
                                          SelectionMode="Extended"
                                          IsEnabled="False"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True"
                                          DisplayMemberPath="Display"/>
                             </Grid>
                         </GroupBox>
