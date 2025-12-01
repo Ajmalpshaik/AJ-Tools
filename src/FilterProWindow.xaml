@@ -247,6 +247,11 @@
                                    FontWeight="Medium"
                                    Foreground="{StaticResource AccentGreen}" 
                                    Margin="0,5,0,0"/>
+                        <TextBlock x:Name="apply_scope_text"
+                                   Text="Apply: Active View"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -517,6 +522,110 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <!-- Apply Tab -->
+            <TabItem x:Name="apply_tab" Header="Apply (Active View)">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="0,0,0,6" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Apply Scope:" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                        <RadioButton x:Name="apply_active_radio"
+                                     Grid.Column="1"
+                                     Content="Active View"
+                                     IsChecked="True"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Margin="8,0,0,0"/>
+                        <RadioButton x:Name="apply_multiple_radio"
+                                     Grid.Column="2"
+                                     Content="Selected Views"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Margin="8,0,0,0"/>
+                        <Button x:Name="refresh_views_button"
+                                Grid.Column="4"
+                                Content="Refresh Views"
+                                Style="{StaticResource ModernButton}"
+                                Width="130"
+                                Height="28"
+                                Margin="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <GroupBox Header="Color Overrides (Shuffle / Apply)" Style="{StaticResource ModernGroupBox}">
+                            <UniformGrid Columns="3">
+                                <CheckBox x:Name="color_proj_lines_checkbox"
+                                          Content="Projection / Surface Lines"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                <CheckBox x:Name="color_proj_patterns_checkbox"
+                                          Content="Projection / Surface Patterns"
+                                          Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="color_cut_lines_checkbox"
+                                          Content="Cut Lines"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                <CheckBox x:Name="color_cut_patterns_checkbox"
+                                          Content="Cut Patterns"
+                                          Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="color_halftone_checkbox"
+                                          Content="Halftone"
+                                          Style="{StaticResource ModernCheckBox}"/>
+                            </UniformGrid>
+                        </GroupBox>
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1.2*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <GroupBox Header="Active View" Grid.Column="0" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel>
+                                <TextBlock Text="Current active view:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="active_view_name_text"
+                                           Text="(none)"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimary}"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Select Views to Apply" Grid.Column="1" Style="{StaticResource ModernGroupBox}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0"
+                                           Text="Choose one or more views when 'Selected Views' is enabled."
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Margin="0,0,0,6"/>
+                                <ListBox x:Name="views_listbox"
+                                         Grid.Row="1"
+                                         Style="{StaticResource ModernListBox}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                         SelectionMode="Extended"
+                                         IsEnabled="False"
+                                         DisplayMemberPath="Display"/>
+                            </Grid>
+                        </GroupBox>
+                    </Grid>
+                </Grid>
+            </TabItem>
         </TabControl>
         
         <!-- Footer Section -->
@@ -542,9 +651,10 @@
                 <!-- Action Buttons -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <CheckBox x:Name="override_existing_checkbox" 
-                              Content="Override Existing Filters" 
+                              Content="Update Existing Filters (overwrite)" 
                               Style="{StaticResource ToggleSwitchCheckBox}"
-                              Margin="0,0,20,0"/>
+                              Margin="0,0,20,0"
+                              ToolTip="When on, existing filters with the same name will be updated with new categories and rules."/>
 
                     <Button x:Name="apply_view_button"
                             Content="APPLY TO VIEW"

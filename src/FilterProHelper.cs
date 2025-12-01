@@ -11,8 +11,11 @@ namespace AJTools
     /// </summary>
     internal static class FilterProHelper
     {
-        public static int CreateFilters(Document doc, View activeView, FilterSelection selection, IList<string> skipped)
+        public static int CreateFilters(Document doc, IEnumerable<View> targetViews, FilterSelection selection, IList<string> skipped)
         {
+            var viewTargets = (selection?.ApplyToView == true && targetViews != null)
+                ? targetViews.Where(v => v != null).ToList()
+                : new List<View>();
             int created = 0;
             foreach (FilterValueItem value in selection.Values)
             {
@@ -47,8 +50,13 @@ namespace AJTools
 
                 created++;
 
-                if (selection.ApplyToView && activeView != null)
-                    ApplyToView(activeView, filter.Id, selection.RandomColors);
+                if (selection.ApplyToView && viewTargets.Any())
+                {
+                    foreach (var view in viewTargets)
+                    {
+                        ApplyToView(doc, view, filter.Id, selection);
+                    }
+                }
             }
 
             return created;
@@ -56,6 +64,7 @@ namespace AJTools
 
         private static IList<FilterRule> BuildRules(FilterParameterItem parameter, FilterValueItem value, string ruleType)
         {
+            const bool caseSensitive = false; // Revit string rules should be case-insensitive for predictable results
             var rules = new List<FilterRule>();
             switch (parameter.StorageType)
             {
@@ -64,34 +73,34 @@ namespace AJTools
                     switch (ruleType)
                     {
                         case RuleTypes.Equals:
-                            rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.Contains:
-                            rules.Add(ParameterFilterRuleFactory.CreateContainsRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateContainsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.BeginsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateBeginsWithRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateBeginsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.EndsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateEndsWithRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateEndsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotEquals:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotContains:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotContainsRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateNotContainsRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotBeginsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotBeginsWithRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateNotBeginsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.NotEndsWith:
-                            rules.Add(ParameterFilterRuleFactory.CreateNotEndsWithRule(parameter.Id, text, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateNotEndsWithRule(parameter.Id, text, caseSensitive));
                             break;
                         case RuleTypes.HasValue:
                             rules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(parameter.Id));
                             break;
                         case RuleTypes.HasNoValue:
-                            rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, string.Empty, false));
+                            rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(parameter.Id, string.Empty, caseSensitive));
                             break;
                         default:
                             return null;
@@ -161,7 +170,7 @@ namespace AJTools
             return rules;
         }
 
-        private static void ApplyToView(View view, ElementId filterId, bool randomColors)
+        private static void ApplyToView(Document doc, View view, ElementId filterId, FilterSelection selection)
         {
             if (view == null)
                 return;
@@ -183,11 +192,74 @@ namespace AJTools
             if (ogs == null)
                 ogs = new OverrideGraphicSettings();
 
-            Color color = randomColors ? ColorPalette.GetRandomColor() : ColorPalette.GetColorFor(filterId);
-            ogs.SetProjectionLineColor(color);
-            ogs.SetCutLineColor(color);
+            bool applyProjLines = selection.ColorProjectionLines;
+            bool applyProjPatterns = selection.ColorProjectionPatterns;
+            bool applyCutLines = selection.ColorCutLines;
+            bool applyCutPatterns = selection.ColorCutPatterns;
+            bool applyHalftone = selection.ColorHalftone;
+
+            // If nothing was specified, fall back to lines (old behavior)
+            if (!applyProjLines && !applyProjPatterns && !applyCutLines && !applyCutPatterns && !applyHalftone)
+            {
+                applyProjLines = true;
+                applyCutLines = true;
+            }
+
+            // Only touch the components the user requested
+            Color chosenColor = GetColor(selection, filterId);
+
+            if (applyProjLines)
+                ogs.SetProjectionLineColor(chosenColor);
+
+            if (applyCutLines)
+                ogs.SetCutLineColor(chosenColor);
+
+            if (applyProjPatterns)
+            {
+                var solidId = GetSolidFillId(doc);
+                if (solidId != ElementId.InvalidElementId)
+                    ogs.SetSurfaceForegroundPatternId(solidId);
+                ogs.SetSurfaceForegroundPatternColor(chosenColor);
+            }
+
+            if (applyCutPatterns)
+            {
+                var solidId = GetSolidFillId(doc);
+                if (solidId != ElementId.InvalidElementId)
+                    ogs.SetCutForegroundPatternId(solidId);
+                ogs.SetCutForegroundPatternColor(chosenColor);
+            }
+
+            if (applyHalftone)
+                ogs.SetHalftone(true);
 
             view.SetFilterOverrides(filterId, ogs);
+        }
+
+        private static Color GetColor(FilterSelection selection, ElementId filterId)
+        {
+            return selection.RandomColors ? ColorPalette.GetRandomColor() : ColorPalette.GetColorFor(filterId);
+        }
+
+        private static ElementId _solidFillId = ElementId.InvalidElementId;
+        private static ElementId GetSolidFillId(Document doc)
+        {
+            if (_solidFillId != ElementId.InvalidElementId)
+                return _solidFillId;
+
+            try
+            {
+                var fpe = FillPatternElement.GetFillPatternElementByName(doc, FillPatternTarget.Drafting, "Solid fill");
+                if (fpe == null)
+                    fpe = FillPatternElement.GetFillPatternElementByName(doc, FillPatternTarget.Model, "Solid fill");
+                _solidFillId = fpe != null ? fpe.Id : ElementId.InvalidElementId;
+            }
+            catch
+            {
+                _solidFillId = ElementId.InvalidElementId;
+            }
+
+            return _solidFillId;
         }
 
         private static string ComposeFilterName(FilterSelection selection, FilterValueItem value, Document doc)

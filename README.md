@@ -1,36 +1,92 @@
-# AJ Tools for Revit 2020
+# AJ Tools for Autodesk Revit (2020+)
 
-Lightweight productivity add-in for Autodesk Revit 2020 (v1.1.0).
+AJ Tools is a collection of productivity commands for Autodesk Revit targeting .NET Framework 4.7.2. It includes numerous utilities plus a new Filter Pro module to create, manage, and apply parameter-based view filters with modern UI.
 
-## Folder Layout
-- `src/` – C# source, project, images.
-- `dist/` – Release payload and one-click installers (ready to ship).
-- `.vs/` – IDE cache (ignored; safe to delete if not in use).
+## Highlights
+- Filter Pro: create filters from parameter values across categories
+- Apply filters to the active view with line and pattern color overrides
+- Supports built-in, shared, and project parameters
+- 14 rule types: equals, not equals, contains, begins/ends with, comparisons, has value/no value
+- Robust UI (WPF) with search, sorting, and real-time name preview
+
+## Project Structure
+- `src/` – Source code and WPF window
+  - `Commands/` – Revit external commands (including `CmdFilterPro`)
+  - `FilterProWindow.xaml` / `FilterProWindow.xaml.cs` – WPF UI for Filter Pro
+  - `FilterProHelper.cs` – Shared logic for filter creation and view overrides
+  - `Images/` – Icons and assets
+  - `AJ Tools.csproj` – Project file
+- `dist/` – Addin packaging scripts and manifest
+
+## Requirements
+- Autodesk Revit 2020 or later (tested with 2020)
+- .NET Framework 4.7.2
+- Visual Studio 2019/2022
 
 ## Build
-```powershell
-# From repository root
-"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" "AJ Tools.sln" /p:Configuration=Release /p:Platform="Any CPU"
-```
+1. Open `src/AJ Tools.csproj` in Visual Studio.
+2. Build in Debug or Release.
+3. Output: `src/bin/<Config>/AJ Tools.dll`.
 
-## Install (one-click)
-1. Navigate to `dist/`.
-2. Run `install.cmd` (or `install.ps1` if you prefer PowerShell).
-3. Restart Revit 2020 and look for the **AJ Tools** ribbon tab.
+Note: The project includes an MSBuild target to deploy the addin to the Revit addins folder. To avoid file locks when Revit is running, deployment is guarded. If you want automatic deployment:
+- Edit the project to set `SkipRevitAddinDeploy=false` or remove the target condition.
 
-## Uninstall
-1. Navigate to `dist/`.
-2. Run `uninstall.cmd` (or `uninstall.ps1`).
+## Manual Install (Addin)
+1. Copy `AJ Tools.dll` and `Images/` to `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools`.
+2. Place an `.addin` manifest pointing to `AJ Tools.dll`. Sample is generated in the build target.
 
-## Publishing to GitHub
-Commit the cleaned structure and push:
-```bash
-git add .
-git commit -m "Prepare release 1.1.0"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
-Then attach the `dist/` folder (or a ZIP of it) to your GitHub release for users.
+## Filter Pro – Usage
+- Launch `Filter Pro` from the AJ Tools ribbon (or external command list).
+- Selection Tab:
+  - Select Categories (multi-select)
+  - Select a common Parameter
+  - Load and select Values (search + sort available)
+- Configuration Tab:
+  - Choose rule type (14 options)
+  - Configure naming: prefix/suffix/separator, include category/parameter
+- Footer:
+  - Override Existing toggle
+  - Apply to View: creates filters and applies overrides in the active view
+  - Shuffle Colors: creates filters and applies random colors
+  - Create Filters: creates filters only
 
-## Author
-Ajmal P.S — ajmalnattika@gmail.com
+### Rule Types
+- Equals, Not Equals
+- Contains, Does Not Contain
+- Begins With, Does Not Begin With
+- Ends With, Does Not End With
+- Greater, Greater Or Equal, Less, Less Or Equal (numeric)
+- Has Value, Has No Value
+
+### Parameter Support
+- Built-in parameters via `BuiltInParameter`
+- Shared/Project parameters by matching parameter IDs
+- Storage types: String, Integer, Double, ElementId
+
+### View Overrides
+- Projection and Cut line colors
+- Foreground surface/cut patterns (solid fill) and colors
+- Halftone option
+
+## Development Notes
+- Target framework: .NET Framework 4.7.2
+- Revit API: uses `Autodesk.Revit.DB` and `Autodesk.Revit.UI`
+- WPF UI in `FilterProWindow`
+- Logic separated in `FilterProHelper`
+- Avoids newer API methods not present in Revit 2020
+
+## Troubleshooting
+- Build fails with file lock in `%APPDATA%\Autodesk\Revit\Addins\2020`:
+  - Close Revit; or disable deployment target; or set `SkipRevitAddinDeploy=true`.
+- No values loaded:
+  - Ensure parameter is common across categories and has values.
+- Custom/shared parameter not found:
+  - Confirm parameter exists on elements/types in selected categories.
+
+## Contributing
+- Fork the repo and create a feature branch
+- Run builds and test in Revit
+- Submit PRs with clear description and screenshots for UI changes
+
+## License
+Copyright © Ajmal P.S. All rights reserved.

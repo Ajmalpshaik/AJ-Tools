@@ -33,7 +33,11 @@ namespace AJTools
 
         internal static int CreateFilters(Document doc, DB.View activeView, FilterSelection selection, IList<string> skipped)
         {
-            return FilterProHelper.CreateFilters(doc, activeView, selection, skipped);
+            var targets = new List<DB.View>();
+            if (activeView != null)
+                targets.Add(activeView);
+
+            return FilterProHelper.CreateFilters(doc, targets, selection, skipped);
         }
 
         internal static IList<FilterRule> BuildRules(FilterParameterItem parameter, FilterValueItem value, string ruleType)

@@ -66,6 +66,7 @@
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
     <Compile Include="Commands\CmdResetTextPosition.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
+    <Compile Include="Commands\CmdFilterPro.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
     <Compile Include="Commands\CmdSnakeGame.cs" />
     <Compile Include="Commands\CmdCopyViewRange.cs" />
@@ -106,7 +107,7 @@
     <AddinManifestLines Include="  &lt;/AddIn&gt;" />
     <AddinManifestLines Include="&lt;/RevitAddIns&gt;" />
   </ItemGroup>
-  <Target Name="DeployRevitAddin" AfterTargets="Build">
+  <Target Name="DeployRevitAddin" AfterTargets="Build" Condition=" '$(SkipRevitAddinDeploy)' != 'true' ">
     <MakeDir Directories="$(RevitAddinUserRoot);$(RevitAddinDeployDir);$(RevitAddinDeployDir)\Images" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(RevitAddinDeployDir)" SkipUnchangedFiles="true" />
     <Copy Condition="Exists('$(TargetDir)AJ Tools.pdb')" SourceFiles="$(TargetDir)AJ Tools.pdb" DestinationFolder="$(RevitAddinDeployDir)" SkipUnchangedFiles="true" />

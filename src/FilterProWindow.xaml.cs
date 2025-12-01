@@ -19,6 +19,9 @@ namespace AJTools
 
         private readonly List<RuleTypeItem> _allRuleTypes;
         private readonly List<FilterValueItem> _currentValues = new List<FilterValueItem>();
+        private static FilterProState _lastState;
+        private bool _restoringState;
+        private List<ApplyViewItem> _allViews = new List<ApplyViewItem>();
 
         public FilterProWindow(Document doc, View activeView)
         {
@@ -45,8 +48,13 @@ namespace AJTools
             };
 
             WireEvents();
+            SetActiveViewName();
             LoadCategories();
-            UpdateStatus("Select categories to begin.");
+            LoadViewsForApply();
+            RestoreLastSelection();
+            if (_lastState == null)
+                UpdateStatus("Select categories to begin.");
+            UpdateApplyScopeLabel();
         }
 
         private void WireEvents()
@@ -55,11 +63,13 @@ namespace AJTools
             create_button.Click += CreateButton_Click;
             apply_view_button.Click += ApplyViewButton_Click;
             shuffle_colors_button.Click += ShuffleColorsButton_Click;
+            refresh_views_button.Click += (s, e) => LoadViewsForApply();
 
             // List selection changes
             categories_listbox.SelectionChanged += (s, e) => { LoadParameters(); UpdateNamePreview(); };
             parameters_listbox.SelectionChanged += (s, e) => { LoadValues(); UpdateNamePreview(); };
             values_listbox.SelectionChanged += (s, e) => UpdateNamePreview();
+            views_listbox.SelectionChanged += (s, e) => UpdateApplyScopeLabel();
 
             // Naming convention changes
             prefix_textbox.TextChanged += (s, e) => UpdateNamePreview();
@@ -69,6 +79,9 @@ namespace AJTools
             include_cat_checkbox.Unchecked += (s, e) => UpdateNamePreview();
             include_param_checkbox.Checked += (s, e) => UpdateNamePreview();
             include_param_checkbox.Unchecked += (s, e) => UpdateNamePreview();
+
+            apply_active_radio.Checked += (s, e) => { views_listbox.IsEnabled = false; UpdateApplyScopeLabel(); };
+            apply_multiple_radio.Checked += (s, e) => { views_listbox.IsEnabled = true; UpdateApplyScopeLabel(); };
             
             // Rule changes
             foreach (var rb in new[] { radio_equals, radio_not_equals, radio_contains, radio_not_contains, radio_starts, radio_not_starts, radio_ends, radio_not_ends, radio_has_value, radio_not_has_value })
@@ -105,6 +118,59 @@ namespace AJTools
 
             values_listbox.ItemsSource = source.ToList();
         }
+
+        private void SetActiveViewName()
+        {
+            active_view_name_text.Text = _activeView != null ? _activeView.Name : "(none)";
+        }
+
+        private void LoadViewsForApply()
+        {
+            try
+            {
+                var previouslySelected = new HashSet<int>(
+                    views_listbox.SelectedItems.Cast<ApplyViewItem>().Select(v => v.Id.IntegerValue));
+
+                var views = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Where(v =>
+                        v != null &&
+                        !v.IsTemplate &&
+                        v.ViewType != ViewType.Internal &&
+                        v.ViewType != ViewType.ProjectBrowser &&
+                        v.ViewType != ViewType.SystemBrowser &&
+                        v.ViewType != ViewType.Schedule &&
+                        v.ViewType != ViewType.Undefined)
+                    .Select(v => new ApplyViewItem(v.Id, v.Name, v.ViewType))
+                    .OrderBy(v => v.ViewType)
+                    .ThenBy(v => v.Name)
+                    .ToList();
+
+                _allViews = views;
+                views_listbox.ItemsSource = _allViews;
+
+                if (previouslySelected.Any())
+                {
+                    views_listbox.SelectedItems.Clear();
+                    foreach (ApplyViewItem item in _allViews)
+                    {
+                        if (previouslySelected.Contains(item.Id.IntegerValue))
+                            views_listbox.SelectedItems.Add(item);
+                    }
+                }
+
+                if (_restoringState)
+                    return;
+
+                views_listbox.IsEnabled = apply_multiple_radio.IsChecked == true;
+                UpdateApplyScopeLabel();
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Error loading views: {ex.Message}");
+            }
+        }
         
         private void UpdateNamePreview()
         {
@@ -135,8 +201,11 @@ namespace AJTools
             if (!string.IsNullOrWhiteSpace(tempSelection.Prefix)) parts.Add(tempSelection.Prefix);
             if (tempSelection.IncludeCategory && tempSelection.CategoryIds.Any())
             {
-                var catName = (categories_listbox.SelectedItems.Cast<FilterCategoryItem>().FirstOrDefault())?.Name ?? "Category";
-                parts.Add(catName);
+                var cats = categories_listbox.SelectedItems.Cast<FilterCategoryItem>().ToList();
+                if (cats.Count > 3)
+                    parts.Add(cats.First().Name + " +");
+                else
+                    parts.Add(string.Join(", ", cats.Select(c => c.Name)));
             }
             if (tempSelection.IncludeParameter && tempSelection.Parameter != null) parts.Add(param.Name);
             parts.Add(valueText);
@@ -146,6 +215,306 @@ namespace AJTools
             string name = string.Join($" {separator} ", parts);
 
             preview_text.Text = name;
+        }
+
+        private void UpdateApplyScopeLabel()
+        {
+            if (apply_scope_text == null || apply_tab == null) return;
+
+            if (apply_active_radio.IsChecked == true)
+            {
+                string viewName = _activeView != null ? _activeView.Name : "None";
+                apply_scope_text.Text = $"Apply: Active View ({viewName})";
+                apply_tab.Header = "Apply (Active View)";
+                views_listbox.IsEnabled = false;
+            }
+            else
+            {
+                int count = views_listbox.SelectedItems.Count;
+                apply_scope_text.Text = count > 0
+                    ? $"Apply: {count} selected view(s)"
+                    : "Apply: Selected Views (none)";
+                apply_tab.Header = count > 0 ? $"Apply ({count} Views)" : "Apply (Selected Views)";
+                views_listbox.IsEnabled = true;
+            }
+        }
+
+        private List<ElementId> GetSelectedViewIds()
+        {
+            if (apply_active_radio.IsChecked == true)
+            {
+                if (_activeView != null)
+                    return new List<ElementId> { _activeView.Id };
+                return new List<ElementId>();
+            }
+
+            return views_listbox.SelectedItems.Cast<ApplyViewItem>().Select(v => v.Id).ToList();
+        }
+
+        private List<View> ResolveTargetViews(out List<ElementId> targetIds)
+        {
+            targetIds = new List<ElementId>();
+            var results = new List<View>();
+
+            if (apply_active_radio.IsChecked == true)
+            {
+                if (_activeView == null)
+                {
+                    TaskDialog.Show("Validation", "There is no active view to apply filters.");
+                    return results;
+                }
+
+                targetIds.Add(_activeView.Id);
+                results.Add(_activeView);
+                return results;
+            }
+
+            var selectedItems = views_listbox.SelectedItems.Cast<ApplyViewItem>().ToList();
+            if (!selectedItems.Any())
+            {
+                TaskDialog.Show("Validation", "Please select at least one view when using 'Selected Views'.");
+                return results;
+            }
+
+            foreach (var item in selectedItems)
+            {
+                targetIds.Add(item.Id);
+                var view = _doc.GetElement(item.Id) as View;
+                if (view != null)
+                    results.Add(view);
+            }
+
+            if (!results.Any())
+                TaskDialog.Show("Validation", "Selected views could not be resolved.");
+
+            return results;
+        }
+
+        private void RestoreLastSelection()
+        {
+            if (_lastState == null) return;
+
+            string restoredMessage = "Restored previous Filter Pro selection.";
+            _restoringState = true;
+            try
+            {
+                if (_lastState.CategoryIds?.Any() == true)
+                {
+                    categories_listbox.SelectedItems.Clear();
+                    var wanted = new HashSet<int>(_lastState.CategoryIds.Select(id => id.IntegerValue));
+                    foreach (FilterCategoryItem item in categories_listbox.Items)
+                    {
+                        if (wanted.Contains(item.Id.IntegerValue))
+                            categories_listbox.SelectedItems.Add(item);
+                    }
+
+                    if (!parameters_listbox.Items.Cast<object>().Any())
+                        LoadParameters();
+                }
+
+                if (_lastState.ParameterId != null)
+                {
+                    foreach (FilterParameterItem item in parameters_listbox.Items)
+                    {
+                        if (item.Id.IntegerValue == _lastState.ParameterId.IntegerValue)
+                        {
+                            parameters_listbox.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+
+                if (!values_listbox.Items.Cast<object>().Any())
+                    LoadValues();
+
+                if (_lastState.Values != null && _lastState.Values.Any())
+                {
+                    values_listbox.SelectedItems.Clear();
+                    foreach (FilterValueItem valueItem in values_listbox.Items)
+                    {
+                        if (MatchesValueKey(valueItem, _lastState.Values))
+                            values_listbox.SelectedItems.Add(valueItem);
+                    }
+                }
+
+                ApplyRuleTypeSelection(_lastState.RuleType);
+                prefix_textbox.Text = _lastState.Prefix ?? string.Empty;
+                suffix_textbox.Text = _lastState.Suffix ?? string.Empty;
+                include_cat_checkbox.IsChecked = _lastState.IncludeCategory;
+                include_param_checkbox.IsChecked = _lastState.IncludeParameter;
+                override_existing_checkbox.IsChecked = _lastState.OverrideExisting;
+                bool hasColorPrefs = _lastState.ColorProjectionLines || _lastState.ColorProjectionPatterns ||
+                                     _lastState.ColorCutLines || _lastState.ColorCutPatterns || _lastState.ColorHalftone;
+                if (hasColorPrefs)
+                {
+                    color_proj_lines_checkbox.IsChecked = _lastState.ColorProjectionLines;
+                    color_proj_patterns_checkbox.IsChecked = _lastState.ColorProjectionPatterns;
+                    color_cut_lines_checkbox.IsChecked = _lastState.ColorCutLines;
+                    color_cut_patterns_checkbox.IsChecked = _lastState.ColorCutPatterns;
+                    color_halftone_checkbox.IsChecked = _lastState.ColorHalftone;
+                }
+                else
+                {
+                    // Default to the original behavior (lines only) when no prior preference exists
+                    color_proj_lines_checkbox.IsChecked = true;
+                    color_cut_lines_checkbox.IsChecked = true;
+                    color_proj_patterns_checkbox.IsChecked = false;
+                    color_cut_patterns_checkbox.IsChecked = false;
+                    color_halftone_checkbox.IsChecked = false;
+                }
+
+                // Restore apply scope
+                if (_lastState.ApplyToActiveView || _lastState.TargetViewIds == null || _lastState.TargetViewIds.Count == 0)
+                {
+                    apply_active_radio.IsChecked = true;
+                }
+                else
+                {
+                    apply_multiple_radio.IsChecked = true;
+                    views_listbox.IsEnabled = true;
+                    var wantedViews = new HashSet<int>(_lastState.TargetViewIds.Select(id => id.IntegerValue));
+                    views_listbox.SelectedItems.Clear();
+                    foreach (ApplyViewItem item in views_listbox.Items)
+                    {
+                        if (wantedViews.Contains(item.Id.IntegerValue))
+                            views_listbox.SelectedItems.Add(item);
+                    }
+                }
+                UpdateApplyScopeLabel();
+            }
+            finally
+            {
+                _restoringState = false;
+            }
+
+            UpdateStatus(restoredMessage);
+        }
+
+        private void ApplyRuleTypeSelection(string ruleType)
+        {
+            radio_equals.IsChecked = string.IsNullOrEmpty(ruleType) || ruleType == RuleTypes.Equals;
+            radio_not_equals.IsChecked = ruleType == RuleTypes.NotEquals;
+            radio_contains.IsChecked = ruleType == RuleTypes.Contains;
+            radio_not_contains.IsChecked = ruleType == RuleTypes.NotContains;
+            radio_starts.IsChecked = ruleType == RuleTypes.BeginsWith;
+            radio_not_starts.IsChecked = ruleType == RuleTypes.NotBeginsWith;
+            radio_ends.IsChecked = ruleType == RuleTypes.EndsWith;
+            radio_not_ends.IsChecked = ruleType == RuleTypes.NotEndsWith;
+            radio_has_value.IsChecked = ruleType == RuleTypes.HasValue;
+            radio_not_has_value.IsChecked = ruleType == RuleTypes.HasNoValue;
+        }
+
+        private void RememberState(FilterSelection selection, IList<FilterValueItem> selectedValues)
+        {
+            _lastState = new FilterProState
+            {
+                CategoryIds = selection.CategoryIds?.ToList() ?? new List<ElementId>(),
+                ParameterId = selection.Parameter?.Id,
+                RuleType = selection.RuleType,
+                Prefix = selection.Prefix ?? string.Empty,
+                Suffix = selection.Suffix ?? string.Empty,
+                IncludeCategory = selection.IncludeCategory,
+                IncludeParameter = selection.IncludeParameter,
+                OverrideExisting = selection.OverrideExisting,
+                ApplyToActiveView = apply_active_radio.IsChecked == true,
+                TargetViewIds = GetSelectedViewIds(),
+                ColorProjectionLines = selection.ColorProjectionLines,
+                ColorProjectionPatterns = selection.ColorProjectionPatterns,
+                ColorCutLines = selection.ColorCutLines,
+                ColorCutPatterns = selection.ColorCutPatterns,
+                ColorHalftone = selection.ColorHalftone,
+                Values = BuildValueKeys(selectedValues)
+            };
+        }
+
+        private List<FilterValueKey> BuildValueKeys(IList<FilterValueItem> selectedValues)
+        {
+            var keys = new List<FilterValueKey>();
+            if (selectedValues == null) return keys;
+
+            foreach (var v in selectedValues)
+            {
+                if (v == null) continue;
+
+                switch (v.StorageType)
+                {
+                    case StorageType.String:
+                        string s = v.RawValue as string ?? v.Display;
+                        if (!string.IsNullOrWhiteSpace(s))
+                            keys.Add(FilterValueKey.ForString(s));
+                        break;
+                    case StorageType.Integer:
+                        int i = Convert.ToInt32(v.RawValue);
+                        keys.Add(FilterValueKey.ForInt(i));
+                        break;
+                    case StorageType.Double:
+                        double d = Convert.ToDouble(v.RawValue);
+                        keys.Add(FilterValueKey.ForDouble(d));
+                        break;
+                    case StorageType.ElementId:
+                        ElementId eid = v.ElementId ?? v.RawValue as ElementId ?? ElementId.InvalidElementId;
+                        if (eid != ElementId.InvalidElementId)
+                            keys.Add(FilterValueKey.ForElementId(eid));
+                        break;
+                }
+            }
+
+            return keys;
+        }
+
+        private bool MatchesValueKey(FilterValueItem item, IList<FilterValueKey> keys)
+        {
+            if (item == null || keys == null || keys.Count == 0) return false;
+
+            foreach (var key in keys)
+            {
+                if (key.StorageType != item.StorageType) continue;
+
+                switch (key.StorageType)
+                {
+                    case StorageType.String:
+                        string itemStr = item.RawValue as string ?? item.Display;
+                        if (itemStr != null && key.StringValue != null &&
+                            string.Equals(itemStr, key.StringValue, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                        break;
+
+                    case StorageType.Integer:
+                        int itemInt = Convert.ToInt32(item.RawValue);
+                        if (key.IntValue.HasValue && itemInt == key.IntValue.Value)
+                            return true;
+                        break;
+
+                    case StorageType.Double:
+                        double itemDouble = Convert.ToDouble(item.RawValue);
+                        if (key.DoubleValue.HasValue && Math.Abs(itemDouble - key.DoubleValue.Value) < 1e-6)
+                            return true;
+                        break;
+
+                    case StorageType.ElementId:
+                        ElementId eid = item.ElementId ?? item.RawValue as ElementId ?? ElementId.InvalidElementId;
+                        if (key.ElementIdValue.HasValue && eid != null && eid.IntegerValue == key.ElementIdValue.Value)
+                            return true;
+                        break;
+                }
+            }
+
+            return false;
+        }
+
+        private string BuildResultStatus(string actionText, int created, IList<string> skipped)
+        {
+            string status = $"{created} filter(s) {actionText}.";
+            if (skipped != null && skipped.Count > 0)
+                status += $" Skipped: {string.Join(", ", skipped)}.";
+            return status;
+        }
+
+        private void ShowWarningIfNeeded(IList<string> skipped)
+        {
+            if (skipped == null || skipped.Count == 0) return;
+            string msg = "Some filters were skipped:\n\n- " + string.Join("\n- ", skipped);
+            TaskDialog.Show("Warning", msg);
         }
 
         private void CreateButton_Click(object sender, RoutedEventArgs e)
@@ -166,17 +535,18 @@ namespace AJTools
             
             var ruleType = GetSelectedRuleType();
 
-            var values = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
-            if (values.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
+            var selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
+            if (selectedValues.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
             {
                 TaskDialog.Show("Validation", "Please select at least one value for the chosen rule.");
                 return;
             }
 
             // For HasValue/HasNoValue, create a dummy value
-            if (values.Count == 0)
+            var valuesForCreation = selectedValues;
+            if (valuesForCreation.Count == 0)
             {
-                values = new List<FilterValueItem>
+                valuesForCreation = new List<FilterValueItem>
                 {
                     new FilterValueItem("Any", null, param.StorageType)
                 };
@@ -186,11 +556,18 @@ namespace AJTools
             {
                 CategoryIds = catIds,
                 Parameter = param,
-                Values = values,
+                Values = valuesForCreation,
                 RuleType = ruleType,
                 ApplyToView = false,
+                ApplyToActiveView = apply_active_radio.IsChecked == true,
+                TargetViewIds = GetSelectedViewIds(),
                 OverrideExisting = override_existing_checkbox.IsChecked == true,
                 RandomColors = false,
+                ColorProjectionLines = color_proj_lines_checkbox.IsChecked == true,
+                ColorProjectionPatterns = color_proj_patterns_checkbox.IsChecked == true,
+                ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
+                ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
+                ColorHalftone = color_halftone_checkbox.IsChecked == true,
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
@@ -204,17 +581,14 @@ namespace AJTools
                 using (var t = new Transaction(_doc, "Create Filters"))
                 {
                     t.Start();
-                    created = FilterProHelper.CreateFilters(_doc, _activeView, selection, skipped);
+                    var targetViews = _activeView != null ? new List<View> { _activeView } : new List<View>();
+                    created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
                     t.Commit();
                 }
 
-                string info = $"{created} filter(s) created.";
-                if (skipped.Any())
-                {
-                    info += $"\n\nSkipped:\n- {string.Join("\n- ", skipped)}";
-                }
-                TaskDialog.Show("Filter Pro Results", info);
-                UpdateStatus($"{created} created, {skipped.Count} skipped.");
+                RememberState(selection, selectedValues);
+                UpdateStatus(BuildResultStatus("created", created, skipped));
+                ShowWarningIfNeeded(skipped);
             }
             catch (Exception ex)
             {
@@ -516,6 +890,9 @@ namespace AJTools
 
         private void UpdateStatus(string message)
         {
+            if (_restoringState)
+                return;
+
             status_text.Text = message;
         }
 
@@ -536,23 +913,38 @@ namespace AJTools
             }
             
             var ruleType = GetSelectedRuleType();
-            var values = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
+            var selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
             
-            if (values.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
+            if (selectedValues.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
             {
                 TaskDialog.Show("Validation", "Please select at least one value for the chosen rule.");
                 return;
             }
 
+            var targetViews = ResolveTargetViews(out var targetIds);
+            if (!targetViews.Any())
+                return;
+
+            var valuesForCreation = selectedValues.Count == 0
+                ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) }
+                : selectedValues;
+
             var selection = new FilterSelection
             {
                 CategoryIds = catIds,
                 Parameter = param,
-                Values = values.Count == 0 ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) } : values,
+                Values = valuesForCreation,
                 RuleType = ruleType,
                 ApplyToView = true,
+                ApplyToActiveView = apply_active_radio.IsChecked == true,
+                TargetViewIds = targetIds,
                 OverrideExisting = override_existing_checkbox.IsChecked == true,
                 RandomColors = false,
+                ColorProjectionLines = color_proj_lines_checkbox.IsChecked == true,
+                ColorProjectionPatterns = color_proj_patterns_checkbox.IsChecked == true,
+                ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
+                ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
+                ColorHalftone = color_halftone_checkbox.IsChecked == true,
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
@@ -566,17 +958,13 @@ namespace AJTools
                 using (var t = new Transaction(_doc, "Create and Apply Filters"))
                 {
                     t.Start();
-                    created = FilterProHelper.CreateFilters(_doc, _activeView, selection, skipped);
+                    created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
                     t.Commit();
                 }
 
-                string info = $"{created} filter(s) created and applied to view.";
-                if (skipped.Any())
-                {
-                    info += $"\n\nSkipped:\n- {string.Join("\n- ", skipped)}";
-                }
-                TaskDialog.Show("Filter Pro Results", info);
-                UpdateStatus($"{created} created and applied, {skipped.Count} skipped.");
+                RememberState(selection, selectedValues);
+                UpdateStatus(BuildResultStatus("created and applied to view", created, skipped));
+                ShowWarningIfNeeded(skipped);
             }
             catch (Exception ex)
             {
@@ -602,23 +990,38 @@ namespace AJTools
             }
             
             var ruleType = GetSelectedRuleType();
-            var values = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
+            var selectedValues = values_listbox.SelectedItems.Cast<FilterValueItem>().ToList();
             
-            if (values.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
+            if (selectedValues.Count == 0 && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
             {
                 TaskDialog.Show("Validation", "Please select at least one value for the chosen rule.");
                 return;
             }
 
+            var targetViews = ResolveTargetViews(out var targetIds);
+            if (!targetViews.Any())
+                return;
+
+            var valuesForCreation = selectedValues.Count == 0
+                ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) }
+                : selectedValues;
+
             var selection = new FilterSelection
             {
                 CategoryIds = catIds,
                 Parameter = param,
-                Values = values.Count == 0 ? new List<FilterValueItem> { new FilterValueItem("Any", null, param.StorageType) } : values,
+                Values = valuesForCreation,
                 RuleType = ruleType,
                 ApplyToView = true,
+                ApplyToActiveView = apply_active_radio.IsChecked == true,
+                TargetViewIds = targetIds,
                 OverrideExisting = override_existing_checkbox.IsChecked == true,
                 RandomColors = true,
+                ColorProjectionLines = color_proj_lines_checkbox.IsChecked == true,
+                ColorProjectionPatterns = color_proj_patterns_checkbox.IsChecked == true,
+                ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
+                ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
+                ColorHalftone = color_halftone_checkbox.IsChecked == true,
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
@@ -632,17 +1035,13 @@ namespace AJTools
                 using (var t = new Transaction(_doc, "Create Filters with Random Colors"))
                 {
                     t.Start();
-                    created = FilterProHelper.CreateFilters(_doc, _activeView, selection, skipped);
+                    created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
                     t.Commit();
                 }
 
-                string info = $"{created} filter(s) created with random colors.";
-                if (skipped.Any())
-                {
-                    info += $"\n\nSkipped:\n- {string.Join("\n- ", skipped)}";
-                }
-                TaskDialog.Show("Filter Pro Results", info);
-                UpdateStatus($"{created} created with random colors, {skipped.Count} skipped.");
+                RememberState(selection, selectedValues);
+                UpdateStatus(BuildResultStatus("created with random colors and applied to view", created, skipped));
+                ShowWarningIfNeeded(skipped);
             }
             catch (Exception ex)
             {
@@ -660,12 +1059,39 @@ namespace AJTools
         public IList<FilterValueItem> Values { get; set; }
         public string RuleType { get; set; }
         public bool ApplyToView { get; set; }
+        public bool ApplyToActiveView { get; set; }
+        public IList<ElementId> TargetViewIds { get; set; }
         public bool OverrideExisting { get; set; }
         public bool RandomColors { get; set; }
+        public bool ColorProjectionLines { get; set; }
+        public bool ColorProjectionPatterns { get; set; }
+        public bool ColorCutLines { get; set; }
+        public bool ColorCutPatterns { get; set; }
+        public bool ColorHalftone { get; set; }
         public string Prefix { get; set; }
         public string Suffix { get; set; }
         public bool IncludeCategory { get; set; }
         public bool IncludeParameter { get; set; }
+    }
+
+    internal class FilterProState
+    {
+        public List<ElementId> CategoryIds { get; set; } = new List<ElementId>();
+        public ElementId ParameterId { get; set; }
+        public string RuleType { get; set; }
+        public List<FilterValueKey> Values { get; set; } = new List<FilterValueKey>();
+        public string Prefix { get; set; }
+        public string Suffix { get; set; }
+        public bool IncludeCategory { get; set; }
+        public bool IncludeParameter { get; set; }
+        public bool OverrideExisting { get; set; }
+        public bool ApplyToActiveView { get; set; } = true;
+        public List<ElementId> TargetViewIds { get; set; } = new List<ElementId>();
+        public bool ColorProjectionLines { get; set; }
+        public bool ColorProjectionPatterns { get; set; }
+        public bool ColorCutLines { get; set; }
+        public bool ColorCutPatterns { get; set; }
+        public bool ColorHalftone { get; set; }
     }
 
     internal static class RuleTypes
@@ -729,6 +1155,38 @@ namespace AJTools
         public object RawValue { get; }
         public StorageType StorageType { get; }
         public ElementId ElementId { get; }
+        public override string ToString() => Display;
+    }
+
+    internal class FilterValueKey
+    {
+        public StorageType StorageType { get; private set; }
+        public string StringValue { get; private set; }
+        public int? IntValue { get; private set; }
+        public double? DoubleValue { get; private set; }
+        public int? ElementIdValue { get; private set; }
+
+        private FilterValueKey() { }
+
+        public static FilterValueKey ForString(string value) => new FilterValueKey { StorageType = StorageType.String, StringValue = value };
+        public static FilterValueKey ForInt(int value) => new FilterValueKey { StorageType = StorageType.Integer, IntValue = value };
+        public static FilterValueKey ForDouble(double value) => new FilterValueKey { StorageType = StorageType.Double, DoubleValue = value };
+        public static FilterValueKey ForElementId(ElementId id) => new FilterValueKey { StorageType = StorageType.ElementId, ElementIdValue = id?.IntegerValue };
+    }
+
+    internal class ApplyViewItem
+    {
+        public ApplyViewItem(ElementId id, string name, ViewType type)
+        {
+            Id = id;
+            Name = name;
+            ViewType = type;
+        }
+
+        public ElementId Id { get; }
+        public string Name { get; }
+        public ViewType ViewType { get; }
+        public string Display => $"{Name} ({ViewType})";
         public override string ToString() => Display;
     }
 
