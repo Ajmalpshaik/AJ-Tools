@@ -22,6 +22,7 @@ namespace AJTools
         private static FilterProState _lastState;
         private bool _restoringState;
         private List<ApplyViewItem> _allViews = new List<ApplyViewItem>();
+        private List<PatternItem> _patterns = new List<PatternItem>();
 
         public FilterProWindow(Document doc, View activeView)
         {
@@ -51,6 +52,7 @@ namespace AJTools
             SetActiveViewName();
             LoadCategories();
             LoadViewsForApply();
+            LoadPatterns();
             RestoreLastSelection();
             if (_lastState == null)
                 UpdateStatus("Select categories to begin.");
@@ -92,6 +94,7 @@ namespace AJTools
             // Value filtering and sorting
             value_search_textbox.TextChanged += (s, e) => ApplyValueFilters();
             value_sort_combobox.SelectionChanged += (s, e) => ApplyValueFilters();
+            pattern_combo.SelectionChanged += (s, e) => RememberPatternSelection();
         }
 
         private void ApplyValueFilters()
@@ -171,6 +174,33 @@ namespace AJTools
                 UpdateStatus($"Error loading views: {ex.Message}");
             }
         }
+
+        private void LoadPatterns()
+        {
+            try
+            {
+                var patterns = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .Select(p => new PatternItem(p.Id, p.GetFillPattern().IsSolidFill ? "Solid Fill" : p.Name))
+                    .OrderBy(p => p.Name)
+                    .ToList();
+
+                _patterns = patterns;
+                pattern_combo.ItemsSource = _patterns;
+
+                // Default to Solid Fill if available
+                var solid = _patterns.FirstOrDefault(p => string.Equals(p.Name, "Solid Fill", StringComparison.OrdinalIgnoreCase));
+                if (solid != null)
+                    pattern_combo.SelectedItem = solid;
+                else if (_patterns.Any())
+                    pattern_combo.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Error loading patterns: {ex.Message}");
+            }
+        }
         
         private void UpdateNamePreview()
         {
@@ -237,6 +267,41 @@ namespace AJTools
                 apply_tab.Header = count > 0 ? $"Apply ({count} Views)" : "Apply (Selected Views)";
                 views_listbox.IsEnabled = true;
             }
+        }
+
+        private ElementId GetSelectedPatternId()
+        {
+            if (pattern_combo?.SelectedItem is PatternItem item)
+                return item.Id;
+            if (pattern_combo?.SelectedValue is ElementId eid)
+                return eid;
+            return ElementId.InvalidElementId;
+        }
+
+        private void RestorePatternSelection(ElementId savedId)
+        {
+            if (savedId == null || savedId == ElementId.InvalidElementId || pattern_combo == null)
+                return;
+
+            foreach (PatternItem item in pattern_combo.Items)
+            {
+                if (item.Id != null && item.Id.IntegerValue == savedId.IntegerValue)
+                {
+                    pattern_combo.SelectedItem = item;
+                    return;
+                }
+            }
+        }
+
+        private void RememberPatternSelection()
+        {
+            // noop placeholder to trigger state when needed
+        }
+
+        private PatternItem GetPatternItem(ElementId id)
+        {
+            if (id == null || id == ElementId.InvalidElementId) return null;
+            return _patterns.FirstOrDefault(p => p.Id.IntegerValue == id.IntegerValue);
         }
 
         private List<ElementId> GetSelectedViewIds()
@@ -362,6 +427,7 @@ namespace AJTools
                     color_cut_patterns_checkbox.IsChecked = false;
                     color_halftone_checkbox.IsChecked = false;
                 }
+                RestorePatternSelection(_lastState.PatternId);
 
                 // Restore apply scope
                 if (_lastState.ApplyToActiveView || _lastState.TargetViewIds == null || _lastState.TargetViewIds.Count == 0)
@@ -423,6 +489,7 @@ namespace AJTools
                 ColorCutLines = selection.ColorCutLines,
                 ColorCutPatterns = selection.ColorCutPatterns,
                 ColorHalftone = selection.ColorHalftone,
+                PatternId = selection.PatternId,
                 Values = BuildValueKeys(selectedValues)
             };
         }
@@ -568,6 +635,7 @@ namespace AJTools
                 ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
                 ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
                 ColorHalftone = color_halftone_checkbox.IsChecked == true,
+                PatternId = GetSelectedPatternId(),
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
@@ -687,6 +755,9 @@ namespace AJTools
             UpdateStatus("Collecting values...");
             try
             {
+                const int elementScanLimit = 10000; // performance cap
+                int scanned = 0;
+
                 var filter = new ElementMulticategoryFilter(catIds);
                 var collector = new FilteredElementCollector(_doc).WherePasses(filter);
 
@@ -695,18 +766,19 @@ namespace AJTools
 
                 foreach (Element elem in collector)
                 {
+                    scanned++;
+                    if (scanned > elementScanLimit)
+                        break; // stop scanning further elements
+
                     Parameter p = null;
-                    
                     // Try built-in parameter first
                     if (Enum.IsDefined(typeof(BuiltInParameter), param.Id.IntegerValue))
                     {
                         p = elem.get_Parameter((BuiltInParameter)param.Id.IntegerValue);
                     }
-                    
-                    // Try as shared parameter or project parameter
+                    // Try as shared/project parameter
                     if (p == null)
                     {
-                        // Try to get by definition
                         foreach (Parameter elemParam in elem.Parameters)
                         {
                             if (elemParam.Id.IntegerValue == param.Id.IntegerValue)
@@ -716,16 +788,12 @@ namespace AJTools
                             }
                         }
                     }
-                    
                     if (p == null || p.StorageType == StorageType.None || !p.HasValue) continue;
-                    
+
                     FilterValueItem item = ExtractValueItem(p, elem, param.StorageType, param.Name);
                     if (item?.RawValue == null) continue;
 
-                    string key = item.StorageType == StorageType.String
-                        ? item.RawValue as string
-                        : item.Display;
-                        
+                    string key = item.StorageType == StorageType.String ? item.RawValue as string : item.Display;
                     if (!string.IsNullOrEmpty(key) && seen.Add(key))
                         values.Add(item);
                 }
@@ -735,7 +803,11 @@ namespace AJTools
 
                 values_listbox.ItemsSource = values.OrderBy(v => v.Display);
                 values_listbox.DisplayMemberPath = "Display";
-                UpdateStatus($"Loaded {values.Count} unique value(s).");
+
+                if (scanned > elementScanLimit)
+                    UpdateStatus($"Loaded {values.Count} unique value(s). Stopped after scanning {elementScanLimit:N0} elements for performance.");
+                else
+                    UpdateStatus($"Loaded {values.Count} unique value(s). Scanned {scanned:N0} elements.");
             }
             catch (Exception ex)
             {
@@ -776,6 +848,23 @@ namespace AJTools
         private string ResolveElementName(Element element, ElementId id, string paramName)
         {
             if (element == null) return "#" + id.IntegerValue;
+
+            // Prefer family + type when available for clarity
+            if (element is FamilyInstance inst && inst.Symbol != null)
+            {
+                string fam = inst.Symbol.FamilyName;
+                string type = inst.Symbol.Name;
+                if (!string.IsNullOrWhiteSpace(fam) && !string.IsNullOrWhiteSpace(type))
+                    return $"{fam} : {type}";
+            }
+
+            if (element is FamilySymbol fs)
+            {
+                string fam = fs.FamilyName;
+                string type = fs.Name;
+                if (!string.IsNullOrWhiteSpace(fam) && !string.IsNullOrWhiteSpace(type))
+                    return $"{fam} : {type}";
+            }
 
             string label = element.Name;
             if (!string.IsNullOrWhiteSpace(label)) return label;
@@ -945,6 +1034,7 @@ namespace AJTools
                 ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
                 ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
                 ColorHalftone = color_halftone_checkbox.IsChecked == true,
+                PatternId = GetSelectedPatternId(),
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
@@ -1022,6 +1112,7 @@ namespace AJTools
                 ColorCutLines = color_cut_lines_checkbox.IsChecked == true,
                 ColorCutPatterns = color_cut_patterns_checkbox.IsChecked == true,
                 ColorHalftone = color_halftone_checkbox.IsChecked == true,
+                PatternId = GetSelectedPatternId(),
                 Prefix = prefix_textbox.Text,
                 Suffix = suffix_textbox.Text,
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
@@ -1068,6 +1159,7 @@ namespace AJTools
         public bool ColorCutLines { get; set; }
         public bool ColorCutPatterns { get; set; }
         public bool ColorHalftone { get; set; }
+        public ElementId PatternId { get; set; }
         public string Prefix { get; set; }
         public string Suffix { get; set; }
         public bool IncludeCategory { get; set; }
@@ -1092,6 +1184,7 @@ namespace AJTools
         public bool ColorCutLines { get; set; }
         public bool ColorCutPatterns { get; set; }
         public bool ColorHalftone { get; set; }
+        public ElementId PatternId { get; set; }
     }
 
     internal static class RuleTypes
@@ -1188,6 +1281,19 @@ namespace AJTools
         public ViewType ViewType { get; }
         public string Display => $"{Name} ({ViewType})";
         public override string ToString() => Display;
+    }
+
+    internal class PatternItem
+    {
+        public PatternItem(ElementId id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+
+        public ElementId Id { get; }
+        public string Name { get; }
+        public override string ToString() => Name;
     }
 
     internal static class ColorPalette
