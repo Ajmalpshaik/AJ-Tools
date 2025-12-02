@@ -23,6 +23,7 @@ namespace AJTools
         private bool _restoringState;
         private List<ApplyViewItem> _allViews = new List<ApplyViewItem>();
         private List<PatternItem> _patterns = new List<PatternItem>();
+        private bool _madeChanges;
 
         public FilterProWindow(Document doc, View activeView)
         {
@@ -45,7 +46,12 @@ namespace AJTools
 
         private void WireEvents()
         {
-            close_button.Click += (s, e) => Close();
+            close_button.Click += (s, e) =>
+            {
+                // Preserve dialog result so Revit keeps changes when the command ends.
+                DialogResult = _madeChanges;
+                Close();
+            };
             create_button.Click += CreateButton_Click;
             apply_view_button.Click += ApplyViewButton_Click;
             shuffle_colors_button.Click += ShuffleColorsButton_Click;
@@ -684,6 +690,7 @@ namespace AJTools
                     t.Start();
                     created = FilterProHelper.CreateFilters(_doc, new List<View>(), selection, skipped);
                     t.Commit();
+                    _madeChanges = true;
                 }
 
                 RememberState(selection);
@@ -793,6 +800,8 @@ namespace AJTools
         private async Task LoadValues()
         {
             values_listbox.ItemsSource = null;
+            // Revit API must stay on the main thread; brief yield keeps UI responsive without hopping threads.
+            await Task.Yield();
             var param = parameters_listbox.SelectedItem as FilterParameterItem;
             var catIds = categories_listbox.SelectedItems.Cast<FilterCategoryItem>().Select(c => c.Id).ToList();
 
@@ -808,27 +817,23 @@ namespace AJTools
                 // Special handling for the composite "Family and Type" parameter
                 if (param.Name == "Family and Type")
                 {
-                    var familyAndTypeValues = await Task.Run(() =>
+                    var famTypeCollector = new FilteredElementCollector(_doc).WherePasses(new ElementMulticategoryFilter(catIds));
+                    var famTypeSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var familyAndTypeValues = new List<FilterValueItem>();
+
+                    foreach (Element elem in famTypeCollector)
                     {
-                        var collector = new FilteredElementCollector(_doc).WherePasses(new ElementMulticategoryFilter(catIds));
-                        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        var collectedValues = new List<FilterValueItem>();
+                        string familyName = elem.get_Parameter(BuiltInParameter.ALL_MODEL_FAMILY_NAME)?.AsString();
+                        string typeName = elem.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME)?.AsString();
 
-                        foreach (Element elem in collector)
+                        if (string.IsNullOrWhiteSpace(familyName) || string.IsNullOrWhiteSpace(typeName)) continue;
+                        
+                        string display = $"{familyName} - {typeName}";
+                        if (famTypeSeen.Add(display))
                         {
-                            string familyName = elem.get_Parameter(BuiltInParameter.ALL_MODEL_FAMILY_NAME)?.AsString();
-                            string typeName = elem.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME)?.AsString();
-
-                            if (string.IsNullOrWhiteSpace(familyName) || string.IsNullOrWhiteSpace(typeName)) continue;
-                            
-                            string display = $"{familyName} — {typeName}";
-                            if (seen.Add(display))
-                            {
-                                collectedValues.Add(new FilterValueItem(display, new Tuple<string, string>(familyName, typeName), StorageType.String));
-                            }
+                            familyAndTypeValues.Add(new FilterValueItem(display, new Tuple<string, string>(familyName, typeName), StorageType.String));
                         }
-                        return collectedValues;
-                    });
+                    }
 
                     _currentValues.Clear();
                     _currentValues.AddRange(familyAndTypeValues);
@@ -839,65 +844,61 @@ namespace AJTools
                 }
 
                 // Existing logic for regular parameters
-                var values = await Task.Run(() =>
+                const int elementScanLimit = 10000; // performance cap
+                int scanned = 0;
+
+                var filter = new ElementMulticategoryFilter(catIds);
+                var collector = new FilteredElementCollector(_doc).WherePasses(filter);
+
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var collectedValues = new List<FilterValueItem>();
+
+                foreach (Element elem in collector)
                 {
-                    const int elementScanLimit = 10000; // performance cap
-                    int scanned = 0;
+                    scanned++;
+                    if (scanned > elementScanLimit)
+                        break; // stop scanning further elements
 
-                    var filter = new ElementMulticategoryFilter(catIds);
-                    var collector = new FilteredElementCollector(_doc).WherePasses(filter);
-
-                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    var collectedValues = new List<FilterValueItem>();
-
-                    foreach (Element elem in collector)
+                    Parameter p = null;
+                    if (Enum.IsDefined(typeof(BuiltInParameter), param.Id.IntegerValue))
                     {
-                        scanned++;
-                        if (scanned > elementScanLimit)
-                            break; // stop scanning further elements
-
-                        Parameter p = null;
-                        if (Enum.IsDefined(typeof(BuiltInParameter), param.Id.IntegerValue))
+                        p = elem.get_Parameter((BuiltInParameter)param.Id.IntegerValue);
+                    }
+                    if (p == null)
+                    {
+                        p = elem.LookupParameter(param.Name);
+                    }
+                    if (p == null)
+                    {
+                        foreach (Parameter elemParam in elem.Parameters)
                         {
-                            p = elem.get_Parameter((BuiltInParameter)param.Id.IntegerValue);
-                        }
-                        if (p == null)
-                        {
-                            p = elem.LookupParameter(param.Name);
-                        }
-                        if (p == null)
-                        {
-                            foreach (Parameter elemParam in elem.Parameters)
+                            if (elemParam.Id.IntegerValue == param.Id.IntegerValue)
                             {
-                                if (elemParam.Id.IntegerValue == param.Id.IntegerValue)
-                                {
-                                    p = elemParam;
-                                    break;
-                                }
+                                p = elemParam;
+                                break;
                             }
                         }
-                        if (p == null || p.StorageType == StorageType.None || !p.HasValue) continue;
-
-                        FilterValueItem item = ExtractValueItem(p, elem, param.StorageType, param.Name);
-                        if (item?.RawValue == null) continue;
-
-                        string key = item.StorageType == StorageType.String ? item.RawValue as string : item.Display;
-                        if (!string.IsNullOrEmpty(key) && seen.Add(key))
-                            collectedValues.Add(item);
                     }
-                    return new { Collected = collectedValues, ScannedCount = scanned, LimitReached = scanned > elementScanLimit };
-                });
+                    if (p == null || p.StorageType == StorageType.None || !p.HasValue) continue;
+
+                    FilterValueItem item = ExtractValueItem(p, elem, param.StorageType, param.Name);
+                    if (item?.RawValue == null) continue;
+
+                    string key = item.StorageType == StorageType.String ? item.RawValue as string : item.Display;
+                    if (!string.IsNullOrEmpty(key) && seen.Add(key))
+                        collectedValues.Add(item);
+                }
 
                 _currentValues.Clear();
-                _currentValues.AddRange(values.Collected);
+                _currentValues.AddRange(collectedValues);
 
-                values_listbox.ItemsSource = values.Collected.OrderBy(v => v.Display).ToList();
+                values_listbox.ItemsSource = collectedValues.OrderBy(v => v.Display).ToList();
                 values_listbox.DisplayMemberPath = "Display";
 
-                if (values.LimitReached)
-                    UpdateStatus($"Loaded {values.Collected.Count} unique value(s). Stopped after scanning {values.ScannedCount:N0} elements for performance.");
+                if (scanned > elementScanLimit)
+                    UpdateStatus($"Loaded {collectedValues.Count} unique value(s). Stopped after scanning {scanned:N0} elements for performance.");
                 else
-                    UpdateStatus($"Loaded {values.Collected.Count} unique value(s). Scanned {values.ScannedCount:N0} elements.");
+                    UpdateStatus($"Loaded {collectedValues.Count} unique value(s). Scanned {scanned:N0} elements.");
             }
             catch (Exception ex)
             {
@@ -1114,6 +1115,7 @@ namespace AJTools
                     t.Start();
                     created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
                     t.Commit();
+                    _madeChanges = true;
                 }
 
                 RememberState(selection);
@@ -1145,6 +1147,7 @@ namespace AJTools
                     t.Start();
                     created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
                     t.Commit();
+                    _madeChanges = true;
                 }
 
                 RememberState(selection);
@@ -1157,6 +1160,9 @@ namespace AJTools
                 UpdateStatus($"Error: {ex.Message}");
             }
         }
+
+        // Exposed to the external command so it can return Succeeded when changes were made.
+        internal bool HasChanges => _madeChanges;
     }
 
     // Data model classes migrated from the old FilterProForm

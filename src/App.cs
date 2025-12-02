@@ -381,8 +381,9 @@ namespace AJTools
                     "CmdFilterPro",
                     "Filter\nPro",
                     asmPath,
-                    "AJTools.CmdFilterPro"
+                    "AJTools.Commands.CmdFilterPro"
                 );
+                pbdFilterPro.AvailabilityClassName = "AJTools.Commands.CmdFilterProAvailability";
 
                 PushButton btnFilterPro = panelMep.AddItem(pbdFilterPro) as PushButton;
 

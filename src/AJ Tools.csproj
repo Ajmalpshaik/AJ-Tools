@@ -61,6 +61,7 @@
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdAbout.cs" />
     <Compile Include="Commands\CmdDimensionByLine.cs" />
+    <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdUnhideAll.cs" />
     <Compile Include="Commands\CmdResetDatums.cs" />
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
