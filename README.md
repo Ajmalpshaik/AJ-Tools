@@ -1,6 +1,6 @@
 # AJ Tools for Autodesk Revit (2020+)
 
-AJ Tools is a productivity pack for Autodesk Revit (.NET Framework 4.7.2). It ships a modern Filter Pro module plus a set of utilities for graphics, dimensions, datums, views, and MEP workflows.
+AJ Tools is a productivity pack for Autodesk Revit (.NET Framework 4.7.2). It ships a modern Filter Pro module plus a set of utilities for graphics, dimensions, datums, views, annotations, and MEP workflows.
 
 ## Key Features
 - **Filter Pro:** create/update view filters from parameter values (multi-category; built-in, shared, project params).
@@ -8,6 +8,14 @@ AJ Tools is a productivity pack for Autodesk Revit (.NET Framework 4.7.2). It sh
 - **Color & patterns:** apply projection/cut colors, solid-fill patterns, and halftone per filter; optional random palette.
 - **Robust UI:** WPF interface with search, sorting, live name preview, prefix/suffix/separator options.
 - **Rules:** 14 rule types (equals/not, contains/not, begins/ends with/not, numeric compares, has value/no value).
+- **Other tools (ribbon panels):**
+  - **Graphics:** Toggle Revit Links, Unhide All, Reset Graphics.
+  - **Dimensions:** Auto Dimensions (grids/levels), Dimension by Line (grids/levels), Copy Dimension Text.
+  - **Datums:** Reset Grids/Levels to 3D, Reset Datums combined, Flip Grid Bubble.
+  - **Views:** Copy View Range between plan views.
+  - **MEP:** Match Elevation, Filter Pro.
+  - **Annotations:** Reset Text Position.
+  - **Fun/Info:** Snake game, Neon Defender, About.
 
 ## Project Structure
 - `src/` – source code  
