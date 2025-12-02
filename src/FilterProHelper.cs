@@ -55,11 +55,13 @@ namespace AJTools
                     ParameterFilterElement existing = FindFilterByName(doc, filterName);
                     ElementParameterFilter elementFilter = new ElementParameterFilter(rules);
                     ParameterFilterElement filter = existing;
+                    bool createdOrModified = false;
 
                     if (filter == null)
                     {
                         filter = ParameterFilterElement.Create(doc, filterName, validCategoryIds, elementFilter);
                         created++;
+                        createdOrModified = true;
                         newFilterIds.Add(filter.Id);
                     }
                     else
@@ -70,16 +72,22 @@ namespace AJTools
                             {
                                 filter = ParameterFilterElement.Create(doc, filterName, validCategoryIds, elementFilter);
                                 created++;
+                                createdOrModified = true;
                             }
                             else
                             {
+                                // Update in-place
                                 filter.Name = filterName;
                                 filter.SetCategories(validCategoryIds);
                                 filter.SetElementFilter(elementFilter);
                                 created++;
+                                createdOrModified = true;
                             }
                         }
-                        newFilterIds.Add(filter.Id);
+
+                        // Only treat it as "new" for ordering if we actually created or modified it.
+                        if (createdOrModified)
+                            newFilterIds.Add(filter.Id);
                     }
 
                     // Apply to View (Initial)
@@ -98,61 +106,95 @@ namespace AJTools
                 }
             }
 
+            // Capture the current order per view before we touch it so reordering is stable for this run.
+            // This log is per-run only and cleared immediately after use.
+            var perViewOriginalOrder = new Dictionary<int, List<ElementId>>();
+            if (selection.PlaceNewFiltersFirst && viewTargets.Any())
+            {
+                foreach (var v in viewTargets)
+                {
+                    try
+                    {
+                        var original = v.GetFilters() ?? new List<ElementId>();
+                        var cleaned = original.Where(id => doc.GetElement(id) != null).ToList();
+                        perViewOriginalOrder[v.Id.IntegerValue] = cleaned;
+                    }
+                    catch
+                    {
+                        // ignore and fall back to live order if needed
+                    }
+                }
+            }
+
             // 4. Handle Reordering (CRITICAL FIX APPLIED HERE)
             if (selection.PlaceNewFiltersFirst && newFilterIds.Any() && viewTargets.Any())
             {
                 doc.Regenerate(); // Clear any UI caching
                 foreach (var view in viewTargets)
                 {
-                    ReorderFiltersInView(doc, view, newFilterIds, selection);
+                    List<ElementId> originalOrder = null;
+                    perViewOriginalOrder.TryGetValue(view.Id.IntegerValue, out originalOrder);
+                    ReorderFiltersInView(doc, view, newFilterIds, selection, originalOrder);
                 }
+
+                // Clear the per-run log so it never leaks across invocations.
+                perViewOriginalOrder.Clear();
             }
 
             return created;
         }
 
-        private static void ReorderFiltersInView(Document doc, View view, List<ElementId> newFilterIds, FilterSelection selection)
+        private static void ReorderFiltersInView(Document doc, View view, List<ElementId> newFilterIds, FilterSelection selection, List<ElementId> originalOrder)
         {
             try
             {
                 if (IsViewControlledByTemplate(view)) return;
 
-                var rawFilterIds = view.GetFilters();
-                if (rawFilterIds == null) return;
+                // Live filters at the moment of reordering
+                var liveFilters = view.GetFilters() ?? new List<ElementId>();
+                var liveClean = liveFilters.Where(id => doc.GetElement(id) != null).ToList();
 
-                var existingFilters = new List<ElementId>();
-                foreach (var id in rawFilterIds)
+                // Baseline snapshot taken before this run (preferred); otherwise fall back to live.
+                var snapshot = originalOrder ?? liveClean;
+                var snapshotClean = snapshot.Where(id => doc.GetElement(id) != null).ToList();
+
+                if (snapshotClean.Count == 0 && liveClean.Count == 0 && newFilterIds.Count == 0) return;
+
+                var newFilterSet = new HashSet<int>(newFilterIds.Select(x => x.IntegerValue));
+
+                // Existing filters from the snapshot, keeping their captured order and only those still live.
+                var existingOrdered = new List<ElementId>();
+                foreach (var id in snapshotClean)
                 {
-                    if (doc.GetElement(id) != null) existingFilters.Add(id);
+                    if (!newFilterSet.Contains(id.IntegerValue) && liveClean.Any(l => l.IntegerValue == id.IntegerValue))
+                        existingOrdered.Add(id);
                 }
 
-                if (existingFilters.Count == 0 && newFilterIds.Count == 0) return;
-
-                // --- CHECK ORDER BEFORE TOUCHING ANYTHING ---
-                var newFilterSet = new HashSet<int>(newFilterIds.Select(x => x.IntegerValue));
-                var otherFilters = new List<ElementId>();
-
-                foreach (ElementId id in existingFilters)
+                // Any live filters not in the snapshot (e.g., added manually during the session) go after the preserved order only if no snapshot was available.
+                var extras = new List<ElementId>();
+                if (originalOrder == null)
                 {
-                    if (!newFilterSet.Contains(id.IntegerValue)) otherFilters.Add(id);
+                    foreach (var id in liveClean)
+                    {
+                        int val = id.IntegerValue;
+                        if (newFilterSet.Contains(val)) continue;
+                        if (existingOrdered.Any(x => x.IntegerValue == val)) continue;
+                        extras.Add(id);
+                    }
                 }
 
                 var desiredOrder = new List<ElementId>();
-                desiredOrder.AddRange(newFilterIds);
-                desiredOrder.AddRange(otherFilters);
+                desiredOrder.AddRange(newFilterIds);       // new first
+                desiredOrder.AddRange(existingOrdered);    // then preserved snapshot order
+                desiredOrder.AddRange(extras);             // then any live extras (only when no snapshot)
 
-                bool orderIsCorrect = true;
-                if (existingFilters.Count != desiredOrder.Count)
+                // If the live order already matches desired, just apply graphics to new ones
+                bool orderIsCorrect = liveClean.Count == desiredOrder.Count;
+                if (orderIsCorrect)
                 {
-                    orderIsCorrect = false;
-                }
-                else
-                {
-                    int count = 0;
-                    foreach (ElementId id in existingFilters)
+                    for (int i = 0; i < liveClean.Count; i++)
                     {
-                        if (count < desiredOrder.Count && id == desiredOrder[count]) count++;
-                        else
+                        if (liveClean[i].IntegerValue != desiredOrder[i].IntegerValue)
                         {
                             orderIsCorrect = false;
                             break;
@@ -166,33 +208,29 @@ namespace AJTools
                     return;
                 }
 
-                // --- CRITICAL FIX: CLONE THE SETTINGS ---
-                // We cannot hold the reference returned by GetFilterOverrides because RemoveFilter kills it.
-                // We must use the Copy Constructor to create a detached clone.
-                
+                // Capture overrides and visibility
                 var overridesMap = new Dictionary<ElementId, OverrideGraphicSettings>();
-                foreach (ElementId id in existingFilters)
+                var visibilityMap = new Dictionary<ElementId, bool>();
+                foreach (ElementId id in liveClean)
                 {
-                    try 
-                    { 
-                        if(doc.GetElement(id) != null)
-                        {
-                            OverrideGraphicSettings liveSettings = view.GetFilterOverrides(id);
-                            // THIS IS THE FIX: Create a new object copy
-                            OverrideGraphicSettings clonedSettings = new OverrideGraphicSettings(liveSettings);
-                            overridesMap[id] = clonedSettings;
-                        }
-                    } 
+                    try
+                    {
+                        var liveSettings = view.GetFilterOverrides(id);
+                        if (liveSettings != null)
+                            overridesMap[id] = liveSettings; // store directly for compatibility
+
+                        visibilityMap[id] = view.GetFilterVisibility(id);
+                    }
                     catch { }
                 }
 
-                // Remove Filters
-                foreach (ElementId id in existingFilters)
+                // Remove all live filters
+                foreach (ElementId id in liveClean)
                 {
-                    try { if (doc.GetElement(id) != null) view.RemoveFilter(id); } catch { }
+                    try { view.RemoveFilter(id); } catch { }
                 }
 
-                // Add Back
+                // Add back in desired order
                 foreach (ElementId id in desiredOrder)
                 {
                     try
@@ -201,13 +239,19 @@ namespace AJTools
 
                         view.AddFilter(id);
 
+                        // Restore visibility
+                        if (visibilityMap.ContainsKey(id))
+                        {
+                            view.SetFilterVisibility(id, visibilityMap[id]);
+                        }
+
                         if (newFilterSet.Contains(id.IntegerValue))
                         {
                             ApplyGraphicsToFilter(doc, view, id, selection);
+                            view.SetFilterVisibility(id, true); // ensure new filters are visible
                         }
                         else if (overridesMap.ContainsKey(id))
                         {
-                            // Apply the CLONED settings
                             view.SetFilterOverrides(id, overridesMap[id]);
                         }
                     }
