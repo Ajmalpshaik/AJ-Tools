@@ -51,6 +51,13 @@ namespace AJTools
 
                     if (filter == null)
                     {
+                        if (selection.RandomColors)
+                        {
+                            // Randomize path should not create new filters; skip missing ones.
+                            skipped?.Add($"Filter '{filterName}' not found; randomize colors only updates existing filters.");
+                            continue;
+                        }
+
                         filter = ParameterFilterElement.Create(doc, filterName, validCategoryIds, elementFilter);
                         createdNew = true;
                         result.Created++;
@@ -66,7 +73,9 @@ namespace AJTools
 
                     if (createdNew || modifiedExisting)
                     {
-                        result.ProcessedFilterIds.Add(filter.Id);
+                        // Track once per run, preserving touch order
+                        if (!result.ProcessedFilterIds.Any(x => x.IntegerValue == filter.Id.IntegerValue))
+                            result.ProcessedFilterIds.Add(filter.Id);
                     }
                 }
                 catch (Exception ex)

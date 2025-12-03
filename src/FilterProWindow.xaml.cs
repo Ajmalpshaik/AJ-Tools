@@ -1256,6 +1256,7 @@ namespace AJTools
             selection.ApplyToView = true;
             selection.ApplyGraphics = false;
             selection.RandomColors = false;
+            selection.OverrideExisting = true; // reuse/update existing filters when applying
 
             var skipped = new List<string>();
             int created = 0;

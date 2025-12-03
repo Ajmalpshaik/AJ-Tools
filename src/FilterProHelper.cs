@@ -18,6 +18,7 @@ namespace AJTools
         {
             if (doc == null)
                 throw new ArgumentNullException(nameof(doc));
+            var processedFilterIds = new List<ElementId>(); // per-call tracking
 
 #if DEBUG
             if (!doc.IsModifiable)
@@ -53,15 +54,27 @@ namespace AJTools
 
             var solidFillId = FilterApplier.GetSolidFillId(doc);
             var creationResult = FilterCreator.CreateOrUpdateFilters(doc, selection, validCategoryIds, skipped);
+            if (creationResult?.ProcessedFilterIds != null && creationResult.ProcessedFilterIds.Any())
+            {
+                foreach (var id in creationResult.ProcessedFilterIds)
+                {
+                    if (id != null &&
+                        id != ElementId.InvalidElementId &&
+                        !processedFilterIds.Any(x => x.IntegerValue == id.IntegerValue))
+                    {
+                        processedFilterIds.Add(id);
+                    }
+                }
+            }
 
             if (selection.ApplyToView &&
                 viewTargets.Any() &&
                 !selection.PlaceNewFiltersFirst &&
-                creationResult.ProcessedFilterIds.Any())
+                processedFilterIds.Any())
             {
                 foreach (var view in viewTargets)
                 {
-                    foreach (var filterId in creationResult.ProcessedFilterIds)
+                    foreach (var filterId in processedFilterIds)
                     {
                         FilterApplier.ApplyToView(doc, view, filterId, selection, solidFillId, skipped);
                     }
@@ -70,12 +83,12 @@ namespace AJTools
 
             if (selection.PlaceNewFiltersFirst &&
                 selection.ApplyToView &&
-                creationResult.ProcessedFilterIds.Any() &&
+                processedFilterIds.Any() &&
                 viewTargets.Any())
             {
                 foreach (var view in viewTargets)
                 {
-                    FilterReorderer.ReorderFiltersInView(doc, view, creationResult.ProcessedFilterIds, selection, solidFillId, skipped);
+                    FilterReorderer.ReorderFiltersInView(doc, view, processedFilterIds, selection, solidFillId, skipped);
                 }
             }
 
