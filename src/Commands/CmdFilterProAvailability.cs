@@ -14,12 +14,12 @@ namespace AJTools.Commands
         public bool IsCommandAvailable(UIApplication applicationData, CategorySet selectedCategories)
         {
             string logPath = Path.Combine(Path.GetTempPath(), "FilterPro_Availability_Debug.txt");
-            
+
             try
             {
                 // Log start
                 SafeLog(logPath, $"\n\n=== Availability Check at {DateTime.Now:HH:mm:ss} ===\n");
-                
+
                 // Basic null checks
                 if (applicationData == null)
                 {
@@ -83,7 +83,7 @@ namespace AJTools.Commands
                 {
                     SafeLog(logPath, $"FAIL: {reason}\n");
                 }
-                
+
                 return canUse;
             }
             catch (Exception ex)

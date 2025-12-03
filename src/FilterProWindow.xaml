@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Filter Pro" Height="820" Width="1080"
+        Title="Filter Pro" Height="820" Width="1230"
         WindowStartupLocation="CenterScreen"
         Background="#FF1E1E1E">
     
@@ -351,7 +351,7 @@
                                      Grid.Row="1"
                                      Style="{StaticResource ModernListBox}"
                                      ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                                     SelectionMode="Extended" />
+                                     SelectionMode="Single" />
                         </Grid>
                     </GroupBox>
                     

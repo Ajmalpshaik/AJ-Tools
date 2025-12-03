@@ -11,7 +11,7 @@ namespace AJTools.Commands
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uiDoc = commandData.Application.ActiveUIDocument;
-            
+
             // Enhanced validation
             if (uiDoc == null || uiDoc.Document == null)
             {
@@ -20,7 +20,7 @@ namespace AJTools.Commands
             }
 
             Document doc = uiDoc.Document;
-            
+
             // Validate document is not read-only
             if (doc.IsReadOnly)
             {
@@ -36,7 +36,7 @@ namespace AJTools.Commands
             }
 
             View activeView = uiDoc.ActiveView;
-            
+
             // Validate active view
             if (activeView == null)
             {
@@ -47,7 +47,7 @@ namespace AJTools.Commands
             // Check if view supports filters
             if (!CmdFilterProAvailability.CanViewHaveFilters(activeView, out string viewReason))
             {
-                TaskDialog.Show("Filter Pro", 
+                TaskDialog.Show("Filter Pro",
                     $"The current view ({activeView.ViewType}) does not support filters.\n\n" +
                     $"{viewReason}\n\n" +
                     "Please switch to a view that supports visibility/graphics filters (e.g. plan, section, elevation, 3D, detail).");
@@ -68,7 +68,7 @@ namespace AJTools.Commands
                         "Filter operations may take some time.\n\n" +
                         "Do you want to continue?",
                         TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
-                    
+
                     if (result != TaskDialogResult.Yes)
                         return Result.Cancelled;
                 }
@@ -93,7 +93,7 @@ namespace AJTools.Commands
             {
                 // Log error and show user-friendly message
                 message = $"An error occurred: {ex.Message}";
-                TaskDialog.Show("Filter Pro Error", 
+                TaskDialog.Show("Filter Pro Error",
                     $"An unexpected error occurred:\n\n{ex.Message}\n\n" +
                     $"Please try again or contact support if the issue persists.");
                 return Result.Failed;
