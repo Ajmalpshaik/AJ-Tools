@@ -14,6 +14,8 @@
     <Deterministic>true</Deterministic>
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -57,30 +59,63 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AJTools\LinkedTools\LinkDisplayItem.cs" />
+    <Compile Include="AJTools\LinkedTools\LinkedElementIdViewer.cs" />
+    <Compile Include="AJTools\LinkedTools\LinkedElementSearch.cs" />
+    <Compile Include="AJTools\LinkedTools\UI\LinkDisplayItem.cs" />
+    <Compile Include="AJTools\LinkedTools\UI\LinkedIdViewerWindow.xaml.cs">
+      <DependentUpon>LinkedIdViewerWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="AJTools\LinkedTools\UI\LinkedSearchWindow.xaml.cs">
+      <DependentUpon>LinkedSearchWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="App.cs" />
-    <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdAbout.cs" />
-    <Compile Include="Commands\CmdDimensionByLine.cs" />
-    <Compile Include="Commands\CmdFilterProAvailability.cs" />
-    <Compile Include="Commands\CmdUnhideAll.cs" />
-    <Compile Include="Commands\CmdResetDatums.cs" />
-    <Compile Include="Commands\CmdToggleRevitLinks.cs" />
-    <Compile Include="Commands\CmdResetTextPosition.cs" />
+    <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
-    <Compile Include="Commands\CmdFilterPro.cs" />
-    <Compile Include="Commands\CmdMatchElevation.cs" />
-    <Compile Include="Commands\CmdSnakeGame.cs" />
     <Compile Include="Commands\CmdCopyViewRange.cs" />
+    <Compile Include="Commands\CmdDimensionByLine.cs" />
+    <Compile Include="Commands\CmdFilterPro.cs" />
+    <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
-    <Compile Include="Commands\CmdResetOverrides.cs" />
+    <Compile Include="Commands\CmdMatchElevation.cs" />
     <Compile Include="Commands\CmdNeonDefender.cs" />
+    <Compile Include="Commands\CmdResetDatums.cs" />
+    <Compile Include="Commands\CmdResetOverrides.cs" />
+    <Compile Include="Commands\CmdResetTextPosition.cs" />
+    <Compile Include="Commands\CmdSnakeGame.cs" />
+    <Compile Include="Commands\CmdToggleRevitLinks.cs" />
+    <Compile Include="Commands\CmdUnhideAll.cs" />
+    <Compile Include="Commands\NeonWindow.cs" />
+    <Compile Include="Commands\ResetDatumMode.cs" />
+    <Compile Include="Commands\ResetDatumService.cs" />
+    <Compile Include="Commands\SnakeForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Commands\ViewSelectionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="ElementIdIntegerComparer.cs" />
-    <Compile Include="FilterApplier.cs" />
-    <Compile Include="FilterCreator.cs" />
-    <Compile Include="FilterProHelper.cs" />
-    <Compile Include="FilterReorderer.cs" />
+    <Compile Include="Models\ApplyViewItem.cs" />
+    <Compile Include="Models\ColorPalette.cs" />
+    <Compile Include="Models\FilterCategoryItem.cs" />
+    <Compile Include="Models\FilterParameterItem.cs" />
+    <Compile Include="Models\FilterProState.cs" />
+    <Compile Include="Models\FilterSelection.cs" />
+    <Compile Include="Models\FilterValueItem.cs" />
+    <Compile Include="Models\FilterValueKey.cs" />
+    <Compile Include="Models\PatternItem.cs" />
+    <Compile Include="Models\RuleTypeItem.cs" />
+    <Compile Include="Models\RuleTypes.cs" />
+    <Compile Include="Models\SpecialParameterIds.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AutoDimensionService.cs" />
+    <Compile Include="Services\CopiedViewRange.cs" />
+    <Compile Include="Services\FilterApplier.cs" />
+    <Compile Include="Services\FilterCreator.cs" />
+    <Compile Include="Services\FilterProHelper.cs" />
+    <Compile Include="Services\FilterReorderer.cs" />
+    <Compile Include="Services\RibbonManager.cs" />
     <Compile Include="FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
@@ -90,8 +125,18 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
+    <Page Include="ModernStyles.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="AJTools\LinkedTools\UI\LinkedIdViewerWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="AJTools\LinkedTools\UI\LinkedSearchWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <PropertyGroup>
     <RevitAddinUserRoot>$(APPDATA)\Autodesk\Revit\Addins\2020</RevitAddinUserRoot>
@@ -111,6 +156,12 @@
     <AddinManifestLines Include="    &lt;VendorDescription&gt;Ajmal P.S - ajmalnattika@gmail.com&lt;/VendorDescription&gt;" />
     <AddinManifestLines Include="  &lt;/AddIn&gt;" />
     <AddinManifestLines Include="&lt;/RevitAddIns&gt;" />
+  </ItemGroup>
+  <ItemGroup>
+    <ImageFiles Include="Images\linkedID.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="AJTools.csproj" />
   </ItemGroup>
   <Target Name="DeployRevitAddin" AfterTargets="Build" Condition=" '$(SkipRevitAddinDeploy)' != 'true' ">
     <MakeDir Directories="$(RevitAddinUserRoot);$(RevitAddinDeployDir);$(RevitAddinDeployDir)\Images" />

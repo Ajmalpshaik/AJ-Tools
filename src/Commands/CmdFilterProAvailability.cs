@@ -1,5 +1,11 @@
+// Tool Name: Filter Pro Availability
+// Description: Determines whether the Filter Pro command is available in the current Revit context.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
-using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
@@ -7,90 +13,31 @@ namespace AJTools.Commands
 {
     /// <summary>
     /// Controls the availability of the Filter Pro command in the Revit UI.
-    /// DIAGNOSTIC VERSION - Logs to help debug availability issues.
     /// </summary>
     public class CmdFilterProAvailability : IExternalCommandAvailability
     {
+        /// <summary>
+        /// Returns true if Filter Pro is available in the current document context.
+        /// </summary>
         public bool IsCommandAvailable(UIApplication applicationData, CategorySet selectedCategories)
         {
-            string logPath = Path.Combine(Path.GetTempPath(), "FilterPro_Availability_Debug.txt");
-
             try
             {
-                // Log start
-                SafeLog(logPath, $"\n\n=== Availability Check at {DateTime.Now:HH:mm:ss} ===\n");
-
-                // Basic null checks
-                if (applicationData == null)
-                {
-                    SafeLog(logPath, "FAIL: applicationData is null\n");
+                if (applicationData?.ActiveUIDocument?.Document == null)
                     return false;
-                }
-                SafeLog(logPath, "PASS: applicationData exists\n");
 
-                UIDocument uidoc = applicationData.ActiveUIDocument;
-                if (uidoc == null)
-                {
-                    SafeLog(logPath, "FAIL: ActiveUIDocument is null\n");
-                    return false;
-                }
-                SafeLog(logPath, "PASS: ActiveUIDocument exists\n");
-
-                Document doc = uidoc.Document;
-                if (doc == null)
-                {
-                    SafeLog(logPath, "FAIL: Document is null\n");
-                    return false;
-                }
-                SafeLog(logPath, $"PASS: Document exists: {doc.Title}\n");
-
-                // Disable for family documents
+                Document doc = applicationData.ActiveUIDocument.Document;
                 if (doc.IsFamilyDocument)
-                {
-                    SafeLog(logPath, "FAIL: Document is a family document\n");
                     return false;
-                }
-                SafeLog(logPath, "PASS: Not a family document\n");
 
-                // Warn for read-only documents but allow the button so the command can show a clearer message
-                if (doc.IsReadOnly)
-                {
-                    SafeLog(logPath, "WARN: Document is read-only (command will show a blocking message)\n");
-                }
-                else
-                {
-                    SafeLog(logPath, "PASS: Document is not read-only\n");
-                }
-
-                View activeView = uidoc.ActiveView;
+                View activeView = applicationData.ActiveUIDocument.ActiveView;
                 if (activeView == null)
-                {
-                    SafeLog(logPath, "FAIL: Active view is null\n");
                     return false;
-                }
-                SafeLog(logPath, $"PASS: Active view exists: {activeView.Name}\n");
-                SafeLog(logPath, $"      View Type: {activeView.ViewType}\n");
-                SafeLog(logPath, $"      Is Template: {activeView.IsTemplate}\n");
-
-                // Only enable for views that support filters
-                bool canUse = CanViewHaveFilters(activeView, out string reason);
-
-                if (canUse)
-                {
-                    SafeLog(logPath, "SUCCESS: All checks passed - BUTTON ENABLED\n");
-                }
-                else
-                {
-                    SafeLog(logPath, $"FAIL: {reason}\n");
-                }
-
-                return canUse;
+                
+                return CanViewHaveFilters(activeView, out _);
             }
-            catch (Exception ex)
+            catch
             {
-                SafeLog(logPath, $"EXCEPTION: {ex.Message}\n");
-                SafeLog(logPath, $"Stack: {ex.StackTrace}\n");
-                // On error, default to disabled
                 return false;
             }
         }
@@ -151,18 +98,6 @@ namespace AJTools.Commands
 
             reason = string.Empty;
             return true;
-        }
-
-        private static void SafeLog(string path, string text)
-        {
-            try
-            {
-                File.AppendAllText(path, text);
-            }
-            catch
-            {
-                // Logging must not block availability
-            }
         }
     }
 }

@@ -1,9 +1,17 @@
+// Tool Name: Filter Pro - Helper
+// Description: Utility helpers for filter creation, naming, and parameter handling.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, System.Linq
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.DB;
+using System.Linq;
+using AJTools.Models;
 
-namespace AJTools
+namespace AJTools.Services
 {
     /// <summary>
     /// Orchestrates FilterPro operations: validation, creation/update, applying, and ordering.

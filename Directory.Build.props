@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <RevitAddinDeployDir>$(MSBuildProjectDirectory)\bin\AddinDeploy\</RevitAddinDeployDir>
+  </PropertyGroup>
+</Project>

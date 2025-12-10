@@ -1,4 +1,10 @@
-using System;
+// Tool Name: ElementId Integer Comparer
+// Description: Provides integer-based comparison for ElementId hashing and equality.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 

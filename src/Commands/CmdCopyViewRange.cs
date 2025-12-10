@@ -1,23 +1,31 @@
+// Tool Name: Copy View Range
+// Description: Copies the active view's range settings to selected plan views.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Services;
 
-namespace AJTools
+namespace AJTools.Commands
 {
-    internal class CopiedViewRange
-    {
-        public PlanViewRange Range { get; set; }
-        public string SourceName { get; set; }
-    }
-
+    /// <summary>
+    /// Copies view range from the active plan view or pastes a cached range to other plan views.
+    /// </summary>
     [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
     public class CmdCopyViewRange : IExternalCommand
     {
         private static CopiedViewRange _cachedRange;
 
+        /// <summary>
+        /// Executes the copy/paste workflow for view ranges.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIApplication uiApp = commandData.Application;
@@ -73,12 +81,7 @@ namespace AJTools
         {
             try
             {
-                PlanViewRange range = sourceView.GetViewRange();
-                _cachedRange = new CopiedViewRange
-                {
-                    Range = range,
-                    SourceName = sourceView.Name
-                };
+                _cachedRange = CopiedViewRange.From(sourceView);
 
                 TaskDialog.Show("Copy View Range", $"Copied view range from '{sourceView.Name}'.");
                 return Result.Succeeded;
@@ -121,8 +124,7 @@ namespace AJTools
 
                     try
                     {
-                        // Apply the cached plan view range directly, matching the Python script logic.
-                        target.SetViewRange(_cachedRange.Range);
+                        _cachedRange.ApplyTo(target);
                         updated++;
                     }
                     catch
@@ -135,7 +137,7 @@ namespace AJTools
 
             string msg = $"Applied view range to {updated} view(s) from '{_cachedRange.SourceName}'.";
             if (skipped > 0)
-                msg += $"\nSkipped {skipped} view(s) (template or read-only view range).";
+                msg += $"\nSkipped {skipped} view(s) (template, read-only, or incompatible range).";
             TaskDialog.Show("Copy View Range", msg);
             return updated > 0 ? Result.Succeeded : Result.Cancelled;
         }
@@ -149,7 +151,7 @@ namespace AJTools
                 .OrderBy(v => v.Name)
                 .ToList();
 
-            using (var form = new ViewSelectionForm(plans, activePlan))
+            using (ViewSelectionForm form = new ViewSelectionForm(plans, activePlan))
             {
                 DialogResult result = form.ShowDialog();
                 if (result != DialogResult.OK)
@@ -165,93 +167,14 @@ namespace AJTools
             try
             {
                 // Try to access the view range; if this throws, it's not editable.
-                var vr = view.GetViewRange();
+                PlanViewRange vr = view.GetViewRange();
                 return vr != null;
             }
             catch
             {
+                // If getting the view range throws an exception, it is not editable.
                 return false;
             }
-        }
-    }
-
-    internal class ViewSelectionForm : System.Windows.Forms.Form
-    {
-        private readonly CheckedListBox _list;
-        private readonly Button _ok;
-        private readonly Button _cancel;
-        private readonly Button _selectAll;
-        private readonly Button _selectNone;
-
-        public List<ViewPlan> SelectedViews { get; }
-
-        public ViewSelectionForm(IList<ViewPlan> views, ViewPlan activePlan)
-        {
-            Text = "Select Plan Views";
-            Width = 420;
-            Height = 520;
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
-            MinimizeBox = false;
-
-            _list = new CheckedListBox
-            {
-                Dock = DockStyle.Top,
-                Height = 400,
-                CheckOnClick = true,
-                FormattingEnabled = true
-            };
-            _list.Format += (s, e) =>
-            {
-                if (e.ListItem is ViewPlan vp)
-                    e.Value = vp.Name;
-            };
-
-            foreach (ViewPlan v in views)
-            {
-                int idx = _list.Items.Add(v);
-                if (activePlan != null && v.Id == activePlan.Id)
-                    _list.SetItemChecked(idx, true);
-            }
-
-            _ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Anchor = AnchorStyles.Bottom | AnchorStyles.Right, Left = 220, Top = 430, Width = 80 };
-            _cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Anchor = AnchorStyles.Bottom | AnchorStyles.Right, Left = 310, Top = 430, Width = 80 };
-            _selectAll = new Button { Text = "Select All", Anchor = AnchorStyles.Bottom | AnchorStyles.Left, Left = 10, Top = 430, Width = 90 };
-            _selectNone = new Button { Text = "Select None", Anchor = AnchorStyles.Bottom | AnchorStyles.Left, Left = 110, Top = 430, Width = 90 };
-
-            _selectAll.Click += (s, e) => SetAll(true);
-            _selectNone.Click += (s, e) => SetAll(false);
-
-            Controls.Add(_list);
-            Controls.Add(_ok);
-            Controls.Add(_cancel);
-            Controls.Add(_selectAll);
-            Controls.Add(_selectNone);
-
-            AcceptButton = _ok;
-            CancelButton = _cancel;
-
-            SelectedViews = new List<ViewPlan>();
-        }
-
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            if (this.DialogResult == System.Windows.Forms.DialogResult.OK)
-            {
-                foreach (object item in _list.CheckedItems)
-                {
-                    if (item is ViewPlan vp)
-                        SelectedViews.Add(vp);
-                }
-            }
-            base.OnFormClosing(e);
-        }
-
-        private void SetAll(bool state)
-        {
-            for (int i = 0; i < _list.Items.Count; i++)
-                _list.SetItemChecked(i, state);
         }
     }
 }

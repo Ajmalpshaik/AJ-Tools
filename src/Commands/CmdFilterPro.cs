@@ -1,3 +1,10 @@
+// Tool Name: Filter Pro Command
+// Description: Launches the Filter Pro UI to create and apply parameter filters with graphics.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -5,99 +12,108 @@ using Autodesk.Revit.UI;
 
 namespace AJTools.Commands
 {
+    /// <summary>
+    /// Launches the Filter Pro UI to build and apply parameter filters.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdFilterPro : IExternalCommand
     {
+        /// <summary>
+        /// Opens the Filter Pro window after validating document context.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uiDoc = commandData.Application.ActiveUIDocument;
 
-            // Enhanced validation
-            if (uiDoc == null || uiDoc.Document == null)
+            if (!ValidateContext(uiDoc, out Document doc, out View activeView, out message))
             {
-                TaskDialog.Show("Filter Pro", "Open a project document before running this command.");
-                return Result.Cancelled;
-            }
-
-            Document doc = uiDoc.Document;
-
-            // Validate document is not read-only
-            if (doc.IsReadOnly)
-            {
-                TaskDialog.Show("Filter Pro", "The current document is read-only. Please open an editable document.");
-                return Result.Cancelled;
-            }
-
-            // Validate document is not a family document
-            if (doc.IsFamilyDocument)
-            {
-                TaskDialog.Show("Filter Pro", "Filter Pro cannot be used in family documents. Please open a project document.");
-                return Result.Cancelled;
-            }
-
-            View activeView = uiDoc.ActiveView;
-
-            // Validate active view
-            if (activeView == null)
-            {
-                TaskDialog.Show("Filter Pro", "No active view found. Please open a view before running this command.");
-                return Result.Cancelled;
-            }
-
-            // Check if view supports filters
-            if (!CmdFilterProAvailability.CanViewHaveFilters(activeView, out string viewReason))
-            {
-                TaskDialog.Show("Filter Pro",
-                    $"The current view ({activeView.ViewType}) does not support filters.\n\n" +
-                    $"{viewReason}\n\n" +
-                    "Please switch to a view that supports visibility/graphics filters (e.g. plan, section, elevation, 3D, detail).");
+                TaskDialog.Show("Filter Pro", message);
                 return Result.Cancelled;
             }
 
             try
             {
-                // Performance warning for large documents
-                int elementCount = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .GetElementCount();
+                if (!WarnForLargeDocument(doc))
+                    return Result.Cancelled;
 
-                if (elementCount > 100000)
-                {
-                    TaskDialogResult result = TaskDialog.Show("Filter Pro - Large Document",
-                        $"This document contains {elementCount:N0} elements.\n" +
-                        "Filter operations may take some time.\n\n" +
-                        "Do you want to continue?",
-                        TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
-
-                    if (result != TaskDialogResult.Yes)
-                        return Result.Cancelled;
-                }
-
-                // Open the Filter Pro window
                 var window = new FilterProWindow(doc, activeView);
-                bool? dialogResult = window.ShowDialog();
+                window.ShowDialog();
 
-                // If any changes were committed, keep the command succeeded so Revit keeps them.
-                if (window != null && window.HasChanges)
-                    return Result.Succeeded;
-
-                // No changes -> allow Revit to treat as cancelled
-                return Result.Cancelled;
+                return window.HasChanges ? Result.Succeeded : Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
-                // User cancelled operation
                 return Result.Cancelled;
             }
             catch (Exception ex)
             {
-                // Log error and show user-friendly message
                 message = $"An error occurred: {ex.Message}";
-                TaskDialog.Show("Filter Pro Error",
-                    $"An unexpected error occurred:\n\n{ex.Message}\n\n" +
-                    $"Please try again or contact support if the issue persists.");
+                TaskDialog.Show("Filter Pro Error", $"An unexpected error occurred:\n\n{ex.Message}");
                 return Result.Failed;
             }
+        }
+
+        private bool ValidateContext(UIDocument uiDoc, out Document doc, out View activeView, out string validationMessage)
+        {
+            doc = null;
+            activeView = null;
+            validationMessage = string.Empty;
+
+            if (uiDoc == null || uiDoc.Document == null)
+            {
+                validationMessage = "Open a project document before running this command.";
+                return false;
+            }
+
+            doc = uiDoc.Document;
+
+            if (doc.IsReadOnly)
+            {
+                validationMessage = "The current document is read-only. Please open an editable document.";
+                return false;
+            }
+
+            if (doc.IsFamilyDocument)
+            {
+                validationMessage = "Filter Pro cannot be used in family documents. Please open a project document.";
+                return false;
+            }
+
+            activeView = uiDoc.ActiveView;
+
+            if (activeView == null)
+            {
+                validationMessage = "No active view found. Please open a view before running this command.";
+                return false;
+            }
+
+            if (!CmdFilterProAvailability.CanViewHaveFilters(activeView, out string viewReason))
+            {
+                validationMessage = $"The current view ({activeView.ViewType}) does not support filters.\n\n{viewReason}\n\nPlease switch to a view that supports visibility/graphics filters (e.g. plan, section, elevation, 3D, detail).";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool WarnForLargeDocument(Document doc)
+        {
+            int elementCount = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .GetElementCount();
+
+            if (elementCount > 100000)
+            {
+                TaskDialogResult result = TaskDialog.Show("Filter Pro - Large Document",
+                    $"This document contains {elementCount:N0} elements.\n" +
+                    "Filter operations may take some time.\n\n" +
+                    "Do you want to continue?",
+                    TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
+
+                return result == TaskDialogResult.Yes;
+            }
+
+            return true;
         }
 
     }

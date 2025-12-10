@@ -1,0 +1,10 @@
+<Project>
+  <Target Name="OverrideRevitDeployDir" BeforeTargets="AfterBuild">
+    <PropertyGroup>
+      <RevitAddinDeployDir>$(MSBuildProjectDirectory)\bin\AddinDeploy\</RevitAddinDeployDir>
+    </PropertyGroup>
+  </Target>
+
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WindowsXaml\v4.0\Microsoft.Xaml.targets"
+          Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\WindowsXaml\v4.0\Microsoft.Xaml.targets')" />
+</Project>

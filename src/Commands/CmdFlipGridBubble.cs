@@ -1,12 +1,21 @@
+// Tool Name: Flip Grid Bubble
+// Description: Toggles which end of a grid displays the bubble marker.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
-using Autodesk.Revit.Exceptions;
 
-namespace AJTools
+namespace AJTools.Commands
 {
+    /// <summary>
+    /// Filters datum selection for grid bubble flipping.
+    /// </summary>
     internal class DatumSelectionFilter : ISelectionFilter
     {
         public bool AllowElement(Element elem)
@@ -20,9 +29,19 @@ namespace AJTools
         }
     }
 
+    internal enum SelectionMode
+    {
+        Single,
+        Window,
+        Cancel
+    }
+
     [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
     public class CmdFlipGridBubble : IExternalCommand
     {
+        /// <summary>
+        /// Executes the flip datum bubble workflow.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIApplication uiapp = commandData.Application;
@@ -66,7 +85,7 @@ namespace AJTools
 
         private static int HandleSinglePicks(UIDocument uidoc, Document doc, View view, DatumSelectionFilter filter)
         {
-            int flipped = 0;
+            List<Element> pickedElements = new List<Element>();
             while (true)
             {
                 Reference picked = null;
@@ -82,23 +101,14 @@ namespace AJTools
                 if (picked == null)
                     break;
 
-                DatumPlane datum = doc.GetElement(picked.ElementId) as DatumPlane;
-                if (datum == null)
-                    continue;
-
-                if (!datum.CanBeVisibleInView(view))
-                    continue;
-
-                if (FlipWithTransaction(doc, datum, view))
-                    flipped++;
+                pickedElements.Add(doc.GetElement(picked.ElementId));
             }
-
-            return flipped;
+            return ProcessPickedDatums(doc, view, pickedElements);
         }
 
         private static int HandleWindowSelection(UIDocument uidoc, Document doc, View view, DatumSelectionFilter filter)
         {
-            int flipped = 0;
+            List<Element> pickedElements = new List<Element>();
             while (true)
             {
                 IList<Element> picked = null;
@@ -110,20 +120,25 @@ namespace AJTools
                 {
                     break;
                 }
-
-                foreach (Element elem in picked)
-                {
-                    DatumPlane datum = elem as DatumPlane;
-                    if (datum == null)
-                        continue;
-                    if (!datum.CanBeVisibleInView(view))
-                        continue;
-
-                    if (FlipWithTransaction(doc, datum, view))
-                        flipped++;
-                }
+                pickedElements.AddRange(picked);
             }
+            return ProcessPickedDatums(doc, view, pickedElements);
+        }
 
+        private static int ProcessPickedDatums(Document doc, View view, IList<Element> elements)
+        {
+            int flipped = 0;
+            foreach (Element elem in elements)
+            {
+                DatumPlane datum = elem as DatumPlane;
+                if (datum == null)
+                    continue;
+                if (!datum.CanBeVisibleInView(view))
+                    continue;
+
+                if (FlipWithTransaction(doc, datum, view))
+                    flipped++;
+            }
             return flipped;
         }
 
@@ -188,13 +203,6 @@ namespace AJTools
             if (result == TaskDialogResult.CommandLink1) return SelectionMode.Single;
             if (result == TaskDialogResult.CommandLink2) return SelectionMode.Window;
             return SelectionMode.Cancel;
-        }
-
-        private enum SelectionMode
-        {
-            Single,
-            Window,
-            Cancel
         }
     }
 }

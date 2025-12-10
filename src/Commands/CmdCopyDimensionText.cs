@@ -1,11 +1,23 @@
+// Tool Name: Copy Dimension Text
+// Description: Copies dimension text properties between selected dimensions.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 
-namespace AJTools
+namespace AJTools.Commands
 {
+    /// <summary>
+    /// Copies dimension text fields from a source dimension to selected targets.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdCopyDimensionText : IExternalCommand
     {
@@ -15,6 +27,9 @@ namespace AJTools
             public bool AllowReference(Reference reference, XYZ position) => false;
         }
 
+        /// <summary>
+        /// Copies Above/Below/Prefix/Suffix text from a source dimension to target dimensions.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
@@ -44,44 +59,30 @@ namespace AJTools
                     return Result.Cancelled;
                 }
 
-                int updatedCount = 0;
+                IList<Reference> targetRefs = uidoc.Selection.PickObjects(ObjectType.Element, new DimensionSelectionFilter(), "Select TARGET dimension(s)");
+                if (targetRefs == null || !targetRefs.Any())
+                    return Result.Cancelled;
 
-                while (true)
+                using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
                 {
-                    try
+                    t.Start();
+                    foreach (Reference targetRef in targetRefs)
                     {
-                        Reference targetRef = uidoc.Selection.PickObject(ObjectType.Element, new DimensionSelectionFilter(), "Select TARGET dimension (ESC to finish)");
                         Dimension targetDim = doc.GetElement(targetRef) as Dimension;
                         if (targetDim == null)
                             continue;
-
-                        using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
-                        {
-                            t.Start();
-                            targetDim.Above = textAbove;
-                            targetDim.Below = textBelow;
-                            targetDim.Prefix = textPrefix;
-                            targetDim.Suffix = textSuffix;
-                            t.Commit();
-                        }
-
-                        uidoc.RefreshActiveView();
-                        updatedCount++;
+                        
+                        targetDim.Above = textAbove;
+                        targetDim.Below = textBelow;
+                        targetDim.Prefix = textPrefix;
+                        targetDim.Suffix = textSuffix;
                     }
-                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                    {
-                        break;
-                    }
+                    t.Commit();
                 }
 
-                if (updatedCount > 0)
-                {
-                    TaskDialog.Show("Copy Dim Text", $"Finished. Copied text to {updatedCount} dimension(s).");
-                    return Result.Succeeded;
-                }
+                TaskDialog.Show("Copy Dim Text", $"Finished. Copied text to {targetRefs.Count} dimension(s).");
+                return Result.Succeeded;
 
-                TaskDialog.Show("Copy Dim Text", "No dimensions were updated.");
-                return Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {

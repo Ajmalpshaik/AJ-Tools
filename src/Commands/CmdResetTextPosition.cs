@@ -1,14 +1,26 @@
+// Tool Name: Reset Text Position
+// Description: Resets selected text notes/tags back to default positions.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
-using System.Reflection;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
-namespace AJTools
+namespace AJTools.Commands
 {
+    /// <summary>
+    /// Resets selected text notes/tags back to default positions.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdResetTextPosition : IExternalCommand
     {
+        /// <summary>
+        /// Executes the reset text position workflow.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIApplication uiapp = commandData.Application;
@@ -23,46 +35,67 @@ namespace AJTools
             var selectedIds = uidoc.Selection.GetElementIds();
             if (selectedIds == null || selectedIds.Count == 0)
             {
-                TaskDialog.Show("Reset Text Position", "Select text notes or tags to reset their text offset.");
+                TaskDialog.Show("Reset Text", "Select text notes or tags, then run this command.");
                 return Result.Cancelled;
             }
 
             Document doc = uidoc.Document;
             int resetCount = 0;
 
-            using (Transaction t = new Transaction(doc, "Reset Text Position"))
+            try
             {
-                t.Start();
-
-                foreach (ElementId id in selectedIds)
+                using (Transaction t = new Transaction(doc, "Reset Text Position"))
                 {
-                    Element el = doc.GetElement(id);
-                    if (el == null)
-                        continue;
+                    t.Start();
 
-                    // Many text-bearing annotations derive from TextElement; use reflection to set Coord when available.
-                    if (el is TextElement)
+                    foreach (ElementId id in selectedIds)
                     {
-                        PropertyInfo coordProp = el.GetType().GetProperty("Coord", BindingFlags.Public | BindingFlags.Instance);
-                        if (coordProp != null && coordProp.CanWrite)
+                        Element el = doc.GetElement(id);
+                        if (el != null && ResetTextPositionForElement(el))
                         {
-                            coordProp.SetValue(el, XYZ.Zero, null);
                             resetCount++;
-                            continue;
                         }
                     }
-                }
 
-                t.Commit();
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
             }
 
             if (resetCount == 0)
             {
-                TaskDialog.Show("Reset Text Position", "No supported text elements were reset. Select text notes or tags with editable text offsets.");
+                TaskDialog.Show("Reset Text", "No text notes/tags were reset.");
                 return Result.Cancelled;
             }
 
+            TaskDialog.Show("Reset Text", $"Reset {resetCount} text note/tag(s).");
             return Result.Succeeded;
+        }
+
+        private static bool ResetTextPositionForElement(Element el)
+        {
+            // Attempt to find common text/leader related parameters by name for TextNote/Tag types
+            Parameter leaderEnd = el.LookupParameter("Leader Elbow") ?? el.LookupParameter("Leader End");
+            Parameter textOffset = el.LookupParameter("Text Position") ?? el.LookupParameter("Text Offset");
+
+            bool reset = false;
+
+            if (leaderEnd != null && !leaderEnd.IsReadOnly && leaderEnd.StorageType == StorageType.Double)
+            {
+                leaderEnd.Set(0.0);
+                reset = true;
+            }
+
+            if (textOffset != null && !textOffset.IsReadOnly && textOffset.StorageType == StorageType.Double)
+            {
+                textOffset.Set(0.0);
+                reset = true;
+            }
+            return reset;
         }
     }
 }

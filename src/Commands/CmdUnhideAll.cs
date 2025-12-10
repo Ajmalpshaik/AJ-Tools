@@ -1,9 +1,19 @@
-using System;
+// Tool Name: Unhide All
+// Description: Unhides all elements in the active view (temporary hide and hidden items).
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System;
 
-namespace AJTools
+namespace AJTools.Commands
 {
+    /// <summary>
+    /// Unhides all elements in the active view (temporary hide and hidden items).
+    /// </summary>
     [Autodesk.Revit.Attributes.Transaction(
         Autodesk.Revit.Attributes.TransactionMode.Manual)]
     public class CmdUnhideAll : IExternalCommand
@@ -35,7 +45,7 @@ namespace AJTools
                     return Result.Failed;
                 }
 
-                var ids = new FilteredElementCollector(doc)
+                var ids = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
                     .ToElementIds();
 

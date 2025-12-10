@@ -1,10 +1,17 @@
+// Tool Name: Auto Dimension Service
+// Description: Core service to generate grid/level dimensions automatically along specified directions.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Linq
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System.Linq;
 
-namespace AJTools
+namespace AJTools.Services
 {
     internal enum AutoDimensionMode
     {
@@ -13,6 +20,9 @@ namespace AJTools
         LevelsOnly
     }
 
+    /// <summary>
+    /// Provides routines to place automatic dimensions for grids and levels based on view context.
+    /// </summary>
     internal static class AutoDimensionService
     {
         private const double MM_IN_FEET = 0.00328084;
@@ -31,6 +41,9 @@ namespace AJTools
             public Grid Grid;
         }
 
+        /// <summary>
+        /// Entry point for auto-dimension commands; routes based on view type and mode.
+        /// </summary>
         internal static Result Execute(
             ExternalCommandData commandData,
             AutoDimensionMode mode,
@@ -101,6 +114,9 @@ namespace AJTools
             }
         }
 
+        /// <summary>
+        /// Defensive check for area plans without relying on enum value availability.
+        /// </summary>
         private static bool IsAreaPlan(ViewType viewType)
         {
             try
@@ -113,6 +129,9 @@ namespace AJTools
             }
         }
 
+        /// <summary>
+        /// Creates dimensions across vertical/horizontal grids in plan views.
+        /// </summary>
         private static Result CreatePlanGridDimensions(Document doc, View view, string title)
         {
             IList<Grid> grids = new FilteredElementCollector(doc, view.Id)
@@ -147,6 +166,7 @@ namespace AJTools
 
             BoundingBoxXYZ crop = view.CropBox;
             double scale = view.Scale;
+            // Offset dimension strings based on view scale to avoid overlapping geometry.
             double offset = (8 * MM_IN_FEET) * scale;
             double overallOffset = (6 * MM_IN_FEET) * scale;
 
@@ -223,6 +243,9 @@ namespace AJTools
             return Result.Succeeded;
         }
 
+        /// <summary>
+        /// Creates dimensions for levels and/or grids in section/elevation views.
+        /// </summary>
         private static Result CreateSectionDimensions(Document doc, View view, string title, bool includeLevels, bool includeGrids)
         {
             IList<Level> levels = new FilteredElementCollector(doc, view.Id)

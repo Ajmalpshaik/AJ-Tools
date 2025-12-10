@@ -1,42 +1,56 @@
+// Tool Name: Match Elevation
+// Description: Matches the middle elevation from a source MEP element to target elements.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Electrical;
-using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 
-namespace AJTools
+namespace AJTools.Commands
 {
+    /// <summary>
+    /// Filters selection for MEP elements.
+    /// </summary>
+    internal class MepSelectionFilter : ISelectionFilter
+    {
+        private readonly HashSet<BuiltInCategory> _categories = new HashSet<BuiltInCategory>
+        {
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_FlexPipeCurves
+        };
+
+        public bool AllowElement(Element elem)
+        {
+            Category cat = elem?.Category;
+            if (cat == null)
+                return false;
+
+            return _categories.Contains((BuiltInCategory)cat.Id.IntegerValue);
+        }
+
+        public bool AllowReference(Reference reference, XYZ position) => false;
+    }
+
+    /// <summary>
+    /// Matches the middle elevation from a source MEP element to selected targets.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdMatchElevation : IExternalCommand
     {
-        private class MepSelectionFilter : ISelectionFilter
-        {
-            private readonly HashSet<BuiltInCategory> _categories = new HashSet<BuiltInCategory>
-            {
-                BuiltInCategory.OST_PipeCurves,
-                BuiltInCategory.OST_DuctCurves,
-                BuiltInCategory.OST_CableTray,
-                BuiltInCategory.OST_Conduit,
-                BuiltInCategory.OST_FlexDuctCurves,
-                BuiltInCategory.OST_FlexPipeCurves
-            };
-
-            public bool AllowElement(Element elem)
-            {
-                Category cat = elem.Category;
-                if (cat == null)
-                    return false;
-
-                return _categories.Contains((BuiltInCategory)cat.Id.IntegerValue);
-            }
-
-            public bool AllowReference(Reference reference, XYZ position) => false;
-        }
-
+        /// <summary>
+        /// Executes the match elevation workflow.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
@@ -60,41 +74,34 @@ namespace AJTools
                     return Result.Cancelled;
                 }
 
-                int updatedCount = 0;
+                IList<Reference> targetRefs = uidoc.Selection.PickObjects(ObjectType.Element, filter, "Select TARGET element(s) to match elevation");
+                if (targetRefs == null || !targetRefs.Any())
+                    return Result.Cancelled;
 
-                while (true)
+                using (Transaction t = new Transaction(doc, "Match Elevation"))
                 {
-                    try
+                    t.Start();
+                    int updatedCount = 0;
+                    foreach (Reference targetRef in targetRefs)
                     {
-                        Reference targetRef = uidoc.Selection.PickObject(ObjectType.Element, filter, "Click targets to match elevation (ESC to finish)");
                         Element targetElem = doc.GetElement(targetRef);
                         if (targetElem == null)
-                            continue;
-
-                        using (Transaction t = new Transaction(doc, "Match Elevation"))
                         {
-                            t.Start();
-                            bool applied = SetMiddleElevation(targetElem, sourceElevation.Value);
-                            if (!applied)
-                            {
-                                t.RollBack();
-                                continue;
-                            }
-                            t.Commit();
+                            continue;
                         }
 
-                        updatedCount++;
+                        if (SetMiddleElevation(targetElem, sourceElevation.Value))
+                        {
+                            updatedCount++;
+                        }
                     }
-                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    t.Commit();
+                    
+                    if (updatedCount > 0)
                     {
-                        break;
+                        TaskDialog.Show("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
+                        return Result.Succeeded;
                     }
-                }
-
-                if (updatedCount > 0)
-                {
-                    TaskDialog.Show("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
-                    return Result.Succeeded;
                 }
 
                 TaskDialog.Show("Match Elevation", "No elements were updated.");

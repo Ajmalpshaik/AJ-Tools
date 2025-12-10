@@ -1,9 +1,17 @@
+// Tool Name: Filter Pro - Filter Applier
+// Description: Applies parameter filters to views with graphic overrides and order management.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-10
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, System.Linq
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.DB;
+using System.Linq;
+using AJTools.Models;
 
-namespace AJTools
+namespace AJTools.Services
 {
     internal static class FilterApplier
     {
@@ -39,7 +47,14 @@ namespace AJTools
             }
 
             ApplyGraphicsToFilter(doc, view, filterId, selection, solidFillId, skipped);
-            try { view.SetFilterVisibility(filterId, true); } catch { }
+            try
+            {
+                view.SetFilterVisibility(filterId, true);
+            }
+            catch
+            {
+                // Ignore errors when setting filter visibility, as it's not critical.
+            }
         }
 
         internal static void ApplyGraphicsToFilter(Document doc,
@@ -128,59 +143,15 @@ namespace AJTools
 
             var clone = new OverrideGraphicSettings();
 
-            try
-            {
-                var projColor = source.ProjectionLineColor;
-                if (projColor != null && projColor.IsValid)
-                    clone.SetProjectionLineColor(projColor);
-            }
-            catch { }
-
-            try
-            {
-                var cutColor = source.CutLineColor;
-                if (cutColor != null && cutColor.IsValid)
-                    clone.SetCutLineColor(cutColor);
-            }
-            catch { }
-
-            try
-            {
-                var surfPatId = source.SurfaceForegroundPatternId;
-                if (surfPatId != null && surfPatId != ElementId.InvalidElementId)
-                    clone.SetSurfaceForegroundPatternId(surfPatId);
-            }
-            catch { }
-
-            try
-            {
-                var surfPatColor = source.SurfaceForegroundPatternColor;
-                if (surfPatColor != null && surfPatColor.IsValid)
-                    clone.SetSurfaceForegroundPatternColor(surfPatColor);
-            }
-            catch { }
-
-            try
-            {
-                var cutPatId = source.CutForegroundPatternId;
-                if (cutPatId != null && cutPatId != ElementId.InvalidElementId)
-                    clone.SetCutForegroundPatternId(cutPatId);
-            }
-            catch { }
-
-            try
-            {
-                var cutPatColor = source.CutForegroundPatternColor;
-                if (cutPatColor != null && cutPatColor.IsValid)
-                    clone.SetCutForegroundPatternColor(cutPatColor);
-            }
-            catch { }
-
-            try
-            {
-                clone.SetHalftone(source.Halftone);
-            }
-            catch { }
+            // Revit API throws exceptions if a property is not set.
+            // We can safely ignore these exceptions and proceed with cloning the other properties.
+            try { clone.SetProjectionLineColor(source.ProjectionLineColor); } catch { /* Ignore */ }
+            try { clone.SetCutLineColor(source.CutLineColor); } catch { /* Ignore */ }
+            try { clone.SetSurfaceForegroundPatternId(source.SurfaceForegroundPatternId); } catch { /* Ignore */ }
+            try { clone.SetSurfaceForegroundPatternColor(source.SurfaceForegroundPatternColor); } catch { /* Ignore */ }
+            try { clone.SetCutForegroundPatternId(source.CutForegroundPatternId); } catch { /* Ignore */ }
+            try { clone.SetCutForegroundPatternColor(source.CutForegroundPatternColor); } catch { /* Ignore */ }
+            try { clone.SetHalftone(source.Halftone); } catch { /* Ignore */ }
 
             return clone;
         }
