@@ -1,7 +1,8 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.Exceptions;
 using Autodesk.Revit.UI;
 
 namespace AJTools.Commands
@@ -42,7 +43,13 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            View view = uidoc.ActiveView;
+            View view = ResolveFamilyView(uidoc);
+            if (view == null)
+            {
+                message = "No valid family view is available. Open the family view and try again.";
+                return Result.Failed;
+            }
+
             XYZ viewCenter = ResolveViewCenter(view);
             if (viewCenter == null)
             {
@@ -169,6 +176,32 @@ namespace AJTools.Commands
             Transform transform = box.Transform ?? Transform.Identity;
 
             return transform.OfPoint(localCenter);
+        }
+
+        private static View ResolveFamilyView(UIDocument uidoc)
+        {
+            if (uidoc == null)
+                return null;
+
+            Document doc = uidoc.Document;
+
+            if (doc == null)
+                return null;
+
+            View view = uidoc.ActiveView ?? doc.ActiveView;
+            if (view != null)
+                return view;
+
+            // Annotation/tag families expose a single non-template 2D view.
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v =>
+                    !v.IsTemplate &&
+                    v.ViewType != ViewType.ProjectBrowser &&
+                    v.ViewType != ViewType.Undefined &&
+                    v.ViewType != ViewType.Schedule)
+                .FirstOrDefault();
         }
     }
 }

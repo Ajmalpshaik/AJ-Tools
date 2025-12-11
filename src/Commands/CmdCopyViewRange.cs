@@ -1,10 +1,10 @@
 ﻿// Tool Name: Copy View Range
 // Description: Implements the Copy View Range command and supporting model snapshot logic.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Last Updated: 2025-12-11
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Windows.Forms
 
 using System;
 using System.Collections.Generic;
@@ -13,7 +13,7 @@ using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.UI;
+using AJTools.UI; // Assumed to contain ViewSelectionForm
 
 namespace AJTools.Commands
 {
@@ -68,9 +68,7 @@ namespace AJTools.Commands
         }
 
         /// <summary>
-        /// Shows the main action dialog:
-        /// - First run: only "Copy from active view".
-        /// - After copy: adds "Paste to active" and "Paste to multiple views".
+        /// Shows the main action dialog.
         /// </summary>
         private static TaskDialogResult ShowActionDialog(bool hasCache)
         {
@@ -155,6 +153,7 @@ namespace AJTools.Commands
             }
 
             List<ViewPlan> selectedViews;
+            // Ensure ViewSelectionForm exists in AJTools.UI
             using (var form = new ViewSelectionForm(eligibleViews, activePlan))
             {
                 DialogResult dialogResult = form.ShowDialog();
@@ -220,10 +219,6 @@ namespace AJTools.Commands
             return Result.Succeeded;
         }
 
-        /// <summary>
-        /// Returns all non-template plan views (Floor, Ceiling, Engineering),
-        /// matching the Python allowed_view_types logic.
-        /// </summary>
         private static IList<ViewPlan> GetEligibleViews(Document doc)
         {
             var allowed = new HashSet<ViewType>
@@ -248,11 +243,8 @@ namespace AJTools.Commands
 
             foreach (ViewPlan view in selectedViews)
             {
-                if (view == null)
-                    continue;
-
-                if (view.Id == source.Id)
-                    continue;
+                if (view == null) continue;
+                if (view.Id == source.Id) continue;
 
                 if (seenIds.Add(view.Id.IntegerValue))
                     result.Add(view);
@@ -271,8 +263,7 @@ namespace AJTools.Services
     using Autodesk.Revit.DB;
 
     /// <summary>
-    /// Stores a source view's view range as relative relationships to its level
-    /// and can apply that range to other plan views.
+    /// Stores a source view's view range as relative relationships to its level.
     /// </summary>
     internal class CopyViewRangeModel
     {
@@ -297,28 +288,19 @@ namespace AJTools.Services
 
         public string SourceName { get; private set; }
 
-        private CopyViewRangeModel()
-        {
-        }
+        private CopyViewRangeModel() { }
 
-        /// <summary>
-        /// Create a CopyViewRangeModel snapshot from the given source plan view.
-        /// </summary>
         public static CopyViewRangeModel From(ViewPlan sourceView)
         {
-            if (sourceView == null)
-                throw new ArgumentNullException(nameof(sourceView));
-
+            if (sourceView == null) throw new ArgumentNullException(nameof(sourceView));
             Document doc = sourceView.Document;
-            if (doc == null)
-                throw new InvalidOperationException("Source view has no owning document.");
 
             var result = new CopyViewRangeModel
             {
                 SourceName = sourceView.Name
             };
 
-            // Collect all Levels sorted by elevation (like the Python script).
+            // Get levels sorted by elevation
             IList<Level> allLevels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level))
                 .Cast<Level>()
@@ -326,11 +308,7 @@ namespace AJTools.Services
                 .ToList();
 
             List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
-
-            ElementId sourceLevelId = sourceView.GenLevel != null
-                ? sourceView.GenLevel.Id
-                : ElementId.InvalidElementId;
-
+            ElementId sourceLevelId = sourceView.GenLevel?.Id ?? ElementId.InvalidElementId;
             int sourceLevelIndex = levelIds.IndexOf(sourceLevelId);
 
             ElementId levelAboveId = ElementId.InvalidElementId;
@@ -359,12 +337,8 @@ namespace AJTools.Services
                 ElementId planeLevelId = viewRange.GetLevelId(plane);
                 double offset = viewRange.GetOffset(plane);
 
-                var data = new PlaneData
-                {
-                    Offset = offset
-                };
+                var data = new PlaneData { Offset = offset };
 
-                // For Bottom & ViewDepth we ALWAYS treat as Absolute, so they copy exactly.
                 bool forceAbsolute = (plane == PlanViewPlane.BottomClipPlane ||
                                       plane == PlanViewPlane.ViewDepthPlane);
 
@@ -396,51 +370,19 @@ namespace AJTools.Services
             return result;
         }
 
-        /// <summary>
-        /// Apply the stored view range to the given target plan view,
-        /// with detailed reasons if the view range is read-only.
-        /// </summary>
         public void ApplyTo(ViewPlan targetView)
         {
-            if (targetView == null)
-                throw new ArgumentNullException(nameof(targetView));
-
+            if (targetView == null) throw new ArgumentNullException(nameof(targetView));
             Document doc = targetView.Document;
-            if (doc == null)
-                throw new InvalidOperationException("Target view has no owning document.");
 
-            // Check if the view range parameter is read-only, but only if it exists.
+            // Check if view range is read-only
             Parameter vrParam = targetView.get_Parameter(BuiltInParameter.PLAN_VIEW_RANGE);
             if (vrParam != null && vrParam.IsReadOnly)
             {
-                string reason;
-
-                if (targetView.ViewTemplateId != ElementId.InvalidElementId)
-                {
-                    var template = doc.GetElement(targetView.ViewTemplateId) as View;
-                    string templateName = template?.Name ?? targetView.ViewTemplateId.IntegerValue.ToString();
-                    reason = $"View range is controlled by view template '{templateName}'.";
-                }
-                else
-                {
-                    ElementId primaryId = targetView.GetPrimaryViewId();
-                    if (primaryId != ElementId.InvalidElementId)
-                    {
-                        var primary = doc.GetElement(primaryId) as View;
-                        string primaryName = primary?.Name ?? primaryId.IntegerValue.ToString();
-                        reason =
-                            $"This is a dependent view of '{primaryName}', so its view range is controlled by the parent view.";
-                    }
-                    else
-                    {
-                        reason = "View range parameter is read-only on this view.";
-                    }
-                }
-
-                throw new InvalidOperationException(reason);
+                throw new InvalidOperationException($"View range is read-only (possibly controlled by a View Template).");
             }
 
-            // Collect all Levels sorted by elevation.
+            // Get levels sorted by elevation
             IList<Level> allLevels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level))
                 .Cast<Level>()
@@ -448,14 +390,11 @@ namespace AJTools.Services
                 .ToList();
 
             List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
-
-            ElementId destLevelId = targetView.GenLevel != null
-                ? targetView.GenLevel.Id
-                : ElementId.InvalidElementId;
+            ElementId destLevelId = targetView.GenLevel?.Id ?? ElementId.InvalidElementId;
 
             int destLevelIndex = levelIds.IndexOf(destLevelId);
             if (destLevelIndex < 0)
-                throw new InvalidOperationException("Could not find target view's level in project levels.");
+                throw new InvalidOperationException("Target view's level not found in project.");
 
             ElementId destLevelAboveId = ElementId.InvalidElementId;
             ElementId destLevelBelowId = ElementId.InvalidElementId;
@@ -472,7 +411,6 @@ namespace AJTools.Services
             {
                 PlanViewPlane plane = kvp.Key;
                 PlaneData data = kvp.Value;
-
                 ElementId newLevelId;
 
                 switch (data.Relationship)
@@ -486,11 +424,18 @@ namespace AJTools.Services
                         break;
 
                     case LevelRelationship.Above:
-                        newLevelId = destLevelAboveId;
+                        // FIX: If there is no level above (e.g., Roof), fall back to Associated level
+                        // to prevent crash, rather than sending InvalidElementId.
+                        newLevelId = (destLevelAboveId != ElementId.InvalidElementId) 
+                            ? destLevelAboveId 
+                            : destLevelId; 
                         break;
 
                     case LevelRelationship.Below:
-                        newLevelId = destLevelBelowId;
+                        // FIX: If there is no level below (e.g., Ground), fall back to Associated level.
+                        newLevelId = (destLevelBelowId != ElementId.InvalidElementId) 
+                            ? destLevelBelowId 
+                            : destLevelId;
                         break;
 
                     case LevelRelationship.Absolute:
@@ -500,6 +445,14 @@ namespace AJTools.Services
                     default:
                         newLevelId = ElementId.InvalidElementId;
                         break;
+                }
+
+                // Safety check: CutPlane and TopClipPlane cannot be set to InvalidElementId (Unlimited).
+                // Only ViewDepthPlane supports InvalidElementId.
+                if (newLevelId == ElementId.InvalidElementId && plane != PlanViewPlane.ViewDepthPlane)
+                {
+                     // Fallback to current level if calculation failed for critical planes
+                     newLevelId = destLevelId;
                 }
 
                 vr.SetLevelId(plane, newLevelId);
