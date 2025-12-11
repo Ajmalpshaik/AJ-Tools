@@ -1,9 +1,17 @@
-using System;
+// Tool Name: Reset Text Position
+// Description: Centers selected text notes or labels in the active family view.
+// Author: Ajmal P.S.
+// Version: 1.0.0
+// Last Updated: 2025-12-11
+// Revit Version: 2020
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -30,16 +38,22 @@ namespace AJTools.Commands
                 return Result.Failed;
             }
 
+            if (!ValidationHelper.ValidateEditableDocument(doc, out message))
+            {
+                DialogHelper.ShowError("Center Text/Label", message);
+                return Result.Failed;
+            }
+
             if (!doc.IsFamilyDocument)
             {
-                TaskDialog.Show("Center Text/Label", "Run this tool inside a family document.");
+                DialogHelper.ShowError("Center Text/Label", "Run this tool inside a family document.");
                 return Result.Cancelled;
             }
 
             ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
             if (selectedIds == null || selectedIds.Count == 0)
             {
-                TaskDialog.Show("Center Text/Label", "Select one or more text notes or labels in the family view, then run the command.");
+                DialogHelper.ShowError("Center Text/Label", "Select one or more text notes or labels in the family view, then run the command.");
                 return Result.Cancelled;
             }
 
@@ -80,11 +94,11 @@ namespace AJTools.Commands
 
             if (centeredCount == 0)
             {
-                TaskDialog.Show("Center Text/Label", "The selection did not contain movable text notes or labels.");
+                DialogHelper.ShowError("Center Text/Label", "The selection did not contain movable text notes or labels.");
                 return Result.Cancelled;
             }
 
-            TaskDialog.Show("Center Text/Label", $"Centered {centeredCount} item(s) in the active family view.");
+            DialogHelper.ShowInfo("Center Text/Label", $"Centered {centeredCount} item(s) in the active family view.");
             return Result.Succeeded;
         }
 
@@ -170,6 +184,10 @@ namespace AJTools.Commands
             }
 
             if (box == null)
+                return null;
+
+            // Ensure Min and Max are valid before attempting to calculate center
+            if (box.Min == null || box.Max == null)
                 return null;
 
             XYZ localCenter = box.Min.Add(box.Max).Multiply(0.5);

@@ -11,7 +11,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     /// <summary>
     /// Tracks last-used selections for Filter Pro and resets when switching documents.

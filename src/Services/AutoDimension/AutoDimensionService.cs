@@ -2,7 +2,7 @@
 // Description: Core service to generate grid/level dimensions automatically along specified directions.
 // Author: Ajmal P.S.
 // Version: 1.0.0
-// Last Updated: 2025-12-10
+// Last Updated: 2025-12-11
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Linq
 
@@ -11,8 +11,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Utils;
 
-namespace AJTools.Services
+namespace AJTools.Services.AutoDimension
 {
     /// <summary>
     /// Auto dimension scope options for grids and levels.
@@ -29,9 +30,6 @@ namespace AJTools.Services
     /// </summary>
     internal static class AutoDimensionService
     {
-        private const double MM_IN_FEET = 0.00328084;
-        private const double PARALLEL_TOLERANCE = 0.001;
-
         private static readonly HashSet<ViewType> PlanViews = new HashSet<ViewType>
         {
             ViewType.FloorPlan,
@@ -154,8 +152,8 @@ namespace AJTools.Services
             BoundingBoxXYZ crop = view.CropBox;
             double scale = view.Scale;
             // Offset dimension strings based on view scale to avoid overlapping geometry.
-            double offset = (8 * MM_IN_FEET) * scale;
-            double overallOffset = (6 * MM_IN_FEET) * scale;
+            double offset = (8 * Constants.MM_TO_FEET) * scale;
+            double overallOffset = (6 * Constants.MM_TO_FEET) * scale;
 
             int individualCount = 0;
             int overallCount = 0;
@@ -220,9 +218,9 @@ namespace AJTools.Services
             Transform transform = crop.Transform;
             Transform inverse = transform.Inverse;
             double scale = view.Scale;
-            double offset = (8 * MM_IN_FEET) * scale;
-            double levelOverallOffset = (10 * MM_IN_FEET) * scale;
-            double gridOverallOffset = (10 * MM_IN_FEET) * scale;
+            double offset = (8 * Constants.MM_TO_FEET) * scale;
+            double levelOverallOffset = (10 * Constants.MM_TO_FEET) * scale;
+            double gridOverallOffset = (10 * Constants.MM_TO_FEET) * scale;
 
             bool levelsDimmed = false;
             bool gridsDimmed = false;
@@ -313,9 +311,9 @@ namespace AJTools.Services
                 if (direction == null)
                     continue;
 
-                if (Math.Abs(direction.Y) > 1.0 - PARALLEL_TOLERANCE)
+                if (Math.Abs(direction.Y) > 1.0 - Constants.PARALLEL_TOLERANCE)
                     vertical.Add(grid);
-                else if (Math.Abs(direction.X) > 1.0 - PARALLEL_TOLERANCE)
+                else if (Math.Abs(direction.X) > 1.0 - Constants.PARALLEL_TOLERANCE)
                     horizontal.Add(grid);
             }
 

@@ -9,6 +9,7 @@
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -27,16 +28,13 @@ namespace AJTools.Commands
         {
             try
             {
-                UIApplication uiApp = commandData.Application;
-                UIDocument uiDoc = uiApp.ActiveUIDocument;
-                if (uiDoc == null)
+                UIDocument uiDoc = commandData.Application.ActiveUIDocument;
+
+                if (!ValidationHelper.ValidateUIDocumentAndView(uiDoc, out message))
                     return Result.Failed;
 
                 Document doc = uiDoc.Document;
                 View view = doc.ActiveView;
-
-                if (view == null || view.IsTemplate)
-                    return Result.Failed;
 
                 // Same logic as your pyRevit script: collect all elements in the model
                 var allElementIds = new FilteredElementCollector(doc)
@@ -65,8 +63,14 @@ namespace AJTools.Commands
 
                 return Result.Succeeded;
             }
-            catch
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
+                // User cancelled the operation
+                return Result.Cancelled;
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show(Title, $"An error occurred: {ex.Message}");
                 return Result.Failed;
             }
         }

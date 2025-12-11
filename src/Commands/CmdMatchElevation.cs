@@ -6,41 +6,14 @@
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
-using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
-    /// <summary>
-    /// Filters selection for MEP elements.
-    /// </summary>
-    internal class MepSelectionFilter : ISelectionFilter
-    {
-        private readonly HashSet<BuiltInCategory> _categories = new HashSet<BuiltInCategory>
-        {
-            BuiltInCategory.OST_PipeCurves,
-            BuiltInCategory.OST_DuctCurves,
-            BuiltInCategory.OST_CableTray,
-            BuiltInCategory.OST_Conduit,
-            BuiltInCategory.OST_FlexDuctCurves,
-            BuiltInCategory.OST_FlexPipeCurves
-        };
-
-        public bool AllowElement(Element elem)
-        {
-            Category cat = elem?.Category;
-            if (cat == null)
-                return false;
-
-            return _categories.Contains((BuiltInCategory)cat.Id.IntegerValue);
-        }
-
-        public bool AllowReference(Reference reference, XYZ position) => false;
-    }
-
     /// <summary>
     /// Matches the middle elevation from a source MEP element to selected targets.
     /// </summary>
@@ -74,7 +47,7 @@ namespace AJTools.Commands
                 double? sourceElevation = GetMiddleElevation(sourceElem);
                 if (sourceElevation == null)
                 {
-                    TaskDialog.Show("Match Elevation", "Could not read elevation from the selected element.");
+                    DialogHelper.ShowError("Match Elevation", "Could not read elevation from the selected element.");
                     return Result.Cancelled;
                 }
 
@@ -101,28 +74,37 @@ namespace AJTools.Commands
 
                     using (Transaction t = new Transaction(doc, "Match Elevation"))
                     {
-                        t.Start();
+                        try
+                        {
+                            t.Start();
 
-                        bool changed = SetMiddleElevation(targetElem, sourceElevation.Value);
-                        if (changed)
-                        {
-                            t.Commit();
-                            updatedCount++;
+                            bool changed = SetMiddleElevation(targetElem, sourceElevation.Value);
+                            if (changed)
+                            {
+                                t.Commit();
+                                updatedCount++;
+                            }
+                            else
+                            {
+                                t.RollBack();
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            t.RollBack();
+                            if (t.HasStarted() && !t.HasEnded())
+                                t.RollBack();
+                            // Continue to next element on error
                         }
                     }
                 }
 
                 if (updatedCount > 0)
                 {
-                    TaskDialog.Show("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
+                    DialogHelper.ShowInfo("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
                     return Result.Succeeded;
                 }
 
-                TaskDialog.Show("Match Elevation", "No elements were updated.");
+                DialogHelper.ShowInfo("Match Elevation", "No elements were updated.");
                 return Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)

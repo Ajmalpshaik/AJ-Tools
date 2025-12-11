@@ -11,10 +11,19 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     internal static class FilterApplier
     {
+        /// <summary>
+        /// Applies a parameter filter to a view with graphic overrides.
+        /// </summary>
+        /// <param name="doc">The active Revit document.</param>
+        /// <param name="view">The view to apply the filter to.</param>
+        /// <param name="filterId">The ID of the filter to apply.</param>
+        /// <param name="selection">The filter selection containing graphics preferences.</param>
+        /// <param name="solidFillId">The ID of the solid fill pattern.</param>
+        /// <param name="skipped">List to collect any skip messages.</param>
         internal static void ApplyToView(
             Document doc,
             View view,
@@ -59,6 +68,15 @@ namespace AJTools.Services
             }
         }
 
+        /// <summary>
+        /// Applies graphic overrides to a filter in a view.
+        /// </summary>
+        /// <param name="doc">The active Revit document.</param>
+        /// <param name="view">The view containing the filter.</param>
+        /// <param name="filterId">The ID of the filter to apply graphics to.</param>
+        /// <param name="selection">The filter selection containing graphics preferences.</param>
+        /// <param name="solidFillId">The ID of the solid fill pattern.</param>
+        /// <param name="skipped">List to collect any skip messages.</param>
         internal static void ApplyGraphicsToFilter(
             Document doc,
             View view,
@@ -141,6 +159,11 @@ namespace AJTools.Services
             }
         }
 
+        /// <summary>
+        /// Creates a deep copy of override graphic settings.
+        /// </summary>
+        /// <param name="source">The source override settings to clone.</param>
+        /// <returns>A new OverrideGraphicSettings instance with copied settings.</returns>
         internal static OverrideGraphicSettings CloneOverrideGraphics(OverrideGraphicSettings source)
         {
             if (source == null)
@@ -160,6 +183,11 @@ namespace AJTools.Services
             return clone;
         }
 
+        /// <summary>
+        /// Checks if a view is controlled by a view template.
+        /// </summary>
+        /// <param name="view">The view to check.</param>
+        /// <returns>True if the view has a view template applied, false otherwise.</returns>
         internal static bool IsViewControlledByTemplate(View view)
         {
             if (view == null)
@@ -168,6 +196,11 @@ namespace AJTools.Services
             return !view.IsTemplate && view.ViewTemplateId != ElementId.InvalidElementId;
         }
 
+        /// <summary>
+        /// Retrieves the ElementId of the solid fill pattern in the document.
+        /// </summary>
+        /// <param name="doc">The active Revit document.</param>
+        /// <returns>The ElementId of the solid fill pattern, or InvalidElementId if not found.</returns>
         internal static ElementId GetSolidFillId(Document doc)
         {
             try

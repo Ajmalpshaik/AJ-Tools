@@ -12,7 +12,7 @@ using Autodesk.Revit.DB;
 using AJTools.Models;
 using AJTools.Utils;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     internal static class FilterReorderer
     {

@@ -10,22 +10,10 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
-    internal class DatumSelectionFilter : ISelectionFilter
-    {
-        public bool AllowElement(Element elem)
-        {
-            return elem is Grid || elem is Level;
-        }
-
-        public bool AllowReference(Reference reference, XYZ position)
-        {
-            return false;
-        }
-    }
-
     internal enum SelectionMode
     {
         Single,
@@ -40,14 +28,25 @@ namespace AJTools.Commands
         {
             UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            if (uidoc == null) return Result.Failed;
+            if (uidoc == null)
+            {
+                message = "No active document.";
+                return Result.Failed;
+            }
 
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
-            if (view == null || view.IsTemplate) return Result.Failed;
+            if (view == null || view.IsTemplate)
+            {
+                message = "Run this tool in a normal project view.";
+                return Result.Failed;
+            }
 
             if (!IsSupportedViewType(view.ViewType))
+            {
+                message = "This tool only works in plan, section, or elevation views.";
                 return Result.Failed;
+            }
 
             DatumSelectionFilter filter = new DatumSelectionFilter();
             SelectionMode mode = PromptSelectionMode();

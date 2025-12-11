@@ -2,7 +2,7 @@
 // Description: Collects filterable categories, parameters, and values for the Filter Pro UI.
 // Author: Ajmal P.S.
 // Version: 1.0.0
-// Last Updated: 2025-12-10
+// Last Updated: 2025-12-11
 // Revit Version: 2020
 // Dependencies: System, System.Collections.Generic, System.Linq, Autodesk.Revit.DB, Autodesk.Revit.DB.Mechanical
 using System;
@@ -11,15 +11,15 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using AJTools.Models;
+using AJTools.Utils;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     /// <summary>
     /// Provides read-only data for the Filter Pro UI: categories, parameters, and available values.
     /// </summary>
     internal class FilterProDataProvider
     {
-        private const int ElementScanLimit = 10000;
         private readonly Document _doc;
 
         public FilterProDataProvider(Document doc)
@@ -158,7 +158,7 @@ namespace AJTools.Services
             foreach (Element elem in collector)
             {
                 scanned++;
-                if (scanned > ElementScanLimit)
+                if (scanned > Constants.ELEMENT_SCAN_LIMIT)
                 {
                     hitScanLimit = true;
                     break;

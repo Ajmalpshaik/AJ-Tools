@@ -12,7 +12,7 @@ using System.Reflection;
 using System.Windows.Media.Imaging;
 using AJTools.Commands;
 
-namespace AJTools
+namespace AJTools.App
 {
     /// <summary>
     /// Builds the AJ Tools ribbon tab, panels, and buttons when Revit starts.

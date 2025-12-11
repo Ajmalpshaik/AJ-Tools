@@ -13,11 +13,12 @@ using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.UI; // Assumed to contain ViewSelectionForm
+using AJTools.Services.CopyViewRange;
+using AJTools.UI;
 
 namespace AJTools.Commands
 {
-    using ViewRangeSnapshot = AJTools.Services.CopyViewRangeModel;
+    using ViewRangeSnapshot = AJTools.Services.CopyViewRange.CopyViewRangeModel;
 
     /// <summary>
     /// Copies the active plan view's view range and applies it to other plan views.
@@ -254,6 +255,7 @@ namespace AJTools.Commands
         }
     }
 }
+<<<<<<< HEAD
 
 namespace AJTools.Services
 {
@@ -463,3 +465,5 @@ namespace AJTools.Services
         }
     }
 }
+=======
+>>>>>>> c89754d (Restructure project into professional folder hierarchy)

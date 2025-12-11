@@ -14,9 +14,9 @@ using System.Windows.Controls;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models;
-using AJTools.Services;
+using AJTools.Services.FilterPro;
 
-namespace AJTools
+namespace AJTools.UI
 {
     /// <summary>
     /// Interaction logic for FilterProWindow.xaml
@@ -118,7 +118,6 @@ namespace AJTools
             // Value filtering and sorting
             value_search_textbox.TextChanged += (s, e) => ApplyValueFilters();
             value_sort_combobox.SelectionChanged += (s, e) => ApplyValueFilters();
-            pattern_combo.SelectionChanged += (s, e) => RememberPatternSelection();
         }
 
         private void ApplyValueFilters()
@@ -318,11 +317,6 @@ namespace AJTools
                     return;
                 }
             }
-        }
-
-        private void RememberPatternSelection()
-        {
-            // noop placeholder to trigger state when needed
         }
 
         private PatternItem GetPatternItem(ElementId id)

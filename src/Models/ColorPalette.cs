@@ -8,12 +8,15 @@
 
 using Autodesk.Revit.DB;
 using System;
+using System.Threading;
 
 namespace AJTools.Models
 {
     internal static class ColorPalette
     {
-        private static readonly Random _rand = new Random();
+        // Thread-safe Random instance to avoid issues with concurrent access
+        private static readonly ThreadLocal<Random> _rand = 
+            new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
 
         // Ultra-distinct 20-color neon palette (no similar colors)
         private static readonly Color[] Palette =
@@ -61,7 +64,7 @@ namespace AJTools.Models
         /// </summary>
         public static Color GetRandomColor()
         {
-            int idx = _rand.Next(Palette.Length);
+            int idx = _rand.Value.Next(Palette.Length);
             return Palette[idx];
         }
     }

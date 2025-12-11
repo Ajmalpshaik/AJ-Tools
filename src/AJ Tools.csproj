@@ -59,17 +59,8 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
-    <Compile Include="Commands\CmdLinkedElementSearch.cs" />
-    <Compile Include="Models\LinkDisplayItem.cs" />
-    <Compile Include="UI\LinkedIdViewerWindow.xaml.cs">
-      <DependentUpon>LinkedIdViewerWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\LinkedSearchWindow.xaml.cs">
-      <DependentUpon>LinkedSearchWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="App.cs" />
-    <Compile Include="Commands\CmdAbout.cs" />
+    <Compile Include="App\App.cs" />
+    <Compile Include="App\RibbonManager.cs" />
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
     <Compile Include="Commands\CmdCopyViewRange.cs" />
@@ -103,7 +94,7 @@
     <Compile Include="Models\SpecialParameterIds.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AutoDimensionService.cs" />
-    <Compile Include="Services\CopiedViewRange.cs" />
+    <Compile Include="Services\CopyViewRangeModel.cs" />
     <Compile Include="Services\FilterApplier.cs" />
     <Compile Include="Services\FilterCreator.cs" />
     <Compile Include="Services\FilterProDataProvider.cs" />
@@ -112,6 +103,8 @@
     <Compile Include="Services\FilterReorderer.cs" />
     <Compile Include="Services\FilterValueKeyMatcher.cs" />
     <Compile Include="Services\RibbonManager.cs" />
+    <Compile Include="Utils\TransactionHelper.cs" />
+    <Compile Include="Utils\ValidationHelper.cs" />
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
@@ -141,7 +134,7 @@
     <SkipRevitAddinDeploy Condition="'$(SkipRevitAddinDeploy)'==''">false</SkipRevitAddinDeploy>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="Images\**\*.*">
+    <Content Include="Resources\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -153,17 +146,17 @@
       <DeployDirs Include="@(DeployRoots->'%(FullPath)$(RevitAddinDeployName)')" />
     </ItemGroup>
     <RemoveDir Directories="@(DeployDirs)" />
-    <MakeDir Directories="@(DeployDirs);@(DeployDirs->'%(FullPath)Images')" />
+    <MakeDir Directories="@(DeployDirs);@(DeployDirs->'%(FullPath)Resources')" />
     <Copy SourceFiles="$(TargetPath)" DestinationFiles="@(DeployDirs->'%(FullPath)AJ Tools.dll')" OverwriteReadOnlyFiles="true" />
     <Copy Condition="Exists('$(TargetDir)AJ Tools.pdb')" SourceFiles="$(TargetDir)AJ Tools.pdb" DestinationFiles="@(DeployDirs->'%(FullPath)AJ Tools.pdb')" OverwriteReadOnlyFiles="true" />
-    <Copy SourceFiles="@(Content)" DestinationFolder="%(DeployDirs.FullPath)Images" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" Condition="@(Content) != ''" />
+    <Copy SourceFiles="@(Content)" DestinationFolder="%(DeployDirs.FullPath)Resources" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" Condition="@(Content) != ''" />
     <PropertyGroup>
       <AddinTemplate><![CDATA[<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <RevitAddIns>
   <AddIn Type="Application">
     <Name>AJ Tools</Name>
     <AddInId>{C14A253D-96C6-42B7-889A-CFE737556BA9}</AddInId>
-    <FullClassName>AJTools.App</FullClassName>
+    <FullClassName>AJTools.App.App</FullClassName>
     <Assembly>%(DeployDirs.FullPath)AJ Tools.dll</Assembly>
     <VendorId>AJT</VendorId>
     <VendorDescription>Ajmal P.S - ajmalnattika@gmail.com</VendorDescription>

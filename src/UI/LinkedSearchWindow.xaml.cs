@@ -26,7 +26,9 @@ namespace AJTools.UI
         private RevitLinkInstance _lastLinkInstance;
         private ElementId _lastLinkedElementId = ElementId.InvalidElementId;
         private ElementId _lastOverrideTarget = ElementId.InvalidElementId;
-        private static readonly System.Random _random = new System.Random();
+        // Thread-safe Random instance
+        private static readonly System.Threading.ThreadLocal<System.Random> _random = 
+            new System.Threading.ThreadLocal<System.Random>(() => new System.Random(System.Guid.NewGuid().GetHashCode()));
 
         public LinkedSearchWindow(UIDocument uiDoc, Document hostDoc, View activeView, IEnumerable<RevitLinkInstance> links)
         {
@@ -281,9 +283,9 @@ namespace AJTools.UI
 
         private static Color RandomColor()
         {
-            byte r = (byte)_random.Next(30, 256);
-            byte g = (byte)_random.Next(30, 256);
-            byte b = (byte)_random.Next(30, 256);
+            byte r = (byte)_random.Value.Next(30, 256);
+            byte g = (byte)_random.Value.Next(30, 256);
+            byte b = (byte)_random.Value.Next(30, 256);
             return new Color(r, g, b);
         }
 

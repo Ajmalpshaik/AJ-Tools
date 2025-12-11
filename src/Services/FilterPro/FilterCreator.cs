@@ -11,7 +11,7 @@ using Autodesk.Revit.DB;
 using System.Linq;
 using AJTools.Models;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     internal class FilterCreationResult
     {
@@ -480,7 +480,7 @@ namespace AJTools.Services
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
-                .FirstOrDefault(f => f.Name.Equals(name, StringComparison.Ordinal));
+                .FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

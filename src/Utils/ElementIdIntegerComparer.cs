@@ -29,8 +29,8 @@ namespace AJTools.Utils
 
         public int GetHashCode(ElementId obj)
         {
-            // ElementId is a struct; null will never occur here unless caller passes null explicitly.
-            return obj != null ? obj.IntegerValue : 0;
+            // ElementId is a struct in Revit API, so it cannot be null
+            return obj.IntegerValue;
         }
     }
 }

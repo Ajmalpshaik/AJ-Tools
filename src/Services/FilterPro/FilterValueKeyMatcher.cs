@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using AJTools.Models;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     /// <summary>
     /// Centralizes value-key creation and comparisons so restoration logic is reusable.

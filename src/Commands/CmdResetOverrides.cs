@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -30,23 +31,16 @@ namespace AJTools.Commands
         {
             try
             {
-                UIApplication uiapp = commandData.Application;
-                UIDocument uidoc = uiapp.ActiveUIDocument;
+                UIDocument uidoc = commandData.Application.ActiveUIDocument;
 
-                if (uidoc == null)
+                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
                 {
-                    TaskDialog.Show("Reset Overrides", "Open a project view before running this command.");
+                    TaskDialog.Show("Reset Overrides", message);
                     return Result.Failed;
                 }
 
                 Document doc = uidoc.Document;
                 View view = doc.ActiveView;
-
-                if (view == null || view.IsTemplate)
-                {
-                    TaskDialog.Show("Reset Overrides", "Please run this tool inside a normal project view.");
-                    return Result.Failed;
-                }
 
                 ICollection<ElementId> elementIds = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()

@@ -11,6 +11,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -24,11 +25,6 @@ namespace AJTools.Commands
     [Transaction(TransactionMode.Manual)]
     public class CmdCopyDimensionText : IExternalCommand
     {
-        private class DimensionSelectionFilter : ISelectionFilter
-        {
-            public bool AllowElement(Element elem) => elem is Dimension;
-            public bool AllowReference(Reference reference, XYZ position) => false;
-        }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -69,9 +65,7 @@ namespace AJTools.Commands
 
                 if (!hasCopyableText)
                 {
-                    TaskDialog.Show(
-                        "Copy Dim Text",
-                        "The selected dimension has no Above/Below/Prefix/Suffix text or value override to copy.");
+                    DialogHelper.ShowError("Copy Dim Text", "The selected dimension has no Above/Below/Prefix/Suffix text or value override to copy.");
                     return Result.Cancelled;
                 }
 
@@ -119,9 +113,7 @@ namespace AJTools.Commands
                 // 3) Behaviour after ESC
                 if (pastedCount == 0)
                 {
-                    TaskDialog.Show(
-                        "Copy Dim Text",
-                        "Source captured, but no target dimensions were selected.");
+                    DialogHelper.ShowError("Copy Dim Text", "Source captured, but no target dimensions were selected.");
                     return Result.Cancelled;
                 }
 

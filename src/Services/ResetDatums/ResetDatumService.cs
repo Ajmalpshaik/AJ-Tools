@@ -11,7 +11,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models;
 
-namespace AJTools.Services
+namespace AJTools.Services.ResetDatums
 {
     /// <summary>
     /// Resets grid and level datum extents in the active view back to model (3D) extents.

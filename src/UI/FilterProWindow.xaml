@@ -7,7 +7,7 @@
   Revit Version: 2020
   Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 -->
-<Window x:Class="AJTools.FilterProWindow"
+<Window x:Class="AJTools.UI.FilterProWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

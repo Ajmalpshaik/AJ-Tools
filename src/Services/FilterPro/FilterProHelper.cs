@@ -11,7 +11,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models;
 
-namespace AJTools.Services
+namespace AJTools.Services.FilterPro
 {
     /// <summary>
     /// Orchestrates FilterPro operations: validation, creation/update, applying, and ordering.

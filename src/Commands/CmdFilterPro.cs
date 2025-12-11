@@ -10,7 +10,7 @@ using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.UI; // FilterProWindow
+using AJTools.UI;
 
 namespace AJTools.Commands
 {

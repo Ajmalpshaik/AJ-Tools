@@ -8,7 +8,7 @@
 using Autodesk.Revit.UI;
 using System.IO;
 
-namespace AJTools
+namespace AJTools.App
 {
     /// <summary>
     /// Entry point for the AJ Tools Revit add-in.
