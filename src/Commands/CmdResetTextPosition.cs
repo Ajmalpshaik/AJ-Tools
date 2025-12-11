@@ -1,101 +1,174 @@
-// Tool Name: Reset Text Position
-// Description: Resets selected text notes/tags back to default positions.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
-using System;
+using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.Exceptions;
 using Autodesk.Revit.UI;
 
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Resets selected text notes/tags back to default positions.
+    /// Centers selected text notes or labels in the active family view.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdResetTextPosition : IExternalCommand
     {
         /// <summary>
-        /// Executes the reset text position workflow.
+        /// Centers supported text elements relative to the active family view extents.
         /// </summary>
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(
+            ExternalCommandData commandData,
+            ref string message,
+            ElementSet elements)
         {
-            UIApplication uiapp = commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
+            UIDocument uidoc = commandData.Application?.ActiveUIDocument;
+            Document doc = uidoc?.Document;
 
-            if (uidoc == null)
+            if (doc == null)
             {
-                message = "No active document.";
+                message = "No active Revit document.";
                 return Result.Failed;
             }
 
-            var selectedIds = uidoc.Selection.GetElementIds();
+            if (!doc.IsFamilyDocument)
+            {
+                TaskDialog.Show("Center Text/Label", "Run this tool inside a family document.");
+                return Result.Cancelled;
+            }
+
+            ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
             if (selectedIds == null || selectedIds.Count == 0)
             {
-                TaskDialog.Show("Reset Text", "Select text notes or tags, then run this command.");
+                TaskDialog.Show("Center Text/Label", "Select one or more text notes or labels in the family view, then run the command.");
                 return Result.Cancelled;
             }
 
-            Document doc = uidoc.Document;
-            int resetCount = 0;
-
-            try
+            View view = uidoc.ActiveView;
+            XYZ viewCenter = ResolveViewCenter(view);
+            if (viewCenter == null)
             {
-                using (Transaction t = new Transaction(doc, "Reset Text Position"))
-                {
-                    t.Start();
-
-                    foreach (ElementId id in selectedIds)
-                    {
-                        Element el = doc.GetElement(id);
-                        if (el != null && ResetTextPositionForElement(el))
-                        {
-                            resetCount++;
-                        }
-                    }
-
-                    t.Commit();
-                }
-            }
-            catch (Exception ex)
-            {
-                message = ex.Message;
+                message = "Could not resolve the active family view extents.";
                 return Result.Failed;
             }
 
-            if (resetCount == 0)
+            int centeredCount = 0;
+
+            using (Transaction transaction = new Transaction(doc, "Center Text/Label"))
             {
-                TaskDialog.Show("Reset Text", "No text notes/tags were reset.");
+                transaction.Start();
+
+                foreach (ElementId id in selectedIds)
+                {
+                    Element element = doc.GetElement(id);
+                    if (element == null)
+                        continue;
+
+                    if (CenterElement(element, view, viewCenter))
+                    {
+                        centeredCount++;
+                    }
+                }
+
+                transaction.Commit();
+            }
+
+            if (centeredCount == 0)
+            {
+                TaskDialog.Show("Center Text/Label", "The selection did not contain movable text notes or labels.");
                 return Result.Cancelled;
             }
 
-            TaskDialog.Show("Reset Text", $"Reset {resetCount} text note/tag(s).");
+            TaskDialog.Show("Center Text/Label", $"Centered {centeredCount} item(s) in the active family view.");
             return Result.Succeeded;
         }
 
-        private static bool ResetTextPositionForElement(Element el)
+        private static bool CenterElement(Element element, View view, XYZ viewCenter)
         {
-            // Attempt to find common text/leader related parameters by name for TextNote/Tag types
-            Parameter leaderEnd = el.LookupParameter("Leader Elbow") ?? el.LookupParameter("Leader End");
-            Parameter textOffset = el.LookupParameter("Text Position") ?? el.LookupParameter("Text Offset");
+            if (element is IndependentTag tag)
+                return CenterTag(tag, view, viewCenter);
 
-            bool reset = false;
+            if (element.Location is LocationPoint locationPoint)
+                return CenterLocationPoint(locationPoint, view, viewCenter);
 
-            if (leaderEnd != null && !leaderEnd.IsReadOnly && leaderEnd.StorageType == StorageType.Double)
+            return false;
+        }
+
+        private static bool CenterTag(IndependentTag tag, View view, XYZ viewCenter)
+        {
+            if (tag == null)
+                return false;
+
+            XYZ target = AlignToViewPlane(view, tag.TagHeadPosition, viewCenter);
+            if (target == null || tag.TagHeadPosition.IsAlmostEqualTo(target))
+                return false;
+
+            tag.TagHeadPosition = target;
+            return true;
+        }
+
+        private static bool CenterLocationPoint(LocationPoint locationPoint, View view, XYZ viewCenter)
+        {
+            if (locationPoint == null)
+                return false;
+
+            XYZ target = AlignToViewPlane(view, locationPoint.Point, viewCenter);
+            if (target == null || locationPoint.Point.IsAlmostEqualTo(target))
+                return false;
+
+            locationPoint.Point = target;
+            return true;
+        }
+
+        private static XYZ AlignToViewPlane(View view, XYZ current, XYZ viewCenter)
+        {
+            if (view == null || current == null || viewCenter == null)
+                return null;
+
+            XYZ viewDirection = view.ViewDirection;
+            if (viewDirection == null || viewDirection.GetLength() < 1e-9)
+                return viewCenter;
+
+            XYZ normal = viewDirection.Normalize();
+            double depth = normal.DotProduct(current.Subtract(viewCenter));
+
+            return viewCenter.Add(normal.Multiply(depth));
+        }
+
+        private static XYZ ResolveViewCenter(View view)
+        {
+            if (view == null)
+                return null;
+
+            BoundingBoxXYZ box = null;
+
+            if (view is View3D view3D && view3D.IsSectionBoxActive)
             {
-                leaderEnd.Set(0.0);
-                reset = true;
+                box = view3D.GetSectionBox();
             }
 
-            if (textOffset != null && !textOffset.IsReadOnly && textOffset.StorageType == StorageType.Double)
+            if (box == null)
             {
-                textOffset.Set(0.0);
-                reset = true;
+                try
+                {
+                    box = view.CropBox;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Crop boxes are not available for some view types.
+                }
             }
-            return reset;
+
+            if (box == null)
+            {
+                box = view.get_BoundingBox(null);
+            }
+
+            if (box == null)
+                return null;
+
+            XYZ localCenter = box.Min.Add(box.Max).Multiply(0.5);
+            Transform transform = box.Transform ?? Transform.Identity;
+
+            return transform.OfPoint(localCenter);
         }
     }
 }

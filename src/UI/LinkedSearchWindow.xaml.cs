@@ -11,8 +11,9 @@ using System.Linq;
 using System.Windows;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Models;
 
-namespace AJTools.LinkedTools.UI
+namespace AJTools.UI
 {
     public partial class LinkedSearchWindow : Window
     {

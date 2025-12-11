@@ -7,9 +7,10 @@
 // Dependencies: Autodesk.Revit.DB, System.Linq
 using System;
 using System.Collections.Generic;
-using Autodesk.Revit.DB;
 using System.Linq;
+using Autodesk.Revit.DB;
 using AJTools.Models;
+using AJTools.Utils;
 
 namespace AJTools.Services
 {
@@ -69,14 +70,18 @@ namespace AJTools.Services
         private static List<ElementId> GetLiveFilters(Document doc, View view)
         {
             return (view.GetFilters() ?? new List<ElementId>())
-                .Where(id => id != null && id != ElementId.InvalidElementId && doc.GetElement(id) != null)
+                .Where(id => id != null &&
+                             id != ElementId.InvalidElementId &&
+                             doc.GetElement(id) != null)
                 .ToList();
         }
 
         private static List<ElementId> GetNewFilters(Document doc, List<ElementId> processedFilterIds)
         {
             return processedFilterIds
-                .Where(id => id != null && id != ElementId.InvalidElementId && doc.GetElement(id) != null)
+                .Where(id => id != null &&
+                             id != ElementId.InvalidElementId &&
+                             doc.GetElement(id) != null)
                 .Distinct(new ElementIdIntegerComparer())
                 .ToList();
         }
@@ -87,15 +92,19 @@ namespace AJTools.Services
             if (_lastKnownOrderByView.TryGetValue(key, out var snapshot) && snapshot != null)
             {
                 var snapIds = new HashSet<int>(liveClean.Select(x => x.IntegerValue));
-                var baseline = snapshot.Where(id => snapIds.Contains(id.IntegerValue)).ToList();
+                var baseline = snapshot
+                    .Where(id => snapIds.Contains(id.IntegerValue))
+                    .ToList();
 
                 foreach (var id in liveClean)
                 {
                     if (!baseline.Any(x => x.IntegerValue == id.IntegerValue))
                         baseline.Add(id);
                 }
+
                 return baseline;
             }
+
             return new List<ElementId>(liveClean);
         }
 
@@ -112,20 +121,36 @@ namespace AJTools.Services
 
             foreach (var id in baseline)
             {
-                if (!newSet.Contains(id.IntegerValue) && !desiredOrder.Any(x => x.IntegerValue == id.IntegerValue))
+                if (!newSet.Contains(id.IntegerValue) &&
+                    !desiredOrder.Any(x => x.IntegerValue == id.IntegerValue))
                 {
                     desiredOrder.Add(id);
                 }
             }
+
             return desiredOrder;
         }
 
         private static bool IsOrderIdentical(List<ElementId> baseline, List<ElementId> desiredOrder)
         {
-            return baseline.Count == desiredOrder.Count && !baseline.Where((t, i) => t.IntegerValue != desiredOrder[i].IntegerValue).Any();
+            if (baseline.Count != desiredOrder.Count)
+                return false;
+
+            for (int i = 0; i < baseline.Count; i++)
+            {
+                if (baseline[i].IntegerValue != desiredOrder[i].IntegerValue)
+                    return false;
+            }
+
+            return true;
         }
 
-        private static void UpdateGraphicsForNewFilters(Document doc, View view, List<ElementId> newFilters, FilterSelection selection, ElementId solidFillId, IList<string> skipped)
+        private static void UpdateGraphicsForNewFilters(Document doc,
+                                                        View view,
+                                                        List<ElementId> newFilters,
+                                                        FilterSelection selection,
+                                                        ElementId solidFillId,
+                                                        IList<string> skipped)
         {
             foreach (var id in newFilters)
             {
@@ -141,7 +166,8 @@ namespace AJTools.Services
             }
         }
 
-        private static (Dictionary<ElementId, OverrideGraphicSettings>, Dictionary<ElementId, bool>) CaptureFilterSettings(View view, List<ElementId> liveClean)
+        private static (Dictionary<ElementId, OverrideGraphicSettings>, Dictionary<ElementId, bool>)
+            CaptureFilterSettings(View view, List<ElementId> liveClean)
         {
             var overridesMap = new Dictionary<ElementId, OverrideGraphicSettings>(new ElementIdIntegerComparer());
             var visibilityMap = new Dictionary<ElementId, bool>(new ElementIdIntegerComparer());
@@ -156,7 +182,7 @@ namespace AJTools.Services
                 }
                 catch
                 {
-                    // Ignore if unable to read overrides
+                    // Ignore if unable to read overrides.
                 }
 
                 try
@@ -165,9 +191,11 @@ namespace AJTools.Services
                 }
                 catch
                 {
-                    visibilityMap[id] = true; // Default to visible
+                    // Default to visible if we cannot read it.
+                    visibilityMap[id] = true;
                 }
             }
+
             return (overridesMap, visibilityMap);
         }
 
@@ -175,40 +203,82 @@ namespace AJTools.Services
         {
             foreach (var id in liveClean)
             {
-                try { view.RemoveFilter(id); }
-                catch { /* Ignore if filter cannot be removed */ }
+                try
+                {
+                    view.RemoveFilter(id);
+                }
+                catch
+                {
+                    // Ignore if filter cannot be removed.
+                }
             }
         }
 
-        private static void ReapplyFilters(Document doc, View view, List<ElementId> desiredOrder, List<ElementId> newFilters, FilterSelection selection, ElementId solidFillId, Dictionary<ElementId, OverrideGraphicSettings> overridesMap, Dictionary<ElementId, bool> visibilityMap, IList<string> skipped)
+        private static void ReapplyFilters(Document doc,
+                                           View view,
+                                           List<ElementId> desiredOrder,
+                                           List<ElementId> newFilters,
+                                           FilterSelection selection,
+                                           ElementId solidFillId,
+                                           Dictionary<ElementId, OverrideGraphicSettings> overridesMap,
+                                           Dictionary<ElementId, bool> visibilityMap,
+                                           IList<string> skipped)
         {
             var newSet = new HashSet<int>(newFilters.Select(x => x.IntegerValue));
+            var appliedIds = new HashSet<int>(
+                (view.GetFilters() ?? new List<ElementId>()).Select(x => x.IntegerValue));
 
             foreach (var id in desiredOrder)
             {
                 try
                 {
-                    if (doc.GetElement(id) == null) continue;
+                    if (doc.GetElement(id) == null)
+                        continue;
 
-                    var current = view.GetFilters() ?? new List<ElementId>();
-                    if (!current.Any(x => x.IntegerValue == id.IntegerValue))
+                    if (!appliedIds.Contains(id.IntegerValue))
+                    {
                         view.AddFilter(id);
+                        appliedIds.Add(id.IntegerValue);
+                    }
 
                     if (newSet.Contains(id.IntegerValue))
                     {
+                        // Newly created/updated filters: apply fresh graphics and make visible.
                         FilterApplier.ApplyGraphicsToFilter(doc, view, id, selection, solidFillId, skipped);
-                        try { view.SetFilterVisibility(id, true); } catch { /* Ignore */ }
+                        try
+                        {
+                            view.SetFilterVisibility(id, true);
+                        }
+                        catch
+                        {
+                            // Ignore visibility errors for new filters.
+                        }
                     }
                     else
                     {
+                        // Existing filters: restore previous visibility and overrides.
                         if (visibilityMap.TryGetValue(id, out bool vis))
                         {
-                            try { view.SetFilterVisibility(id, vis); } catch { /* Ignore */ }
+                            try
+                            {
+                                view.SetFilterVisibility(id, vis);
+                            }
+                            catch
+                            {
+                                // Ignore.
+                            }
                         }
 
                         if (overridesMap.TryGetValue(id, out var ogs))
                         {
-                            try { view.SetFilterOverrides(id, ogs); } catch { /* Ignore */ }
+                            try
+                            {
+                                view.SetFilterOverrides(id, ogs);
+                            }
+                            catch
+                            {
+                                // Ignore.
+                            }
                         }
                     }
                 }

@@ -1,5 +1,17 @@
 <Project>
   <PropertyGroup>
     <RevitAddinDeployDir>$(MSBuildProjectDirectory)\bin\AddinDeploy\</RevitAddinDeployDir>
+    <SkipRevitAddinDeploy>false</SkipRevitAddinDeploy>
+    <SkipAjToolsAutoDeploy Condition="'$(SkipAjToolsAutoDeploy)'==''">false</SkipAjToolsAutoDeploy>
+    <BaseOutputPath>bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)'==''">2020</RevitVersion>
+    <RevitAddinsPath Condition="'$(RevitAddinsPath)'==''">$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)\AJ Tools\</RevitAddinsPath>
   </PropertyGroup>
 </Project>

@@ -5,6 +5,7 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
+
 using Autodesk.Revit.DB;
 
 namespace AJTools.Models
@@ -21,7 +22,12 @@ namespace AJTools.Models
         public ElementId Id { get; }
         public string Name { get; }
         public ViewType ViewType { get; }
+
+        /// <summary>
+        /// Display text used in UI dropdowns/listboxes.
+        /// </summary>
         public string Display => $"{Name} ({ViewType})";
+
         public override string ToString() => Display;
     }
 }

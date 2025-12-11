@@ -8,24 +8,29 @@
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
-namespace AJTools
+namespace AJTools.Utils
 {
     /// <summary>
-    /// Comparer that treats ElementIds equal when their IntegerValue matches.
+    /// Comparer that treats ElementIds as equal when their IntegerValue matches.
     /// Useful for HashSet/Dictionary with ElementIds.
     /// </summary>
     internal class ElementIdIntegerComparer : IEqualityComparer<ElementId>
     {
         public bool Equals(ElementId x, ElementId y)
         {
-            if (ReferenceEquals(x, y)) return true;
-            if (x is null || y is null) return false;
+            if (ReferenceEquals(x, y))
+                return true;
+
+            if (x == null || y == null)
+                return false;
+
             return x.IntegerValue == y.IntegerValue;
         }
 
         public int GetHashCode(ElementId obj)
         {
-            return obj?.IntegerValue ?? 0;
+            // ElementId is a struct; null will never occur here unless caller passes null explicitly.
+            return obj != null ? obj.IntegerValue : 0;
         }
     }
 }

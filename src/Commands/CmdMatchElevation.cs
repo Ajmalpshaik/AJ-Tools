@@ -1,13 +1,12 @@
 // Tool Name: Match Elevation
 // Description: Matches the middle elevation from a source MEP element to target elements.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -65,7 +64,12 @@ namespace AJTools.Commands
 
             try
             {
-                Reference sourceRef = uidoc.Selection.PickObject(ObjectType.Element, filter, "Select SOURCE element to copy elevation from");
+                // 1) Pick SOURCE
+                Reference sourceRef = uidoc.Selection.PickObject(
+                    ObjectType.Element,
+                    filter,
+                    "Select SOURCE element to copy elevation from");
+
                 Element sourceElem = doc.GetElement(sourceRef);
                 double? sourceElevation = GetMiddleElevation(sourceElem);
                 if (sourceElevation == null)
@@ -74,34 +78,48 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                IList<Reference> targetRefs = uidoc.Selection.PickObjects(ObjectType.Element, filter, "Select TARGET element(s) to match elevation");
-                if (targetRefs == null || !targetRefs.Any())
-                    return Result.Cancelled;
-
-                using (Transaction t = new Transaction(doc, "Match Elevation"))
+                // 2) Pick TARGETS in a loop until user cancels
+                int updatedCount = 0;
+                while (true)
                 {
-                    t.Start();
-                    int updatedCount = 0;
-                    foreach (Reference targetRef in targetRefs)
+                    Reference targetRef;
+                    try
                     {
-                        Element targetElem = doc.GetElement(targetRef);
-                        if (targetElem == null)
-                        {
-                            continue;
-                        }
+                        targetRef = uidoc.Selection.PickObject(
+                            ObjectType.Element,
+                            filter,
+                            "Select TARGET element to match elevation (ESC to finish)");
+                    }
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        break; // user pressed ESC to finish applying
+                    }
 
-                        if (SetMiddleElevation(targetElem, sourceElevation.Value))
+                    Element targetElem = doc.GetElement(targetRef);
+                    if (targetElem == null)
+                        continue;
+
+                    using (Transaction t = new Transaction(doc, "Match Elevation"))
+                    {
+                        t.Start();
+
+                        bool changed = SetMiddleElevation(targetElem, sourceElevation.Value);
+                        if (changed)
                         {
+                            t.Commit();
                             updatedCount++;
                         }
+                        else
+                        {
+                            t.RollBack();
+                        }
                     }
-                    t.Commit();
-                    
-                    if (updatedCount > 0)
-                    {
-                        TaskDialog.Show("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
-                        return Result.Succeeded;
-                    }
+                }
+
+                if (updatedCount > 0)
+                {
+                    TaskDialog.Show("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
+                    return Result.Succeeded;
                 }
 
                 TaskDialog.Show("Match Elevation", "No elements were updated.");
@@ -118,6 +136,9 @@ namespace AJTools.Commands
             }
         }
 
+        /// <summary>
+        /// Returns the middle elevation (Z at mid-point) of the element's location curve.
+        /// </summary>
         private static double? GetMiddleElevation(Element elem)
         {
             LocationCurve loc = elem?.Location as LocationCurve;
@@ -125,11 +146,18 @@ namespace AJTools.Commands
                 return null;
 
             Curve curve = loc.Curve;
+            if (curve == null)
+                return null;
+
             XYZ p0 = curve.GetEndPoint(0);
             XYZ p1 = curve.GetEndPoint(1);
+
             return (p0.Z + p1.Z) / 2.0;
         }
 
+        /// <summary>
+        /// Moves the element vertically so that its middle elevation equals targetElevation.
+        /// </summary>
         private static bool SetMiddleElevation(Element elem, double targetElevation)
         {
             LocationCurve loc = elem?.Location as LocationCurve;
@@ -137,17 +165,23 @@ namespace AJTools.Commands
                 return false;
 
             Curve curve = loc.Curve;
+            if (curve == null)
+                return false;
+
             XYZ p0 = curve.GetEndPoint(0);
             XYZ p1 = curve.GetEndPoint(1);
 
             double currentMiddle = (p0.Z + p1.Z) / 2.0;
             double diff = targetElevation - currentMiddle;
 
-            XYZ newP0 = new XYZ(p0.X, p0.Y, p0.Z + diff);
-            XYZ newP1 = new XYZ(p1.X, p1.Y, p1.Z + diff);
+            if (Math.Abs(diff) < 1e-9)
+                return false; // already matched
 
-            Line newLine = Line.CreateBound(newP0, newP1);
-            loc.Curve = newLine;
+            // Translate the whole curve in Z direction, preserving curve type (Line, Arc, NURBS, etc.)
+            Transform translation = Transform.CreateTranslation(new XYZ(0, 0, diff));
+            Curve movedCurve = curve.CreateTransformed(translation);
+
+            loc.Curve = movedCurve;
             return true;
         }
     }

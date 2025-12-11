@@ -5,14 +5,18 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Linq
+
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using System.Linq;
 
 namespace AJTools.Services
 {
+    /// <summary>
+    /// Auto dimension scope options for grids and levels.
+    /// </summary>
     internal enum AutoDimensionMode
     {
         Combined,
@@ -56,7 +60,7 @@ namespace AJTools.Services
 
                 if (uidoc == null)
                 {
-                    TaskDialog.Show(title, "Open a project and active view before running this command.");
+                    TaskDialog.Show(title, "Open a project and an active view before running this command.");
                     return Result.Failed;
                 }
 
@@ -139,24 +143,7 @@ namespace AJTools.Services
                 .Cast<Grid>()
                 .ToList();
 
-            List<Grid> horizontalGrids = new List<Grid>();
-            List<Grid> verticalGrids = new List<Grid>();
-
-            foreach (Grid grid in grids)
-            {
-                Curve curve = grid.Curve;
-                if (curve == null)
-                    continue;
-
-                XYZ direction = GetCurveDirection(curve);
-                if (direction == null)
-                    continue;
-
-                if (Math.Abs(direction.Y) > 1.0 - PARALLEL_TOLERANCE)
-                    verticalGrids.Add(grid);
-                else if (Math.Abs(direction.X) > 1.0 - PARALLEL_TOLERANCE)
-                    horizontalGrids.Add(grid);
-            }
+            var (verticalGrids, horizontalGrids) = SplitGridsByDirection(grids);
 
             if (horizontalGrids.Count < 2 && verticalGrids.Count < 2)
             {
@@ -179,50 +166,16 @@ namespace AJTools.Services
 
                 if (verticalGrids.Count >= 2)
                 {
-                    verticalGrids = verticalGrids
-                        .OrderBy(g => g.Curve.GetEndPoint(0).X)
-                        .ToList();
-
-                    ReferenceArray allRefs = new ReferenceArray();
-                    foreach (Grid grid in verticalGrids)
-                        allRefs.Append(new Reference(grid));
-
-                    XYZ p1 = new XYZ(crop.Min.X, crop.Max.Y + offset, 0);
-                    XYZ p2 = new XYZ(crop.Max.X, crop.Max.Y + offset, 0);
-                    doc.Create.NewDimension(view, Line.CreateBound(p1, p2), allRefs);
-                    individualCount++;
-
-                    ReferenceArray overallRefs = new ReferenceArray();
-                    overallRefs.Append(new Reference(verticalGrids.First()));
-                    overallRefs.Append(new Reference(verticalGrids.Last()));
-                    XYZ p1o = new XYZ(p1.X, p1.Y + overallOffset, 0);
-                    XYZ p2o = new XYZ(p2.X, p2.Y + overallOffset, 0);
-                    doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), overallRefs);
-                    overallCount++;
+                    CreateVerticalGridDimensions(
+                        doc, view, crop, offset, overallOffset,
+                        verticalGrids, ref individualCount, ref overallCount);
                 }
 
                 if (horizontalGrids.Count >= 2)
                 {
-                    horizontalGrids = horizontalGrids
-                        .OrderBy(g => g.Curve.GetEndPoint(0).Y)
-                        .ToList();
-
-                    ReferenceArray allRefs = new ReferenceArray();
-                    foreach (Grid grid in horizontalGrids)
-                        allRefs.Append(new Reference(grid));
-
-                    XYZ p1 = new XYZ(crop.Min.X - offset, crop.Min.Y, 0);
-                    XYZ p2 = new XYZ(crop.Min.X - offset, crop.Max.Y, 0);
-                    doc.Create.NewDimension(view, Line.CreateBound(p1, p2), allRefs);
-                    individualCount++;
-
-                    ReferenceArray overallRefs = new ReferenceArray();
-                    overallRefs.Append(new Reference(horizontalGrids.First()));
-                    overallRefs.Append(new Reference(horizontalGrids.Last()));
-                    XYZ p1o = new XYZ(p1.X - overallOffset, p1.Y, 0);
-                    XYZ p2o = new XYZ(p2.X - overallOffset, p2.Y, 0);
-                    doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), overallRefs);
-                    overallCount++;
+                    CreateHorizontalGridDimensions(
+                        doc, view, crop, offset, overallOffset,
+                        horizontalGrids, ref individualCount, ref overallCount);
                 }
 
                 t.Commit();
@@ -234,9 +187,9 @@ namespace AJTools.Services
                 return Result.Cancelled;
             }
 
-            string summary = string.Format("Created {0} grid dimension string(s)", individualCount);
+            string summary = $"Created {individualCount} grid dimension string(s)";
             if (overallCount > 0)
-                summary += string.Format(" with {0} overall string(s)", overallCount);
+                summary += $" with {overallCount} overall string(s)";
             summary += ".";
 
             TaskDialog.Show(title, summary);
@@ -246,7 +199,12 @@ namespace AJTools.Services
         /// <summary>
         /// Creates dimensions for levels and/or grids in section/elevation views.
         /// </summary>
-        private static Result CreateSectionDimensions(Document doc, View view, string title, bool includeLevels, bool includeGrids)
+        private static Result CreateSectionDimensions(
+            Document doc,
+            View view,
+            string title,
+            bool includeLevels,
+            bool includeGrids)
         {
             IList<Level> levels = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(Level))
@@ -275,99 +233,15 @@ namespace AJTools.Services
 
                 if (includeLevels && levels.Count >= 2)
                 {
-                    List<Level> sortedLevels = levels
-                        .OrderBy(l => l.Elevation)
-                        .ToList();
-
-                    double dimLineX = crop.Min.X - offset;
-                    double dimLineY = (crop.Min.Y + crop.Max.Y) / 2.0;
-
-                    ReferenceArray refAll = new ReferenceArray();
-                    foreach (Level level in sortedLevels)
-                        refAll.Append(new Reference(level));
-
-                    XYZ p1 = new XYZ(dimLineX, dimLineY, sortedLevels.First().Elevation);
-                    XYZ p2 = new XYZ(dimLineX, dimLineY, sortedLevels.Last().Elevation);
-                    doc.Create.NewDimension(view, Line.CreateBound(p1, p2), refAll);
-
-                    ReferenceArray refOverall = new ReferenceArray();
-                    refOverall.Append(new Reference(sortedLevels.First()));
-                    refOverall.Append(new Reference(sortedLevels.Last()));
-                    double dimLineXOverall = dimLineX - levelOverallOffset;
-                    XYZ p1o = new XYZ(dimLineXOverall, dimLineY, sortedLevels.First().Elevation);
-                    XYZ p2o = new XYZ(dimLineXOverall, dimLineY, sortedLevels.Last().Elevation);
-                    doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), refOverall);
-
-                    levelsDimmed = true;
+                    levelsDimmed = CreateLevelDimensions(
+                        doc, view, crop, offset, levelOverallOffset, levels);
                 }
 
                 if (includeGrids)
                 {
-                    List<GridEntry> gridEntries = new List<GridEntry>();
-                    foreach (Grid grid in grids)
-                    {
-                        IList<Curve> curves = null;
-                        try
-                        {
-                            curves = grid.GetCurvesInView(DatumExtentType.ViewSpecific, view);
-                        }
-                        catch
-                        {
-                        }
-
-                        if (curves == null || curves.Count == 0)
-                        {
-                            try
-                            {
-                                curves = grid.GetCurvesInView(DatumExtentType.Model, view);
-                            }
-                            catch
-                            {
-                                curves = null;
-                            }
-                        }
-
-                        if (curves == null || curves.Count == 0)
-                            continue;
-
-                        Line line = curves.OfType<Line>().FirstOrDefault();
-                        if (line == null)
-                            continue;
-
-                        XYZ local0 = inverse.OfPoint(line.GetEndPoint(0));
-                        XYZ local1 = inverse.OfPoint(line.GetEndPoint(1));
-                        double rightCoord = (local0.X + local1.X) / 2.0;
-                        gridEntries.Add(new GridEntry { Coord = rightCoord, Grid = grid });
-                    }
-
-                    if (gridEntries.Count >= 2)
-                    {
-                        gridEntries.Sort((a, b) => a.Coord.CompareTo(b.Coord));
-
-                        ReferenceArray refAllGrids = new ReferenceArray();
-                        foreach (GridEntry entry in gridEntries)
-                            refAllGrids.Append(new Reference(entry.Grid));
-
-                        double viewDepth = crop.Min.Z;
-                        double dimY = crop.Max.Y + offset;
-                        double overallY = dimY + gridOverallOffset;
-
-                        GridEntry firstEntry = gridEntries[0];
-                        GridEntry lastEntry = gridEntries[gridEntries.Count - 1];
-
-                        XYZ start = transform.OfPoint(new XYZ(firstEntry.Coord, dimY, viewDepth));
-                        XYZ end = transform.OfPoint(new XYZ(lastEntry.Coord, dimY, viewDepth));
-                        doc.Create.NewDimension(view, Line.CreateBound(start, end), refAllGrids);
-
-                        ReferenceArray refOverall = new ReferenceArray();
-                        refOverall.Append(new Reference(firstEntry.Grid));
-                        refOverall.Append(new Reference(lastEntry.Grid));
-                        XYZ startOverall = transform.OfPoint(new XYZ(firstEntry.Coord, overallY, viewDepth));
-                        XYZ endOverall = transform.OfPoint(new XYZ(lastEntry.Coord, overallY, viewDepth));
-                        doc.Create.NewDimension(view, Line.CreateBound(startOverall, endOverall), refOverall);
-
-                        gridsDimmed = true;
-                    }
+                    gridsDimmed = CreateGridDimensions(
+                        doc, view, crop, offset, gridOverallOffset,
+                        transform, inverse, grids);
                 }
 
                 t.Commit();
@@ -421,18 +295,237 @@ namespace AJTools.Services
             return Result.Cancelled;
         }
 
+        /// <summary>
+        /// Splits grids into vertical (Y-dominant) and horizontal (X-dominant) groups.
+        /// </summary>
+        private static (List<Grid> vertical, List<Grid> horizontal) SplitGridsByDirection(IEnumerable<Grid> grids)
+        {
+            List<Grid> vertical = new List<Grid>();
+            List<Grid> horizontal = new List<Grid>();
+
+            foreach (Grid grid in grids)
+            {
+                Curve curve = grid.Curve;
+                if (curve == null)
+                    continue;
+
+                XYZ direction = GetCurveDirection(curve);
+                if (direction == null)
+                    continue;
+
+                if (Math.Abs(direction.Y) > 1.0 - PARALLEL_TOLERANCE)
+                    vertical.Add(grid);
+                else if (Math.Abs(direction.X) > 1.0 - PARALLEL_TOLERANCE)
+                    horizontal.Add(grid);
+            }
+
+            return (vertical, horizontal);
+        }
+
+        private static void CreateVerticalGridDimensions(
+            Document doc,
+            View view,
+            BoundingBoxXYZ crop,
+            double offset,
+            double overallOffset,
+            List<Grid> verticalGrids,
+            ref int individualCount,
+            ref int overallCount)
+        {
+            List<Grid> ordered = verticalGrids
+                .OrderBy(g => g.Curve.GetEndPoint(0).X)
+                .ToList();
+
+            ReferenceArray allRefs = new ReferenceArray();
+            foreach (Grid grid in ordered)
+                allRefs.Append(new Reference(grid));
+
+            // Individual chain
+            XYZ p1 = new XYZ(crop.Min.X, crop.Max.Y + offset, 0);
+            XYZ p2 = new XYZ(crop.Max.X, crop.Max.Y + offset, 0);
+            doc.Create.NewDimension(view, Line.CreateBound(p1, p2), allRefs);
+            individualCount++;
+
+            // Overall
+            ReferenceArray overallRefs = new ReferenceArray();
+            overallRefs.Append(new Reference(ordered.First()));
+            overallRefs.Append(new Reference(ordered.Last()));
+            XYZ p1o = new XYZ(p1.X, p1.Y + overallOffset, 0);
+            XYZ p2o = new XYZ(p2.X, p2.Y + overallOffset, 0);
+            doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), overallRefs);
+            overallCount++;
+        }
+
+        private static void CreateHorizontalGridDimensions(
+            Document doc,
+            View view,
+            BoundingBoxXYZ crop,
+            double offset,
+            double overallOffset,
+            List<Grid> horizontalGrids,
+            ref int individualCount,
+            ref int overallCount)
+        {
+            List<Grid> ordered = horizontalGrids
+                .OrderBy(g => g.Curve.GetEndPoint(0).Y)
+                .ToList();
+
+            ReferenceArray allRefs = new ReferenceArray();
+            foreach (Grid grid in ordered)
+                allRefs.Append(new Reference(grid));
+
+            // Individual chain
+            XYZ p1 = new XYZ(crop.Min.X - offset, crop.Min.Y, 0);
+            XYZ p2 = new XYZ(crop.Min.X - offset, crop.Max.Y, 0);
+            doc.Create.NewDimension(view, Line.CreateBound(p1, p2), allRefs);
+            individualCount++;
+
+            // Overall
+            ReferenceArray overallRefs = new ReferenceArray();
+            overallRefs.Append(new Reference(ordered.First()));
+            overallRefs.Append(new Reference(ordered.Last()));
+            XYZ p1o = new XYZ(p1.X - overallOffset, p1.Y, 0);
+            XYZ p2o = new XYZ(p2.X - overallOffset, p2.Y, 0);
+            doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), overallRefs);
+            overallCount++;
+        }
+
+        private static bool CreateLevelDimensions(
+            Document doc,
+            View view,
+            BoundingBoxXYZ crop,
+            double offset,
+            double overallOffset,
+            IList<Level> levels)
+        {
+            List<Level> sortedLevels = levels
+                .OrderBy(l => l.Elevation)
+                .ToList();
+
+            if (sortedLevels.Count < 2)
+                return false;
+
+            double dimLineX = crop.Min.X - offset;
+            double dimLineY = (crop.Min.Y + crop.Max.Y) / 2.0;
+
+            // Individual chain
+            ReferenceArray refAll = new ReferenceArray();
+            foreach (Level level in sortedLevels)
+                refAll.Append(new Reference(level));
+
+            XYZ p1 = new XYZ(dimLineX, dimLineY, sortedLevels.First().Elevation);
+            XYZ p2 = new XYZ(dimLineX, dimLineY, sortedLevels.Last().Elevation);
+            doc.Create.NewDimension(view, Line.CreateBound(p1, p2), refAll);
+
+            // Overall
+            ReferenceArray refOverall = new ReferenceArray();
+            refOverall.Append(new Reference(sortedLevels.First()));
+            refOverall.Append(new Reference(sortedLevels.Last()));
+
+            double dimLineXOverall = dimLineX - overallOffset;
+            XYZ p1o = new XYZ(dimLineXOverall, dimLineY, sortedLevels.First().Elevation);
+            XYZ p2o = new XYZ(dimLineXOverall, dimLineY, sortedLevels.Last().Elevation);
+            doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), refOverall);
+
+            return true;
+        }
+
+        private static bool CreateGridDimensions(
+            Document doc,
+            View view,
+            BoundingBoxXYZ crop,
+            double offset,
+            double gridOverallOffset,
+            Transform transform,
+            Transform inverse,
+            IList<Grid> grids)
+        {
+            List<GridEntry> gridEntries = new List<GridEntry>();
+
+            foreach (Grid grid in grids)
+            {
+                IList<Curve> curves = null;
+                try
+                {
+                    curves = grid.GetCurvesInView(DatumExtentType.ViewSpecific, view);
+                }
+                catch
+                {
+                    // ignore, will fall back to model extents
+                }
+
+                if (curves == null || curves.Count == 0)
+                {
+                    try
+                    {
+                        curves = grid.GetCurvesInView(DatumExtentType.Model, view);
+                    }
+                    catch
+                    {
+                        curves = null;
+                    }
+                }
+
+                if (curves == null || curves.Count == 0)
+                    continue;
+
+                Line line = curves.OfType<Line>().FirstOrDefault();
+                if (line == null)
+                    continue;
+
+                XYZ local0 = inverse.OfPoint(line.GetEndPoint(0));
+                XYZ local1 = inverse.OfPoint(line.GetEndPoint(1));
+                double rightCoord = (local0.X + local1.X) / 2.0;
+
+                gridEntries.Add(new GridEntry { Coord = rightCoord, Grid = grid });
+            }
+
+            if (gridEntries.Count < 2)
+                return false;
+
+            gridEntries.Sort((a, b) => a.Coord.CompareTo(b.Coord));
+
+            // Individual chain
+            ReferenceArray refAllGrids = new ReferenceArray();
+            foreach (GridEntry entry in gridEntries)
+                refAllGrids.Append(new Reference(entry.Grid));
+
+            double viewDepth = crop.Min.Z;
+            double dimY = crop.Max.Y + offset;
+            double overallY = dimY + gridOverallOffset;
+
+            GridEntry firstEntry = gridEntries[0];
+            GridEntry lastEntry = gridEntries[gridEntries.Count - 1];
+
+            XYZ start = transform.OfPoint(new XYZ(firstEntry.Coord, dimY, viewDepth));
+            XYZ end = transform.OfPoint(new XYZ(lastEntry.Coord, dimY, viewDepth));
+            doc.Create.NewDimension(view, Line.CreateBound(start, end), refAllGrids);
+
+            // Overall
+            ReferenceArray refOverall = new ReferenceArray();
+            refOverall.Append(new Reference(firstEntry.Grid));
+            refOverall.Append(new Reference(lastEntry.Grid));
+
+            XYZ startOverall = transform.OfPoint(new XYZ(firstEntry.Coord, overallY, viewDepth));
+            XYZ endOverall = transform.OfPoint(new XYZ(lastEntry.Coord, overallY, viewDepth));
+            doc.Create.NewDimension(view, Line.CreateBound(startOverall, endOverall), refOverall);
+
+            return true;
+        }
+
         private static XYZ GetCurveDirection(Curve curve)
         {
             try
             {
-                return curve.ComputeDerivatives(0.5, true).BasisX.Normalize();
+                return curve
+                    .ComputeDerivatives(0.5, true)
+                    .BasisX
+                    .Normalize();
             }
             catch
             {
                 Line line = curve as Line;
-                if (line != null)
-                    return line.Direction;
-                return null;
+                return line?.Direction;
             }
         }
     }

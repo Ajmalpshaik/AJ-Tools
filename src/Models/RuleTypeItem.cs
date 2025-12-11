@@ -5,14 +5,17 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: None
+
 namespace AJTools.Models
 {
     internal class RuleTypeItem
     {
-        public RuleTypeItem(string key, string label,
-                            bool enabledForStrings,
-                            bool enabledForNumbers,
-                            bool enabledForIds)
+        public RuleTypeItem(
+            string key,
+            string label,
+            bool enabledForStrings,
+            bool enabledForNumbers,
+            bool enabledForIds)
         {
             Key = key;
             Label = label;

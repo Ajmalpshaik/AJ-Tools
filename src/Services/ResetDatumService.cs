@@ -9,8 +9,9 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Models;
 
-namespace AJTools.Commands
+namespace AJTools.Services
 {
     /// <summary>
     /// Resets grid and level datum extents in the active view back to model (3D) extents.
@@ -69,15 +70,15 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                List<string> parts = new List<string>();
+                var parts = new List<string>();
                 if (gridCount > 0)
-                    parts.Add(string.Format("{0} grid(s)", gridCount));
+                    parts.Add($"{gridCount} grid(s)");
                 if (levelCount > 0)
-                    parts.Add(string.Format("{0} level(s)", levelCount));
+                    parts.Add($"{levelCount} level(s)");
 
                 TaskDialog.Show(
                     title,
-                    string.Format("Successfully reset {0} to 3D extents in this view.", string.Join(" and ", parts)));
+                    $"Successfully reset {string.Join(" and ", parts)} to 3D extents in this view.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -97,6 +98,7 @@ namespace AJTools.Commands
                 .ToElements();
 
             int resetCount = 0;
+
             foreach (Element element in grids)
             {
                 Grid grid = element as Grid;
@@ -104,6 +106,7 @@ namespace AJTools.Commands
                     continue;
 
                 bool resetPerformed = false;
+
                 foreach (DatumEnds end in new[] { DatumEnds.End0, DatumEnds.End1 })
                 {
                     try
@@ -134,7 +137,8 @@ namespace AJTools.Commands
                 .ToElements();
 
             int resetCount = 0;
-            List<DatumEnds> datumEnds = new List<DatumEnds>
+
+            var datumEnds = new List<DatumEnds>
             {
                 DatumEnds.End0,
                 DatumEnds.End1
@@ -147,6 +151,7 @@ namespace AJTools.Commands
                     continue;
 
                 bool resetPerformed = false;
+
                 foreach (DatumEnds end in datumEnds)
                 {
                     try

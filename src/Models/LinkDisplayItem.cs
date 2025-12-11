@@ -5,9 +5,10 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
+
 using Autodesk.Revit.DB;
 
-namespace AJTools.LinkedTools
+namespace AJTools.Models
 {
     /// <summary>
     /// Lightweight wrapper for displaying either the host document or a linked model entry.

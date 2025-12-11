@@ -25,9 +25,9 @@ A focused set of Revit 2020 add-ins that streamline graphics cleanup, dimensions
 | Toggle Links | Revit Add-in | Toggle Revit link visibility in the active view. | 2020 |
 | Unhide All | Revit Add-in | Unhide temporarily hidden and hidden elements in the active view. | 2020 |
 | Reset Graphics | Revit Add-in | Clear per-element graphic overrides in the active view. | 2020 |
-| Cyber Snake | Utility | WinForms mini-game accessible from the ribbon. | N/A |
-| Neon Defender | Utility | WPF mini-game accessible from the ribbon. | N/A |
 | About | Utility | About dialog with project info and contact links. | N/A |
+
+> Temporarily removed: the Cyber Snake and Neon Defender mini-games have been disabled until their issues are resolved.
 
 ## Installation
 ### Revit add-in (recommended)
@@ -77,8 +77,7 @@ A focused set of Revit 2020 add-ins that streamline graphics cleanup, dimensions
 - **Match Elevation:** AJ Tools tab → MEP panel. Pick a source pipe/duct/tray/conduit, then targets to match the middle elevation.
 - **Reset Text:** AJ Tools tab → Annotations panel. Select text notes/tags first, then run to reset offsets.
 
-### Mini-games and info
-- **Cyber Snake / Neon Defender:** AJ Tools tab → Refresh Mind panel. Launch quick mini-games for short breaks.
+### Info
 - **About:** AJ Tools tab → Info panel. Shows project details and LinkedIn contact link.
 
 ## Requirements

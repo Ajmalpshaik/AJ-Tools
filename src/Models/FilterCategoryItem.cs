@@ -5,6 +5,7 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
+
 using Autodesk.Revit.DB;
 
 namespace AJTools.Models
@@ -19,6 +20,7 @@ namespace AJTools.Models
 
         public ElementId Id { get; }
         public string Name { get; }
+
         public override string ToString() => Name;
     }
 }

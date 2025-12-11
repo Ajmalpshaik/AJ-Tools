@@ -25,12 +25,34 @@ namespace AJTools.Services
     {
         private const int MaxFilterNameLength = 120;
 
-        internal static FilterCreationResult CreateOrUpdateFilters(Document doc,
-                                                                   FilterSelection selection,
-                                                                   IList<ElementId> validCategoryIds,
-                                                                   IList<string> skipped)
+        internal static FilterCreationResult CreateOrUpdateFilters(
+            Document doc,
+            FilterSelection selection,
+            IList<ElementId> validCategoryIds,
+            IList<string> skipped)
         {
+            if (doc == null)
+                throw new ArgumentNullException(nameof(doc));
+
             var result = new FilterCreationResult();
+
+            if (selection == null)
+            {
+                skipped?.Add("No selection provided for filter creation.");
+                return result;
+            }
+
+            if (selection.Values == null || selection.Values.Count == 0)
+            {
+                skipped?.Add("No values selected for filter creation.");
+                return result;
+            }
+
+            if (validCategoryIds == null || validCategoryIds.Count == 0)
+            {
+                skipped?.Add("No valid categories supplied for filter creation.");
+                return result;
+            }
 
             foreach (FilterValueItem value in selection.Values)
             {
@@ -42,7 +64,17 @@ namespace AJTools.Services
                     var rules = BuildRules(selection.Parameter, value, selection.RuleType, selection.CaseSensitive, skipped);
                     if (rules == null || rules.Count == 0)
                     {
-                        skipped?.Add($"Filter rules not supported for parameter '{selection.Parameter.Name}' and value '{value.Display}'.");
+                        if (selection.Parameter != null)
+                        {
+                            skipped?.Add(
+                                $"Filter rules not supported for parameter '{selection.Parameter.Name}' and value '{value.Display}'.");
+                        }
+                        else
+                        {
+                            skipped?.Add(
+                                $"Filter rules not supported because no parameter was selected for value '{value.Display}'.");
+                        }
+
                         continue;
                     }
 
@@ -61,7 +93,8 @@ namespace AJTools.Services
                         if (selection.RandomColors)
                         {
                             // Randomize path should not create new filters; skip missing ones.
-                            skipped?.Add($"Filter '{filterName}' not found; randomize colors only updates existing filters.");
+                            skipped?.Add(
+                                $"Filter '{filterName}' not found; randomize colors only updates existing filters.");
                             continue;
                         }
 
@@ -87,18 +120,20 @@ namespace AJTools.Services
                 }
                 catch (Exception ex)
                 {
-                    skipped?.Add($"Error creating/updating filter for value '{value.Display}': {ex.Message}");
+                    skipped?.Add(
+                        $"Error creating/updating filter for value '{value.Display}': {ex.Message}");
                 }
             }
 
             return result;
         }
 
-        private static IList<FilterRule> BuildRules(FilterParameterItem parameter,
-                                                    FilterValueItem value,
-                                                    string ruleType,
-                                                    bool caseSensitive,
-                                                    IList<string> skipped)
+        private static IList<FilterRule> BuildRules(
+            FilterParameterItem parameter,
+            FilterValueItem value,
+            string ruleType,
+            bool caseSensitive,
+            IList<string> skipped)
         {
             if (parameter == null)
                 return null;
@@ -107,8 +142,14 @@ namespace AJTools.Services
             {
                 return new List<FilterRule>
                 {
-                    ParameterFilterRuleFactory.CreateEqualsRule(new ElementId(BuiltInParameter.ALL_MODEL_FAMILY_NAME), familyAndType.Item1, caseSensitive),
-                    ParameterFilterRuleFactory.CreateEqualsRule(new ElementId(BuiltInParameter.ALL_MODEL_TYPE_NAME), familyAndType.Item2, caseSensitive)
+                    ParameterFilterRuleFactory.CreateEqualsRule(
+                        new ElementId(BuiltInParameter.ALL_MODEL_FAMILY_NAME),
+                        familyAndType.Item1,
+                        caseSensitive),
+                    ParameterFilterRuleFactory.CreateEqualsRule(
+                        new ElementId(BuiltInParameter.ALL_MODEL_TYPE_NAME),
+                        familyAndType.Item2,
+                        caseSensitive)
                 };
             }
 
@@ -127,7 +168,11 @@ namespace AJTools.Services
             }
         }
 
-        private static IList<FilterRule> BuildStringRules(ElementId paramId, FilterValueItem value, string ruleType, bool caseSensitive)
+        private static IList<FilterRule> BuildStringRules(
+            ElementId paramId,
+            FilterValueItem value,
+            string ruleType,
+            bool caseSensitive)
         {
             string text = value.RawValue as string ?? value.Display ?? string.Empty;
             var singleRules = new List<FilterRule>();
@@ -167,10 +212,14 @@ namespace AJTools.Services
                 default:
                     return null;
             }
+
             return singleRules;
         }
 
-        private static IList<FilterRule> BuildElementIdRules(ElementId paramId, FilterValueItem value, string ruleType)
+        private static IList<FilterRule> BuildElementIdRules(
+            ElementId paramId,
+            FilterValueItem value,
+            string ruleType)
         {
             var singleRules = new List<FilterRule>();
             ElementId id = value.ElementId ?? value.RawValue as ElementId ?? ElementId.InvalidElementId;
@@ -193,15 +242,22 @@ namespace AJTools.Services
                 else
                     singleRules.Add(ParameterFilterRuleFactory.CreateEqualsRule(paramId, id));
             }
+
             return singleRules;
         }
 
-        private static IList<FilterRule> BuildIntegerRules(FilterParameterItem parameter, FilterValueItem value, string ruleType, IList<string> skipped)
+        private static IList<FilterRule> BuildIntegerRules(
+            FilterParameterItem parameter,
+            FilterValueItem value,
+            string ruleType,
+            IList<string> skipped)
         {
             var singleRules = new List<FilterRule>();
             ElementId paramId = parameter.Id;
 
-            if (!TryGetInt(value.RawValue, out int intVal) && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
+            if (!TryGetInt(value.RawValue, out int intVal) &&
+                ruleType != RuleTypes.HasValue &&
+                ruleType != RuleTypes.HasNoValue)
             {
                 skipped?.Add($"Invalid integer value for parameter '{parameter.Name}'.");
                 return null;
@@ -234,16 +290,23 @@ namespace AJTools.Services
                     singleRules.Add(ParameterFilterRuleFactory.CreateEqualsRule(paramId, intVal));
                     break;
             }
+
             return singleRules;
         }
 
-        private static IList<FilterRule> BuildDoubleRules(FilterParameterItem parameter, FilterValueItem value, string ruleType, IList<string> skipped)
+        private static IList<FilterRule> BuildDoubleRules(
+            FilterParameterItem parameter,
+            FilterValueItem value,
+            string ruleType,
+            IList<string> skipped)
         {
             var singleRules = new List<FilterRule>();
             ElementId paramId = parameter.Id;
             const double tolerance = 1e-6;
 
-            if (!TryGetDouble(value.RawValue, out double dblVal) && ruleType != RuleTypes.HasValue && ruleType != RuleTypes.HasNoValue)
+            if (!TryGetDouble(value.RawValue, out double dblVal) &&
+                ruleType != RuleTypes.HasValue &&
+                ruleType != RuleTypes.HasNoValue)
             {
                 skipped?.Add($"Invalid double value for parameter '{parameter.Name}'.");
                 return null;
@@ -252,19 +315,24 @@ namespace AJTools.Services
             switch (ruleType)
             {
                 case RuleTypes.NotEquals:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(paramId, dblVal, tolerance));
+                    singleRules.Add(
+                        ParameterFilterRuleFactory.CreateNotEqualsRule(paramId, dblVal, tolerance));
                     break;
                 case RuleTypes.Greater:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateGreaterRule(paramId, dblVal, tolerance));
+                    singleRules.Add(
+                        ParameterFilterRuleFactory.CreateGreaterRule(paramId, dblVal, tolerance));
                     break;
                 case RuleTypes.GreaterOrEqual:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateGreaterOrEqualRule(paramId, dblVal, tolerance));
+                    singleRules.Add(
+                        ParameterFilterRuleFactory.CreateGreaterOrEqualRule(paramId, dblVal, tolerance));
                     break;
                 case RuleTypes.Less:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateLessRule(paramId, dblVal, tolerance));
+                    singleRules.Add(
+                        ParameterFilterRuleFactory.CreateLessRule(paramId, dblVal, tolerance));
                     break;
                 case RuleTypes.LessOrEqual:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateLessOrEqualRule(paramId, dblVal, tolerance));
+                    singleRules.Add(
+                        ParameterFilterRuleFactory.CreateLessOrEqualRule(paramId, dblVal, tolerance));
                     break;
                 case RuleTypes.HasValue:
                     singleRules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(paramId));
@@ -273,9 +341,11 @@ namespace AJTools.Services
                     singleRules.Add(ParameterFilterRuleFactory.CreateHasNoValueParameterRule(paramId));
                     break;
                 default:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateEqualsRule(paramId, dblVal, tolerance));
+                    singleRules.Add(
+                        ParameterFilterRuleFactory.CreateEqualsRule(paramId, dblVal, tolerance));
                     break;
             }
+
             return singleRules;
         }
 
@@ -286,6 +356,7 @@ namespace AJTools.Services
                 value = i;
                 return true;
             }
+
             return int.TryParse(raw?.ToString(), out value);
         }
 
@@ -296,12 +367,14 @@ namespace AJTools.Services
                 value = d;
                 return true;
             }
+
             return double.TryParse(raw?.ToString(), out value);
         }
 
-        internal static string ComposeFilterName(FilterSelection selection,
-                                                 FilterValueItem value,
-                                                 Document doc)
+        internal static string ComposeFilterName(
+            FilterSelection selection,
+            FilterValueItem value,
+            Document doc)
         {
             var parts = new List<string>();
 
@@ -349,7 +422,9 @@ namespace AJTools.Services
             if (!names.Any())
                 return string.Empty;
 
-            return catList.Count > 3 ? names[0] + " +" : string.Join(", ", names);
+            return catList.Count > 3
+                ? names[0] + " +"
+                : string.Join(", ", names);
         }
 
         private static string SanitizeName(string name)
@@ -368,9 +443,10 @@ namespace AJTools.Services
             return name;
         }
 
-        private static string EnsureUniqueFilterName(Document doc,
-                                                     string name,
-                                                     bool overrideExisting)
+        private static string EnsureUniqueFilterName(
+            Document doc,
+            string name,
+            bool overrideExisting)
         {
             if (overrideExisting)
                 return name;
@@ -387,9 +463,11 @@ namespace AJTools.Services
             {
                 string suffixText = $" ({suffix++})";
                 int maxBaseLength = Math.Max(1, MaxFilterNameLength - suffixText.Length);
+
                 string trimmedBase = baseName.Length > maxBaseLength
                     ? baseName.Substring(0, maxBaseLength)
                     : baseName;
+
                 string candidate = trimmedBase + suffixText;
 
                 if (FindFilterByName(doc, candidate) == null)

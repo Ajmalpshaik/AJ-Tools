@@ -5,6 +5,7 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
+
 using Autodesk.Revit.DB;
 
 namespace AJTools.Models
@@ -19,20 +20,40 @@ namespace AJTools.Models
 
         private FilterValueKey() { }
 
-        public static FilterValueKey ForString(string value) =>
-            new FilterValueKey { StorageType = StorageType.String, StringValue = value };
+        public static FilterValueKey ForString(string value)
+        {
+            return new FilterValueKey
+            {
+                StorageType = StorageType.String,
+                StringValue = value
+            };
+        }
 
-        public static FilterValueKey ForInt(int value) =>
-            new FilterValueKey { StorageType = StorageType.Integer, IntValue = value };
+        public static FilterValueKey ForInt(int value)
+        {
+            return new FilterValueKey
+            {
+                StorageType = StorageType.Integer,
+                IntValue = value
+            };
+        }
 
-        public static FilterValueKey ForDouble(double value) =>
-            new FilterValueKey { StorageType = StorageType.Double, DoubleValue = value };
+        public static FilterValueKey ForDouble(double value)
+        {
+            return new FilterValueKey
+            {
+                StorageType = StorageType.Double,
+                DoubleValue = value
+            };
+        }
 
-        public static FilterValueKey ForElementId(ElementId id) =>
-            new FilterValueKey
+        public static FilterValueKey ForElementId(ElementId id)
+        {
+            return new FilterValueKey
             {
                 StorageType = StorageType.ElementId,
                 ElementIdValue = id?.IntegerValue
             };
+        }
     }
 }

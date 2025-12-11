@@ -5,6 +5,7 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -23,21 +24,23 @@ namespace AJTools.Commands
         {
             try
             {
-                if (applicationData?.ActiveUIDocument?.Document == null)
+                UIDocument uiDoc = applicationData?.ActiveUIDocument;
+                if (uiDoc?.Document == null)
                     return false;
 
-                Document doc = applicationData.ActiveUIDocument.Document;
+                Document doc = uiDoc.Document;
                 if (doc.IsFamilyDocument)
                     return false;
 
-                View activeView = applicationData.ActiveUIDocument.ActiveView;
+                View activeView = uiDoc.ActiveView;
                 if (activeView == null)
                     return false;
-                
+
                 return CanViewHaveFilters(activeView, out _);
             }
             catch
             {
+                // If anything unexpected happens, keep the button disabled.
                 return false;
             }
         }
@@ -51,28 +54,29 @@ namespace AJTools.Commands
 
             if (view == null)
             {
-                reason = "Active view is null";
+                reason = "Active view is null.";
                 return false;
             }
 
             if (view.IsTemplate)
             {
-                reason = "View templates do not host filters";
+                reason = "View templates do not host filters.";
                 return false;
             }
 
-            bool overridesAllowed = true;
+            bool overridesAllowed;
             try
             {
                 overridesAllowed = view.AreGraphicsOverridesAllowed();
             }
             catch (Exception ex)
             {
-                // This call can throw on some unsupported views (schedules, sheets)
+                // This call can throw on some unsupported views (schedules, sheets).
                 reason = $"Could not check overrides: {ex.Message}";
+                overridesAllowed = false;
             }
 
-            // Explicitly block known unsupported view types
+            // Explicitly block known unsupported view types.
             switch (view.ViewType)
             {
                 case ViewType.ProjectBrowser:
@@ -85,14 +89,14 @@ namespace AJTools.Commands
                 case ViewType.Legend:
                 case ViewType.Rendering:
                 case ViewType.Walkthrough:
-                    reason = $"Filters are not available in {view.ViewType} views";
+                    reason = $"Filters are not available in {view.ViewType} views.";
                     return false;
             }
 
             if (!overridesAllowed)
             {
                 if (string.IsNullOrEmpty(reason))
-                    reason = "Graphics overrides are disabled for this view";
+                    reason = "Graphics overrides are disabled for this view.";
                 return false;
             }
 

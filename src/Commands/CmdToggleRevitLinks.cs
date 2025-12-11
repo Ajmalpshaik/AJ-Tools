@@ -4,23 +4,26 @@
 // Version: 1.0.0
 // Last Updated: 2025-12-10
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using System;
 
 namespace AJTools.Commands
 {
     /// <summary>
     /// Toggles link category visibility in the active view.
     /// </summary>
-    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
+    [Autodesk.Revit.Attributes.Transaction(
+        Autodesk.Revit.Attributes.TransactionMode.Manual)]
     public class CmdToggleRevitLinks : IExternalCommand
     {
         /// <summary>
         /// Toggles link category visibility in the active view.
         /// </summary>
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(
+            ExternalCommandData commandData,
+            ref string message,
+            ElementSet elements)
         {
             try
             {
@@ -29,7 +32,8 @@ namespace AJTools.Commands
 
                 if (uidoc == null)
                 {
-                    TaskDialog.Show("Linked Models Toggle", "No active document. Please open a project and try again.");
+                    TaskDialog.Show("Toggle Revit Links",
+                        "No active project open.");
                     return Result.Failed;
                 }
 
@@ -38,25 +42,31 @@ namespace AJTools.Commands
 
                 if (view == null || view.IsTemplate)
                 {
-                    TaskDialog.Show("Linked Models Toggle", "Please run this tool in a normal project view (plan/section/3D), not a template.");
+                    TaskDialog.Show("Toggle Revit Links",
+                        "Run the tool in a normal project view.");
                     return Result.Failed;
                 }
 
-                ElementId linksCategoryId = new ElementId(BuiltInCategory.OST_RvtLinks);
-                bool isCurrentlyHidden = view.GetCategoryHidden(linksCategoryId);
+                // Rvt Links category
+                ElementId linksCategoryId =
+                    new ElementId(BuiltInCategory.OST_RvtLinks);
 
-                using (Transaction t = new Transaction(doc, "Toggle All Revit Links"))
+                bool isHidden = view.GetCategoryHidden(linksCategoryId);
+
+                using (Transaction t = new Transaction(doc, "Toggle Revit Links"))
                 {
                     t.Start();
-                    view.SetCategoryHidden(linksCategoryId, !isCurrentlyHidden);
+                    view.SetCategoryHidden(linksCategoryId, !isHidden);
                     t.Commit();
                 }
 
+                // No final popup as requested
                 return Result.Succeeded;
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
-                TaskDialog.Show("AJ Tools - Error", "An error occurred while toggling Revit links:\n\n" + ex.Message);
+                TaskDialog.Show("AJ Tools - Error",
+                    "Error while toggling Revit Links:\n\n" + ex.Message);
                 return Result.Failed;
             }
         }

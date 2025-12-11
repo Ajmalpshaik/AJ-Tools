@@ -7,7 +7,7 @@
   Revit Version: 2020
   Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 -->
-<Window x:Class="AJTools.LinkedTools.UI.LinkedIdViewerWindow"
+<Window x:Class="AJTools.UI.LinkedIdViewerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Linked ID Viewer"
@@ -16,7 +16,7 @@
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen"
         WindowStyle="ToolWindow"
-        Background="{StaticResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

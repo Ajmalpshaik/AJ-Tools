@@ -5,13 +5,18 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
+
 using Autodesk.Revit.DB;
 
 namespace AJTools.Models
 {
     internal class FilterValueItem
     {
-        public FilterValueItem(string display, object rawValue, StorageType storageType, ElementId elementId = null)
+        public FilterValueItem(
+            string display,
+            object rawValue,
+            StorageType storageType,
+            ElementId elementId = null)
         {
             Display = display;
             RawValue = rawValue;
@@ -23,6 +28,7 @@ namespace AJTools.Models
         public object RawValue { get; }
         public StorageType StorageType { get; }
         public ElementId ElementId { get; }
+
         public override string ToString() => Display;
     }
 }

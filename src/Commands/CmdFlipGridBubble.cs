@@ -1,11 +1,11 @@
-// Tool Name: Flip Grid Bubble
-// Description: Toggles which end of a grid displays the bubble marker.
+﻿// Tool Name: Flip Grid Bubble
+// Description: Instantly flips the bubble of a picked grid/level in plan/section/elevation views.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.1.1
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
-using System;
+
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -13,9 +13,6 @@ using Autodesk.Revit.UI.Selection;
 
 namespace AJTools.Commands
 {
-    /// <summary>
-    /// Filters datum selection for grid bubble flipping.
-    /// </summary>
     internal class DatumSelectionFilter : ISelectionFilter
     {
         public bool AllowElement(Element elem)
@@ -39,134 +36,140 @@ namespace AJTools.Commands
     [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
     public class CmdFlipGridBubble : IExternalCommand
     {
-        /// <summary>
-        /// Executes the flip datum bubble workflow.
-        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            if (uidoc == null)
-            {
-                TaskDialog.Show("Flip Datum Bubble", "Open a project view before running this command.");
-                return Result.Failed;
-            }
+            if (uidoc == null) return Result.Failed;
 
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
-            if (view == null || view.IsTemplate)
-            {
-                TaskDialog.Show("Flip Datum Bubble", "Please run this tool in a normal project view.");
+            if (view == null || view.IsTemplate) return Result.Failed;
+
+            if (!IsSupportedViewType(view.ViewType))
                 return Result.Failed;
-            }
 
-            int flipped = 0;
             DatumSelectionFilter filter = new DatumSelectionFilter();
-
             SelectionMode mode = PromptSelectionMode();
             if (mode == SelectionMode.Cancel)
                 return Result.Cancelled;
 
-            if (mode == SelectionMode.Single)
-            {
-                flipped += HandleSinglePicks(uidoc, doc, view, filter);
-            }
-            else if (mode == SelectionMode.Window)
-            {
-                flipped += HandleWindowSelection(uidoc, doc, view, filter);
-            }
+            int flippedCount = mode == SelectionMode.Single
+                ? HandleSinglePickLoop(uidoc, doc, view, filter)
+                : HandleWindowSelection(uidoc, doc, view, filter);
 
-            if (flipped == 0)
-                return Result.Cancelled;
-
-            TaskDialog.Show("Flip Datum Bubble", string.Format("{0} datum(s) flipped.", flipped));
-            return Result.Succeeded;
+            // ❌ Removed final popup completely.
+            return flippedCount == 0 ? Result.Cancelled : Result.Succeeded;
         }
 
-        private static int HandleSinglePicks(UIDocument uidoc, Document doc, View view, DatumSelectionFilter filter)
+        private static int HandleSinglePickLoop(
+            UIDocument uidoc,
+            Document doc,
+            View view,
+            DatumSelectionFilter filter)
         {
-            List<Element> pickedElements = new List<Element>();
+            int flippedCount = 0;
+            const string prompt = "Pick grids/levels to flip bubbles (Esc to finish)";
+
             while (true)
             {
-                Reference picked = null;
+                Reference pickedRef;
                 try
                 {
-                    picked = uidoc.Selection.PickObject(ObjectType.Element, filter, "Pick grids/levels to flip bubbles (Esc to stop picking)");
+                    pickedRef = uidoc.Selection.PickObject(
+                        ObjectType.Element,
+                        filter,
+                        prompt);
                 }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                 {
                     break;
                 }
 
-                if (picked == null)
-                    break;
-
-                pickedElements.Add(doc.GetElement(picked.ElementId));
-            }
-            return ProcessPickedDatums(doc, view, pickedElements);
-        }
-
-        private static int HandleWindowSelection(UIDocument uidoc, Document doc, View view, DatumSelectionFilter filter)
-        {
-            List<Element> pickedElements = new List<Element>();
-            while (true)
-            {
-                IList<Element> picked = null;
-                try
-                {
-                    picked = uidoc.Selection.PickElementsByRectangle(filter, "Drag a window to select grids/levels (Esc to stop)");
-                }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                {
-                    break;
-                }
-                pickedElements.AddRange(picked);
-            }
-            return ProcessPickedDatums(doc, view, pickedElements);
-        }
-
-        private static int ProcessPickedDatums(Document doc, View view, IList<Element> elements)
-        {
-            int flipped = 0;
-            foreach (Element elem in elements)
-            {
+                Element elem = doc.GetElement(pickedRef.ElementId);
                 DatumPlane datum = elem as DatumPlane;
-                if (datum == null)
-                    continue;
-                if (!datum.CanBeVisibleInView(view))
+                if (datum == null || !datum.CanBeVisibleInView(view))
                     continue;
 
                 if (FlipWithTransaction(doc, datum, view))
-                    flipped++;
+                    flippedCount++;
             }
-            return flipped;
+
+            return flippedCount;
+        }
+
+        private static int HandleWindowSelection(
+            UIDocument uidoc,
+            Document doc,
+            View view,
+            DatumSelectionFilter filter)
+        {
+            int flippedCount = 0;
+            const string prompt = "Drag a window to select grids/levels (Esc to finish)";
+
+            while (true)
+            {
+                IList<Element> picked;
+                try
+                {
+                    picked = uidoc.Selection.PickElementsByRectangle(filter, prompt);
+                }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                {
+                    break;
+                }
+
+                foreach (Element elem in picked)
+                {
+                    DatumPlane datum = elem as DatumPlane;
+                    if (datum == null || !datum.CanBeVisibleInView(view))
+                        continue;
+
+                    if (FlipWithTransaction(doc, datum, view))
+                        flippedCount++;
+                }
+            }
+
+            return flippedCount;
+        }
+
+        private static bool IsSupportedViewType(ViewType viewType)
+        {
+            return viewType == ViewType.FloorPlan
+                   || viewType == ViewType.CeilingPlan
+                   || viewType == ViewType.EngineeringPlan
+                   || viewType == ViewType.AreaPlan
+                   || viewType == ViewType.Section
+                   || viewType == ViewType.Elevation;
         }
 
         private static bool Flip(DatumPlane datum, View view)
         {
-            IList<DatumEnds> ends = new List<DatumEnds> { DatumEnds.End0, DatumEnds.End1 };
-            bool firstHidden = false;
-            bool changed = false;
+            bool end0Visible = datum.IsBubbleVisibleInView(DatumEnds.End0, view);
+            bool end1Visible = datum.IsBubbleVisibleInView(DatumEnds.End1, view);
 
-            foreach (DatumEnds end in ends)
+            if (end0Visible && !end1Visible)
             {
-                if (datum.IsBubbleVisibleInView(end, view) && !firstHidden)
-                {
-                    datum.HideBubbleInView(end, view);
-                    firstHidden = true;
-                    changed = true;
-                }
-                else
-                {
-                    if (!datum.IsBubbleVisibleInView(end, view))
-                    {
-                        datum.ShowBubbleInView(end, view);
-                        changed = true;
-                    }
-                }
+                datum.HideBubbleInView(DatumEnds.End0, view);
+                datum.ShowBubbleInView(DatumEnds.End1, view);
+                return true;
             }
 
-            return changed;
+            if (end1Visible && !end0Visible)
+            {
+                datum.HideBubbleInView(DatumEnds.End1, view);
+                datum.ShowBubbleInView(DatumEnds.End0, view);
+                return true;
+            }
+
+            if (!end0Visible && !end1Visible)
+            {
+                datum.ShowBubbleInView(DatumEnds.End0, view);
+                return true;
+            }
+
+            datum.HideBubbleInView(DatumEnds.End1, view);
+            return true;
         }
 
         private static bool FlipWithTransaction(Document doc, DatumPlane datum, View view)
@@ -180,7 +183,6 @@ namespace AJTools.Commands
                     t.Commit();
                     return true;
                 }
-
                 t.RollBack();
                 return false;
             }
@@ -192,16 +194,23 @@ namespace AJTools.Commands
             {
                 MainInstruction = "Select grids or levels to flip bubbles",
                 MainContent = "Choose how you want to select. You can keep picking or windowing until you press Esc.",
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                AllowCancellation = true
+                CommonButtons = TaskDialogCommonButtons.Cancel
             };
 
-            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Pick individually");
-            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Window select multiple");
+            dialog.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink1,
+                "Pick individually (instant flip)");
+
+            dialog.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink2,
+                "Window select multiple");
 
             TaskDialogResult result = dialog.Show();
-            if (result == TaskDialogResult.CommandLink1) return SelectionMode.Single;
-            if (result == TaskDialogResult.CommandLink2) return SelectionMode.Window;
+
+            if (result == TaskDialogResult.CommandLink1)
+                return SelectionMode.Single;
+            if (result == TaskDialogResult.CommandLink2)
+                return SelectionMode.Window;
             return SelectionMode.Cancel;
         }
     }

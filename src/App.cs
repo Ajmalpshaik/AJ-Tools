@@ -10,6 +10,10 @@ using System.IO;
 
 namespace AJTools
 {
+    /// <summary>
+    /// Entry point for the AJ Tools Revit add-in.
+    /// Wires up the custom ribbon on startup.
+    /// </summary>
     public class App : IExternalApplication
     {
         public Result OnStartup(UIControlledApplication app)
@@ -26,9 +30,14 @@ namespace AJTools
                 {
                     string log = Path.Combine(Path.GetTempPath(), "AJTools_OnStartup_Error.txt");
                     File.WriteAllText(log, ex.ToString());
-                    TaskDialog.Show("AJ Tools - Startup Error", "An error occurred during startup. See log: " + log);
+                    TaskDialog.Show(
+                        "AJ Tools - Startup Error",
+                        "An error occurred during startup. See log:\n" + log);
                 }
-                catch { }
+                catch
+                {
+                    // Swallow any secondary logging errors silently.
+                }
 
                 return Result.Failed;
             }

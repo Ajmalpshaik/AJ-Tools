@@ -5,10 +5,12 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.UI; // FilterProWindow
 
 namespace AJTools.Commands
 {
@@ -53,7 +55,11 @@ namespace AJTools.Commands
             }
         }
 
-        private bool ValidateContext(UIDocument uiDoc, out Document doc, out View activeView, out string validationMessage)
+        private static bool ValidateContext(
+            UIDocument uiDoc,
+            out Document doc,
+            out View activeView,
+            out string validationMessage)
         {
             doc = null;
             activeView = null;
@@ -89,22 +95,27 @@ namespace AJTools.Commands
 
             if (!CmdFilterProAvailability.CanViewHaveFilters(activeView, out string viewReason))
             {
-                validationMessage = $"The current view ({activeView.ViewType}) does not support filters.\n\n{viewReason}\n\nPlease switch to a view that supports visibility/graphics filters (e.g. plan, section, elevation, 3D, detail).";
+                validationMessage =
+                    $"The current view ({activeView.ViewType}) does not support filters.\n\n" +
+                    $"{viewReason}\n\n" +
+                    "Please switch to a view that supports visibility/graphics filters " +
+                    "(e.g. plan, section, elevation, 3D, detail).";
                 return false;
             }
 
             return true;
         }
 
-        private bool WarnForLargeDocument(Document doc)
+        private static bool WarnForLargeDocument(Document doc)
         {
             int elementCount = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
                 .GetElementCount();
 
-            if (elementCount > 100000)
+            if (elementCount > 100_000)
             {
-                TaskDialogResult result = TaskDialog.Show("Filter Pro - Large Document",
+                TaskDialogResult result = TaskDialog.Show(
+                    "Filter Pro - Large Document",
                     $"This document contains {elementCount:N0} elements.\n" +
                     "Filter operations may take some time.\n\n" +
                     "Do you want to continue?",
@@ -115,6 +126,5 @@ namespace AJTools.Commands
 
             return true;
         }
-
     }
 }

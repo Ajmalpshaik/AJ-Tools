@@ -8,7 +8,7 @@
 using System;
 using System.Windows;
 
-namespace AJTools.LinkedTools.UI
+namespace AJTools.UI
 {
     public partial class LinkedIdViewerWindow : Window
     {

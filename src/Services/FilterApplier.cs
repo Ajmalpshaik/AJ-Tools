@@ -7,20 +7,21 @@
 // Dependencies: Autodesk.Revit.DB, System.Linq
 using System;
 using System.Collections.Generic;
-using Autodesk.Revit.DB;
 using System.Linq;
+using Autodesk.Revit.DB;
 using AJTools.Models;
 
 namespace AJTools.Services
 {
     internal static class FilterApplier
     {
-        internal static void ApplyToView(Document doc,
-                                         View view,
-                                         ElementId filterId,
-                                         FilterSelection selection,
-                                         ElementId solidFillId,
-                                         IList<string> skipped)
+        internal static void ApplyToView(
+            Document doc,
+            View view,
+            ElementId filterId,
+            FilterSelection selection,
+            ElementId solidFillId,
+            IList<string> skipped)
         {
             if (view == null || filterId == ElementId.InvalidElementId)
                 return;
@@ -47,6 +48,7 @@ namespace AJTools.Services
             }
 
             ApplyGraphicsToFilter(doc, view, filterId, selection, solidFillId, skipped);
+
             try
             {
                 view.SetFilterVisibility(filterId, true);
@@ -57,12 +59,13 @@ namespace AJTools.Services
             }
         }
 
-        internal static void ApplyGraphicsToFilter(Document doc,
-                                                   View view,
-                                                   ElementId filterId,
-                                                   FilterSelection selection,
-                                                   ElementId solidFillId,
-                                                   IList<string> skipped)
+        internal static void ApplyGraphicsToFilter(
+            Document doc,
+            View view,
+            ElementId filterId,
+            FilterSelection selection,
+            ElementId solidFillId,
+            IList<string> skipped)
         {
             if (selection == null || !selection.ApplyGraphics)
                 return;
@@ -74,7 +77,7 @@ namespace AJTools.Services
             }
             catch
             {
-                // ignore and treat as no overrides
+                // Ignore and treat as no overrides
             }
 
             var ogs = existing != null
@@ -113,6 +116,7 @@ namespace AJTools.Services
                 {
                     if (patternId != ElementId.InvalidElementId)
                         ogs.SetSurfaceForegroundPatternId(patternId);
+
                     ogs.SetSurfaceForegroundPatternColor(chosenColor);
                 }
 
@@ -120,6 +124,7 @@ namespace AJTools.Services
                 {
                     if (patternId != ElementId.InvalidElementId)
                         ogs.SetCutForegroundPatternId(patternId);
+
                     ogs.SetCutForegroundPatternColor(chosenColor);
                 }
 
@@ -143,21 +148,23 @@ namespace AJTools.Services
 
             var clone = new OverrideGraphicSettings();
 
-            // Revit API throws exceptions if a property is not set.
-            // We can safely ignore these exceptions and proceed with cloning the other properties.
-            try { clone.SetProjectionLineColor(source.ProjectionLineColor); } catch { /* Ignore */ }
-            try { clone.SetCutLineColor(source.CutLineColor); } catch { /* Ignore */ }
-            try { clone.SetSurfaceForegroundPatternId(source.SurfaceForegroundPatternId); } catch { /* Ignore */ }
-            try { clone.SetSurfaceForegroundPatternColor(source.SurfaceForegroundPatternColor); } catch { /* Ignore */ }
-            try { clone.SetCutForegroundPatternId(source.CutForegroundPatternId); } catch { /* Ignore */ }
-            try { clone.SetCutForegroundPatternColor(source.CutForegroundPatternColor); } catch { /* Ignore */ }
-            try { clone.SetHalftone(source.Halftone); } catch { /* Ignore */ }
+            // Revit API may throw if a property was never set; ignore and continue.
+            try { clone.SetProjectionLineColor(source.ProjectionLineColor); } catch { }
+            try { clone.SetCutLineColor(source.CutLineColor); } catch { }
+            try { clone.SetSurfaceForegroundPatternId(source.SurfaceForegroundPatternId); } catch { }
+            try { clone.SetSurfaceForegroundPatternColor(source.SurfaceForegroundPatternColor); } catch { }
+            try { clone.SetCutForegroundPatternId(source.CutForegroundPatternId); } catch { }
+            try { clone.SetCutForegroundPatternColor(source.CutForegroundPatternColor); } catch { }
+            try { clone.SetHalftone(source.Halftone); } catch { }
 
             return clone;
         }
 
         internal static bool IsViewControlledByTemplate(View view)
         {
+            if (view == null)
+                return false;
+
             return !view.IsTemplate && view.ViewTemplateId != ElementId.InvalidElementId;
         }
 
@@ -201,7 +208,7 @@ namespace AJTools.Services
             }
             catch
             {
-                // ignore
+                // Ignore lookup issues and fall back to invalid
             }
 
             return ElementId.InvalidElementId;

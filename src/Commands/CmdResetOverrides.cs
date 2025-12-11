@@ -5,6 +5,7 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -56,7 +57,7 @@ namespace AJTools.Commands
                     return Result.Succeeded;
                 }
 
-                // We'll attempt to reset overrides for each element; skip those that throw.
+                // Reset per-element overrides for all elements in the active view.
                 OverrideGraphicSettings resetSettings = new OverrideGraphicSettings();
 
                 using (Transaction t = new Transaction(doc, "AJ Tools - Reset Overrides"))
@@ -71,7 +72,7 @@ namespace AJTools.Commands
                         }
                         catch
                         {
-                            // Ignore elements that cannot accept overrides (e.g., some imported categories, view specific elements).
+                            // Ignore elements that cannot accept overrides.
                         }
                     }
 

@@ -5,20 +5,20 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using System;
 
 namespace AJTools.Commands
 {
     /// <summary>
     /// Unhides all elements in the active view (temporary hide and hidden items).
     /// </summary>
-    [Autodesk.Revit.Attributes.Transaction(
-        Autodesk.Revit.Attributes.TransactionMode.Manual)]
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
     public class CmdUnhideAll : IExternalCommand
     {
-        private const string TITLE = "Unhide All Elements in Active View";
+        private const string Title = "Unhide All Elements in Active View";
 
         public Result Execute(
             ExternalCommandData commandData,
@@ -27,43 +27,46 @@ namespace AJTools.Commands
         {
             try
             {
-                UIApplication uiapp = commandData.Application;
-                UIDocument uidoc = uiapp.ActiveUIDocument;
-
-                if (uidoc == null)
-                {
-                    TaskDialog.Show(TITLE, "Open a project view before running this command.");
+                UIApplication uiApp = commandData.Application;
+                UIDocument uiDoc = uiApp.ActiveUIDocument;
+                if (uiDoc == null)
                     return Result.Failed;
-                }
 
-                Document doc = uidoc.Document;
+                Document doc = uiDoc.Document;
                 View view = doc.ActiveView;
 
                 if (view == null || view.IsTemplate)
-                {
-                    TaskDialog.Show(TITLE, "Please run this tool inside a normal project view.");
                     return Result.Failed;
-                }
 
-                var ids = new FilteredElementCollector(doc, view.Id)
+                // Same logic as your pyRevit script: collect all elements in the model
+                var allElementIds = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
                     .ToElementIds();
 
-                if (ids == null || ids.Count == 0)
-                    return Result.Succeeded;
-
-                using (Transaction t = new Transaction(doc, TITLE))
+                using (Transaction t = new Transaction(doc, Title))
                 {
                     t.Start();
-                    view.UnhideElements(ids);
+
+                    // Unhide all elements in the active view
+                    view.UnhideElements(allElementIds);
+
+                    // Try to reset Temporary Hide/Isolate (ignore if not active / not supported)
+                    try
+                    {
+                        view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                    }
+                    catch
+                    {
+                        // No action needed
+                    }
+
                     t.Commit();
                 }
 
                 return Result.Succeeded;
             }
-            catch (Exception ex)
+            catch
             {
-                TaskDialog.Show(TITLE, ex.Message);
                 return Result.Failed;
             }
         }

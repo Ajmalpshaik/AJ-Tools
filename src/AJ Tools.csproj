@@ -59,14 +59,13 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AJTools\LinkedTools\LinkDisplayItem.cs" />
-    <Compile Include="AJTools\LinkedTools\LinkedElementIdViewer.cs" />
-    <Compile Include="AJTools\LinkedTools\LinkedElementSearch.cs" />
-    <Compile Include="AJTools\LinkedTools\UI\LinkDisplayItem.cs" />
-    <Compile Include="AJTools\LinkedTools\UI\LinkedIdViewerWindow.xaml.cs">
+    <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
+    <Compile Include="Commands\CmdLinkedElementSearch.cs" />
+    <Compile Include="Models\LinkDisplayItem.cs" />
+    <Compile Include="UI\LinkedIdViewerWindow.xaml.cs">
       <DependentUpon>LinkedIdViewerWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="AJTools\LinkedTools\UI\LinkedSearchWindow.xaml.cs">
+    <Compile Include="UI\LinkedSearchWindow.xaml.cs">
       <DependentUpon>LinkedSearchWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="App.cs" />
@@ -79,23 +78,17 @@
     <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
-    <Compile Include="Commands\CmdNeonDefender.cs" />
     <Compile Include="Commands\CmdResetDatums.cs" />
     <Compile Include="Commands\CmdResetOverrides.cs" />
     <Compile Include="Commands\CmdResetTextPosition.cs" />
-    <Compile Include="Commands\CmdSnakeGame.cs" />
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
     <Compile Include="Commands\CmdUnhideAll.cs" />
-    <Compile Include="Commands\NeonWindow.cs" />
-    <Compile Include="Commands\ResetDatumMode.cs" />
-    <Compile Include="Commands\ResetDatumService.cs" />
-    <Compile Include="Commands\SnakeForm.cs">
+    <Compile Include="Models\ResetDatumMode.cs" />
+    <Compile Include="Services\ResetDatumService.cs" />
+    <Compile Include="UI\ViewSelectionForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Commands\ViewSelectionForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ElementIdIntegerComparer.cs" />
+    <Compile Include="Utils\ElementIdIntegerComparer.cs" />
     <Compile Include="Models\ApplyViewItem.cs" />
     <Compile Include="Models\ColorPalette.cs" />
     <Compile Include="Models\FilterCategoryItem.cs" />
@@ -113,62 +106,71 @@
     <Compile Include="Services\CopiedViewRange.cs" />
     <Compile Include="Services\FilterApplier.cs" />
     <Compile Include="Services\FilterCreator.cs" />
+    <Compile Include="Services\FilterProDataProvider.cs" />
     <Compile Include="Services\FilterProHelper.cs" />
+    <Compile Include="Services\FilterProStateTracker.cs" />
     <Compile Include="Services\FilterReorderer.cs" />
+    <Compile Include="Services\FilterValueKeyMatcher.cs" />
     <Compile Include="Services\RibbonManager.cs" />
-    <Compile Include="FilterProWindow.xaml.cs">
+    <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Page Include="FilterProWindow.xaml">
+    <Page Include="UI\FilterProWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ModernStyles.xaml">
+    <Page Include="UI\ModernStyles.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="AJTools\LinkedTools\UI\LinkedIdViewerWindow.xaml">
+    <Page Include="UI\LinkedIdViewerWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="AJTools\LinkedTools\UI\LinkedSearchWindow.xaml">
+    <Page Include="UI\LinkedSearchWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <PropertyGroup>
     <RevitAddinUserRoot>$(APPDATA)\Autodesk\Revit\Addins\2020</RevitAddinUserRoot>
-    <RevitAddinDeployDir>$(RevitAddinUserRoot)\AJ Tools</RevitAddinDeployDir>
-    <RevitAddinManifest>$(RevitAddinUserRoot)\AJ Tools.addin</RevitAddinManifest>
+    <RevitAddinAllUsersRoot>$(ProgramData)\Autodesk\Revit\Addins\2020</RevitAddinAllUsersRoot>
+    <RevitAddinDeployName>AJ Tools</RevitAddinDeployName>
+    <SkipRevitAddinDeploy Condition="'$(SkipRevitAddinDeploy)'==''">false</SkipRevitAddinDeploy>
   </PropertyGroup>
   <ItemGroup>
-    <ImageFiles Include="Images\**\*.*" />
-    <AddinManifestLines Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
-    <AddinManifestLines Include="&lt;RevitAddIns&gt;" />
-    <AddinManifestLines Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
-    <AddinManifestLines Include="    &lt;Name&gt;AJ Tools&lt;/Name&gt;" />
-    <AddinManifestLines Include="    &lt;AddInId&gt;{C14A253D-96C6-42B7-889A-CFE737556BA9}&lt;/AddInId&gt;" />
-    <AddinManifestLines Include="    &lt;FullClassName&gt;AJTools.App&lt;/FullClassName&gt;" />
-    <AddinManifestLines Include="    &lt;Assembly&gt;$(RevitAddinDeployDir)\AJ Tools.dll&lt;/Assembly&gt;" />
-    <AddinManifestLines Include="    &lt;VendorId&gt;AJT&lt;/VendorId&gt;" />
-    <AddinManifestLines Include="    &lt;VendorDescription&gt;Ajmal P.S - ajmalnattika@gmail.com&lt;/VendorDescription&gt;" />
-    <AddinManifestLines Include="  &lt;/AddIn&gt;" />
-    <AddinManifestLines Include="&lt;/RevitAddIns&gt;" />
+    <Content Include="Images\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
-    <ImageFiles Include="Images\linkedID.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="AJTools.csproj" />
+    <DeployRoots Include="$(RevitAddinAllUsersRoot)" />
   </ItemGroup>
   <Target Name="DeployRevitAddin" AfterTargets="Build" Condition=" '$(SkipRevitAddinDeploy)' != 'true' ">
-    <MakeDir Directories="$(RevitAddinUserRoot);$(RevitAddinDeployDir);$(RevitAddinDeployDir)\Images" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(RevitAddinDeployDir)" SkipUnchangedFiles="true" />
-    <Copy Condition="Exists('$(TargetDir)AJ Tools.pdb')" SourceFiles="$(TargetDir)AJ Tools.pdb" DestinationFolder="$(RevitAddinDeployDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(ImageFiles)" DestinationFolder="$(RevitAddinDeployDir)\Images" SkipUnchangedFiles="true" />
-    <WriteLinesToFile File="$(RevitAddinManifest)" Lines="@(AddinManifestLines)" Overwrite="true" Encoding="UTF-8" />
+    <ItemGroup>
+      <DeployDirs Include="@(DeployRoots->'%(FullPath)$(RevitAddinDeployName)')" />
+    </ItemGroup>
+    <RemoveDir Directories="@(DeployDirs)" />
+    <MakeDir Directories="@(DeployDirs);@(DeployDirs->'%(FullPath)Images')" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="@(DeployDirs->'%(FullPath)AJ Tools.dll')" OverwriteReadOnlyFiles="true" />
+    <Copy Condition="Exists('$(TargetDir)AJ Tools.pdb')" SourceFiles="$(TargetDir)AJ Tools.pdb" DestinationFiles="@(DeployDirs->'%(FullPath)AJ Tools.pdb')" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="@(Content)" DestinationFolder="%(DeployDirs.FullPath)Images" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" Condition="@(Content) != ''" />
+    <PropertyGroup>
+      <AddinTemplate><![CDATA[<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>AJ Tools</Name>
+    <AddInId>{C14A253D-96C6-42B7-889A-CFE737556BA9}</AddInId>
+    <FullClassName>AJTools.App</FullClassName>
+    <Assembly>%(DeployDirs.FullPath)AJ Tools.dll</Assembly>
+    <VendorId>AJT</VendorId>
+    <VendorDescription>Ajmal P.S - ajmalnattika@gmail.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>]]></AddinTemplate>
+    </PropertyGroup>
+    <WriteLinesToFile File="%(DeployDirs.FullPath)AJ Tools.addin" Lines="$(AddinTemplate)" Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

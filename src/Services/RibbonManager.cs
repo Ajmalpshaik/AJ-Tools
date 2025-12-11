@@ -56,7 +56,6 @@ namespace AJTools
             CreateViewsPanel();
             CreateMepPanel();
             CreateAnnotationsPanel();
-            CreateFunPanel();
             CreateInfoPanel();
         }
 
@@ -78,8 +77,8 @@ namespace AJTools
             var linkedIdIcon = LoadIcon("linkedID.png");
 
             var pulldownButton = CreatePulldownButton(panel, "Element\nID", "Element ID tools for current and linked models.", linkedIdIcon);
-            CreatePushButton(pulldownButton, "Linked ID of\nSelection", "Pick any element (model or linked) and view its Element ID with source info.", typeof(AJTools.LinkedTools.CmdLinkedElementIdViewer), linkedIdIcon);
-            CreatePushButton(pulldownButton, "View by\nLinked ID", "Search by Element ID in current or linked models and zoom to it.", typeof(AJTools.LinkedTools.CmdLinkedElementSearch), linkedIdIcon);
+            CreatePushButton(pulldownButton, "Linked ID of\nSelection", "Pick any element (model or linked) and view its Element ID with source info.", typeof(CmdLinkedElementIdViewer), linkedIdIcon);
+            CreatePushButton(pulldownButton, "View by\nLinked ID", "Search by Element ID in current or linked models and zoom to it.", typeof(CmdLinkedElementSearch), linkedIdIcon);
         }
 
         private void CreateDimensionsPanel()
@@ -140,16 +139,6 @@ namespace AJTools
             CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), resetTextIcon);
         }
 
-        private void CreateFunPanel()
-        {
-            var panel = GetOrCreatePanel("Refresh Mind");
-            var snakeIcon = LoadIcon("SnakeGame.png");
-            var neonIcon = LoadIcon("NeonDefender.png");
-
-            CreatePushButton(panel, "Cyber\nSnake", "Launch a small Snake mini-game (Windows Forms) for fun breaks.", typeof(CmdSnakeGame), snakeIcon);
-            CreatePushButton(panel, "Neon\nDefender", "Launch the Neon Defender mini-game (WPF).", typeof(CmdNeonDefender), neonIcon);
-        }
-
         private void CreateInfoPanel()
         {
             var panel = GetOrCreatePanel("Info");
@@ -162,8 +151,17 @@ namespace AJTools
         /// </summary>
         private RibbonPanel GetOrCreatePanel(string panelName)
         {
-            var panel = _app.GetRibbonPanels(TabName).Find(p => p.Name == panelName);
-            return panel ?? _app.CreateRibbonPanel(TabName, panelName);
+            RibbonPanel existingPanel = null;
+            foreach (var p in _app.GetRibbonPanels(TabName))
+            {
+                if (p.Name == panelName)
+                {
+                    existingPanel = p;
+                    break;
+                }
+            }
+
+            return existingPanel ?? _app.CreateRibbonPanel(TabName, panelName);
         }
 
         /// <summary>
@@ -235,7 +233,10 @@ namespace AJTools
         private BitmapImage LoadIcon(string fileName)
         {
             var path = Path.Combine(_assemblyFolder, "Images", fileName);
-            if (!File.Exists(path)) return null;
+            if (!File.Exists(path))
+            {
+                return null;
+            }
 
             var bmp = new BitmapImage();
             bmp.BeginInit();

@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using Autodesk.Revit.DB;
 
-namespace AJTools.Commands
+namespace AJTools.UI
 {
     /// <summary>
     /// WinForms dialog for selecting one or more plan views to apply view range changes.

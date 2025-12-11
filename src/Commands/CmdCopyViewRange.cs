@@ -1,180 +1,512 @@
-// Tool Name: Copy View Range
-// Description: Copies the active view's range settings to selected plan views.
+﻿// Tool Name: Copy View Range
+// Description: Implements the Copy View Range command and supporting model snapshot logic.
 // Author: Ajmal P.S.
 // Version: 1.0.0
-// Last Updated: 2025-12-10
+// Last Updated: 2025-12-11
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.Services;
+using AJTools.UI;
 
 namespace AJTools.Commands
 {
-    /// <summary>
-    /// Copies view range from the active plan view or pastes a cached range to other plan views.
-    /// </summary>
-    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
-    public class CmdCopyViewRange : IExternalCommand
-    {
-        private static CopiedViewRange _cachedRange;
+    using ViewRangeSnapshot = AJTools.Services.CopyViewRangeModel;
 
-        /// <summary>
-        /// Executes the copy/paste workflow for view ranges.
-        /// </summary>
+    /// <summary>
+    /// Copies the active plan view's view range and applies it to other plan views.
+    /// Uses a cached snapshot so later runs can paste to active or multiple views.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    internal class CmdCopyViewRange : IExternalCommand
+    {
+        private const string Title = "AJ Tools - Copy View Range";
+
+        // Session cache (like an in-memory clipboard)
+        private static ViewRangeSnapshot _cachedSnapshot;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
-            UIDocument uiDoc = uiApp.ActiveUIDocument;
+            UIApplication uiApp = commandData?.Application;
+            UIDocument uiDoc = uiApp?.ActiveUIDocument;
             if (uiDoc == null)
             {
-                TaskDialog.Show("Copy View Range", "Open a project view before running this command.");
+                TaskDialog.Show(Title, "An active project document is required.");
                 return Result.Failed;
             }
 
             Document doc = uiDoc.Document;
-            ViewPlan activePlan = doc.ActiveView as ViewPlan;
-            if (activePlan == null || activePlan.IsTemplate)
+            if (!(doc.ActiveView is ViewPlan activePlan) || activePlan.IsTemplate)
             {
-                TaskDialog.Show("Copy View Range", "Active view must be a non-template plan view.");
+                TaskDialog.Show(
+                    Title,
+                    "Activate a non-template plan view (Floor/Ceiling/Engineering) before running Copy View Range.");
+                return Result.Failed;
+            }
+
+            // Show menu depending on whether we already have a cached snapshot
+            TaskDialogResult choice = ShowActionDialog(_cachedSnapshot != null);
+            if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
-            }
 
-            TaskDialogResult action = PromptForAction();
-            if (action == TaskDialogResult.CommandLink1)
-            {
-                return CopyFromActiveView(activePlan);
-            }
+            if (choice == TaskDialogResult.CommandLink1)
+                return DoCopyFromActive(activePlan);
 
-            if (action == TaskDialogResult.CommandLink2)
-            {
-                return PasteToSelectedViews(doc, activePlan);
-            }
+            if (choice == TaskDialogResult.CommandLink2)
+                return DoPasteToActive(doc, activePlan);
+
+            if (choice == TaskDialogResult.CommandLink3)
+                return DoPasteToMultiple(doc, activePlan);
 
             return Result.Cancelled;
         }
 
-        private static TaskDialogResult PromptForAction()
+        /// <summary>
+        /// Shows the main action dialog:
+        /// - First run: only "Copy from active view".
+        /// - After copy: adds "Paste to active" and "Paste to multiple views".
+        /// </summary>
+        private static TaskDialogResult ShowActionDialog(bool hasCache)
         {
-            TaskDialog dialog = new TaskDialog("Copy View Range")
+            var dialog = new TaskDialog(Title)
             {
-                MainInstruction = _cachedRange == null ? "Copy view range from the active view" : "Choose what to do",
-                MainContent = _cachedRange == null
-                    ? "Copy the active plan view's range so you can paste it to other plan views."
-                    : "Use the cached view range or copy a fresh one.",
+                MainInstruction = hasCache
+                    ? "Copy or paste view range"
+                    : "Copy view range from the active view",
+                MainContent = hasCache
+                    ? "Use the cached view range, or copy a new one from the active plan view."
+                    : "Copy the active plan view's range so you can paste it to this or other plan views.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 AllowCancellation = true
             };
 
-            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Copy from active view");
-            if (_cachedRange != null)
-                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Paste to other plan views");
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Copy view range from active view");
+
+            if (hasCache)
+            {
+                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Paste view range to active view");
+                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Paste view range to multiple views");
+            }
 
             return dialog.Show();
         }
 
-        private static Result CopyFromActiveView(ViewPlan sourceView)
+        private static Result DoCopyFromActive(ViewPlan activePlan)
         {
             try
             {
-                _cachedRange = CopiedViewRange.From(sourceView);
-
-                TaskDialog.Show("Copy View Range", $"Copied view range from '{sourceView.Name}'.");
+                _cachedSnapshot = ViewRangeSnapshot.From(activePlan);
+                TaskDialog.Show(Title, $"View range copied from '{activePlan.Name}'.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Copy View Range", "Could not copy view range:\n" + ex.Message);
+                TaskDialog.Show(Title, "Could not copy view range:\n" + ex.Message);
                 return Result.Failed;
             }
         }
 
-        private static Result PasteToSelectedViews(Document doc, ViewPlan activePlan)
+        private static Result DoPasteToActive(Document doc, ViewPlan activePlan)
         {
-            if (_cachedRange == null)
+            if (_cachedSnapshot == null)
             {
-                TaskDialog.Show("Copy View Range", "Nothing stored yet. Copy a view range first.");
+                TaskDialog.Show(Title, "Nothing copied yet. Copy a view range first.");
                 return Result.Cancelled;
             }
 
-            List<ViewPlan> targets = GetTargetViews(doc, activePlan);
-            if (targets.Count == 0)
-            {
-                TaskDialog.Show("Copy View Range", "No plan views selected.");
-                return Result.Cancelled;
-            }
-
-            int updated = 0;
-            int skipped = 0;
-
-            using (Transaction t = new Transaction(doc, "Paste View Range"))
+            using (var t = new Transaction(doc, "Copy View Range - Active View"))
             {
                 t.Start();
-                foreach (ViewPlan target in targets)
+                try
                 {
-                    if (target.IsTemplate || !CanEditViewRange(target))
-                    {
-                        skipped++;
-                        continue;
-                    }
+                    _cachedSnapshot.ApplyTo(activePlan);
+                    t.Commit();
+                    TaskDialog.Show(Title, $"View range applied to active view '{activePlan.Name}'.");
+                    return Result.Succeeded;
+                }
+                catch (Exception ex)
+                {
+                    t.RollBack();
+                    TaskDialog.Show(Title, "Could not apply view range to active view:\n" + ex.Message);
+                    return Result.Failed;
+                }
+            }
+        }
 
+        private static Result DoPasteToMultiple(Document doc, ViewPlan activePlan)
+        {
+            if (_cachedSnapshot == null)
+            {
+                TaskDialog.Show(Title, "Nothing copied yet. Copy a view range first.");
+                return Result.Cancelled;
+            }
+
+            IList<ViewPlan> eligibleViews = GetEligibleViews(doc);
+            if (eligibleViews.Count == 0)
+            {
+                TaskDialog.Show(Title, "No plan views are available to receive the copied view range.");
+                return Result.Cancelled;
+            }
+
+            List<ViewPlan> selectedViews;
+            using (var form = new ViewSelectionForm(eligibleViews, activePlan))
+            {
+                DialogResult dialogResult = form.ShowDialog();
+                if (dialogResult != DialogResult.OK || form.SelectedViews.Count == 0)
+                    return Result.Cancelled;
+
+                selectedViews = form.SelectedViews;
+            }
+
+            IList<ViewPlan> targets = FilterTargets(activePlan, selectedViews);
+            if (targets.Count == 0)
+            {
+                TaskDialog.Show(Title, "No target plan views were selected.");
+                return Result.Cancelled;
+            }
+
+            var failures = new List<string>();
+            int appliedCount = 0;
+
+            using (var t = new Transaction(doc, "Copy View Range - Multiple Views"))
+            {
+                t.Start();
+
+                foreach (ViewPlan plan in targets)
+                {
                     try
                     {
-                        _cachedRange.ApplyTo(target);
-                        updated++;
+                        _cachedSnapshot.ApplyTo(plan);
+                        appliedCount++;
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        skipped++;
+                        failures.Add($"{plan.Name}: {ex.Message}");
                     }
                 }
+
                 t.Commit();
             }
 
-            string msg = $"Applied view range to {updated} view(s) from '{_cachedRange.SourceName}'.";
-            if (skipped > 0)
-                msg += $"\nSkipped {skipped} view(s) (template, read-only, or incompatible range).";
-            TaskDialog.Show("Copy View Range", msg);
-            return updated > 0 ? Result.Succeeded : Result.Cancelled;
+            if (appliedCount == 0)
+            {
+                string warning = failures.Count > 0
+                    ? "No view ranges were updated:\n" + string.Join(Environment.NewLine, failures)
+                    : "No eligible target views.";
+
+                TaskDialog.Show(Title, warning);
+                return Result.Cancelled;
+            }
+
+            if (failures.Count > 0)
+            {
+                TaskDialog.Show(
+                    Title,
+                    $"View range copied with warnings:\n{string.Join(Environment.NewLine, failures)}");
+            }
+            else
+            {
+                TaskDialog.Show(
+                    Title,
+                    $"View range copied to {appliedCount} view{(appliedCount == 1 ? string.Empty : "s")}.");
+            }
+
+            return Result.Succeeded;
         }
 
-        private static List<ViewPlan> GetTargetViews(Document doc, ViewPlan activePlan)
+        /// <summary>
+        /// Returns all non-template plan views (Floor, Ceiling, Engineering),
+        /// matching the Python allowed_view_types logic.
+        /// </summary>
+        private static IList<ViewPlan> GetEligibleViews(Document doc)
         {
-            List<ViewPlan> plans = new FilteredElementCollector(doc)
+            var allowed = new HashSet<ViewType>
+            {
+                ViewType.FloorPlan,
+                ViewType.CeilingPlan,
+                ViewType.EngineeringPlan
+            };
+
+            return new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewPlan))
                 .Cast<ViewPlan>()
-                .Where(v => !v.IsTemplate && v.ViewType != ViewType.AreaPlan)
-                .OrderBy(v => v.Name)
+                .Where(v => !v.IsTemplate && allowed.Contains(v.ViewType))
+                .OrderBy(v => v.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
-
-            using (ViewSelectionForm form = new ViewSelectionForm(plans, activePlan))
-            {
-                DialogResult result = form.ShowDialog();
-                if (result != DialogResult.OK)
-                    return new List<ViewPlan>();
-                return form.SelectedViews;
-            }
         }
 
-        private static bool CanEditViewRange(ViewPlan view)
+        private static IList<ViewPlan> FilterTargets(ViewPlan source, IEnumerable<ViewPlan> selectedViews)
         {
-            if (view == null) return false;
-            if (view.IsTemplate) return false;
-            try
+            var result = new List<ViewPlan>();
+            var seenIds = new HashSet<int>();
+
+            foreach (ViewPlan view in selectedViews)
             {
-                // Try to access the view range; if this throws, it's not editable.
-                PlanViewRange vr = view.GetViewRange();
-                return vr != null;
+                if (view == null)
+                    continue;
+
+                if (view.Id == source.Id)
+                    continue;
+
+                if (seenIds.Add(view.Id.IntegerValue))
+                    result.Add(view);
             }
-            catch
+
+            return result;
+        }
+    }
+}
+
+namespace AJTools.Services
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using Autodesk.Revit.DB;
+
+    /// <summary>
+    /// Stores a source view's view range as relative relationships to its level
+    /// and can apply that range to other plan views.
+    /// </summary>
+    internal class CopyViewRangeModel
+    {
+        private enum LevelRelationship
+        {
+            None,
+            Associated,
+            Above,
+            Below,
+            Absolute
+        }
+
+        private class PlaneData
+        {
+            public LevelRelationship Relationship { get; set; }
+            public ElementId AbsoluteLevelId { get; set; } = ElementId.InvalidElementId;
+            public double Offset { get; set; }
+        }
+
+        private readonly Dictionary<PlanViewPlane, PlaneData> _planes
+            = new Dictionary<PlanViewPlane, PlaneData>();
+
+        public string SourceName { get; private set; }
+
+        private CopyViewRangeModel()
+        {
+        }
+
+        /// <summary>
+        /// Create a CopyViewRangeModel snapshot from the given source plan view.
+        /// </summary>
+        public static CopyViewRangeModel From(ViewPlan sourceView)
+        {
+            if (sourceView == null)
+                throw new ArgumentNullException(nameof(sourceView));
+
+            Document doc = sourceView.Document;
+            if (doc == null)
+                throw new InvalidOperationException("Source view has no owning document.");
+
+            var result = new CopyViewRangeModel
             {
-                // If getting the view range throws an exception, it is not editable.
-                return false;
+                SourceName = sourceView.Name
+            };
+
+            // Collect all Levels sorted by elevation (like the Python script).
+            IList<Level> allLevels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
+
+            List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
+
+            ElementId sourceLevelId = sourceView.GenLevel != null
+                ? sourceView.GenLevel.Id
+                : ElementId.InvalidElementId;
+
+            int sourceLevelIndex = levelIds.IndexOf(sourceLevelId);
+
+            ElementId levelAboveId = ElementId.InvalidElementId;
+            ElementId levelBelowId = ElementId.InvalidElementId;
+
+            if (sourceLevelIndex >= 0)
+            {
+                if (sourceLevelIndex + 1 < levelIds.Count)
+                    levelAboveId = levelIds[sourceLevelIndex + 1];
+
+                if (sourceLevelIndex - 1 >= 0)
+                    levelBelowId = levelIds[sourceLevelIndex - 1];
             }
+
+            PlanViewRange viewRange = sourceView.GetViewRange();
+            var planes = new[]
+            {
+                PlanViewPlane.TopClipPlane,
+                PlanViewPlane.CutPlane,
+                PlanViewPlane.BottomClipPlane,
+                PlanViewPlane.ViewDepthPlane
+            };
+
+            foreach (PlanViewPlane plane in planes)
+            {
+                ElementId planeLevelId = viewRange.GetLevelId(plane);
+                double offset = viewRange.GetOffset(plane);
+
+                var data = new PlaneData
+                {
+                    Offset = offset
+                };
+
+                // For Bottom & ViewDepth we ALWAYS treat as Absolute, so they copy exactly.
+                bool forceAbsolute = (plane == PlanViewPlane.BottomClipPlane ||
+                                      plane == PlanViewPlane.ViewDepthPlane);
+
+                if (planeLevelId == ElementId.InvalidElementId)
+                {
+                    data.Relationship = LevelRelationship.None;
+                }
+                else if (!forceAbsolute && planeLevelId == sourceLevelId)
+                {
+                    data.Relationship = LevelRelationship.Associated;
+                }
+                else if (!forceAbsolute && planeLevelId == levelAboveId)
+                {
+                    data.Relationship = LevelRelationship.Above;
+                }
+                else if (!forceAbsolute && planeLevelId == levelBelowId)
+                {
+                    data.Relationship = LevelRelationship.Below;
+                }
+                else
+                {
+                    data.Relationship = LevelRelationship.Absolute;
+                    data.AbsoluteLevelId = planeLevelId;
+                }
+
+                result._planes[plane] = data;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Apply the stored view range to the given target plan view,
+        /// with detailed reasons if the view range is read-only.
+        /// </summary>
+        public void ApplyTo(ViewPlan targetView)
+        {
+            if (targetView == null)
+                throw new ArgumentNullException(nameof(targetView));
+
+            Document doc = targetView.Document;
+            if (doc == null)
+                throw new InvalidOperationException("Target view has no owning document.");
+
+            // Check if the view range parameter is read-only, but only if it exists.
+            Parameter vrParam = targetView.get_Parameter(BuiltInParameter.PLAN_VIEW_RANGE);
+            if (vrParam != null && vrParam.IsReadOnly)
+            {
+                string reason;
+
+                if (targetView.ViewTemplateId != ElementId.InvalidElementId)
+                {
+                    var template = doc.GetElement(targetView.ViewTemplateId) as View;
+                    string templateName = template?.Name ?? targetView.ViewTemplateId.IntegerValue.ToString();
+                    reason = $"View range is controlled by view template '{templateName}'.";
+                }
+                else
+                {
+                    ElementId primaryId = targetView.GetPrimaryViewId();
+                    if (primaryId != ElementId.InvalidElementId)
+                    {
+                        var primary = doc.GetElement(primaryId) as View;
+                        string primaryName = primary?.Name ?? primaryId.IntegerValue.ToString();
+                        reason =
+                            $"This is a dependent view of '{primaryName}', so its view range is controlled by the parent view.";
+                    }
+                    else
+                    {
+                        reason = "View range parameter is read-only on this view.";
+                    }
+                }
+
+                throw new InvalidOperationException(reason);
+            }
+
+            // Collect all Levels sorted by elevation.
+            IList<Level> allLevels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
+
+            List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
+
+            ElementId destLevelId = targetView.GenLevel != null
+                ? targetView.GenLevel.Id
+                : ElementId.InvalidElementId;
+
+            int destLevelIndex = levelIds.IndexOf(destLevelId);
+            if (destLevelIndex < 0)
+                throw new InvalidOperationException("Could not find target view's level in project levels.");
+
+            ElementId destLevelAboveId = ElementId.InvalidElementId;
+            ElementId destLevelBelowId = ElementId.InvalidElementId;
+
+            if (destLevelIndex + 1 < levelIds.Count)
+                destLevelAboveId = levelIds[destLevelIndex + 1];
+
+            if (destLevelIndex - 1 >= 0)
+                destLevelBelowId = levelIds[destLevelIndex - 1];
+
+            PlanViewRange vr = targetView.GetViewRange();
+
+            foreach (KeyValuePair<PlanViewPlane, PlaneData> kvp in _planes)
+            {
+                PlanViewPlane plane = kvp.Key;
+                PlaneData data = kvp.Value;
+
+                ElementId newLevelId;
+
+                switch (data.Relationship)
+                {
+                    case LevelRelationship.None:
+                        newLevelId = ElementId.InvalidElementId;
+                        break;
+
+                    case LevelRelationship.Associated:
+                        newLevelId = destLevelId;
+                        break;
+
+                    case LevelRelationship.Above:
+                        newLevelId = destLevelAboveId;
+                        break;
+
+                    case LevelRelationship.Below:
+                        newLevelId = destLevelBelowId;
+                        break;
+
+                    case LevelRelationship.Absolute:
+                        newLevelId = data.AbsoluteLevelId;
+                        break;
+
+                    default:
+                        newLevelId = ElementId.InvalidElementId;
+                        break;
+                }
+
+                vr.SetLevelId(plane, newLevelId);
+                vr.SetOffset(plane, data.Offset);
+            }
+
+            targetView.SetViewRange(vr);
         }
     }
 }

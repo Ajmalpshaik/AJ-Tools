@@ -5,6 +5,7 @@
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,6 +29,7 @@ namespace AJTools.Commands
         internal static Result DimensionLevels(ExternalCommandData data)
         {
             const string title = "Dimension Levels by Line";
+
             try
             {
                 UIApplication uiapp = data.Application;
@@ -93,10 +95,12 @@ namespace AJTools.Commands
         {
             p1 = null;
             p2 = null;
+
             try
             {
                 p1 = uidoc.Selection.PickPoint(ObjectSnapTypes.None, "Pick the START point for the dimension line");
                 p2 = uidoc.Selection.PickPoint(ObjectSnapTypes.None, "Pick the END point for the dimension line");
+
                 return p1.DistanceTo(p2) >= MinPickDistance;
             }
             catch
@@ -125,7 +129,9 @@ namespace AJTools.Commands
         {
             ReferenceArray refs = new ReferenceArray();
             foreach (Level lvl in levelsToDim)
+            {
                 refs.Append(new Reference(lvl));
+            }
 
             XYZ dimStart = new XYZ(p1.X, p1.Y, levelsToDim.First().Elevation);
             XYZ dimEnd = new XYZ(p1.X, p1.Y, levelsToDim.Last().Elevation);
@@ -140,6 +146,7 @@ namespace AJTools.Commands
         internal static Result DimensionGrids(ExternalCommandData data)
         {
             const string title = "Dimension Grids by Line";
+
             try
             {
                 UIApplication uiapp = data.Application;
@@ -155,13 +162,13 @@ namespace AJTools.Commands
                 if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
                     return Result.Cancelled;
 
-                var selectionLine = Line.CreateBound(p1, p2);
+                Line selectionLine = Line.CreateBound(p1, p2);
                 if (selectionLine.Length < MinPickDistance)
                     return Result.Cancelled;
 
-                var gridGroups = GroupGridsByDirection(doc, view);
-                var bestGroup = FindBestGridGroup(gridGroups, selectionLine);
-                var gridsToDim = GetGridsToDimension(bestGroup, selectionLine);
+                Dictionary<string, List<Grid>> gridGroups = GroupGridsByDirection(doc, view);
+                List<Grid> bestGroup = FindBestGridGroup(gridGroups, selectionLine);
+                List<Grid> gridsToDim = GetGridsToDimension(bestGroup, selectionLine);
 
                 if (gridsToDim.Count < 2)
                     return Fail(title, "Fewer than two parallel grids were found intersecting your line.");
@@ -186,6 +193,7 @@ namespace AJTools.Commands
         {
             p1 = null;
             p2 = null;
+
             try
             {
                 p1 = uidoc.Selection.PickPoint(ObjectSnapTypes.None, "Pick the START point of the selection line");
@@ -206,19 +214,28 @@ namespace AJTools.Commands
                 .ToList();
 
             var groups = new Dictionary<string, List<Grid>>();
+
             foreach (Grid grid in grids)
             {
                 Curve c = grid.Curve;
-                if (c == null) continue;
+                if (c == null)
+                    continue;
 
                 XYZ dir = GetCurveDirection(c);
-                if (dir == null) continue;
+                if (dir == null)
+                    continue;
 
-                string key = string.Format("{0:F" + DirectionPrecision + "},{1:F" + DirectionPrecision + "}", dir.X, dir.Y);
+                string key = string.Format(
+                    "{0:F" + DirectionPrecision + "},{1:F" + DirectionPrecision + "}",
+                    dir.X,
+                    dir.Y);
+
                 if (!groups.ContainsKey(key))
                     groups[key] = new List<Grid>();
+
                 groups[key].Add(grid);
             }
+
             return groups;
         }
 
@@ -233,26 +250,33 @@ namespace AJTools.Commands
 
             foreach (List<Grid> group in groups.Values)
             {
-                if (group.Count < 2) continue;
+                if (group.Count < 2)
+                    continue;
 
                 Grid sample = group[0];
                 XYZ dir = GetCurveDirection(sample.Curve);
-                if (dir == null) continue;
+                if (dir == null)
+                    continue;
 
-                double dot = Math.Abs(selectionDirFlat.DotProduct(new XYZ(dir.X, dir.Y, 0).Normalize()));
+                XYZ dirFlat = new XYZ(dir.X, dir.Y, 0).Normalize();
+                double dot = Math.Abs(selectionDirFlat.DotProduct(dirFlat));
+
+                // We want grids that are as perpendicular as possible to the selection line
                 if (dot < minDot)
                 {
                     minDot = dot;
                     bestGroup = group;
                 }
             }
+
             return bestGroup;
         }
 
         private static List<Grid> GetGridsToDimension(List<Grid> gridGroup, Line selectionLine)
         {
             var gridsToDim = new List<Grid>();
-            if (gridGroup == null) return gridsToDim;
+            if (gridGroup == null)
+                return gridsToDim;
 
             XYZ p1Flat = new XYZ(selectionLine.GetEndPoint(0).X, selectionLine.GetEndPoint(0).Y, 0);
             XYZ p2Flat = new XYZ(selectionLine.GetEndPoint(1).X, selectionLine.GetEndPoint(1).Y, 0);
@@ -261,37 +285,53 @@ namespace AJTools.Commands
             foreach (Grid grid in gridGroup)
             {
                 Curve c = grid.Curve;
-                if (c == null) continue;
+                if (c == null)
+                    continue;
 
                 if (c is Line line)
                 {
                     XYZ gp1 = line.GetEndPoint(0);
                     XYZ gDir = line.Direction.Normalize();
-                    var testLine = Line.CreateUnbound(new XYZ(gp1.X, gp1.Y, 0), new XYZ(gDir.X, gDir.Y, 0));
-                    if (testLine.Intersect(selectionFlat) == SetComparisonResult.Overlap)
+
+                    Line testLine = Line.CreateUnbound(
+                        new XYZ(gp1.X, gp1.Y, 0),
+                        new XYZ(gDir.X, gDir.Y, 0));
+
+                    IntersectionResultArray ira;
+                    SetComparisonResult result = testLine.Intersect(selectionFlat, out ira);
+
+                    if (result == SetComparisonResult.Overlap)
                     {
                         gridsToDim.Add(grid);
                     }
                 }
             }
-            return gridsToDim.OrderBy(g => g.Name).ToList();
+
+            return gridsToDim
+                .OrderBy(g => g.Name)
+                .ToList();
         }
 
         private static void CreateGridDimension(Document doc, View view, List<Grid> gridsToDim, XYZ p1)
         {
             ReferenceArray refs = new ReferenceArray();
             foreach (Grid grid in gridsToDim)
+            {
                 refs.Append(new Reference(grid));
+            }
 
             XYZ gridDir = GetCurveDirection(gridsToDim[0].Curve);
-            if (gridDir == null) throw new InvalidOperationException("Cannot determine grid direction.");
+            if (gridDir == null)
+                throw new InvalidOperationException("Cannot determine grid direction.");
 
             XYZ dimDir = gridDir.CrossProduct(XYZ.BasisZ);
-            if (dimDir.IsZeroLength()) throw new InvalidOperationException("Cannot determine a perpendicular direction for the dimension line.");
+            if (dimDir.IsZeroLength())
+                throw new InvalidOperationException("Cannot determine a perpendicular direction for the dimension line.");
 
             dimDir = dimDir.Normalize();
+
             XYZ dimStart = p1;
-            XYZ dimEnd = p1 + dimDir * 10.0;
+            XYZ dimEnd = p1 + dimDir * 10.0; // 10 feet offset in model units
             Line dimLine = Line.CreateBound(dimStart, dimEnd);
 
             doc.Create.NewDimension(view, dimLine, refs);
@@ -305,7 +345,7 @@ namespace AJTools.Commands
 
         private static bool IsZeroLength(this XYZ vector)
         {
-            return vector == null || vector.GetLength() < 1e-9;
+            return vector.GetLength() < 1e-9;
         }
 
         private static XYZ GetCurveDirection(Curve c)
@@ -313,10 +353,9 @@ namespace AJTools.Commands
             if (c == null)
                 return null;
 
-            Line line = c as Line;
-            if (line != null)
+            if (c is Line line)
             {
-                var d = line.Direction;
+                XYZ d = line.Direction;
                 return d.IsZeroLength() ? null : d.Normalize();
             }
 
@@ -325,8 +364,10 @@ namespace AJTools.Commands
                 XYZ p0 = c.GetEndPoint(0);
                 XYZ p1 = c.GetEndPoint(1);
                 XYZ v = p1 - p0;
+
                 if (v.IsZeroLength())
                     return null;
+
                 return v.Normalize();
             }
 

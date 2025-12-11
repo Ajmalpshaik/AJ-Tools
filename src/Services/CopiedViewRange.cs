@@ -61,9 +61,10 @@ namespace AJTools.Services
             target.SetViewRange(range);
         }
 
-        private static void TryCapture(PlanViewRange range,
-                                       IDictionary<PlanViewPlane, LevelSnapshot> map,
-                                       PlanViewPlane plane)
+        private static void TryCapture(
+            PlanViewRange range,
+            IDictionary<PlanViewPlane, LevelSnapshot> map,
+            PlanViewPlane plane)
         {
             try
             {
@@ -77,17 +78,20 @@ namespace AJTools.Services
             }
         }
 
-        private static void ApplyLevel(PlanViewRange range,
-                                       PlanViewPlane plane,
-                                       LevelSnapshot snapshot)
+        private static void ApplyLevel(
+            PlanViewRange range,
+            PlanViewPlane plane,
+            LevelSnapshot snapshot)
         {
             if (snapshot == null)
                 return;
 
             try
             {
-                if (snapshot.LevelId != null && snapshot.LevelId != ElementId.InvalidElementId)
+                if (snapshot.LevelId != ElementId.InvalidElementId)
+                {
                     range.SetLevelId(plane, snapshot.LevelId);
+                }
 
                 range.SetOffset(plane, snapshot.Offset);
             }
@@ -101,7 +105,8 @@ namespace AJTools.Services
         {
             internal LevelSnapshot(ElementId levelId, double offset)
             {
-                LevelId = levelId ?? ElementId.InvalidElementId;
+                // ElementId is a struct (non-nullable); treat InvalidElementId as "no level".
+                LevelId = levelId;
                 Offset = offset;
             }
 

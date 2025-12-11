@@ -1,13 +1,12 @@
-// Tool Name: Copy Dimension Text
+﻿// Tool Name: Copy Dimension Text
 // Description: Copies dimension text properties between selected dimensions.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.1.0
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -17,6 +16,10 @@ namespace AJTools.Commands
 {
     /// <summary>
     /// Copies dimension text fields from a source dimension to selected targets.
+    /// Workflow:
+    /// 1) Pick SOURCE dimension once.
+    /// 2) Repeatedly pick TARGET dimensions (one by one).
+    /// 3) Press ESC to finish.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdCopyDimensionText : IExternalCommand
@@ -27,9 +30,6 @@ namespace AJTools.Commands
             public bool AllowReference(Reference reference, XYZ position) => false;
         }
 
-        /// <summary>
-        /// Copies Above/Below/Prefix/Suffix text from a source dimension to target dimensions.
-        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
@@ -43,7 +43,12 @@ namespace AJTools.Commands
 
             try
             {
-                Reference sourceRef = uidoc.Selection.PickObject(ObjectType.Element, new DimensionSelectionFilter(), "Select SOURCE dimension to copy text from");
+                // 1) Pick SOURCE dimension
+                Reference sourceRef = uidoc.Selection.PickObject(
+                    ObjectType.Element,
+                    new DimensionSelectionFilter(),
+                    "Select SOURCE dimension to copy text from");
+
                 Dimension sourceDim = doc.GetElement(sourceRef) as Dimension;
                 if (sourceDim == null)
                     return Result.Cancelled;
@@ -52,46 +57,106 @@ namespace AJTools.Commands
                 string textBelow = sourceDim.Below;
                 string textPrefix = sourceDim.Prefix;
                 string textSuffix = sourceDim.Suffix;
+                string valueOverride = sourceDim.ValueOverride;
+                bool copyValueOverride = !string.IsNullOrEmpty(valueOverride);
 
-                if (string.IsNullOrEmpty(textAbove) && string.IsNullOrEmpty(textBelow) && string.IsNullOrEmpty(textPrefix) && string.IsNullOrEmpty(textSuffix))
+                bool hasCopyableText =
+                    !string.IsNullOrEmpty(textAbove) ||
+                    !string.IsNullOrEmpty(textBelow) ||
+                    !string.IsNullOrEmpty(textPrefix) ||
+                    !string.IsNullOrEmpty(textSuffix) ||
+                    copyValueOverride;
+
+                if (!hasCopyableText)
                 {
-                    TaskDialog.Show("Copy Dim Text", "The selected dimension has no Above/Below/Prefix/Suffix text to copy.");
+                    TaskDialog.Show(
+                        "Copy Dim Text",
+                        "The selected dimension has no Above/Below/Prefix/Suffix text or value override to copy.");
                     return Result.Cancelled;
                 }
 
-                IList<Reference> targetRefs = uidoc.Selection.PickObjects(ObjectType.Element, new DimensionSelectionFilter(), "Select TARGET dimension(s)");
-                if (targetRefs == null || !targetRefs.Any())
-                    return Result.Cancelled;
+                const string targetPrompt = "Select TARGET dimension (ESC to finish)";
+                int pastedCount = 0;
 
-                using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
+                // 2) Loop: pick TARGET dimensions until ESC
+                while (true)
                 {
-                    t.Start();
-                    foreach (Reference targetRef in targetRefs)
+                    Reference targetRef;
+                    try
                     {
-                        Dimension targetDim = doc.GetElement(targetRef) as Dimension;
-                        if (targetDim == null)
-                            continue;
-                        
-                        targetDim.Above = textAbove;
-                        targetDim.Below = textBelow;
-                        targetDim.Prefix = textPrefix;
-                        targetDim.Suffix = textSuffix;
+                        targetRef = uidoc.Selection.PickObject(
+                            ObjectType.Element,
+                            new DimensionSelectionFilter(),
+                            targetPrompt);
                     }
-                    t.Commit();
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        // ESC or right-click cancel → exit loop
+                        break;
+                    }
+
+                    Dimension targetDim = doc.GetElement(targetRef) as Dimension;
+                    if (targetDim == null)
+                        continue;
+
+                    using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
+                    {
+                        t.Start();
+                        ApplyDimensionText(
+                            targetDim,
+                            textAbove,
+                            textBelow,
+                            textPrefix,
+                            textSuffix,
+                            copyValueOverride,
+                            valueOverride);
+                        t.Commit();
+                    }
+
+                    pastedCount++;
                 }
 
-                TaskDialog.Show("Copy Dim Text", $"Finished. Copied text to {targetRefs.Count} dimension(s).");
-                return Result.Succeeded;
+                // 3) Behaviour after ESC
+                if (pastedCount == 0)
+                {
+                    TaskDialog.Show(
+                        "Copy Dim Text",
+                        "Source captured, but no target dimensions were selected.");
+                    return Result.Cancelled;
+                }
 
+                // No final success popup (as per your style) – just silent success
+                return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
+                // Cancel while picking SOURCE → tool cancelled
                 return Result.Cancelled;
             }
             catch (Exception ex)
             {
                 message = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        private static void ApplyDimensionText(
+            Dimension targetDim,
+            string textAbove,
+            string textBelow,
+            string textPrefix,
+            string textSuffix,
+            bool copyValueOverride,
+            string valueOverride)
+        {
+            targetDim.Above = textAbove ?? string.Empty;
+            targetDim.Below = textBelow ?? string.Empty;
+            targetDim.Prefix = textPrefix ?? string.Empty;
+            targetDim.Suffix = textSuffix ?? string.Empty;
+
+            if (copyValueOverride)
+            {
+                targetDim.ValueOverride = valueOverride;
             }
         }
     }

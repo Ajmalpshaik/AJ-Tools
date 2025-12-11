@@ -1,20 +1,21 @@
 // Tool Name: Linked ID Viewer
 // Description: Displays the Element ID and model source for a picked element (host or linked).
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
-using AJTools.LinkedTools.UI;
+using AJTools.UI;
 
-namespace AJTools.LinkedTools
+namespace AJTools.Commands
 {
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     public class CmdLinkedElementIdViewer : IExternalCommand
     {
         private const string Title = "Linked ID Viewer";
@@ -50,13 +51,27 @@ namespace AJTools.LinkedTools
 
                 if (pickedReference.LinkedElementId != ElementId.InvalidElementId)
                 {
-                    if (!GetLinkedElementInfo(uiDoc.Document, pickedReference, out elementIdToShow, out modelSource, out message))
+                    if (!GetLinkedElementInfo(
+                            uiDoc.Document,
+                            pickedReference,
+                            out elementIdToShow,
+                            out modelSource,
+                            out message))
+                    {
                         return Result.Failed;
+                    }
                 }
                 else
                 {
-                    if (!GetHostElementInfo(uiDoc.Document, pickedReference, out elementIdToShow, out modelSource, out message))
+                    if (!GetHostElementInfo(
+                            uiDoc.Document,
+                            pickedReference,
+                            out elementIdToShow,
+                            out modelSource,
+                            out message))
+                    {
                         return Result.Failed;
+                    }
                 }
 
                 if (elementIdToShow == ElementId.InvalidElementId)
@@ -65,7 +80,10 @@ namespace AJTools.LinkedTools
                     return Result.Failed;
                 }
 
-                var window = new LinkedIdViewerWindow(elementIdToShow.IntegerValue.ToString(), modelSource);
+                var window = new LinkedIdViewerWindow(
+                    elementIdToShow.IntegerValue.ToString(),
+                    modelSource);
+
                 window.ShowDialog();
 
                 return Result.Succeeded;
@@ -81,13 +99,19 @@ namespace AJTools.LinkedTools
         {
             try
             {
-                return uiDoc.Selection.PickObject(ObjectType.LinkedElement, "Select an element from the current model or a linked model");
+                // First try picking from linked models.
+                return uiDoc.Selection.PickObject(
+                    ObjectType.LinkedElement,
+                    "Select an element from a linked model or press ESC to cancel");
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
+                // Fall back to current model if linked selection is not available in this context.
                 try
                 {
-                    return uiDoc.Selection.PickObject(ObjectType.Element, "Select an element from the current model");
+                    return uiDoc.Selection.PickObject(
+                        ObjectType.Element,
+                        "Select an element from the current model or press ESC to cancel");
                 }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                 {
@@ -100,13 +124,19 @@ namespace AJTools.LinkedTools
             }
         }
 
-        private bool GetLinkedElementInfo(Document doc, Reference reference, out ElementId elementId, out string modelSource, out string errorMessage)
+        private bool GetLinkedElementInfo(
+            Document doc,
+            Reference reference,
+            out ElementId elementId,
+            out string modelSource,
+            out string errorMessage)
         {
             elementId = ElementId.InvalidElementId;
             modelSource = string.Empty;
             errorMessage = string.Empty;
 
-            if (!(doc.GetElement(reference.ElementId) is RevitLinkInstance linkInstance))
+            RevitLinkInstance linkInstance = doc.GetElement(reference.ElementId) as RevitLinkInstance;
+            if (linkInstance == null)
             {
                 errorMessage = "The selected reference is not a valid Revit link instance.";
                 return false;
@@ -126,11 +156,17 @@ namespace AJTools.LinkedTools
             }
 
             elementId = reference.LinkedElementId;
-            modelSource = $"Linked Model: {GetCleanLinkName(linkInstance, linkDoc)}";
+            modelSource = "Linked Model: " + GetCleanLinkName(linkInstance, linkDoc);
+
             return true;
         }
 
-        private bool GetHostElementInfo(Document doc, Reference reference, out ElementId elementId, out string modelSource, out string errorMessage)
+        private bool GetHostElementInfo(
+            Document doc,
+            Reference reference,
+            out ElementId elementId,
+            out string modelSource,
+            out string errorMessage)
         {
             elementId = ElementId.InvalidElementId;
             modelSource = "Current Model";
@@ -149,9 +185,9 @@ namespace AJTools.LinkedTools
 
         private static string GetCleanLinkName(RevitLinkInstance linkInstance, Document linkDoc)
         {
-            string name = linkDoc != null && !string.IsNullOrWhiteSpace(linkDoc.Title)
+            string name = (linkDoc != null && !string.IsNullOrWhiteSpace(linkDoc.Title))
                 ? linkDoc.Title
-                : linkInstance?.Name ?? "Linked Model";
+                : (linkInstance?.Name ?? "Linked Model");
 
             int colonIndex = name.IndexOf(':');
             if (colonIndex > -1)

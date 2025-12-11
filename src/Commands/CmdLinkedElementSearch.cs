@@ -1,21 +1,22 @@
 // Tool Name: Linked Element Search
 // Description: Searches by Element ID in the host or linked models and zooms to the result.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Last Updated: 2025-12-10
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.LinkedTools.UI;
+using AJTools.UI;
 
-namespace AJTools.LinkedTools
+namespace AJTools.Commands
 {
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     public class CmdLinkedElementSearch : IExternalCommand
     {
         private const string Title = "Linked Element Search";
@@ -45,7 +46,8 @@ namespace AJTools.LinkedTools
                     return Result.Failed;
                 }
 
-                if (activeView.ViewType == ViewType.DrawingSheet || activeView.ViewType == ViewType.DraftingView)
+                if (activeView.ViewType == ViewType.DrawingSheet ||
+                    activeView.ViewType == ViewType.DraftingView)
                 {
                     TaskDialog.Show(Title, "Linked element search is not available on sheets or drafting views.");
                     return Result.Failed;

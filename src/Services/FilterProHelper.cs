@@ -7,8 +7,8 @@
 // Dependencies: Autodesk.Revit.DB, System.Linq
 using System;
 using System.Collections.Generic;
-using Autodesk.Revit.DB;
 using System.Linq;
+using Autodesk.Revit.DB;
 using AJTools.Models;
 
 namespace AJTools.Services
@@ -26,7 +26,6 @@ namespace AJTools.Services
         {
             if (doc == null)
                 throw new ArgumentNullException(nameof(doc));
-            var processedFilterIds = new List<ElementId>(); // per-call tracking
 
 #if DEBUG
             if (!doc.IsModifiable)
@@ -60,9 +59,15 @@ namespace AJTools.Services
             if (validCategoryIds.Count == 0)
                 return 0;
 
-            var solidFillId = FilterApplier.GetSolidFillId(doc);
             var creationResult = FilterCreator.CreateOrUpdateFilters(doc, selection, validCategoryIds, skipped);
-            if (creationResult?.ProcessedFilterIds != null && creationResult.ProcessedFilterIds.Any())
+            if (creationResult == null)
+            {
+                skipped?.Add("No filters were created or updated.");
+                return 0;
+            }
+
+            var processedFilterIds = new List<ElementId>();
+            if (creationResult.ProcessedFilterIds != null && creationResult.ProcessedFilterIds.Any())
             {
                 foreach (var id in creationResult.ProcessedFilterIds)
                 {
@@ -75,10 +80,16 @@ namespace AJTools.Services
                 }
             }
 
-            if (selection.ApplyToView &&
-                viewTargets.Any() &&
-                !selection.PlaceNewFiltersFirst &&
-                processedFilterIds.Any())
+            if (!selection.ApplyToView ||
+                !viewTargets.Any() ||
+                !processedFilterIds.Any())
+            {
+                return creationResult.TotalAffected;
+            }
+
+            var solidFillId = FilterApplier.GetSolidFillId(doc);
+
+            if (!selection.PlaceNewFiltersFirst)
             {
                 foreach (var view in viewTargets)
                 {
@@ -88,11 +99,7 @@ namespace AJTools.Services
                     }
                 }
             }
-
-            if (selection.PlaceNewFiltersFirst &&
-                selection.ApplyToView &&
-                processedFilterIds.Any() &&
-                viewTargets.Any())
+            else
             {
                 foreach (var view in viewTargets)
                 {
@@ -116,7 +123,7 @@ namespace AJTools.Services
                     try
                     {
                         var cat = Category.GetCategory(doc, catId);
-                        // In Revit 2020, use presence of category only. The API helper IsCategoryValidForParameterFilter is not available.
+                        // In Revit 2020, use presence of category only. IsCategoryValidForParameterFilter is not available.
                         if (cat != null)
                         {
                             validCategoryIds.Add(catId);
