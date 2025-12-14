@@ -15,7 +15,6 @@
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <UseWPF>true</UseWPF>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -61,6 +60,7 @@
   <ItemGroup>
     <Compile Include="App\App.cs" />
     <Compile Include="App\RibbonManager.cs" />
+    <Compile Include="Commands\CmdAbout.cs" />
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
     <Compile Include="Commands\CmdCopyViewRange.cs" />
@@ -68,18 +68,14 @@
     <Compile Include="Commands\CmdFilterPro.cs" />
     <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
+    <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
+    <Compile Include="Commands\CmdLinkedElementSearch.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
     <Compile Include="Commands\CmdResetDatums.cs" />
     <Compile Include="Commands\CmdResetOverrides.cs" />
     <Compile Include="Commands\CmdResetTextPosition.cs" />
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
     <Compile Include="Commands\CmdUnhideAll.cs" />
-    <Compile Include="Models\ResetDatumMode.cs" />
-    <Compile Include="Services\ResetDatumService.cs" />
-    <Compile Include="UI\ViewSelectionForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Utils\ElementIdIntegerComparer.cs" />
     <Compile Include="Models\ApplyViewItem.cs" />
     <Compile Include="Models\ColorPalette.cs" />
     <Compile Include="Models\FilterCategoryItem.cs" />
@@ -88,33 +84,46 @@
     <Compile Include="Models\FilterSelection.cs" />
     <Compile Include="Models\FilterValueItem.cs" />
     <Compile Include="Models\FilterValueKey.cs" />
+    <Compile Include="Models\LinkDisplayItem.cs" />
     <Compile Include="Models\PatternItem.cs" />
+    <Compile Include="Models\ResetDatumMode.cs" />
     <Compile Include="Models\RuleTypeItem.cs" />
     <Compile Include="Models\RuleTypes.cs" />
     <Compile Include="Models\SpecialParameterIds.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Services\AutoDimensionService.cs" />
-    <Compile Include="Services\CopyViewRangeModel.cs" />
-    <Compile Include="Services\FilterApplier.cs" />
-    <Compile Include="Services\FilterCreator.cs" />
-    <Compile Include="Services\FilterProDataProvider.cs" />
-    <Compile Include="Services\FilterProHelper.cs" />
-    <Compile Include="Services\FilterProStateTracker.cs" />
-    <Compile Include="Services\FilterReorderer.cs" />
-    <Compile Include="Services\FilterValueKeyMatcher.cs" />
-    <Compile Include="Services\RibbonManager.cs" />
-    <Compile Include="Utils\TransactionHelper.cs" />
-    <Compile Include="Utils\ValidationHelper.cs" />
+    <Compile Include="Services\AutoDimension\AutoDimensionService.cs" />
+    <Compile Include="Services\CopyViewRange\CopyViewRangeModel.cs" />
+    <Compile Include="Services\DimensionByLine\DimensionByLineService.cs" />
+    <Compile Include="Services\FilterPro\FilterApplier.cs" />
+    <Compile Include="Services\FilterPro\FilterCreator.cs" />
+    <Compile Include="Services\FilterPro\FilterProDataProvider.cs" />
+    <Compile Include="Services\FilterPro\FilterProHelper.cs" />
+    <Compile Include="Services\FilterPro\FilterProStateTracker.cs" />
+    <Compile Include="Services\FilterPro\FilterReorderer.cs" />
+    <Compile Include="Services\FilterPro\FilterValueKeyMatcher.cs" />
+    <Compile Include="Services\ResetDatums\ResetDatumService.cs" />
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\LinkedIdViewerWindow.xaml.cs">
+      <DependentUpon>LinkedIdViewerWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\LinkedSearchWindow.xaml.cs">
+      <DependentUpon>LinkedSearchWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\ViewSelectionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Utils\Constants.cs" />
+    <Compile Include="Utils\DialogHelper.cs" />
+    <Compile Include="Utils\ElementIdIntegerComparer.cs" />
+    <Compile Include="Utils\GeometryExtensions.cs" />
+    <Compile Include="Utils\SelectionFilters.cs" />
+    <Compile Include="Utils\TransactionHelper.cs" />
+    <Compile Include="Utils\ValidationHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="UI\FilterProWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ModernStyles.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -123,6 +132,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\LinkedSearchWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\ModernStyles.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -165,5 +178,7 @@
     </PropertyGroup>
     <WriteLinesToFile File="%(DeployDirs.FullPath)AJ Tools.addin" Lines="$(AddinTemplate)" Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
   </Target>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+
 </Project>
+
