@@ -26,7 +26,7 @@ namespace AJTools.Services.DimensionByLine
         /// </summary>
         internal static Result DimensionLevels(ExternalCommandData data)
         {
-            const string title = "Dimension Levels by Line";
+            const string title = "Dim By Line - Level Only";
 
             try
             {
@@ -79,11 +79,11 @@ namespace AJTools.Services.DimensionByLine
         }
 
         /// <summary>
-        /// Dimensions grids along a user-picked line in plan.
+        /// Dimensions grids along a user-picked line (plan + section/elevation supported).
         /// </summary>
         internal static Result DimensionGrids(ExternalCommandData data)
         {
-            const string title = "Dimension Grids by Line";
+            const string title = "Dim By Line - Grid Only";
 
             try
             {
@@ -100,16 +100,16 @@ namespace AJTools.Services.DimensionByLine
                 if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
                     return Result.Cancelled;
 
-                Line selectionLine = Line.CreateBound(p1, p2);
-                if (selectionLine.Length < Constants.MIN_DISTANCE_TOLERANCE)
+                var gridLines = GetGridLinesInView(doc, view);
+                if (gridLines.Count < 2)
+                    return Fail(title, "Need at least two visible grids in this view.");
+
+                if (p1.DistanceTo(p2) < Constants.MIN_DISTANCE_TOLERANCE)
                     return Result.Cancelled;
 
-                Dictionary<string, List<Grid>> gridGroups = GroupGridsByDirection(doc, view);
-                List<Grid> bestGroup = FindBestGridGroup(gridGroups, selectionLine);
-                List<Grid> gridsToDim = GetGridsToDimension(bestGroup, selectionLine);
-
+                var gridsToDim = FilterGridLines(gridLines, view, p1, p2);
                 if (gridsToDim.Count < 2)
-                    return Fail(title, "Fewer than two parallel grids were found intersecting your line.");
+                    return Fail(title, "Pick a line that crosses at least two visible grids in this view direction.");
 
                 using (Transaction t = new Transaction(doc, title))
                 {
@@ -223,135 +223,191 @@ namespace AJTools.Services.DimensionByLine
             }
         }
 
-        private static Dictionary<string, List<Grid>> GroupGridsByDirection(Document doc, View view)
+        private static List<GridLineInfo> GetGridLinesInView(Document doc, View view)
         {
             IList<Grid> grids = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(Grid))
                 .Cast<Grid>()
                 .ToList();
 
-            var groups = new Dictionary<string, List<Grid>>();
+            var results = new List<GridLineInfo>();
 
             foreach (Grid grid in grids)
             {
-                Curve c = grid.Curve;
-                if (c == null)
+                Line line = TryGetGridLineInView(grid, view);
+                if (line == null)
                     continue;
 
-                XYZ dir = c.GetCurveDirection();
-                if (dir == null)
+                XYZ startView = ToViewCoordinates(view, line.GetEndPoint(0));
+                XYZ endView = ToViewCoordinates(view, line.GetEndPoint(1));
+                XYZ dirView = new XYZ(endView.X - startView.X, endView.Y - startView.Y, 0);
+                if (dirView.IsZeroLength())
                     continue;
 
-                string key = string.Format(
-                    "{0:F" + Constants.DIRECTION_PRECISION + "},{1:F" + Constants.DIRECTION_PRECISION + "}",
-                    dir.X,
-                    dir.Y);
-
-                if (!groups.ContainsKey(key))
-                    groups[key] = new List<Grid>();
-
-                groups[key].Add(grid);
-            }
-
-            return groups;
-        }
-
-        private static List<Grid> FindBestGridGroup(Dictionary<string, List<Grid>> groups, Line selectionLine)
-        {
-            XYZ p1Flat = new XYZ(selectionLine.GetEndPoint(0).X, selectionLine.GetEndPoint(0).Y, 0);
-            XYZ p2Flat = new XYZ(selectionLine.GetEndPoint(1).X, selectionLine.GetEndPoint(1).Y, 0);
-            XYZ selectionDirFlat = (p2Flat - p1Flat).Normalize();
-
-            List<Grid> bestGroup = null;
-            double minDot = 1.0;
-
-            foreach (List<Grid> group in groups.Values)
-            {
-                if (group.Count < 2)
-                    continue;
-
-                Grid sample = group[0];
-                XYZ dir = sample.Curve.GetCurveDirection();
-                if (dir == null)
-                    continue;
-
-                XYZ dirFlat = new XYZ(dir.X, dir.Y, 0).Normalize();
-                double dot = Math.Abs(selectionDirFlat.DotProduct(dirFlat));
-
-                // We want grids that are as perpendicular as possible to the selection line
-                if (dot < minDot)
+                results.Add(new GridLineInfo
                 {
-                    minDot = dot;
-                    bestGroup = group;
-                }
+                    Grid = grid,
+                    ViewLine = line,
+                    StartView = startView,
+                    EndView = endView,
+                    DirectionView = dirView.Normalize()
+                });
             }
 
-            return bestGroup;
+            return results;
         }
 
-        private static List<Grid> GetGridsToDimension(List<Grid> gridGroup, Line selectionLine)
+        private static List<GridLineInfo> FilterGridLines(
+            List<GridLineInfo> gridLines,
+            View view,
+            XYZ pick1,
+            XYZ pick2)
         {
-            var gridsToDim = new List<Grid>();
-            if (gridGroup == null)
-                return gridsToDim;
+            var filtered = new List<GridLineInfo>();
+            if (gridLines == null || gridLines.Count == 0)
+                return filtered;
 
-            XYZ p1Flat = new XYZ(selectionLine.GetEndPoint(0).X, selectionLine.GetEndPoint(0).Y, 0);
-            XYZ p2Flat = new XYZ(selectionLine.GetEndPoint(1).X, selectionLine.GetEndPoint(1).Y, 0);
-            Line selectionFlat = Line.CreateBound(p1Flat, p2Flat);
+            XYZ p1 = ToViewCoordinates(view, pick1);
+            XYZ p2 = ToViewCoordinates(view, pick2);
+            XYZ selectionDir = new XYZ(p2.X - p1.X, p2.Y - p1.Y, 0);
+            if (selectionDir.IsZeroLength())
+                return filtered;
 
-            foreach (Grid grid in gridGroup)
+            selectionDir = selectionDir.Normalize();
+
+            foreach (GridLineInfo info in gridLines)
             {
-                Curve c = grid.Curve;
-                if (c == null)
+                info.AngleScore = Math.Abs(info.DirectionView.DotProduct(selectionDir));
+            }
+
+            double minScore = gridLines.Min(g => g.AngleScore);
+            const double dirTolerance = 0.1; // allow ~6 degrees from the best match
+
+            foreach (GridLineInfo info in gridLines)
+            {
+                if (info.AngleScore > minScore + dirTolerance)
                     continue;
 
-                if (c is Line line)
-                {
-                    XYZ gp1 = line.GetEndPoint(0);
-                    XYZ gDir = line.Direction.Normalize();
-
-                    Line testLine = Line.CreateUnbound(
-                        new XYZ(gp1.X, gp1.Y, 0),
-                        new XYZ(gDir.X, gDir.Y, 0));
-
-                    IntersectionResultArray ira;
-                    SetComparisonResult result = testLine.Intersect(selectionFlat, out ira);
-
-                    if (result == SetComparisonResult.Overlap)
-                    {
-                        gridsToDim.Add(grid);
-                    }
-                }
+                if (LinesIntersect2D(p1, p2, info.StartView, info.EndView))
+                    filtered.Add(info);
             }
 
-            return gridsToDim
-                .OrderBy(g => g.Name)
-                .ToList();
+            return filtered;
         }
 
-        private static void CreateGridDimension(Document doc, View view, List<Grid> gridsToDim, XYZ p1)
+        private static void CreateGridDimension(
+            Document doc,
+            View view,
+            List<GridLineInfo> gridsToDim,
+            XYZ anchorPoint)
         {
-            ReferenceArray refs = new ReferenceArray();
-            foreach (Grid grid in gridsToDim)
-            {
-                refs.Append(new Reference(grid));
-            }
+            if (gridsToDim == null || gridsToDim.Count < 2)
+                throw new InvalidOperationException("Need at least two grids to dimension.");
 
-            XYZ gridDir = gridsToDim[0].Curve.GetCurveDirection();
-            if (gridDir == null)
-                throw new InvalidOperationException("Cannot determine grid direction.");
+            XYZ viewNormal = view.ViewDirection.Normalize();
+            XYZ gridDir = gridsToDim[0].ViewLine.Direction.Normalize();
 
-            XYZ dimDir = gridDir.CrossProduct(XYZ.BasisZ);
+            XYZ dimDir = gridDir.CrossProduct(viewNormal);
             if (dimDir.IsZeroLength())
-                throw new InvalidOperationException("Cannot determine a perpendicular direction for the dimension line.");
+                dimDir = view.RightDirection;
 
             dimDir = dimDir.Normalize();
+            double anchorCoord = anchorPoint.DotProduct(dimDir);
 
-            XYZ dimStart = p1;
-            XYZ dimEnd = p1 + dimDir * 10.0; // 10 feet offset in model units
-            Line dimLine = Line.CreateBound(dimStart, dimEnd);
+            foreach (GridLineInfo info in gridsToDim)
+            {
+                XYZ mid = (info.ViewLine.GetEndPoint(0) + info.ViewLine.GetEndPoint(1)) * 0.5;
+                info.SortCoord = mid.DotProduct(dimDir);
+            }
 
-            doc.Create.NewDimension(view, dimLine, refs);
+            gridsToDim = gridsToDim
+                .OrderBy(g => g.SortCoord)
+                .ToList();
+
+            ReferenceArray refs = new ReferenceArray();
+            foreach (GridLineInfo info in gridsToDim)
+                refs.Append(new Reference(info.Grid));
+
+            double minCoord = gridsToDim.First().SortCoord;
+            double maxCoord = gridsToDim.Last().SortCoord;
+            double padding = 1.0; // 1 ft padding beyond the outermost grids
+
+            XYZ dimStart = anchorPoint + dimDir * (minCoord - anchorCoord - padding);
+            XYZ dimEnd = anchorPoint + dimDir * (maxCoord - anchorCoord + padding);
+
+            doc.Create.NewDimension(view, Line.CreateBound(dimStart, dimEnd), refs);
+        }
+
+        private static Line TryGetGridLineInView(Grid grid, View view)
+        {
+            IList<Curve> curves = null;
+            try
+            {
+                curves = grid.GetCurvesInView(DatumExtentType.ViewSpecific, view);
+            }
+            catch
+            {
+                // ignore and fall back
+            }
+
+            if (curves == null || curves.Count == 0)
+            {
+                try
+                {
+                    curves = grid.GetCurvesInView(DatumExtentType.Model, view);
+                }
+                catch
+                {
+                    curves = null;
+                }
+            }
+
+            return curves?.OfType<Line>().FirstOrDefault();
+        }
+
+        private static XYZ ToViewCoordinates(View view, XYZ point)
+        {
+            XYZ origin = view.Origin;
+            XYZ delta = point - origin;
+            XYZ right = view.RightDirection.Normalize();
+            XYZ up = view.UpDirection.Normalize();
+            XYZ normal = view.ViewDirection.Normalize();
+
+            double x = delta.DotProduct(right);
+            double y = delta.DotProduct(up);
+            double z = delta.DotProduct(normal);
+
+            return new XYZ(x, y, z);
+        }
+
+        private static bool LinesIntersect2D(XYZ a0, XYZ a1, XYZ b0, XYZ b1)
+        {
+            double ax = a1.X - a0.X;
+            double ay = a1.Y - a0.Y;
+            double bx = b1.X - b0.X;
+            double by = b1.Y - b0.Y;
+
+            double denom = ax * by - ay * bx;
+            if (Math.Abs(denom) < Constants.ZERO_LENGTH_TOLERANCE)
+                return false;
+
+            double t = ((b0.X - a0.X) * by - (b0.Y - a0.Y) * bx) / denom;
+            double u = ((b0.X - a0.X) * ay - (b0.Y - a0.Y) * ax) / denom;
+
+            const double intersectTol = 0.05; // allow slightly outside the picked segment
+            return t >= -intersectTol && t <= 1 + intersectTol &&
+                   u >= -intersectTol && u <= 1 + intersectTol;
+        }
+
+        private class GridLineInfo
+        {
+            public Grid Grid { get; set; }
+            public Line ViewLine { get; set; }
+            public XYZ StartView { get; set; }
+            public XYZ EndView { get; set; }
+            public XYZ DirectionView { get; set; }
+            public double SortCoord { get; set; }
+            public double AngleScore { get; set; }
         }
 
         private static Result Fail(string title, string message)

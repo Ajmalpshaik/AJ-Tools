@@ -93,9 +93,9 @@ namespace AJTools.App
             CreatePushButton(autoDimsPulldown, "Levels Only", "Create level dimension strings in section or elevation views.", typeof(CmdAutoDimensionsLevels), dimensionsIcon);
             CreatePushButton(autoDimsPulldown, "Grids + Levels", "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.", typeof(CmdAutoDimensions), dimensionsIcon);
 
-            var dimsByLinePulldown = CreatePulldownButton(panel, "Dims by\nLine", "Pick two points to place grid or level dimensions along a custom line.", dimByLineIcon);
-            CreatePushButton(dimsByLinePulldown, "Grids by Line", "Create a dimension string across intersecting grids using a picked line.", typeof(CmdDimensionGridsByLine), dimByLineIcon);
-            CreatePushButton(dimsByLinePulldown, "Levels by Line", "Create a dimension string across levels within the picked vertical range.", typeof(CmdDimensionLevelsByLine), dimByLineIcon);
+            var dimsByLinePulldown = CreatePulldownButton(panel, "Dim By\nLine", "Pick two points to place grid or level dimensions along a custom line.", dimByLineIcon);
+            CreatePushButton(dimsByLinePulldown, "Dim By Line\nGrid Only", "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).", typeof(CmdDimensionGridsByLine), dimByLineIcon);
+            CreatePushButton(dimsByLinePulldown, "Dim By Line\nLevel Only", "Create a dimension string across levels within the picked vertical range.", typeof(CmdDimensionLevelsByLine), dimByLineIcon);
 
             CreatePushButton(panel, "Copy Dim\nText", "Copy Above/Below/Prefix/Suffix text from one dimension to others.", typeof(CmdCopyDimensionText), copyDimTextIcon);
         }

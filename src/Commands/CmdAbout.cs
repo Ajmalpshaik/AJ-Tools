@@ -27,19 +27,19 @@ namespace AJTools.Commands
             ElementSet elements)
         {
             TaskDialog about = new TaskDialog("About AJ Tools");
-            about.MainInstruction = "AJ Tools - Revit 2020 Companion";
+            about.MainInstruction = "AJ Tools for Revit 2020";
             about.MainContent =
-                "A lightweight toolkit focused on day-to-day documentation productivity.\n\n" +
+                "Lightweight productivity tools for daily documentation.\n\n" +
                 "Highlights:\n" +
-                "  - Graphics helpers (toggle links, unhide all, reset overrides)\n" +
-                "  - Documentation helpers (auto dimension grids/levels, datum reset)\n" +
-                "  - Designed specifically around Ajmal P.S workflows\n\n" +
-                "Have an idea or found a bug? Reach out anytime.";
+                "- Graphics: toggle links, unhide all, reset overrides\n" +
+                "- Dimensions: auto/grid/level tools, dim by line\n" +
+                "- Datums: reset grids/levels back to 3D extents\n\n" +
+                "Feedback and ideas are welcome.";
 
             string url = "https://www.linkedin.com/in/ajmalps/";
 
             about.FooterText =
-                "Developed by Ajmal P.S  -  ajmalnattika@gmail.com  -  LinkedIn Profile";
+                "Ajmal P.S  |  ajmalnattika@gmail.com  |  LinkedIn (opens in browser)";
 
             // Provide an explicit command link so the user can open the profile if they choose.
             about.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open LinkedIn profile");

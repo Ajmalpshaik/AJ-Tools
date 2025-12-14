@@ -29,7 +29,7 @@ namespace AJTools.Commands
     }
 
     /// <summary>
-    /// Dimensions grids along a user-picked line in plan views.
+    /// Dimensions grids along a user-picked line (plan, section, or elevation).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdDimensionGridsByLine : IExternalCommand
@@ -43,4 +43,3 @@ namespace AJTools.Commands
         }
     }
 }
-

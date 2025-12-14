@@ -16,11 +16,11 @@
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen"
         WindowStyle="ToolWindow"
-        Background="{StaticResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="../../ModernStyles.xaml"/>
+                <ResourceDictionary Source="ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
