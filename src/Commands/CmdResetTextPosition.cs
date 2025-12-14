@@ -1,7 +1,7 @@
 // Tool Name: Reset Text Position
-// Description: Centers selected text notes or labels in the active annotation family view.
+// Description: Centers selected annotations in the active family view.
 // Author: Ajmal P.S.
-// Version: 1.0.2
+// Version: 1.0.3
 // Last Updated: 2025-12-14
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
@@ -17,14 +17,14 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Centers selected text notes or labels in the active annotation family view.
+    /// Centers selected annotations (text, labels, symbols, tag graphics) in the active annotation family view.
     /// Works only inside editable annotation families.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdResetTextPosition : IExternalCommand
     {
         /// <summary>
-        /// Centers supported text elements relative to the active family view extents.
+        /// Centers supported elements relative to the active family view extents.
         /// </summary>
         public Result Execute(
             ExternalCommandData commandData,
@@ -62,7 +62,7 @@ namespace AJTools.Commands
             {
                 DialogHelper.ShowError(
                     "Center Text/Label",
-                    "Select one or more text notes, labels, or symbols in the family view, then run the command.");
+                    "Select one or more movable annotations (text notes, labels, symbols, or tag graphics) in the family view, then run the command.");
                 return Result.Cancelled;
             }
 
@@ -92,7 +92,7 @@ namespace AJTools.Commands
                     if (element == null)
                         continue;
 
-                    if (CenterElement(element, viewCenter))
+                    if (CenterElement(doc, element, view, viewCenter))
                     {
                         centeredCount++;
                     }
@@ -105,7 +105,7 @@ namespace AJTools.Commands
             {
                 DialogHelper.ShowError(
                     "Center Text/Label",
-                    "The selection did not contain movable text notes, labels, or symbols.");
+                    "The selection did not contain elements that can be centered in this family view.");
                 return Result.Cancelled;
             }
 
@@ -117,36 +117,86 @@ namespace AJTools.Commands
         }
 
         /// <summary>
-        /// Centers only elements that have a LocationPoint (text notes, labels, symbols, etc.).
+        /// Moves an element so its center aligns with the given view center.
+        /// Handles elements with a location point or any element with a bounding box.
+        /// Returns true when the element is movable (even if already centered) so
+        /// the caller can report success instead of an empty selection.
         /// </summary>
-        private static bool CenterElement(Element element, XYZ viewCenter)
+        private static bool CenterElement(Document doc, Element element, View view, XYZ viewCenter)
         {
-            if (element?.Location is LocationPoint locationPoint)
-            {
-                return CenterLocationPoint(locationPoint, viewCenter);
-            }
+            if (doc == null || element == null || viewCenter == null)
+                return false;
 
-            // Ignore everything else (lines, regions, detail groups, etc.)
-            return false;
+            if (element.Pinned)
+                return false;
+
+            XYZ currentCenter = TryGetElementCenter(element, view);
+            if (currentCenter == null)
+                return false;
+
+            // Keep the existing Z to respect the family work plane.
+            XYZ move = new XYZ(
+                viewCenter.X - currentCenter.X,
+                viewCenter.Y - currentCenter.Y,
+                0);
+
+            // Already centered - count as handled so the user is not shown an error dialog.
+            if (move.GetLength() < 1e-6)
+                return true;
+
+            try
+            {
+                ElementTransformUtils.MoveElement(doc, element.Id, move);
+                return true;
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            {
+                return false;
+            }
+            catch (Autodesk.Revit.Exceptions.ArgumentException)
+            {
+                return false;
+            }
         }
 
-        private static bool CenterLocationPoint(LocationPoint locationPoint, XYZ viewCenter)
+        /// <summary>
+        /// Finds the geometric center of an element. Prefers its LocationPoint;
+        /// falls back to the bounding box center in view coordinates.
+        /// </summary>
+        private static XYZ TryGetElementCenter(Element element, View view)
         {
-            if (locationPoint == null || viewCenter == null)
-                return false;
+            if (element?.Location is LocationPoint locationPoint && locationPoint.Point != null)
+            {
+                return locationPoint.Point;
+            }
 
-            XYZ current = locationPoint.Point;
-            if (current == null)
-                return false;
+            BoundingBoxXYZ box = null;
 
-            // Keep the same Z (family work plane), only move in X/Y to the view center.
-            XYZ target = new XYZ(viewCenter.X, viewCenter.Y, current.Z);
+            try
+            {
+                // Use a view-aware bounding box when possible for annotations.
+                if (view != null)
+                {
+                    box = element.get_BoundingBox(view);
+                }
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            {
+                // Some elements do not support a view-specific bounding box.
+            }
 
-            if (current.IsAlmostEqualTo(target))
-                return false;
+            if (box == null)
+            {
+                box = element.get_BoundingBox(null);
+            }
 
-            locationPoint.Point = target;
-            return true;
+            if (box == null || box.Min == null || box.Max == null)
+                return null;
+
+            XYZ localCenter = box.Min.Add(box.Max).Multiply(0.5);
+            Transform transform = box.Transform ?? Transform.Identity;
+
+            return transform.OfPoint(localCenter);
         }
 
         /// <summary>
