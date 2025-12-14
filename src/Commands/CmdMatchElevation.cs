@@ -89,7 +89,7 @@ namespace AJTools.Commands
                                 t.RollBack();
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
                             if (t.HasStarted() && !t.HasEnded())
                                 t.RollBack();
