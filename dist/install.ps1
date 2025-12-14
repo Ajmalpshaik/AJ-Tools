@@ -38,7 +38,7 @@ $addinXml = @"
   <AddIn Type="Application">
     <Name>AJ Tools</Name>
     <AddInId>{C14A253D-96C6-42B7-889A-CFE737556BA9}</AddInId>
-    <FullClassName>AJTools.App</FullClassName>
+    <FullClassName>AJTools.App.App</FullClassName>
     <Assembly>$assemblyPath</Assembly>
     <VendorId>AJT</VendorId>
     <VendorDescription>Ajmal P.S - ajmalnattika@gmail.com</VendorDescription>

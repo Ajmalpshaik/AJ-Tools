@@ -1,8 +1,8 @@
 // Tool Name: Reset Text Position
-// Description: Centers selected text notes or labels in the active family view.
+// Description: Centers selected text notes or labels in the active annotation family view.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-11
+// Version: 1.0.2
+// Last Updated: 2025-12-14
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 
@@ -17,7 +17,8 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Centers selected text notes or labels in the active family view.
+    /// Centers selected text notes or labels in the active annotation family view.
+    /// Works only inside editable annotation families.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdResetTextPosition : IExternalCommand
@@ -39,22 +40,29 @@ namespace AJTools.Commands
                 return Result.Failed;
             }
 
-            if (!ValidationHelper.ValidateEditableDocument(doc, out message))
-            {
-                DialogHelper.ShowError("Center Text/Label", message);
-                return Result.Failed;
-            }
-
+            // This tool is meant only for annotation / tag families.
             if (!doc.IsFamilyDocument)
             {
-                DialogHelper.ShowError("Center Text/Label", "Run this tool inside a family document.");
+                DialogHelper.ShowError(
+                    "Center Text/Label",
+                    "Run this tool inside an annotation family.");
+                return Result.Cancelled;
+            }
+
+            if (doc.IsReadOnly)
+            {
+                DialogHelper.ShowError(
+                    "Center Text/Label",
+                    "The family is read-only. Open an editable copy and try again.");
                 return Result.Cancelled;
             }
 
             ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
             if (selectedIds == null || selectedIds.Count == 0)
             {
-                DialogHelper.ShowError("Center Text/Label", "Select one or more text notes or labels in the family view, then run the command.");
+                DialogHelper.ShowError(
+                    "Center Text/Label",
+                    "Select one or more text notes, labels, or symbols in the family view, then run the command.");
                 return Result.Cancelled;
             }
 
@@ -84,7 +92,7 @@ namespace AJTools.Commands
                     if (element == null)
                         continue;
 
-                    if (CenterElement(element, view, viewCenter))
+                    if (CenterElement(element, viewCenter))
                     {
                         centeredCount++;
                     }
@@ -95,115 +103,62 @@ namespace AJTools.Commands
 
             if (centeredCount == 0)
             {
-                DialogHelper.ShowError("Center Text/Label", "The selection did not contain movable text notes or labels.");
+                DialogHelper.ShowError(
+                    "Center Text/Label",
+                    "The selection did not contain movable text notes, labels, or symbols.");
                 return Result.Cancelled;
             }
 
-            DialogHelper.ShowInfo("Center Text/Label", $"Centered {centeredCount} item(s) in the active family view.");
+            DialogHelper.ShowInfo(
+                "Center Text/Label",
+                $"Centered {centeredCount} item(s) in the active family view.");
+
             return Result.Succeeded;
         }
 
-        private static bool CenterElement(Element element, View view, XYZ viewCenter)
+        /// <summary>
+        /// Centers only elements that have a LocationPoint (text notes, labels, symbols, etc.).
+        /// </summary>
+        private static bool CenterElement(Element element, XYZ viewCenter)
         {
-            if (element is IndependentTag tag)
-                return CenterTag(tag, view, viewCenter);
+            if (element?.Location is LocationPoint locationPoint)
+            {
+                return CenterLocationPoint(locationPoint, viewCenter);
+            }
 
-            if (element.Location is LocationPoint locationPoint)
-                return CenterLocationPoint(locationPoint, view, viewCenter);
-
+            // Ignore everything else (lines, regions, detail groups, etc.)
             return false;
         }
 
-        private static bool CenterTag(IndependentTag tag, View view, XYZ viewCenter)
+        private static bool CenterLocationPoint(LocationPoint locationPoint, XYZ viewCenter)
         {
-            if (tag == null)
+            if (locationPoint == null || viewCenter == null)
                 return false;
 
-            XYZ target = AlignToViewPlane(view, tag.TagHeadPosition, viewCenter);
-            if (target == null || tag.TagHeadPosition.IsAlmostEqualTo(target))
+            XYZ current = locationPoint.Point;
+            if (current == null)
                 return false;
 
-            tag.TagHeadPosition = target;
-            return true;
-        }
+            // Keep the same Z (family work plane), only move in X/Y to the view center.
+            XYZ target = new XYZ(viewCenter.X, viewCenter.Y, current.Z);
 
-        private static bool CenterLocationPoint(LocationPoint locationPoint, View view, XYZ viewCenter)
-        {
-            if (locationPoint == null)
-                return false;
-
-            XYZ target = AlignToViewPlane(view, locationPoint.Point, viewCenter);
-            if (target == null || locationPoint.Point.IsAlmostEqualTo(target))
+            if (current.IsAlmostEqualTo(target))
                 return false;
 
             locationPoint.Point = target;
             return true;
         }
 
-        private static XYZ AlignToViewPlane(View view, XYZ current, XYZ viewCenter)
-        {
-            if (view == null || current == null || viewCenter == null)
-                return null;
-
-            XYZ viewDirection = view.ViewDirection;
-            if (viewDirection == null || viewDirection.GetLength() < 1e-9)
-                return viewCenter;
-
-            XYZ normal = viewDirection.Normalize();
-            double depth = normal.DotProduct(current.Subtract(viewCenter));
-
-            return viewCenter.Add(normal.Multiply(depth));
-        }
-
-        private static XYZ ResolveViewCenter(View view)
-        {
-            if (view == null)
-                return null;
-
-            BoundingBoxXYZ box = null;
-
-            if (view is View3D view3D && view3D.IsSectionBoxActive)
-            {
-                box = view3D.GetSectionBox();
-            }
-
-            if (box == null)
-            {
-                try
-                {
-                    box = view.CropBox;
-                }
-                catch (InvalidOperationException)
-                {
-                    // Crop boxes are not available for some view types.
-                }
-            }
-
-            if (box == null)
-            {
-                box = view.get_BoundingBox(null);
-            }
-
-            if (box == null)
-                return null;
-
-            // Ensure Min and Max are valid before attempting to calculate center
-            if (box.Min == null || box.Max == null)
-                return null;
-
-            XYZ localCenter = box.Min.Add(box.Max).Multiply(0.5);
-            Transform transform = box.Transform ?? Transform.Identity;
-
-            return transform.OfPoint(localCenter);
-        }
-
+        /// <summary>
+        /// Resolves the active family view. For annotation/tag families this is usually
+        /// the single working view where the label/text is visible.
+        /// </summary>
         private static View ResolveFamilyView(UIDocument uidoc)
         {
             if (uidoc == null)
                 return null;
 
             Document doc = uidoc.Document;
-
             if (doc == null)
                 return null;
 
@@ -211,7 +166,7 @@ namespace AJTools.Commands
             if (view != null)
                 return view;
 
-            // Annotation/tag families expose a single non-template 2D view.
+            // Fallback: pick the first non-template 2D view.
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
@@ -221,6 +176,41 @@ namespace AJTools.Commands
                     v.ViewType != ViewType.Undefined &&
                     v.ViewType != ViewType.Schedule)
                 .FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Finds the geometric center of the view extents (crop box or bounding box).
+        /// This gives us a "view centre" point in model coordinates.
+        /// </summary>
+        private static XYZ ResolveViewCenter(View view)
+        {
+            if (view == null)
+                return null;
+
+            BoundingBoxXYZ box = null;
+
+            try
+            {
+                // Annotation family views normally have a crop box.
+                box = view.CropBox;
+            }
+            catch (InvalidOperationException)
+            {
+                // Some view types may not expose a crop box.
+            }
+
+            if (box == null)
+            {
+                box = view.get_BoundingBox(null);
+            }
+
+            if (box == null || box.Min == null || box.Max == null)
+                return null;
+
+            XYZ localCenter = box.Min.Add(box.Max).Multiply(0.5);
+            Transform transform = box.Transform ?? Transform.Identity;
+
+            return transform.OfPoint(localCenter);
         }
     }
 }

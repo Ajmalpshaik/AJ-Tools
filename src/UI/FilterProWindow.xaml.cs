@@ -30,6 +30,8 @@ namespace AJTools.UI
 
         private readonly List<FilterValueItem> _currentValues = new List<FilterValueItem>();
         private bool _restoringState;
+        private bool _isLoadingParameters;
+        private bool _isLoadingValues;
         private List<ApplyViewItem> _allViews = new List<ApplyViewItem>();
         private List<PatternItem> _patterns = new List<PatternItem>();
         private bool _madeChanges;
@@ -71,12 +73,14 @@ namespace AJTools.UI
             // List selection changes
             categories_listbox.SelectionChanged += async (s, e) =>
             {
+                if (_restoringState) return;
                 await LoadParameters();
                 UpdateNamePreview();
             };
 
             parameters_listbox.SelectionChanged += async (s, e) =>
             {
+                if (_restoringState) return;
                 await LoadValues();
                 UpdateNamePreview();
             };
@@ -690,36 +694,34 @@ namespace AJTools.UI
 
         private async Task LoadParameters()
         {
-            loading_indicator.Visibility = global::System.Windows.Visibility.Visible;
+            if (_isLoadingParameters)
+                return;
+
+            _isLoadingParameters = true;
+            loading_indicator.Visibility = System.Windows.Visibility.Visible;
             try
             {
-                var selectedCategories = await Task.Run(() =>
-                    Dispatcher.Invoke(() =>
-                        categories_listbox.SelectedItems
-                            .Cast<FilterCategoryItem>()
-                            .ToList()));
+                var selectedCategories = categories_listbox.SelectedItems
+                    .Cast<FilterCategoryItem>()
+                    .ToList();
 
                 if (!selectedCategories.Any())
                 {
-                    await Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        parameters_listbox.ItemsSource = null;
-                        values_listbox.ItemsSource = null;
-                        UpdateStatus("Select one or more categories.");
-                    }));
+                    parameters_listbox.ItemsSource = null;
+                    values_listbox.ItemsSource = null;
+                    UpdateStatus("Select one or more categories.");
                     return;
                 }
 
-                var catIds = selectedCategories.Select(c => c.Id).ToList();
-                var parameters = await Task.Run(() => _dataProvider.GetParametersForCategories(catIds));
+                await Task.Yield(); // Let the UI render the loading overlay.
 
-                await Dispatcher.BeginInvoke(new Action(async () =>
-                {
-                    parameters_listbox.ItemsSource = parameters;
-                    parameters_listbox.DisplayMemberPath = "Name";
-                    UpdateStatus("Select a parameter to load its values.");
-                    await LoadValues();
-                }));
+                var catIds = selectedCategories.Select(c => c.Id).ToList();
+                var parameters = _dataProvider.GetParametersForCategories(catIds);
+
+                parameters_listbox.ItemsSource = parameters;
+                parameters_listbox.DisplayMemberPath = "Name";
+                UpdateStatus("Select a parameter to load its values.");
+                await LoadValues();
             }
             catch (Exception ex)
             {
@@ -727,25 +729,27 @@ namespace AJTools.UI
             }
             finally
             {
-                loading_indicator.Visibility = global::System.Windows.Visibility.Collapsed;
+                _isLoadingParameters = false;
+                loading_indicator.Visibility = System.Windows.Visibility.Collapsed;
             }
         }
 
         private async Task LoadValues()
         {
+            if (_isLoadingValues)
+                return;
+
+            _isLoadingValues = true;
             values_listbox.ItemsSource = null;
-            loading_indicator.Visibility = global::System.Windows.Visibility.Visible;
+            loading_indicator.Visibility = System.Windows.Visibility.Visible;
 
             try
             {
-                var param = await Task.Run(() =>
-                    Dispatcher.Invoke(() => parameters_listbox.SelectedItem as FilterParameterItem));
-                var catIds = await Task.Run(() =>
-                    Dispatcher.Invoke(() =>
-                        categories_listbox.SelectedItems
-                            .Cast<FilterCategoryItem>()
-                            .Select(c => c.Id)
-                            .ToList()));
+                var param = parameters_listbox.SelectedItem as FilterParameterItem;
+                var catIds = categories_listbox.SelectedItems
+                    .Cast<FilterCategoryItem>()
+                    .Select(c => c.Id)
+                    .ToList();
 
                 if (param == null || !catIds.Any())
                 {
@@ -754,28 +758,21 @@ namespace AJTools.UI
                 }
 
                 UpdateStatus("Collecting values...");
+                await Task.Yield(); // Keep work on the Revit UI thread while showing progress.
 
-                bool hitScanLimit = false;
-                var collectedValues = await Task.Run(() =>
-                {
-                    var values = _dataProvider.GetValues(param, catIds, out bool hitLimit);
-                    hitScanLimit = hitLimit;
-                    return values;
-                });
+                bool hitScanLimit;
+                var collectedValues = _dataProvider.GetValues(param, catIds, out hitScanLimit);
 
                 _currentValues.Clear();
                 _currentValues.AddRange(collectedValues);
 
-                await Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    values_listbox.ItemsSource = collectedValues;
-                    values_listbox.DisplayMemberPath = "Display";
+                values_listbox.ItemsSource = collectedValues;
+                values_listbox.DisplayMemberPath = "Display";
 
-                    if (hitScanLimit)
-                        UpdateStatus($"Loaded {collectedValues.Count} unique value(s). Stopped after scanning 10,000 elements for performance.");
-                    else
-                        UpdateStatus($"Loaded {collectedValues.Count} unique value(s).");
-                }));
+                if (hitScanLimit)
+                    UpdateStatus($"Loaded {collectedValues.Count} unique value(s). Stopped after scanning 10,000 elements for performance.");
+                else
+                    UpdateStatus($"Loaded {collectedValues.Count} unique value(s).");
             }
             catch (Exception ex)
             {
@@ -783,7 +780,8 @@ namespace AJTools.UI
             }
             finally
             {
-                loading_indicator.Visibility = global::System.Windows.Visibility.Collapsed;
+                _isLoadingValues = false;
+                loading_indicator.Visibility = System.Windows.Visibility.Collapsed;
             }
         }
 
