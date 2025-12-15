@@ -45,6 +45,22 @@ namespace AJTools.Utils
     }
 
     /// <summary>
+    /// Selection filter for text notes.
+    /// </summary>
+    internal class TextNoteSelectionFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            return elem is TextNote;
+        }
+
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Selection filter for MEP curve elements (pipes, ducts, cable trays, conduits, flex curves).
     /// </summary>
     internal class MepSelectionFilter : ISelectionFilter

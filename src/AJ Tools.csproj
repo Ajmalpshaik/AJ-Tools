@@ -63,6 +63,7 @@
     <Compile Include="Commands\CmdAbout.cs" />
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
+    <Compile Include="Commands\CmdCopyText.cs" />
     <Compile Include="Commands\CmdCopyViewRange.cs" />
     <Compile Include="Commands\CmdDimensionByLine.cs" />
     <Compile Include="Commands\CmdFilterPro.cs" />
@@ -74,6 +75,7 @@
     <Compile Include="Commands\CmdResetDatums.cs" />
     <Compile Include="Commands\CmdResetOverrides.cs" />
     <Compile Include="Commands\CmdResetTextPosition.cs" />
+    <Compile Include="Commands\CmdSwapText.cs" />
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
     <Compile Include="Commands\CmdUnhideAll.cs" />
     <Compile Include="Models\ApplyViewItem.cs" />
@@ -181,4 +183,3 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 
 </Project>
-

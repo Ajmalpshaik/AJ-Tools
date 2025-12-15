@@ -136,7 +136,15 @@ namespace AJTools.App
         {
             var panel = GetOrCreatePanel("Annotations");
             var resetTextIcon = LoadIcon("Rest Position.png");
+            var copySwapIcon = LoadIcon("copyswaptext.png");
+            var copyIcon = LoadIcon("copy.png");
+            var swapIcon = LoadIcon("shuffle.png");
+
             CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), resetTextIcon);
+
+            var copySwapPulldown = CreatePulldownButton(panel, "Copy Swap\nText", "Copy or swap text values between text notes.", copySwapIcon);
+            CreatePushButton(copySwapPulldown, "Copy Text", "Copy the text value from one text note to others (click targets until ESC).", typeof(CmdCopyText), copyIcon);
+            CreatePushButton(copySwapPulldown, "Swap Text", "Swap the text values between two picked text notes (one-time).", typeof(CmdSwapText), swapIcon);
         }
 
         private void CreateInfoPanel()
@@ -232,7 +240,7 @@ namespace AJTools.App
 
         private BitmapImage LoadIcon(string fileName)
         {
-            var path = Path.Combine(_assemblyFolder, "Images", fileName);
+            var path = Path.Combine(_assemblyFolder, "Resources", fileName);
             if (!File.Exists(path))
             {
                 return null;
