@@ -76,6 +76,8 @@ namespace AJTools.Services.CopyViewRange
                 : ElementId.InvalidElementId;
 
             int sourceLevelIndex = levelIds.IndexOf(sourceLevelId);
+            if (sourceLevelIndex < 0)
+                throw new InvalidOperationException("Could not find the current view's level in the project.");
 
             ElementId levelAboveId = ElementId.InvalidElementId;
             ElementId levelBelowId = ElementId.InvalidElementId;
@@ -108,23 +110,19 @@ namespace AJTools.Services.CopyViewRange
                     Offset = offset
                 };
 
-                // For Bottom & ViewDepth we ALWAYS treat as Absolute, so they copy exactly.
-                bool forceAbsolute = (plane == PlanViewPlane.BottomClipPlane ||
-                                      plane == PlanViewPlane.ViewDepthPlane);
-
                 if (planeLevelId == ElementId.InvalidElementId)
                 {
                     data.Relationship = LevelRelationship.None;
                 }
-                else if (!forceAbsolute && planeLevelId == sourceLevelId)
+                else if (planeLevelId == sourceLevelId)
                 {
                     data.Relationship = LevelRelationship.Associated;
                 }
-                else if (!forceAbsolute && planeLevelId == levelAboveId)
+                else if (planeLevelId == levelAboveId)
                 {
                     data.Relationship = LevelRelationship.Above;
                 }
-                else if (!forceAbsolute && planeLevelId == levelBelowId)
+                else if (planeLevelId == levelBelowId)
                 {
                     data.Relationship = LevelRelationship.Below;
                 }
@@ -144,7 +142,7 @@ namespace AJTools.Services.CopyViewRange
         /// Apply the stored view range to the given target plan view,
         /// with detailed reasons if the view range is read-only.
         /// </summary>
-        public void ApplyTo(ViewPlan targetView)
+        public bool TryApplyTo(ViewPlan targetView, out string skipReason)
         {
             if (targetView == null)
                 throw new ArgumentNullException(nameof(targetView));
@@ -181,7 +179,8 @@ namespace AJTools.Services.CopyViewRange
                     }
                 }
 
-                throw new InvalidOperationException(reason);
+                skipReason = reason;
+                return false;
             }
 
             // Collect all Levels sorted by elevation.
@@ -199,7 +198,10 @@ namespace AJTools.Services.CopyViewRange
 
             int destLevelIndex = levelIds.IndexOf(destLevelId);
             if (destLevelIndex < 0)
-                throw new InvalidOperationException("Could not find target view's level in project levels.");
+            {
+                skipReason = "Could not find target view's level in project levels.";
+                return false;
+            }
 
             ElementId destLevelAboveId = ElementId.InvalidElementId;
             ElementId destLevelBelowId = ElementId.InvalidElementId;
@@ -251,6 +253,14 @@ namespace AJTools.Services.CopyViewRange
             }
 
             targetView.SetViewRange(vr);
+            skipReason = null;
+            return true;
+        }
+
+        public void ApplyTo(ViewPlan targetView)
+        {
+            if (!TryApplyTo(targetView, out string skipReason))
+                throw new InvalidOperationException(skipReason);
         }
     }
 }

@@ -31,6 +31,7 @@ namespace AJTools.Commands
 
         // Session cache (like an in-memory clipboard)
         private static ViewRangeSnapshot _cachedSnapshot;
+        private static Document _cachedDocument;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -51,8 +52,9 @@ namespace AJTools.Commands
                 return Result.Failed;
             }
 
-            // Show menu depending on whether we already have a cached snapshot
-            TaskDialogResult choice = ShowActionDialog(_cachedSnapshot != null);
+            // Show menu depending on whether we already have a cached snapshot for this document
+            bool hasCache = HasValidCache(doc);
+            TaskDialogResult choice = ShowActionDialog(hasCache);
             if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
@@ -101,6 +103,7 @@ namespace AJTools.Commands
             try
             {
                 _cachedSnapshot = ViewRangeSnapshot.From(activePlan);
+                _cachedDocument = activePlan.Document;
                 TaskDialog.Show(Title, $"View range copied from '{activePlan.Name}'.");
                 return Result.Succeeded;
             }
@@ -113,21 +116,26 @@ namespace AJTools.Commands
 
         private static Result DoPasteToActive(Document doc, ViewPlan activePlan)
         {
-            if (_cachedSnapshot == null)
+            if (!HasValidCache(doc))
             {
-                TaskDialog.Show(Title, "Nothing copied yet. Copy a view range first.");
+                TaskDialog.Show(Title, "Nothing copied yet in this document. Copy a view range first.");
                 return Result.Cancelled;
             }
+
+            int appliedCount = 0;
+            var skippedViews = new List<string>();
 
             using (var t = new Transaction(doc, "Copy View Range - Active View"))
             {
                 t.Start();
                 try
                 {
-                    _cachedSnapshot.ApplyTo(activePlan);
+                    if (_cachedSnapshot.TryApplyTo(activePlan, out _))
+                        appliedCount = 1;
+                    else
+                        skippedViews.Add(activePlan.Name);
+
                     t.Commit();
-                    TaskDialog.Show(Title, $"View range applied to active view '{activePlan.Name}'.");
-                    return Result.Succeeded;
                 }
                 catch (Exception ex)
                 {
@@ -136,13 +144,16 @@ namespace AJTools.Commands
                     return Result.Failed;
                 }
             }
+
+            TaskDialog.Show(Title, BuildPasteSummary(appliedCount, skippedViews));
+            return appliedCount > 0 ? Result.Succeeded : Result.Cancelled;
         }
 
         private static Result DoPasteToMultiple(Document doc, ViewPlan activePlan)
         {
-            if (_cachedSnapshot == null)
+            if (!HasValidCache(doc))
             {
-                TaskDialog.Show(Title, "Nothing copied yet. Copy a view range first.");
+                TaskDialog.Show(Title, "Nothing copied yet in this document. Copy a view range first.");
                 return Result.Cancelled;
             }
 
@@ -164,60 +175,41 @@ namespace AJTools.Commands
                 selectedViews = form.SelectedViews;
             }
 
-            IList<ViewPlan> targets = FilterTargets(activePlan, selectedViews);
+            IList<ViewPlan> targets = FilterTargets(selectedViews);
             if (targets.Count == 0)
             {
                 TaskDialog.Show(Title, "No target plan views were selected.");
                 return Result.Cancelled;
             }
 
-            var failures = new List<string>();
             int appliedCount = 0;
+            var skippedViews = new List<string>();
 
             using (var t = new Transaction(doc, "Copy View Range - Multiple Views"))
             {
                 t.Start();
-
-                foreach (ViewPlan plan in targets)
+                try
                 {
-                    try
+                    foreach (ViewPlan plan in targets)
                     {
-                        _cachedSnapshot.ApplyTo(plan);
-                        appliedCount++;
+                        if (_cachedSnapshot.TryApplyTo(plan, out _))
+                            appliedCount++;
+                        else
+                            skippedViews.Add(plan.Name);
                     }
-                    catch (Exception ex)
-                    {
-                        failures.Add($"{plan.Name}: {ex.Message}");
-                    }
+
+                    t.Commit();
                 }
-
-                t.Commit();
+                catch (Exception ex)
+                {
+                    t.RollBack();
+                    TaskDialog.Show(Title, "Could not apply view range to selected views:\n" + ex.Message);
+                    return Result.Failed;
+                }
             }
 
-            if (appliedCount == 0)
-            {
-                string warning = failures.Count > 0
-                    ? "No view ranges were updated:\n" + string.Join(Environment.NewLine, failures)
-                    : "No eligible target views.";
-
-                TaskDialog.Show(Title, warning);
-                return Result.Cancelled;
-            }
-
-            if (failures.Count > 0)
-            {
-                TaskDialog.Show(
-                    Title,
-                    $"View range copied with warnings:\n{string.Join(Environment.NewLine, failures)}");
-            }
-            else
-            {
-                TaskDialog.Show(
-                    Title,
-                    $"View range copied to {appliedCount} view{(appliedCount == 1 ? string.Empty : "s")}.");
-            }
-
-            return Result.Succeeded;
+            TaskDialog.Show(Title, BuildPasteSummary(appliedCount, skippedViews));
+            return appliedCount > 0 ? Result.Succeeded : Result.Cancelled;
         }
 
         private static IList<ViewPlan> GetEligibleViews(Document doc)
@@ -237,7 +229,7 @@ namespace AJTools.Commands
                 .ToList();
         }
 
-        private static IList<ViewPlan> FilterTargets(ViewPlan source, IEnumerable<ViewPlan> selectedViews)
+        private static IList<ViewPlan> FilterTargets(IEnumerable<ViewPlan> selectedViews)
         {
             var result = new List<ViewPlan>();
             var seenIds = new HashSet<int>();
@@ -245,13 +237,49 @@ namespace AJTools.Commands
             foreach (ViewPlan view in selectedViews)
             {
                 if (view == null) continue;
-                if (view.Id == source.Id) continue;
 
                 if (seenIds.Add(view.Id.IntegerValue))
                     result.Add(view);
             }
 
             return result;
+        }
+
+        private static string BuildPasteSummary(int appliedCount, IList<string> skippedViews)
+        {
+            var sections = new List<string>();
+
+            if (appliedCount > 0)
+            {
+                sections.Add(
+                    $"Successfully applied View Range to {appliedCount} view{(appliedCount == 1 ? string.Empty : "s")}.");
+            }
+
+            if (skippedViews.Count > 0)
+            {
+                string header =
+                    $"Skipped {skippedViews.Count} view{(skippedViews.Count == 1 ? string.Empty : "s")} because they have a View Template or an invalid level.";
+                string details = string.Join(Environment.NewLine, skippedViews.Select(name => "- " + name));
+                sections.Add(header + Environment.NewLine + details);
+            }
+
+            if (sections.Count == 0)
+                return "No view ranges were updated.";
+
+            return string.Join(Environment.NewLine + Environment.NewLine, sections);
+        }
+
+        private static bool HasValidCache(Document doc)
+        {
+            if (_cachedSnapshot == null)
+                return false;
+
+            if (ReferenceEquals(_cachedDocument, doc))
+                return true;
+
+            _cachedSnapshot = null;
+            _cachedDocument = null;
+            return false;
         }
     }
 }
