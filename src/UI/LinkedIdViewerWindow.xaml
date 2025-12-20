@@ -11,9 +11,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Linked ID Viewer"
-        MinHeight="200"
-        MinWidth="320"
+        MinHeight="160"
+        MinWidth="200"
         ResizeMode="CanResizeWithGrip"
+        SizeToContent="WidthAndHeight"
+        Loaded="OnWindowLoaded"
         WindowStartupLocation="CenterScreen"
         WindowStyle="ToolWindow"
         Background="{DynamicResource BackgroundDark}">
@@ -34,61 +36,65 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Margin="0,0,0,8">
-                    <TextBlock Text="Element ID"
-                               FontWeight="Bold"
-                               FontSize="13"
-                               Foreground="{StaticResource TextPrimary}"/>
-                    <TextBox x:Name="ElementIdBox"
-                             Margin="0,6,0,0"
-                             Style="{StaticResource ModernTextBox}"
-                             IsReadOnly="True"
-                             FontSize="14"
-                             Height="28"/>
-                </StackPanel>
+                <TextBlock Grid.Row="0"
+                           Text="Element ID"
+                           FontWeight="Bold"
+                           FontSize="13"
+                           Foreground="{StaticResource TextPrimary}"/>
+                <TextBox x:Name="ElementIdBox"
+                         Grid.Row="1"
+                         Margin="0,6,0,10"
+                         Style="{StaticResource ModernTextBox}"
+                         IsReadOnly="True"
+                         FontSize="14"
+                         Height="28"
+                         HorizontalScrollBarVisibility="Auto"/>
 
-                <StackPanel Grid.Row="1" Margin="0,2,0,10">
-                    <TextBlock Text="Model Source"
-                               FontWeight="Bold"
-                               FontSize="13"
-                               Foreground="{StaticResource TextPrimary}"/>
-                    <TextBox x:Name="ModelSourceBox"
-                             Margin="0,6,0,0"
-                             Style="{StaticResource ModernTextBox}"
-                             IsReadOnly="True"
-                             Height="28"/>
-                </StackPanel>
+                <TextBlock Grid.Row="2"
+                           Text="Model Source"
+                           FontWeight="Bold"
+                           FontSize="13"
+                           Foreground="{StaticResource TextPrimary}"/>
+                <TextBox x:Name="ModelSourceBox"
+                         Grid.Row="3"
+                         Margin="0,6,0,10"
+                         Style="{StaticResource ModernTextBox}"
+                         IsReadOnly="True"
+                         Height="28"
+                         HorizontalScrollBarVisibility="Auto"/>
 
-                <Border Grid.Row="3"
+                <Border Grid.Row="4"
                         Background="#13203A"
                         CornerRadius="6"
                         Padding="8"
                         BorderBrush="#22314F"
                         BorderThickness="1">
-                    <TextBlock Text="Copy the ID to reuse in filters, schedules, or linked searches."
+                    <TextBlock x:Name="InfoText"
+                               Text="Copy the ID to reuse in filters, schedules, or linked searches."
                                TextWrapping="Wrap"
                                FontSize="12"
                                Foreground="{StaticResource TextSecondary}"/>
                 </Border>
 
-                <StackPanel Grid.Row="4"
+                <StackPanel Grid.Row="5"
                             Orientation="Horizontal"
                             HorizontalAlignment="Right"
                             Margin="0,10,0,0">
                     <Button Content="Copy"
                             Style="{StaticResource ModernButton}"
                             Click="OnCopyId"
-                            Height="30"
+                            Height="34"
                             MinWidth="70"
                             Margin="0,0,8,0"/>
                     <Button Content="Close"
                             Style="{StaticResource SecondaryButton}"
                             Click="OnClose"
-                            Height="30"
+                            Height="34"
                             MinWidth="70"/>
                 </StackPanel>
             </Grid>

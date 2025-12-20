@@ -12,13 +12,14 @@
       <AjDeployDirs Include="@(DeployRoots->'%(FullPath)$(RevitAddinDeployName)')">
         <DllPath>%(FullPath)AJ Tools.dll</DllPath>
         <PdbPath>%(FullPath)AJ Tools.pdb</PdbPath>
-        <ImagesPath>%(FullPath)Images</ImagesPath>
+        <ResourcesPath>%(FullPath)Resources</ResourcesPath>
         <AddinPath>%(FullPath)AJ Tools.addin</AddinPath>
       </AjDeployDirs>
+      <DeployResourceFiles Include="@(Content->'%(FullPath)')" />
     </ItemGroup>
 
     <RemoveDir Directories="@(AjDeployDirs)" />
-    <MakeDir Directories="@(AjDeployDirs);@(AjDeployDirs->'%(ImagesPath)')" />
+    <MakeDir Directories="@(AjDeployDirs);@(AjDeployDirs->'%(ResourcesPath)')" />
 
     <Copy SourceFiles="$(TargetPath)"
           DestinationFiles="%(AjDeployDirs.DllPath)"
@@ -31,14 +32,14 @@
           OverwriteReadOnlyFiles="true"
           SkipUnchangedFiles="true" />
 
-    <Copy Condition="@(ImageFiles) != ''"
-          SourceFiles="@(ImageFiles)"
-          DestinationFolder="%(AjDeployDirs.ImagesPath)"
+    <Copy Condition="@(DeployResourceFiles) != ''"
+          SourceFiles="@(DeployResourceFiles)"
+          DestinationFolder="%(AjDeployDirs.ResourcesPath)"
           SkipUnchangedFiles="true"
           OverwriteReadOnlyFiles="true" />
 
     <WriteLinesToFile File="%(AjDeployDirs.AddinPath)"
-                      Lines="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;&#x0D;&#x0A;&lt;RevitAddIns&gt;&#x0D;&#x0A;  &lt;AddIn Type=&quot;Application&quot;&gt;&#x0D;&#x0A;    &lt;Name&gt;AJ Tools&lt;/Name&gt;&#x0D;&#x0A;    &lt;AddInId&gt;{C14A253D-96C6-42B7-889A-CFE737556BA9}&lt;/AddInId&gt;&#x0D;&#x0A;    &lt;FullClassName&gt;AJTools.App.App&lt;/FullClassName&gt;&#x0D;&#x0A;    &lt;Assembly&gt;%(AjDeployDirs.FullPath)AJ Tools.dll&lt;/Assembly&gt;&#x0D;&#x0A;    &lt;VendorId&gt;AJT&lt;/VendorId&gt;&#x0D;&#x0A;    &lt;VendorDescription&gt;Ajmal P.S - ajmalnattika@gmail.com&lt;/VendorDescription&gt;&#x0D;&#x0A;  &lt;/AddIn&gt;&#x0D;&#x0A;&lt;/RevitAddIns&gt;"
+                      Lines="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;&#x0D;&#x0A;&lt;RevitAddIns&gt;&#x0D;&#x0A;  &lt;AddIn Type=&quot;Application&quot;&gt;&#x0D;&#x0A;    &lt;Name&gt;AJ Tools&lt;/Name&gt;&#x0D;&#x0A;    &lt;AddInId&gt;{C14A253D-96C6-42B7-889A-CFE737556BA9}&lt;/AddInId&gt;&#x0D;&#x0A;    &lt;FullClassName&gt;AJTools.App.App&lt;/FullClassName&gt;&#x0D;&#x0A;    &lt;Assembly&gt;%(AjDeployDirs.FullPath)AJ Tools.dll&lt;/Assembly&gt;&#x0D;&#x0A;    &lt;VendorId&gt;AJT&lt;/VendorId&gt;&#x0D;&#x0A;    &lt;VendorDescription&gt;Ajmal P.S - ajmalnattika@gmail.com&lt;/VendorDescription&gt;&#x0D;&#x0A;  &lt;AddIn&gt;&#x0D;&#x0A;&lt;/RevitAddIns&gt;"
                       Overwrite="true"
                       WriteOnlyWhenDifferent="true"
                       Encoding="UTF-8" />

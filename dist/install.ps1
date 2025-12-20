@@ -26,8 +26,8 @@ if (Test-Path (Join-Path $scriptDir "AJ Tools.pdb")) {
     Copy-Item -Path (Join-Path $scriptDir "AJ Tools.pdb") -Destination $targetDir -Force
     Copy-Item -Path (Join-Path $scriptDir "AJ Tools.pdb") -Destination $targetDirPc -Force
 }
-Copy-Item -Path (Join-Path $scriptDir "Images") -Destination $targetDir -Recurse -Force
-Copy-Item -Path (Join-Path $scriptDir "Images") -Destination $targetDirPc -Recurse -Force
+Copy-Item -Path (Join-Path $scriptDir "Resources") -Destination $targetDir -Recurse -Force
+Copy-Item -Path (Join-Path $scriptDir "Resources") -Destination $targetDirPc -Recurse -Force
 
 # Generate manifest with absolute assembly path (avoid env var expansion issues)
 $assemblyPath = Join-Path $targetDir "AJ Tools.dll"

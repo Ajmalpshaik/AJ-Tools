@@ -21,6 +21,14 @@ namespace AJTools.Services.DimensionByLine
     /// </summary>
     internal static class DimensionByLineService
     {
+        private static readonly HashSet<ViewType> PlanViews = new HashSet<ViewType>
+        {
+            ViewType.FloorPlan,
+            ViewType.CeilingPlan,
+            ViewType.EngineeringPlan,
+            ViewType.AreaPlan
+        };
+
         /// <summary>
         /// Dimensions levels along a user-picked line in section/elevation.
         /// </summary>
@@ -40,7 +48,7 @@ namespace AJTools.Services.DimensionByLine
                 if (view == null || view.IsTemplate)
                     return Fail(title, "Please run this tool in a normal project view.");
 
-                if (view.ViewType != ViewType.Section && view.ViewType != ViewType.Elevation)
+                if (!IsSectionOrElevation(view))
                     return Fail(title, "This tool only works in Section or Elevation views.");
 
                 if (!PrepareSketchPlane(doc, view))
@@ -96,6 +104,14 @@ namespace AJTools.Services.DimensionByLine
                 View view = doc.ActiveView;
                 if (view == null || view.IsTemplate)
                     return Fail(title, "Please run this tool in a normal project view.");
+
+                bool isPlan = IsPlanView(view);
+                bool isSection = IsSectionOrElevation(view);
+                if (!isPlan && !isSection)
+                    return Fail(title, "This tool only works in Plan, Section, or Elevation views.");
+
+                if (isSection && !PrepareSketchPlane(doc, view))
+                    return Fail(title, "Could not prepare the view for selection.");
 
                 if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
                     return Result.Cancelled;
@@ -174,33 +190,48 @@ namespace AJTools.Services.DimensionByLine
             }
         }
 
-        private static List<Level> GetLevelsToDimension(Document doc, View view, XYZ p1, XYZ p2)
+        private static List<LevelInfo> GetLevelsToDimension(Document doc, View view, XYZ p1, XYZ p2)
         {
             IList<Level> levels = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .ToList();
 
-            double minZ = Math.Min(p1.Z, p2.Z);
-            double maxZ = Math.Max(p1.Z, p2.Z);
+            XYZ p1View = ToViewCoordinates(view, p1);
+            XYZ p2View = ToViewCoordinates(view, p2);
+            double minCoord = Math.Min(p1View.Y, p2View.Y);
+            double maxCoord = Math.Max(p1View.Y, p2View.Y);
 
-            return levels
-                .Where(l => l.Elevation >= minZ - Constants.ELEVATION_EPSILON && 
-                           l.Elevation <= maxZ + Constants.ELEVATION_EPSILON)
-                .OrderBy(l => l.Elevation)
+            List<LevelInfo> matches = new List<LevelInfo>();
+            foreach (Level level in levels)
+            {
+                XYZ levelPoint = new XYZ(p1.X, p1.Y, level.Elevation);
+                double levelCoord = ToViewCoordinates(view, levelPoint).Y;
+                if (levelCoord >= minCoord - Constants.ELEVATION_EPSILON &&
+                    levelCoord <= maxCoord + Constants.ELEVATION_EPSILON)
+                {
+                    matches.Add(new LevelInfo { Level = level, ViewCoord = levelCoord });
+                }
+            }
+
+            return matches
+                .OrderBy(l => l.ViewCoord)
                 .ToList();
         }
 
-        private static void CreateLevelDimension(Document doc, View view, List<Level> levelsToDim, XYZ p1)
+        private static void CreateLevelDimension(Document doc, View view, List<LevelInfo> levelsToDim, XYZ p1)
         {
             ReferenceArray refs = new ReferenceArray();
-            foreach (Level lvl in levelsToDim)
+            foreach (LevelInfo info in levelsToDim)
             {
-                refs.Append(new Reference(lvl));
+                refs.Append(new Reference(info.Level));
             }
 
-            XYZ dimStart = new XYZ(p1.X, p1.Y, levelsToDim.First().Elevation);
-            XYZ dimEnd = new XYZ(p1.X, p1.Y, levelsToDim.Last().Elevation);
+            XYZ p1View = ToViewCoordinates(view, p1);
+            XYZ dimStartView = new XYZ(p1View.X, levelsToDim.First().ViewCoord, p1View.Z);
+            XYZ dimEndView = new XYZ(p1View.X, levelsToDim.Last().ViewCoord, p1View.Z);
+            XYZ dimStart = FromViewCoordinates(view, dimStartView);
+            XYZ dimEnd = FromViewCoordinates(view, dimEndView);
             Line dimLine = Line.CreateBound(dimStart, dimEnd);
 
             doc.Create.NewDimension(view, dimLine, refs);
@@ -380,6 +411,16 @@ namespace AJTools.Services.DimensionByLine
             return new XYZ(x, y, z);
         }
 
+        private static XYZ FromViewCoordinates(View view, XYZ point)
+        {
+            XYZ origin = view.Origin;
+            XYZ right = view.RightDirection.Normalize();
+            XYZ up = view.UpDirection.Normalize();
+            XYZ normal = view.ViewDirection.Normalize();
+
+            return origin + (right * point.X) + (up * point.Y) + (normal * point.Z);
+        }
+
         private static bool LinesIntersect2D(XYZ a0, XYZ a1, XYZ b0, XYZ b1)
         {
             double ax = a1.X - a0.X;
@@ -408,6 +449,25 @@ namespace AJTools.Services.DimensionByLine
             public XYZ DirectionView { get; set; }
             public double SortCoord { get; set; }
             public double AngleScore { get; set; }
+        }
+
+        private class LevelInfo
+        {
+            public Level Level { get; set; }
+            public double ViewCoord { get; set; }
+        }
+
+        private static bool IsPlanView(View view)
+        {
+            return view != null && PlanViews.Contains(view.ViewType);
+        }
+
+        private static bool IsSectionOrElevation(View view)
+        {
+            if (view == null)
+                return false;
+
+            return view.ViewType == ViewType.Section || view.ViewType == ViewType.Elevation;
         }
 
         private static Result Fail(string title, string message)

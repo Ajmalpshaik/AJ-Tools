@@ -33,9 +33,9 @@ A focused set of Revit 2020 add-ins that streamline graphics cleanup, dimensions
 ### Revit add-in (recommended)
 1. Close Revit.
 2. Use the built `dist/` payload (or build Release yourself).
-3. Copy `dist/AJ Tools.dll` and the `dist/Images/` folder to `%APPDATA%\\Autodesk\\Revit\\Addins\\2020\\AJ Tools`.
+3. Copy `dist/AJ Tools.dll` and the `dist/Resources/` folder to `%APPDATA%\\Autodesk\\Revit\\Addins\\2020\\AJ Tools`.
 4. Place `dist/AJ Tools.addin` in `%APPDATA%\\Autodesk\\Revit\\Addins\\2020` (optionally also `%PROGRAMDATA%\\Autodesk\\Revit\\Addins\\2020` for all users).
-5. Launch Revit and look for the **AJ Tools** tab. Ensure `Images/linkedID.png` is present for the Element ID pulldown icons.
+5. Launch Revit and look for the **AJ Tools** tab (icons load from `Resources/`).
 
 ### Scripted install/uninstall
 - Run `dist/install.ps1` from PowerShell to copy the DLL, icons, and manifest (also writes the manifest to ProgramData).
@@ -44,7 +44,7 @@ A focused set of Revit 2020 add-ins that streamline graphics cleanup, dimensions
 ### Build and auto-deploy from source
 1. Open `AJ Tools.sln` in Visual Studio 2019/2022 (x64, .NET Framework 4.7.2).
 2. Verify the Revit 2020 API references point to your install (e.g., `C:\\Program Files\\Autodesk\\Revit 2020\\RevitAPI.dll`).
-3. Build Debug/Release. The post-build target copies the DLL/PDB and `Images/` to `%APPDATA%\\Autodesk\\Revit\\Addins\\2020\\AJ Tools` and writes `AJ Tools.addin`. Set `SkipRevitAddinDeploy=true` if you want to skip the copy.
+3. Build Debug/Release. The post-build target copies the DLL/PDB and `Resources/` to `%APPDATA%\\Autodesk\\Revit\\Addins\\2020\\AJ Tools` and writes `AJ Tools.addin`. Set `SkipRevitAddinDeploy=true` if you want to skip the copy.
 
 ### pyRevit / Dynamo (future)
 - No pyRevit extensions or Dynamo scripts are included yet. When added, copy the extension folder to your pyRevit extensions directory or place `.dyn` files in your Dynamo user folder and open them from Dynamo.
@@ -88,7 +88,7 @@ A focused set of Revit 2020 add-ins that streamline graphics cleanup, dimensions
 
 ## Development
 - Solution: `AJ Tools.sln` with a single C# Revit add-in project `src/AJ Tools.csproj` (WPF/WinForms UI mixed).
-- Key folders: `src/Commands` (commands and forms), `src/Services` (logic like Auto Dimensions, Filter Pro helpers, ribbon setup), `src/AJTools/LinkedTools` (linked-model utilities), `src/Images` (icons), `dist` (packaged output and scripts).
+- Key folders: `src/Commands` (commands and forms), `src/Services` (logic like Auto Dimensions, Filter Pro helpers, ribbon setup), `src/AJTools/LinkedTools` (linked-model utilities), `src/Resources` (icons), `dist` (packaged output and scripts).
 - Build with Visual Studio 2019/2022 (x64). Respect the Revit API version, and keep metadata headers (Tool Name, Description, etc.) current.
 - Follow existing style, keep transactions scoped, and write clear commit messages. Use `SkipRevitAddinDeploy=true` if you do not want MSBuild to copy into your Revit add-ins folder during development.
 

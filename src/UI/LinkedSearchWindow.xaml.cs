@@ -7,11 +7,18 @@
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Windows
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models;
+using RevitColor = Autodesk.Revit.DB.Color;
+using WpfControl = System.Windows.Controls.Control;
+using RevitTransform = Autodesk.Revit.DB.Transform;
 
 namespace AJTools.UI
 {
@@ -47,7 +54,8 @@ namespace AJTools.UI
             {
                 foreach (var link in links.Where(l => l != null && l.GetLinkDocument() != null))
                 {
-                    _linkItems.Add(new LinkDisplayItem(link.Name, link, link.GetLinkDocument(), isHost: false));
+                    Document linkDoc = link.GetLinkDocument();
+                    _linkItems.Add(new LinkDisplayItem(GetCleanLinkName(link, linkDoc), link, linkDoc, isHost: false));
                 }
             }
 
@@ -58,6 +66,19 @@ namespace AJTools.UI
             }
 
             OnSearchAllChanged(this, null);
+            UpdateModelSummary();
+        }
+
+        private void OnWindowLoaded(object sender, RoutedEventArgs e)
+        {
+            ApplyModelListSizing();
+            // Auto-size once to content, then allow manual resizing.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SizeToContent = SizeToContent.Manual;
+                Width = ActualWidth;
+                Height = ActualHeight;
+            }), DispatcherPriority.Background);
         }
 
         private void OnSearch(object sender, RoutedEventArgs e)
@@ -96,16 +117,26 @@ namespace AJTools.UI
             }
             else
             {
-                var targetItem = LinkSelector.SelectedItem as LinkDisplayItem;
-                if (targetItem == null)
+                var selectedItems = LinkSelector.SelectedItems
+                    .Cast<LinkDisplayItem>()
+                    .ToList();
+
+                if (selectedItems.Count == 0)
                 {
-                    ErrorText.Text = "Select a model to search.";
+                    ErrorText.Text = "Select at least one model to search.";
                     return;
                 }
 
-                found = targetItem.IsHost
-                    ? TryFindInHost(parsedId)
-                    : TryFindInLink(parsedId, targetItem);
+                var selectedSet = new HashSet<LinkDisplayItem>(selectedItems);
+                foreach (var item in _linkItems.Where(i => selectedSet.Contains(i)))
+                {
+                    found = item.IsHost
+                        ? TryFindInHost(parsedId)
+                        : TryFindInLink(parsedId, item);
+
+                    if (found)
+                        break;
+                }
             }
 
             if (!found)
@@ -133,8 +164,8 @@ namespace AJTools.UI
             ExecuteInTransaction("AJTools - Identify Element", () =>
             {
                 OverrideGraphicSettings ogs = new OverrideGraphicSettings();
-                Color projColor = RandomColor();
-                Color fillColor = RandomColor();
+                RevitColor projColor = RandomColor();
+                RevitColor fillColor = RandomColor();
                 ogs.SetProjectionLineColor(projColor);
                 ogs.SetCutLineColor(projColor);
                 ogs.SetSurfaceForegroundPatternColor(fillColor);
@@ -189,9 +220,116 @@ namespace AJTools.UI
             if (LinkSelector == null || SearchAllCheck == null)
                 return;
 
-            LinkSelector.IsEnabled = SearchAllCheck.IsChecked != true;
+            bool enableSelection = SearchAllCheck.IsChecked != true;
+            LinkSelector.IsEnabled = enableSelection;
+            if (ModelDropdownButton != null)
+            {
+                ModelDropdownButton.IsEnabled = enableSelection;
+                if (!enableSelection)
+                {
+                    ModelDropdownButton.IsChecked = false;
+                }
+            }
+
+            UpdateModelSummary();
         }
 
+        private void ApplyModelListSizing()
+        {
+            if (LinkSelector == null || ElementIdBox == null)
+                return;
+
+            double maxNameWidth = 0;
+            if (_linkItems != null && _linkItems.Count > 0)
+            {
+                maxNameWidth = _linkItems
+                    .Select(item => MeasureTextWidth(item.DisplayName, LinkSelector))
+                    .DefaultIfEmpty(0)
+                    .Max();
+            }
+
+            double chrome = 28;
+            double columnPadding = 24 + 90;
+            double padding = LinkSelector.Padding.Left + LinkSelector.Padding.Right +
+                             LinkSelector.BorderThickness.Left + LinkSelector.BorderThickness.Right;
+            double targetWidth = maxNameWidth + chrome + columnPadding + padding + 10;
+
+            double minWidth = Math.Max(260, Math.Min(targetWidth, 560));
+            ElementIdBox.MinWidth = minWidth;
+            LinkSelector.MinWidth = minWidth;
+            if (ModelDropdownButton != null)
+            {
+                ModelDropdownButton.MinWidth = minWidth;
+            }
+            if (InfoText != null)
+            {
+                InfoText.MaxWidth = minWidth;
+            }
+        }
+
+        private void OnModelSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateModelSummary();
+        }
+
+        private void OnModelDropdownClosed(object sender, EventArgs e)
+        {
+            if (ModelDropdownButton != null)
+            {
+                ModelDropdownButton.IsChecked = false;
+            }
+        }
+
+        private void UpdateModelSummary()
+        {
+            if (ModelSummaryText == null || SearchAllCheck == null || LinkSelector == null)
+                return;
+
+            if (SearchAllCheck.IsChecked == true)
+            {
+                ModelSummaryText.Text = "All models (host + links)";
+                return;
+            }
+
+            var selectedItems = LinkSelector.SelectedItems.Cast<LinkDisplayItem>().ToList();
+            if (selectedItems.Count == 0)
+            {
+                ModelSummaryText.Text = "Select model(s)";
+                return;
+            }
+
+            if (selectedItems.Count == 1)
+            {
+                ModelSummaryText.Text = selectedItems[0].DisplayName;
+                return;
+            }
+
+            string summary = string.Join(", ", selectedItems.Take(2).Select(i => i.DisplayName));
+            if (selectedItems.Count > 2)
+            {
+                summary += $" +{selectedItems.Count - 2} more";
+            }
+
+            ModelSummaryText.Text = summary;
+        }
+
+        private double MeasureTextWidth(string text, WpfControl reference)
+        {
+            string value = text ?? string.Empty;
+            var typeface = new Typeface(reference.FontFamily, reference.FontStyle, reference.FontWeight, reference.FontStretch);
+            var dpi = VisualTreeHelper.GetDpi(this);
+
+            var formatted = new System.Windows.Media.FormattedText(
+                value,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                typeface,
+                reference.FontSize,
+                Brushes.Black,
+                dpi.PixelsPerDip);
+
+            return formatted.Width;
+        }
         private bool TryFindInHost(int elementId)
         {
             ElementId id = new ElementId(elementId);
@@ -236,7 +374,7 @@ namespace AJTools.UI
                 BoundingBoxXYZ bbInLink = element.get_BoundingBox(null);
                 if (bbInLink != null)
                 {
-                    Transform linkTransform = item.Instance.GetTransform();
+                    RevitTransform linkTransform = item.Instance.GetTransform();
                     XYZ min = linkTransform.OfPoint(bbInLink.Min);
                     XYZ max = linkTransform.OfPoint(bbInLink.Max);
 
@@ -275,18 +413,33 @@ namespace AJTools.UI
             }
         }
 
+        private static string GetCleanLinkName(RevitLinkInstance linkInstance, Document linkDoc)
+        {
+            string name = (linkDoc != null && !string.IsNullOrWhiteSpace(linkDoc.Title))
+                ? linkDoc.Title
+                : (linkInstance?.Name ?? "Linked Model");
+
+            int colonIndex = name.IndexOf(':');
+            if (colonIndex > -1)
+            {
+                name = name.Substring(0, colonIndex).Trim();
+            }
+
+            return name;
+        }
+
         private void ClearMessages()
         {
             ErrorText.Text = string.Empty;
             // clear status
         }
 
-        private static Color RandomColor()
+        private static RevitColor RandomColor()
         {
             byte r = (byte)_random.Value.Next(30, 256);
             byte g = (byte)_random.Value.Next(30, 256);
             byte b = (byte)_random.Value.Next(30, 256);
-            return new Color(r, g, b);
+            return new RevitColor(r, g, b);
         }
 
         private ElementId GetSolidFillPatternId()

@@ -23,9 +23,11 @@ namespace AJTools.Models
             IsHost = isHost;
         }
 
-        internal string DisplayName { get; }
+        public string DisplayName { get; }
 
         internal bool IsHost { get; }
+
+        public string SourceLabel => IsHost ? "Host" : "Link";
 
         internal RevitLinkInstance Instance { get; }
 
