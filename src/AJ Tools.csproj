@@ -69,6 +69,7 @@
     <Compile Include="Commands\CmdFilterPro.cs" />
     <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
+    <Compile Include="Commands\CmdForceTagLeaderLShape.cs" />
     <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
     <Compile Include="Commands\CmdLinkedElementSearch.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />

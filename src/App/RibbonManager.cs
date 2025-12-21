@@ -152,6 +152,8 @@ namespace AJTools.App
         {
             var panel = GetOrCreatePanel("Annotations");
 
+            var leaderLarge = LoadIconLarge("apply.png");
+            var leaderSmall = LoadIconSmall("apply.png");
             var resetLarge = LoadIconLarge("Rest Position.png");
             var resetSmall = LoadIconSmall("Rest Position.png");
             var copySwapLarge = LoadIconLarge("copyswaptext.png");
@@ -159,6 +161,7 @@ namespace AJTools.App
             var copyLarge = LoadIconLarge("copy.png");
             var copySmall = LoadIconSmall("copy.png");
 
+            CreatePushButton(panel, "L-Shape\nLeader", "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc.", typeof(CmdForceTagLeaderLShape), leaderLarge, leaderSmall);
             CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), resetLarge, resetSmall);
 
             var copySwapPulldown = CreatePulldownButton(panel, "Copy Swap\nText", "Copy or swap text values between text notes.", copySwapLarge, copySwapSmall);

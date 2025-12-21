@@ -192,7 +192,7 @@ namespace AJTools.Services.DimensionByLine
 
         private static List<LevelInfo> GetLevelsToDimension(Document doc, View view, XYZ p1, XYZ p2)
         {
-            IList<Level> levels = new FilteredElementCollector(doc, view.Id)
+            IList<Level> levels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .ToList();
@@ -205,8 +205,14 @@ namespace AJTools.Services.DimensionByLine
             List<LevelInfo> matches = new List<LevelInfo>();
             foreach (Level level in levels)
             {
-                XYZ levelPoint = new XYZ(p1.X, p1.Y, level.Elevation);
-                double levelCoord = ToViewCoordinates(view, levelPoint).Y;
+                Line levelLine = TryGetLevelLineInView(level, view);
+                if (levelLine == null)
+                    continue;
+
+                XYZ startView = ToViewCoordinates(view, levelLine.GetEndPoint(0));
+                XYZ endView = ToViewCoordinates(view, levelLine.GetEndPoint(1));
+                double levelCoord = (startView.Y + endView.Y) * 0.5;
+
                 if (levelCoord >= minCoord - Constants.ELEVATION_EPSILON &&
                     levelCoord <= maxCoord + Constants.ELEVATION_EPSILON)
                 {
@@ -386,6 +392,33 @@ namespace AJTools.Services.DimensionByLine
                 try
                 {
                     curves = grid.GetCurvesInView(DatumExtentType.Model, view);
+                }
+                catch
+                {
+                    curves = null;
+                }
+            }
+
+            return curves?.OfType<Line>().FirstOrDefault();
+        }
+
+        private static Line TryGetLevelLineInView(Level level, View view)
+        {
+            IList<Curve> curves = null;
+            try
+            {
+                curves = level.GetCurvesInView(DatumExtentType.ViewSpecific, view);
+            }
+            catch
+            {
+                // ignore and fall back
+            }
+
+            if (curves == null || curves.Count == 0)
+            {
+                try
+                {
+                    curves = level.GetCurvesInView(DatumExtentType.Model, view);
                 }
                 catch
                 {
