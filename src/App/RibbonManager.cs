@@ -142,8 +142,15 @@ namespace AJTools.App
             var matchSmall = LoadIconSmall("Match Elevation.png");
             var filterLarge = LoadIconLarge("FilterPro.png");
             var filterSmall = LoadIconSmall("FilterPro.png");
+            BitmapImage flowLarge = null;
+            BitmapImage flowSmall = null;
+            BitmapImage flowSettingsLarge = null;
+            BitmapImage flowSettingsSmall = null;
 
             CreatePushButton(panel, "Match\nElevation", "Match the middle elevation from a source MEP element to others.", typeof(CmdMatchElevation), matchLarge, matchSmall);
+            var flowPulldown = CreatePulldownButton(panel, "Flow\nDirection", "Flow direction annotation tools.", flowLarge, flowSmall);
+            CreatePushButton(flowPulldown, "Place", "Place flow direction annotations along ducts and pipes.", typeof(CmdFlowDirectionAnnotations), flowLarge, flowSmall);
+            CreatePushButton(flowPulldown, "Settings", "Choose the annotation family and spacing used for flow direction placement.", typeof(CmdFlowDirectionSettings), flowSettingsLarge, flowSettingsSmall);
             var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), filterLarge, filterSmall);
             filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
         }

@@ -70,6 +70,8 @@
     <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
     <Compile Include="Commands\CmdForceTagLeaderLShape.cs" />
+    <Compile Include="Commands\CmdFlowDirectionAnnotations.cs" />
+    <Compile Include="Commands\CmdFlowDirectionSettings.cs" />
     <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
     <Compile Include="Commands\CmdLinkedElementSearch.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
@@ -85,6 +87,7 @@
     <Compile Include="Models\FilterParameterItem.cs" />
     <Compile Include="Models\FilterProState.cs" />
     <Compile Include="Models\FilterSelection.cs" />
+    <Compile Include="Models\FlowDirectionSettingsState.cs" />
     <Compile Include="Models\FilterValueItem.cs" />
     <Compile Include="Models\FilterValueKey.cs" />
     <Compile Include="Models\LinkDisplayItem.cs" />
@@ -104,9 +107,14 @@
     <Compile Include="Services\FilterPro\FilterProStateTracker.cs" />
     <Compile Include="Services\FilterPro\FilterReorderer.cs" />
     <Compile Include="Services\FilterPro\FilterValueKeyMatcher.cs" />
+    <Compile Include="Services\FlowDirection\FlowDirectionAnnotationService.cs" />
+    <Compile Include="Services\FlowDirection\FlowDirectionSettingsTracker.cs" />
     <Compile Include="Services\ResetDatums\ResetDatumService.cs" />
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\FlowDirectionSettingsWindow.xaml.cs">
+      <DependentUpon>FlowDirectionSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\LinkedIdViewerWindow.xaml.cs">
       <DependentUpon>LinkedIdViewerWindow.xaml</DependentUpon>
@@ -127,6 +135,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="UI\FilterProWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\FlowDirectionSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
