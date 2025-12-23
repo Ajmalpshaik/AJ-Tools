@@ -48,6 +48,15 @@ namespace AJTools.Services.CopyViewRange
             public double Offset { get; set; }
         }
 
+        private struct ExpectedPlane
+        {
+            public ElementId LevelId { get; set; }
+            public double Offset { get; set; }
+            public bool ApplyOffset { get; set; }
+        }
+
+        private const double OffsetTolerance = 1e-6;
+
         private readonly Dictionary<PlanViewPlane, PlaneData> _planes
             = new Dictionary<PlanViewPlane, PlaneData>();
 
@@ -62,8 +71,9 @@ namespace AJTools.Services.CopyViewRange
         {
             if (sourceView == null) throw new ArgumentNullException(nameof(sourceView));
             Document doc = sourceView.Document;
+            PlanViewRange viewRange = sourceView.GetViewRange();
 
-            ElementId sourceLevelId = sourceView.GenLevel?.Id ?? ElementId.InvalidElementId;
+            ElementId sourceLevelId = GetBaseLevelId(sourceView, viewRange);
             if (sourceLevelId == ElementId.InvalidElementId)
                 throw new InvalidOperationException("Source view does not have an associated level.");
 
@@ -74,19 +84,16 @@ namespace AJTools.Services.CopyViewRange
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .OrderBy(l => l.Elevation)
+                .ThenBy(l => l.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(l => l.Id.IntegerValue)
                 .ToList();
 
-            List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
-            int sourceIndex = levelIds.IndexOf(sourceLevelId);
-
-            if (sourceIndex < 0)
+            bool hasSourceLevel = allLevels.Any(l => l.Id == sourceLevelId);
+            if (!hasSourceLevel)
                 throw new InvalidOperationException("Could not find the current view's level in the project.");
 
-            ElementId levelAboveId = (sourceIndex + 1 < levelIds.Count) ? levelIds[sourceIndex + 1] : ElementId.InvalidElementId;
-            ElementId levelBelowId = (sourceIndex - 1 >= 0) ? levelIds[sourceIndex - 1] : ElementId.InvalidElementId;
-
-            PlanViewRange viewRange = sourceView.GetViewRange();
+            ElementId levelAboveId = GetLevelAboveId(allLevels, sourceLevelId);
+            ElementId levelBelowId = GetLevelBelowId(allLevels, sourceLevelId);
 
             foreach (PlanViewPlane plane in CachePlanes)
             {
@@ -102,11 +109,15 @@ namespace AJTools.Services.CopyViewRange
                 {
                     data.Relationship = LevelRelationship.Associated;
                 }
-                else if (planeLevelId == levelAboveId)
+                else if (planeLevelId == levelAboveId &&
+                    (plane == PlanViewPlane.TopClipPlane || plane == PlanViewPlane.CutPlane))
                 {
                     data.Relationship = LevelRelationship.Above;
                 }
-                else if (planeLevelId == levelBelowId)
+                else if (planeLevelId == levelBelowId &&
+                    (plane == PlanViewPlane.BottomClipPlane ||
+                     plane == PlanViewPlane.ViewDepthPlane ||
+                     plane == PlanViewPlane.CutPlane))
                 {
                     data.Relationship = LevelRelationship.Below;
                 }
@@ -143,7 +154,9 @@ namespace AJTools.Services.CopyViewRange
             }
 
             // 2. Identify Target Levels
-            ElementId destLevelId = targetView.GenLevel?.Id ?? ElementId.InvalidElementId;
+            PlanViewRange original = targetView.GetViewRange();
+            PlanViewRange vr = targetView.GetViewRange();
+            ElementId destLevelId = GetBaseLevelId(targetView, vr);
             if (destLevelId == ElementId.InvalidElementId)
             {
                 skipReason = "Target view has no associated level.";
@@ -154,22 +167,20 @@ namespace AJTools.Services.CopyViewRange
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .OrderBy(l => l.Elevation)
+                .ThenBy(l => l.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(l => l.Id.IntegerValue)
                 .ToList();
 
-            List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
-            int destIndex = levelIds.IndexOf(destLevelId);
-
-            if (destIndex < 0)
+            bool hasDestLevel = allLevels.Any(l => l.Id == destLevelId);
+            if (!hasDestLevel)
             {
                 skipReason = "Target level not found in project list.";
                 return false;
             }
 
-            ElementId destAbove = (destIndex + 1 < levelIds.Count) ? levelIds[destIndex + 1] : ElementId.InvalidElementId;
-            ElementId destBelow = (destIndex - 1 >= 0) ? levelIds[destIndex - 1] : ElementId.InvalidElementId;
-
-            PlanViewRange vr = targetView.GetViewRange();
+            Level destLevel = allLevels.First(l => l.Id == destLevelId);
+            ElementId destAbove = GetLevelAboveId(allLevels, destLevelId);
+            ElementId destBelow = GetLevelBelowId(allLevels, destLevelId);
 
             // 3. SAFE ORDER: Depth -> Bottom -> Top -> Cut
             // This prevents "Top is below Bottom" errors during the transition.
@@ -181,39 +192,26 @@ namespace AJTools.Services.CopyViewRange
                 PlanViewPlane.CutPlane
             };
 
+            var expected = new Dictionary<PlanViewPlane, ExpectedPlane>();
+
             foreach (PlanViewPlane plane in safeOrder)
             {
                 if (!_planes.TryGetValue(plane, out PlaneData data)) continue;
 
-                ElementId newLevelId;
-
-                switch (data.Relationship)
-                {
-                    case LevelRelationship.None:
-                        newLevelId = PlanViewRange.Unlimited;
-                        break;
-                    case LevelRelationship.Associated:
-                        newLevelId = destLevelId;
-                        break;
-                    case LevelRelationship.Above:
-                        // Fallback to Associated if no level above exists (e.g. Roof)
-                        newLevelId = (destAbove != ElementId.InvalidElementId) ? destAbove : destLevelId;
-                        break;
-                    case LevelRelationship.Below:
-                        // Fallback to Associated if no level below exists (e.g. Basement)
-                        newLevelId = (destBelow != ElementId.InvalidElementId) ? destBelow : destLevelId;
-                        break;
-                    case LevelRelationship.Absolute:
-                        // If absolute level is deleted, fallback to associated
-                        newLevelId = (doc.GetElement(data.AbsoluteLevelId) is Level) ? data.AbsoluteLevelId : destLevelId;
-                        break;
-                    default:
-                        newLevelId = destLevelId;
-                        break;
-                }
+                if (!TryMapPlane(plane, data, destLevelId, destLevel, destAbove, destBelow, doc,
+                        out ElementId newLevelId, out bool applyOffset))
+                    continue;
 
                 vr.SetLevelId(plane, newLevelId);
-                vr.SetOffset(plane, data.Offset);
+                if (applyOffset)
+                    vr.SetOffset(plane, data.Offset);
+
+                expected[plane] = new ExpectedPlane
+                {
+                    LevelId = newLevelId,
+                    Offset = data.Offset,
+                    ApplyOffset = applyOffset
+                };
             }
 
             try
@@ -226,8 +224,288 @@ namespace AJTools.Services.CopyViewRange
                 return false;
             }
 
+            if (!ValidateAppliedRange(targetView, expected, out string mismatch))
+            {
+                try
+                {
+                    targetView.SetViewRange(original);
+                }
+                catch
+                {
+                    // Best-effort restore; we still report the mismatch.
+                }
+
+                skipReason = mismatch;
+                return false;
+            }
+
             skipReason = null;
             return true;
+        }
+
+        private static ElementId GetBaseLevelId(ViewPlan view, PlanViewRange viewRange)
+        {
+            ElementId genLevelId = view?.GenLevel?.Id ?? ElementId.InvalidElementId;
+            if (genLevelId != ElementId.InvalidElementId)
+                return genLevelId;
+
+            if (viewRange != null)
+            {
+                ElementId cutLevelId = viewRange.GetLevelId(PlanViewPlane.CutPlane);
+                if (cutLevelId != ElementId.InvalidElementId && cutLevelId != PlanViewRange.Unlimited)
+                    return cutLevelId;
+            }
+
+            return ElementId.InvalidElementId;
+        }
+
+        private static ElementId GetLevelAboveId(IList<Level> levels, ElementId baseLevelId)
+        {
+            if (levels == null || levels.Count == 0)
+                return ElementId.InvalidElementId;
+
+            Level baseLevel = levels.FirstOrDefault(l => l.Id == baseLevelId);
+            if (baseLevel == null)
+                return ElementId.InvalidElementId;
+
+            Level above = levels
+                .Where(l => l.Elevation > baseLevel.Elevation)
+                .OrderBy(l => l.Elevation)
+                .ThenBy(l => l.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(l => l.Id.IntegerValue)
+                .FirstOrDefault();
+
+            return above?.Id ?? ElementId.InvalidElementId;
+        }
+
+        private static ElementId GetLevelBelowId(IList<Level> levels, ElementId baseLevelId)
+        {
+            if (levels == null || levels.Count == 0)
+                return ElementId.InvalidElementId;
+
+            Level baseLevel = levels.FirstOrDefault(l => l.Id == baseLevelId);
+            if (baseLevel == null)
+                return ElementId.InvalidElementId;
+
+            Level below = levels
+                .Where(l => l.Elevation < baseLevel.Elevation)
+                .OrderByDescending(l => l.Elevation)
+                .ThenBy(l => l.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(l => l.Id.IntegerValue)
+                .FirstOrDefault();
+
+            return below?.Id ?? ElementId.InvalidElementId;
+        }
+
+        private static bool TryMapPlane(
+            PlanViewPlane plane,
+            PlaneData data,
+            ElementId destLevelId,
+            Level destLevel,
+            ElementId destAbove,
+            ElementId destBelow,
+            Document doc,
+            out ElementId levelId,
+            out bool applyOffset)
+        {
+            levelId = destLevelId;
+            applyOffset = true;
+
+            switch (data.Relationship)
+            {
+                case LevelRelationship.None:
+                    if (plane == PlanViewPlane.CutPlane)
+                    {
+                        levelId = destLevelId;
+                        applyOffset = true;
+                    }
+                    else
+                    {
+                        levelId = PlanViewRange.Unlimited;
+                        applyOffset = false;
+                    }
+                    return true;
+
+                case LevelRelationship.Associated:
+                    levelId = destLevelId;
+                    applyOffset = true;
+                    return true;
+
+                case LevelRelationship.Above:
+                    if (plane == PlanViewPlane.BottomClipPlane || plane == PlanViewPlane.ViewDepthPlane)
+                    {
+                        levelId = PlanViewRange.Unlimited;
+                        applyOffset = false;
+                        return true;
+                    }
+
+                    if (destAbove != ElementId.InvalidElementId)
+                    {
+                        levelId = destAbove;
+                        applyOffset = true;
+                    }
+                    else if (plane == PlanViewPlane.CutPlane)
+                    {
+                        levelId = destLevelId;
+                        applyOffset = true;
+                    }
+                    else
+                    {
+                        levelId = PlanViewRange.Unlimited;
+                        applyOffset = false;
+                    }
+                    return true;
+
+                case LevelRelationship.Below:
+                    if (plane == PlanViewPlane.TopClipPlane)
+                    {
+                        levelId = PlanViewRange.Unlimited;
+                        applyOffset = false;
+                        return true;
+                    }
+
+                    if (destBelow != ElementId.InvalidElementId)
+                    {
+                        levelId = destBelow;
+                        applyOffset = true;
+                    }
+                    else if (plane == PlanViewPlane.CutPlane)
+                    {
+                        levelId = destLevelId;
+                        applyOffset = true;
+                    }
+                    else
+                    {
+                        levelId = PlanViewRange.Unlimited;
+                        applyOffset = false;
+                    }
+                    return true;
+
+                case LevelRelationship.Absolute:
+                    if (doc.GetElement(data.AbsoluteLevelId) is Level absLevel)
+                    {
+                        if (!IsValidAbsolute(plane, destLevel, absLevel))
+                        {
+                            if (plane == PlanViewPlane.CutPlane)
+                            {
+                                levelId = destLevelId;
+                                applyOffset = true;
+                            }
+                            else
+                            {
+                                levelId = PlanViewRange.Unlimited;
+                                applyOffset = false;
+                            }
+                            return true;
+                        }
+
+                        levelId = absLevel.Id;
+                        applyOffset = true;
+                    }
+                    else if (plane == PlanViewPlane.CutPlane)
+                    {
+                        levelId = destLevelId;
+                        applyOffset = true;
+                    }
+                    else
+                    {
+                        levelId = PlanViewRange.Unlimited;
+                        applyOffset = false;
+                    }
+                    return true;
+
+                default:
+                    levelId = destLevelId;
+                    applyOffset = true;
+                    return true;
+            }
+        }
+
+        private static bool ValidateAppliedRange(
+            ViewPlan view,
+            IDictionary<PlanViewPlane, ExpectedPlane> expected,
+            out string reason)
+        {
+            reason = null;
+            if (expected == null || expected.Count == 0)
+                return true;
+
+            PlanViewRange applied;
+            try
+            {
+                applied = view.GetViewRange();
+            }
+            catch (Exception ex)
+            {
+                reason = "Failed to read view range after paste: " + ex.Message;
+                return false;
+            }
+
+            foreach (KeyValuePair<PlanViewPlane, ExpectedPlane> kvp in expected)
+            {
+                PlanViewPlane plane = kvp.Key;
+                ExpectedPlane exp = kvp.Value;
+
+                ElementId actualLevelId = applied.GetLevelId(plane);
+                if (exp.LevelId == PlanViewRange.Unlimited)
+                {
+                    if (actualLevelId != PlanViewRange.Unlimited)
+                    {
+                        reason = $"{GetPlaneLabel(plane)} plane did not apply as Unlimited.";
+                        return false;
+                    }
+                    continue;
+                }
+
+                if (actualLevelId != exp.LevelId)
+                {
+                    reason = $"{GetPlaneLabel(plane)} plane level mismatch after paste.";
+                    return false;
+                }
+
+                if (exp.ApplyOffset)
+                {
+                    double actualOffset = applied.GetOffset(plane);
+                    if (Math.Abs(actualOffset - exp.Offset) > OffsetTolerance)
+                    {
+                        reason = $"{GetPlaneLabel(plane)} plane offset mismatch after paste.";
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsValidAbsolute(PlanViewPlane plane, Level baseLevel, Level absoluteLevel)
+        {
+            if (baseLevel == null || absoluteLevel == null)
+                return false;
+
+            if (plane == PlanViewPlane.TopClipPlane)
+                return absoluteLevel.Elevation >= baseLevel.Elevation;
+
+            if (plane == PlanViewPlane.BottomClipPlane || plane == PlanViewPlane.ViewDepthPlane)
+                return absoluteLevel.Elevation <= baseLevel.Elevation;
+
+            return true;
+        }
+
+        private static string GetPlaneLabel(PlanViewPlane plane)
+        {
+            switch (plane)
+            {
+                case PlanViewPlane.TopClipPlane:
+                    return "Top";
+                case PlanViewPlane.CutPlane:
+                    return "Cut";
+                case PlanViewPlane.BottomClipPlane:
+                    return "Bottom";
+                case PlanViewPlane.ViewDepthPlane:
+                    return "View Depth";
+                default:
+                    return plane.ToString();
+            }
         }
 
         // Serialization helpers
