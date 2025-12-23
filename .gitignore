@@ -1,14 +1,33 @@
 # Build outputs
 [Bb]in/
 [Oo]bj/
-src/bin/
-src/obj/
+artifacts/
+TestResults/
 
-# IDE
+# Visual Studio / IDE
 .vs/
-*.user
 *.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+*.vsidx
+*.DotSettings.user
+_ReSharper*/
+.idea/
 
-# Logs / archives
-install_log.txt
-*.zip
+# Revit add-in packaging outputs
+dist/*.dll
+dist/*.pdb
+
+# Logs and caches
+*.log
+*.cache
+*.tmp
+*.bak
+journal*.txt
+
+# OS files
+Thumbs.db
+.DS_Store
