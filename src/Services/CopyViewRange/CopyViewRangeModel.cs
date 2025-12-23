@@ -1,25 +1,37 @@
 // Tool Name: Copy View Range Model
 // Description: Implements the supporting model snapshot logic for the Copy View Range command.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-11
+// Version: 1.0.2
+// Last Updated: 2025-12-23
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
 
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using Autodesk.Revit.DB;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.DB;
 
 namespace AJTools.Services.CopyViewRange
 {
-
     /// <summary>
     /// Stores a source view's view range as relative relationships to its level
-    /// and can apply that range to other plan views.
+    /// and can apply that range to other plan views safely.
     /// </summary>
     internal class CopyViewRangeModel
     {
+        private const string CacheVersion = "AJTools.CopyViewRange.v1";
+
+        // Defined in specific order for serialization
+        private static readonly PlanViewPlane[] CachePlanes =
+        {
+            PlanViewPlane.TopClipPlane,
+            PlanViewPlane.CutPlane,
+            PlanViewPlane.BottomClipPlane,
+            PlanViewPlane.ViewDepthPlane
+        };
+
         private enum LevelRelationship
         {
             None,
@@ -41,76 +53,48 @@ namespace AJTools.Services.CopyViewRange
 
         public string SourceName { get; private set; }
 
-        private CopyViewRangeModel()
-        {
-        }
+        private CopyViewRangeModel() { }
 
         /// <summary>
         /// Create a CopyViewRangeModel snapshot from the given source plan view.
         /// </summary>
         public static CopyViewRangeModel From(ViewPlan sourceView)
         {
-            if (sourceView == null)
-                throw new ArgumentNullException(nameof(sourceView));
-
+            if (sourceView == null) throw new ArgumentNullException(nameof(sourceView));
             Document doc = sourceView.Document;
-            if (doc == null)
-                throw new InvalidOperationException("Source view has no owning document.");
 
-            var result = new CopyViewRangeModel
-            {
-                SourceName = sourceView.Name
-            };
+            ElementId sourceLevelId = sourceView.GenLevel?.Id ?? ElementId.InvalidElementId;
+            if (sourceLevelId == ElementId.InvalidElementId)
+                throw new InvalidOperationException("Source view does not have an associated level.");
 
-            // Collect all Levels sorted by elevation (like the Python script).
+            var result = new CopyViewRangeModel { SourceName = sourceView.Name };
+
+            // Sort levels by Elevation
             IList<Level> allLevels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .OrderBy(l => l.Elevation)
+                .ThenBy(l => l.Id.IntegerValue)
                 .ToList();
 
             List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
+            int sourceIndex = levelIds.IndexOf(sourceLevelId);
 
-            ElementId sourceLevelId = sourceView.GenLevel != null
-                ? sourceView.GenLevel.Id
-                : ElementId.InvalidElementId;
-
-            int sourceLevelIndex = levelIds.IndexOf(sourceLevelId);
-            if (sourceLevelIndex < 0)
+            if (sourceIndex < 0)
                 throw new InvalidOperationException("Could not find the current view's level in the project.");
 
-            ElementId levelAboveId = ElementId.InvalidElementId;
-            ElementId levelBelowId = ElementId.InvalidElementId;
-
-            if (sourceLevelIndex >= 0)
-            {
-                if (sourceLevelIndex + 1 < levelIds.Count)
-                    levelAboveId = levelIds[sourceLevelIndex + 1];
-
-                if (sourceLevelIndex - 1 >= 0)
-                    levelBelowId = levelIds[sourceLevelIndex - 1];
-            }
+            ElementId levelAboveId = (sourceIndex + 1 < levelIds.Count) ? levelIds[sourceIndex + 1] : ElementId.InvalidElementId;
+            ElementId levelBelowId = (sourceIndex - 1 >= 0) ? levelIds[sourceIndex - 1] : ElementId.InvalidElementId;
 
             PlanViewRange viewRange = sourceView.GetViewRange();
-            var planes = new[]
-            {
-                PlanViewPlane.TopClipPlane,
-                PlanViewPlane.CutPlane,
-                PlanViewPlane.BottomClipPlane,
-                PlanViewPlane.ViewDepthPlane
-            };
 
-            foreach (PlanViewPlane plane in planes)
+            foreach (PlanViewPlane plane in CachePlanes)
             {
                 ElementId planeLevelId = viewRange.GetLevelId(plane);
                 double offset = viewRange.GetOffset(plane);
+                var data = new PlaneData { Offset = offset };
 
-                var data = new PlaneData
-                {
-                    Offset = offset
-                };
-
-                if (planeLevelId == ElementId.InvalidElementId)
+                if (planeLevelId == ElementId.InvalidElementId || planeLevelId == PlanViewRange.Unlimited)
                 {
                     data.Relationship = LevelRelationship.None;
                 }
@@ -131,120 +115,100 @@ namespace AJTools.Services.CopyViewRange
                     data.Relationship = LevelRelationship.Absolute;
                     data.AbsoluteLevelId = planeLevelId;
                 }
-
                 result._planes[plane] = data;
             }
-
             return result;
         }
 
         /// <summary>
-        /// Apply the stored view range to the given target plan view,
-        /// with detailed reasons if the view range is read-only.
+        /// Apply the stored view range to the target view using Safe Order logic.
         /// </summary>
         public bool TryApplyTo(ViewPlan targetView, out string skipReason)
         {
-            if (targetView == null)
-                throw new ArgumentNullException(nameof(targetView));
-
+            if (targetView == null) throw new ArgumentNullException(nameof(targetView));
             Document doc = targetView.Document;
-            if (doc == null)
-                throw new InvalidOperationException("Target view has no owning document.");
 
-            // Check if the view range parameter is read-only, but only if it exists.
+            // 1. Check Read-Only / Template
             Parameter vrParam = targetView.get_Parameter(BuiltInParameter.PLAN_VIEW_RANGE);
             if (vrParam != null && vrParam.IsReadOnly)
             {
-                string reason;
-
                 if (targetView.ViewTemplateId != ElementId.InvalidElementId)
                 {
-                    var template = doc.GetElement(targetView.ViewTemplateId) as View;
-                    string templateName = template?.Name ?? targetView.ViewTemplateId.IntegerValue.ToString();
-                    reason = $"View range is controlled by view template '{templateName}'.";
+                    var t = doc.GetElement(targetView.ViewTemplateId);
+                    skipReason = $"Controlled by View Template '{t?.Name}'.";
+                    return false;
                 }
-                else
-                {
-                    ElementId primaryId = targetView.GetPrimaryViewId();
-                    if (primaryId != ElementId.InvalidElementId)
-                    {
-                        var primary = doc.GetElement(primaryId) as View;
-                        string primaryName = primary?.Name ?? primaryId.IntegerValue.ToString();
-                        reason =
-                            $"This is a dependent view of '{primaryName}', so its view range is controlled by the parent view.";
-                    }
-                    else
-                    {
-                        reason = "View range parameter is read-only on this view.";
-                    }
-                }
-
-                skipReason = reason;
+                skipReason = "View range is read-only (possibly dependent view).";
                 return false;
             }
 
-            // Collect all Levels sorted by elevation.
+            // 2. Identify Target Levels
+            ElementId destLevelId = targetView.GenLevel?.Id ?? ElementId.InvalidElementId;
+            if (destLevelId == ElementId.InvalidElementId)
+            {
+                skipReason = "Target view has no associated level.";
+                return false;
+            }
+
             IList<Level> allLevels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .OrderBy(l => l.Elevation)
+                .ThenBy(l => l.Id.IntegerValue)
                 .ToList();
 
             List<ElementId> levelIds = allLevels.Select(l => l.Id).ToList();
+            int destIndex = levelIds.IndexOf(destLevelId);
 
-            ElementId destLevelId = targetView.GenLevel != null
-                ? targetView.GenLevel.Id
-                : ElementId.InvalidElementId;
-
-            int destLevelIndex = levelIds.IndexOf(destLevelId);
-            if (destLevelIndex < 0)
+            if (destIndex < 0)
             {
-                skipReason = "Could not find target view's level in project levels.";
+                skipReason = "Target level not found in project list.";
                 return false;
             }
 
-            ElementId destLevelAboveId = ElementId.InvalidElementId;
-            ElementId destLevelBelowId = ElementId.InvalidElementId;
-
-            if (destLevelIndex + 1 < levelIds.Count)
-                destLevelAboveId = levelIds[destLevelIndex + 1];
-
-            if (destLevelIndex - 1 >= 0)
-                destLevelBelowId = levelIds[destLevelIndex - 1];
+            ElementId destAbove = (destIndex + 1 < levelIds.Count) ? levelIds[destIndex + 1] : ElementId.InvalidElementId;
+            ElementId destBelow = (destIndex - 1 >= 0) ? levelIds[destIndex - 1] : ElementId.InvalidElementId;
 
             PlanViewRange vr = targetView.GetViewRange();
 
-            foreach (KeyValuePair<PlanViewPlane, PlaneData> kvp in _planes)
+            // 3. SAFE ORDER: Depth -> Bottom -> Top -> Cut
+            // This prevents "Top is below Bottom" errors during the transition.
+            var safeOrder = new[]
             {
-                PlanViewPlane plane = kvp.Key;
-                PlaneData data = kvp.Value;
+                PlanViewPlane.ViewDepthPlane,
+                PlanViewPlane.BottomClipPlane,
+                PlanViewPlane.TopClipPlane,
+                PlanViewPlane.CutPlane
+            };
+
+            foreach (PlanViewPlane plane in safeOrder)
+            {
+                if (!_planes.TryGetValue(plane, out PlaneData data)) continue;
 
                 ElementId newLevelId;
 
                 switch (data.Relationship)
                 {
                     case LevelRelationship.None:
-                        newLevelId = ElementId.InvalidElementId;
+                        newLevelId = PlanViewRange.Unlimited;
                         break;
-
                     case LevelRelationship.Associated:
                         newLevelId = destLevelId;
                         break;
-
                     case LevelRelationship.Above:
-                        newLevelId = destLevelAboveId;
+                        // Fallback to Associated if no level above exists (e.g. Roof)
+                        newLevelId = (destAbove != ElementId.InvalidElementId) ? destAbove : destLevelId;
                         break;
-
                     case LevelRelationship.Below:
-                        newLevelId = destLevelBelowId;
+                        // Fallback to Associated if no level below exists (e.g. Basement)
+                        newLevelId = (destBelow != ElementId.InvalidElementId) ? destBelow : destLevelId;
                         break;
-
                     case LevelRelationship.Absolute:
-                        newLevelId = data.AbsoluteLevelId;
+                        // If absolute level is deleted, fallback to associated
+                        newLevelId = (doc.GetElement(data.AbsoluteLevelId) is Level) ? data.AbsoluteLevelId : destLevelId;
                         break;
-
                     default:
-                        newLevelId = ElementId.InvalidElementId;
+                        newLevelId = destLevelId;
                         break;
                 }
 
@@ -252,15 +216,66 @@ namespace AJTools.Services.CopyViewRange
                 vr.SetOffset(plane, data.Offset);
             }
 
-            targetView.SetViewRange(vr);
+            try
+            {
+                targetView.SetViewRange(vr);
+            }
+            catch (Exception ex)
+            {
+                skipReason = "Revit rejected values: " + ex.Message;
+                return false;
+            }
+
             skipReason = null;
             return true;
         }
 
-        public void ApplyTo(ViewPlan targetView)
+        // Serialization helpers
+        internal string SerializeCache()
         {
-            if (!TryApplyTo(targetView, out string skipReason))
-                throw new InvalidOperationException(skipReason);
+            var sb = new StringBuilder();
+            sb.AppendLine(CacheVersion);
+            sb.AppendLine(SourceName ?? "");
+
+            foreach (PlanViewPlane plane in CachePlanes)
+            {
+                if (!_planes.TryGetValue(plane, out PlaneData d))
+                    d = new PlaneData { Relationship = LevelRelationship.None };
+
+                sb.Append((int)plane).Append('|')
+                  .Append((int)d.Relationship).Append('|')
+                  .Append(d.Offset.ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                  .Append(d.AbsoluteLevelId.IntegerValue).AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        internal static bool TryDeserializeCache(string content, out CopyViewRangeModel model)
+        {
+            model = null;
+            if (string.IsNullOrWhiteSpace(content)) return false;
+            string[] lines = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            if (lines.Length < 2 || lines[0] != CacheVersion) return false;
+
+            var res = new CopyViewRangeModel { SourceName = lines[1] };
+            for (int i = 2; i < lines.Length; i++)
+            {
+                var p = lines[i].Split('|');
+                if (p.Length < 4) continue;
+                if (int.TryParse(p[0], out int pl) && int.TryParse(p[1], out int rel) &&
+                    double.TryParse(p[2], NumberStyles.Any, CultureInfo.InvariantCulture, out double off) &&
+                    int.TryParse(p[3], out int id))
+                {
+                    res._planes[(PlanViewPlane)pl] = new PlaneData
+                    {
+                        Relationship = (LevelRelationship)rel,
+                        Offset = off,
+                        AbsoluteLevelId = new ElementId(id)
+                    };
+                }
+            }
+            model = res;
+            return true;
         }
     }
 }

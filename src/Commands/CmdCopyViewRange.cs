@@ -1,4 +1,4 @@
-﻿// Tool Name: Copy View Range
+// Tool Name: Copy View Range
 // Description: Implements the Copy View Range command and supporting model snapshot logic.
 // Author: Ajmal P.S.
 // Version: 1.0.1
@@ -8,7 +8,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -20,196 +23,173 @@ namespace AJTools.Commands
 {
     using ViewRangeSnapshot = AJTools.Services.CopyViewRange.CopyViewRangeModel;
 
-    /// <summary>
-    /// Copies the active plan view's view range and applies it to other plan views.
-    /// Uses a cached snapshot so later runs can paste to active or multiple views.
-    /// </summary>
     [Transaction(TransactionMode.Manual)]
     internal class CmdCopyViewRange : IExternalCommand
     {
         private const string Title = "AJ Tools - Copy View Range";
+        private const string EnvPrefix = "AJTOOLS_CVR_";
 
-        // Session cache (like an in-memory clipboard)
-        private static ViewRangeSnapshot _cachedSnapshot;
-        private static Document _cachedDocument;
+        // Memory cache per document (fastest).
+        private static readonly Dictionary<string, ViewRangeSnapshot> _memoryCache
+            = new Dictionary<string, ViewRangeSnapshot>(StringComparer.OrdinalIgnoreCase);
+
+        // Disk cache for recovery across command reloads in the same session.
+        private static readonly string CacheFolder = Path.Combine(Path.GetTempPath(), "AJTools", "CopyViewRange");
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData?.Application;
-            UIDocument uiDoc = uiApp?.ActiveUIDocument;
+            UIDocument uiDoc = commandData.Application?.ActiveUIDocument;
             if (uiDoc == null)
-            {
-                TaskDialog.Show(Title, "An active project document is required.");
                 return Result.Failed;
-            }
 
             Document doc = uiDoc.Document;
             if (!(doc.ActiveView is ViewPlan activePlan) || activePlan.IsTemplate)
             {
-                TaskDialog.Show(
-                    Title,
-                    "Activate a non-template plan view (Floor/Ceiling/Engineering) before running Copy View Range.");
+                TaskDialog.Show(Title, "Please activate a Floor/Ceiling/Engineering plan view first.");
                 return Result.Failed;
             }
 
-            // Show menu depending on whether we already have a cached snapshot for this document
             bool hasCache = HasValidCache(doc);
             TaskDialogResult choice = ShowActionDialog(hasCache);
-            if (choice == TaskDialogResult.Cancel)
-                return Result.Cancelled;
 
             if (choice == TaskDialogResult.CommandLink1)
-                return DoCopyFromActive(activePlan);
+                return DoCopy(activePlan);
 
             if (choice == TaskDialogResult.CommandLink2)
-                return DoPasteToActive(doc, activePlan);
+                return DoPasteActive(doc, activePlan);
 
             if (choice == TaskDialogResult.CommandLink3)
-                return DoPasteToMultiple(doc, activePlan);
+                return DoPasteMultiple(doc, activePlan);
 
             return Result.Cancelled;
         }
 
-        /// <summary>
-        /// Shows the main action dialog.
-        /// </summary>
         private static TaskDialogResult ShowActionDialog(bool hasCache)
         {
             var dialog = new TaskDialog(Title)
             {
-                MainInstruction = hasCache
-                    ? "Copy or paste view range"
-                    : "Copy view range from the active view",
+                MainInstruction = hasCache ? "Copy or Paste View Range" : "Copy View Range",
                 MainContent = hasCache
-                    ? "Use the cached view range, or copy a new one from the active plan view."
-                    : "Copy the active plan view's range so you can paste it to this or other plan views.",
+                    ? "Clipboard contains a view range for this project. Select an action:"
+                    : "Copy the active view's range to clipboard.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 AllowCancellation = true
             };
 
-            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Copy view range from active view");
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Copy from Active View");
 
             if (hasCache)
             {
-                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Paste view range to active view");
-                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Paste view range to multiple views");
+                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Paste to Active View");
+                dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Paste to Multiple Views");
             }
 
             return dialog.Show();
         }
 
-        private static Result DoCopyFromActive(ViewPlan activePlan)
+        private static Result DoCopy(ViewPlan view)
         {
             try
             {
-                _cachedSnapshot = ViewRangeSnapshot.From(activePlan);
-                _cachedDocument = activePlan.Document;
-                TaskDialog.Show(Title, $"View range copied from '{activePlan.Name}'.");
+                ViewRangeSnapshot snapshot = ViewRangeSnapshot.From(view);
+                SaveCache(view.Document, snapshot);
+
+                TaskDialog.Show(
+                    Title,
+                    $"Copied view range from '{view.Name}'.\n\nYou can now paste it into other views in this project.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(Title, "Could not copy view range:\n" + ex.Message);
+                TaskDialog.Show(Title, "Error copying view range:\n" + ex.Message);
                 return Result.Failed;
             }
         }
 
-        private static Result DoPasteToActive(Document doc, ViewPlan activePlan)
+        private static Result DoPasteActive(Document doc, ViewPlan view)
         {
-            if (!HasValidCache(doc))
+            ViewRangeSnapshot snapshot = GetSnapshot(doc);
+            if (snapshot == null)
             {
                 TaskDialog.Show(Title, "Nothing copied yet in this document. Copy a view range first.");
                 return Result.Cancelled;
             }
 
-            int appliedCount = 0;
-            var skippedViews = new List<string>();
-
-            using (var t = new Transaction(doc, "Copy View Range - Active View"))
+            using (Transaction t = new Transaction(doc, "Paste View Range"))
             {
                 t.Start();
-                try
+                if (snapshot.TryApplyTo(view, out string reason))
                 {
-                    if (_cachedSnapshot.TryApplyTo(activePlan, out _))
-                        appliedCount = 1;
-                    else
-                        skippedViews.Add(activePlan.Name);
-
                     t.Commit();
+                    TaskDialog.Show(Title, "Successfully pasted view range.");
+                    return Result.Succeeded;
                 }
-                catch (Exception ex)
-                {
-                    t.RollBack();
-                    TaskDialog.Show(Title, "Could not apply view range to active view:\n" + ex.Message);
-                    return Result.Failed;
-                }
-            }
 
-            TaskDialog.Show(Title, BuildPasteSummary(appliedCount, skippedViews));
-            return appliedCount > 0 ? Result.Succeeded : Result.Cancelled;
+                t.RollBack();
+                TaskDialog.Show(Title, $"Failed to paste.\nReason: {reason}");
+                return Result.Cancelled;
+            }
         }
 
-        private static Result DoPasteToMultiple(Document doc, ViewPlan activePlan)
+        private static Result DoPasteMultiple(Document doc, ViewPlan sourceView)
         {
-            if (!HasValidCache(doc))
+            ViewRangeSnapshot snapshot = GetSnapshot(doc);
+            if (snapshot == null)
             {
                 TaskDialog.Show(Title, "Nothing copied yet in this document. Copy a view range first.");
                 return Result.Cancelled;
             }
 
-            IList<ViewPlan> eligibleViews = GetEligibleViews(doc);
-            if (eligibleViews.Count == 0)
+            IList<ViewPlan> plans = GetEligibleViews(doc);
+            if (plans.Count == 0)
             {
                 TaskDialog.Show(Title, "No plan views are available to receive the copied view range.");
                 return Result.Cancelled;
             }
 
-            List<ViewPlan> selectedViews;
-            // Ensure ViewSelectionForm exists in AJTools.UI
-            using (var form = new ViewSelectionForm(eligibleViews, activePlan))
+            using (var form = new ViewSelectionForm(plans, sourceView))
             {
-                DialogResult dialogResult = form.ShowDialog();
-                if (dialogResult != DialogResult.OK || form.SelectedViews.Count == 0)
+                if (form.ShowDialog() != DialogResult.OK || form.SelectedViews.Count == 0)
                     return Result.Cancelled;
 
-                selectedViews = form.SelectedViews;
-            }
+                IList<ViewPlan> targets = FilterTargets(form.SelectedViews);
+                if (targets.Count == 0)
+                    return Result.Cancelled;
 
-            IList<ViewPlan> targets = FilterTargets(selectedViews);
-            if (targets.Count == 0)
-            {
-                TaskDialog.Show(Title, "No target plan views were selected.");
-                return Result.Cancelled;
-            }
+                int successCount = 0;
+                List<string> errorLog = new List<string>();
 
-            int appliedCount = 0;
-            var skippedViews = new List<string>();
-
-            using (var t = new Transaction(doc, "Copy View Range - Multiple Views"))
-            {
-                t.Start();
-                try
+                using (Transaction t = new Transaction(doc, "Paste View Range - Multiple"))
                 {
-                    foreach (ViewPlan plan in targets)
+                    t.Start();
+
+                    foreach (ViewPlan target in targets)
                     {
-                        if (_cachedSnapshot.TryApplyTo(plan, out _))
-                            appliedCount++;
+                        if (snapshot.TryApplyTo(target, out string reason))
+                            successCount++;
                         else
-                            skippedViews.Add(plan.Name);
+                            errorLog.Add($"- {target.Name}: {reason}");
                     }
 
                     t.Commit();
                 }
-                catch (Exception ex)
-                {
-                    t.RollBack();
-                    TaskDialog.Show(Title, "Could not apply view range to selected views:\n" + ex.Message);
-                    return Result.Failed;
-                }
-            }
 
-            TaskDialog.Show(Title, BuildPasteSummary(appliedCount, skippedViews));
-            return appliedCount > 0 ? Result.Succeeded : Result.Cancelled;
+                var summary = new StringBuilder();
+                summary.AppendLine($"Updated {successCount} view{(successCount == 1 ? string.Empty : "s")} successfully.");
+
+                if (errorLog.Count > 0)
+                {
+                    summary.AppendLine();
+                    summary.AppendLine($"Skipped {errorLog.Count} view{(errorLog.Count == 1 ? string.Empty : "s")}:");
+                    foreach (string err in errorLog.Take(10))
+                        summary.AppendLine(err);
+                    if (errorLog.Count > 10)
+                        summary.AppendLine("...and others.");
+                }
+
+                TaskDialog.Show(Title, summary.ToString());
+                return successCount > 0 ? Result.Succeeded : Result.Cancelled;
+            }
         }
 
         private static IList<ViewPlan> GetEligibleViews(Document doc)
@@ -236,7 +216,8 @@ namespace AJTools.Commands
 
             foreach (ViewPlan view in selectedViews)
             {
-                if (view == null) continue;
+                if (view == null)
+                    continue;
 
                 if (seenIds.Add(view.Id.IntegerValue))
                     result.Add(view);
@@ -245,41 +226,131 @@ namespace AJTools.Commands
             return result;
         }
 
-        private static string BuildPasteSummary(int appliedCount, IList<string> skippedViews)
+        private static ViewRangeSnapshot GetSnapshot(Document doc)
         {
-            var sections = new List<string>();
+            string documentKey = GetDocumentKey(doc);
+            if (string.IsNullOrWhiteSpace(documentKey))
+                return null;
 
-            if (appliedCount > 0)
+            if (_memoryCache.TryGetValue(documentKey, out ViewRangeSnapshot memorySnapshot))
+                return memorySnapshot;
+
+            if (TryLoadCacheExternal(documentKey, out ViewRangeSnapshot snapshot))
             {
-                sections.Add(
-                    $"Successfully applied View Range to {appliedCount} view{(appliedCount == 1 ? string.Empty : "s")}.");
+                _memoryCache[documentKey] = snapshot;
+                return snapshot;
             }
 
-            if (skippedViews.Count > 0)
-            {
-                string header =
-                    $"Skipped {skippedViews.Count} view{(skippedViews.Count == 1 ? string.Empty : "s")} because they have a View Template or an invalid level.";
-                string details = string.Join(Environment.NewLine, skippedViews.Select(name => "- " + name));
-                sections.Add(header + Environment.NewLine + details);
-            }
-
-            if (sections.Count == 0)
-                return "No view ranges were updated.";
-
-            return string.Join(Environment.NewLine + Environment.NewLine, sections);
+            return null;
         }
 
         private static bool HasValidCache(Document doc)
         {
-            if (_cachedSnapshot == null)
+            return GetSnapshot(doc) != null;
+        }
+
+        private static void SaveCache(Document doc, ViewRangeSnapshot snapshot)
+        {
+            if (snapshot == null)
+                return;
+
+            string documentKey = GetDocumentKey(doc);
+            if (string.IsNullOrWhiteSpace(documentKey))
+                return;
+
+            _memoryCache[documentKey] = snapshot;
+            SaveCacheExternal(documentKey, snapshot);
+        }
+
+        private static string GetDocumentKey(Document doc)
+        {
+            if (doc == null)
+                return null;
+
+            string projectId = doc.ProjectInformation?.UniqueId;
+            if (!string.IsNullOrWhiteSpace(projectId))
+                return projectId;
+
+            string path = doc.PathName;
+            if (!string.IsNullOrWhiteSpace(path))
+                return path;
+
+            string title = doc.Title ?? string.Empty;
+            title = title.Trim();
+            if (title.EndsWith("*", StringComparison.Ordinal))
+                title = title.TrimEnd('*').TrimEnd();
+
+            return title;
+        }
+
+        private static void SaveCacheExternal(string documentKey, ViewRangeSnapshot snapshot)
+        {
+            string payload = snapshot.SerializeCache();
+            string cacheKey = ComputeHash(documentKey);
+
+            try
+            {
+                Environment.SetEnvironmentVariable(EnvPrefix + cacheKey, payload, EnvironmentVariableTarget.Process);
+            }
+            catch
+            {
+                // Best-effort cache; failures should not block the command.
+            }
+
+            try
+            {
+                Directory.CreateDirectory(CacheFolder);
+                string path = Path.Combine(CacheFolder, $"clipboard_{cacheKey}.txt");
+                File.WriteAllText(path, payload, Encoding.UTF8);
+            }
+            catch
+            {
+                // Best-effort cache; failures should not block the command.
+            }
+        }
+
+        private static bool TryLoadCacheExternal(string documentKey, out ViewRangeSnapshot snapshot)
+        {
+            snapshot = null;
+            string cacheKey = ComputeHash(documentKey);
+
+            try
+            {
+                string payload = Environment.GetEnvironmentVariable(EnvPrefix + cacheKey, EnvironmentVariableTarget.Process);
+                if (ViewRangeSnapshot.TryDeserializeCache(payload, out snapshot))
+                    return true;
+            }
+            catch
+            {
+                // Ignore cache failures.
+            }
+
+            try
+            {
+                string path = Path.Combine(CacheFolder, $"clipboard_{cacheKey}.txt");
+                if (!File.Exists(path))
+                    return false;
+
+                string payload = File.ReadAllText(path, Encoding.UTF8);
+                return ViewRangeSnapshot.TryDeserializeCache(payload, out snapshot);
+            }
+            catch
+            {
                 return false;
+            }
+        }
 
-            if (ReferenceEquals(_cachedDocument, doc))
-                return true;
-
-            _cachedSnapshot = null;
-            _cachedDocument = null;
-            return false;
+        private static string ComputeHash(string input)
+        {
+            using (SHA256 sha = SHA256.Create())
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                byte[] hash = sha.ComputeHash(bytes);
+                var sb = new StringBuilder(hash.Length * 2);
+                foreach (byte b in hash)
+                    sb.Append(b.ToString("x2"));
+                return sb.ToString();
+            }
         }
     }
 }
