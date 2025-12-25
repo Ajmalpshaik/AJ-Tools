@@ -1,28 +1,30 @@
-// Tool Name: Flow Direction Annotation Service
-// Description: Places view-based annotation symbols along ducts and pipes following actual flow direction.
+// Tool Name: Duct Flow Annotation Service
+// Description: Places view-based annotation symbols along ducts using curve direction in the active view.
 // Author: Ajmal P.S.
 // Version: 1.0.0
 // Last Updated: 2025-12-21
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.DB.Mechanical, Autodesk.Revit.DB.Plumbing
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.DB.Mechanical
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.DB.Plumbing;
 
 namespace AJTools.Services.FlowDirection
 {
     /// <summary>
-    /// Handles placement of flow direction annotation families on ducts and pipes.
+    /// Handles placement of duct flow annotation families on ducts.
     /// </summary>
     internal static class FlowDirectionAnnotationService
     {
+        private const double HorizontalZTolerance = 1e-3;
+        private const double NormalizeTolerance = 1e-9;
+        private const double PlacementTolerance = 1e-6;
+
         /// <summary>
-        /// Places flow direction annotations along the provided element.
-        /// Returns false if flow direction cannot be resolved or placement fails.
+        /// Places duct flow annotations along the provided element.
+        /// Returns false if placement fails or the duct is not supported.
         /// </summary>
         internal static bool TryPlaceFlowAnnotations(
             Document doc,
@@ -42,13 +44,13 @@ namespace AJTools.Services.FlowDirection
                 return false;
             }
 
-            if (!(element is MEPCurve mepCurve) || !(element is Duct || element is Pipe))
+            if (!(element is Duct duct))
             {
-                skipReason = "Only ducts and pipes are supported.";
+                skipReason = "Only ducts are supported.";
                 return false;
             }
 
-            LocationCurve locationCurve = mepCurve.Location as LocationCurve;
+            LocationCurve locationCurve = duct.Location as LocationCurve;
             Curve curve = locationCurve?.Curve;
             if (curve == null)
             {
@@ -56,66 +58,60 @@ namespace AJTools.Services.FlowDirection
                 return false;
             }
 
-            if (!TryResolveFlowDirection(mepCurve, out XYZ flowStart, out XYZ flowEnd, out string flowReason))
+            if (!TryGetHorizontalDirection(curve, out XYZ dirUnit, out XYZ start))
             {
-                skipReason = flowReason;
+                skipReason = "Only horizontal ducts are supported.";
                 return false;
             }
 
             double length = curve.Length;
-            if (length < 1e-6)
+            if (length < NormalizeTolerance)
             {
                 skipReason = "Element curve length is too small.";
                 return false;
             }
 
-            if (spacingInternal <= 1e-6)
+            if (spacingInternal <= NormalizeTolerance)
             {
                 skipReason = "Spacing must be greater than zero.";
                 return false;
             }
 
-            bool flowAlongCurve = IsFlowAlongCurve(curve, flowStart, flowEnd);
             IList<double> distances = BuildPlacementDistances(length, spacingInternal);
             if (distances.Count == 0)
             {
-                skipReason = "No placement points could be calculated.";
+                skipReason = "Duct is shorter than spacing.";
                 return false;
             }
 
             XYZ viewNormal = view.ViewDirection;
-            XYZ viewRight = view.RightDirection;
+            bool hasAngle = TryComputeAngleOnViewPlane(dirUnit, viewNormal, out double angle);
 
             foreach (double distance in distances)
             {
                 double normalized = distance / length;
-                if (!flowAlongCurve)
+
+                XYZ point;
+                try
                 {
-                    normalized = 1.0 - normalized;
+                    point = curve.Evaluate(normalized, true);
+                }
+                catch
+                {
+                    point = start + dirUnit.Multiply(distance);
                 }
 
-                if (normalized < 0.0 || normalized > 1.0)
-                    continue;
-
-                XYZ point = curve.Evaluate(normalized, true);
-                Transform derivatives = curve.ComputeDerivatives(normalized, true);
-                XYZ tangent = derivatives?.BasisX;
-                if (tangent == null || tangent.GetLength() < 1e-9)
+                FamilyInstance instance = doc.Create.NewFamilyInstance(point, symbol, view);
+                if (instance == null)
                 {
-                    skipReason = "Flow direction could not be evaluated on the curve.";
+                    skipReason = "Failed to create the annotation instance.";
                     return false;
                 }
 
-                tangent = tangent.Normalize();
-                if (!flowAlongCurve)
+                if (hasAngle && Math.Abs(angle) > NormalizeTolerance)
                 {
-                    tangent = tangent.Negate();
-                }
-
-                if (!TryPlaceInstance(doc, view, symbol, point, tangent, viewRight, viewNormal, out string placeReason))
-                {
-                    skipReason = placeReason;
-                    return false;
+                    Line axis = Line.CreateUnbound(point, viewNormal);
+                    ElementTransformUtils.RotateElement(doc, instance.Id, axis, angle);
                 }
 
                 placedCount++;
@@ -133,18 +129,15 @@ namespace AJTools.Services.FlowDirection
         private static IList<double> BuildPlacementDistances(double length, double spacing)
         {
             List<double> distances = new List<double>();
-            if (length <= 1e-9 || spacing <= 1e-9)
+            if (length <= NormalizeTolerance || spacing <= NormalizeTolerance)
                 return distances;
 
             if (length < spacing)
-            {
-                distances.Add(length / 2.0);
                 return distances;
-            }
 
             double current = spacing;
-            double limit = length + 1e-6;
-            while (current <= limit)
+            double limit = length - PlacementTolerance;
+            while (current < limit)
             {
                 distances.Add(current);
                 current += spacing;
@@ -153,162 +146,55 @@ namespace AJTools.Services.FlowDirection
             return distances;
         }
 
-        private static bool TryPlaceInstance(
-            Document doc,
-            View view,
-            FamilySymbol symbol,
-            XYZ point,
-            XYZ flowDirection,
-            XYZ viewRight,
-            XYZ viewNormal,
-            out string reason)
+        private static bool TryGetHorizontalDirection(Curve curve, out XYZ dirUnit, out XYZ start)
         {
-            reason = string.Empty;
+            dirUnit = null;
+            start = null;
 
-            if (flowDirection == null || flowDirection.GetLength() < 1e-9)
-            {
-                reason = "Flow direction could not be evaluated.";
+            if (curve == null)
                 return false;
-            }
 
-            XYZ projected = flowDirection - viewNormal.Multiply(flowDirection.DotProduct(viewNormal));
-            if (projected.GetLength() < 1e-9)
-            {
-                reason = "Flow direction is perpendicular to the view.";
+            start = curve.GetEndPoint(0);
+            XYZ end = curve.GetEndPoint(1);
+            XYZ direction = end - start;
+            if (direction.GetLength() < NormalizeTolerance)
                 return false;
-            }
 
-            XYZ projectedDir = projected.Normalize();
-            double angle = viewRight.AngleTo(projectedDir);
-            double sign = viewRight.CrossProduct(projectedDir).DotProduct(viewNormal);
-            if (sign < 0)
-            {
-                angle = -angle;
-            }
-
-            FamilyInstance instance = doc.Create.NewFamilyInstance(point, symbol, view);
-            if (instance == null)
-            {
-                reason = "Failed to create the annotation instance.";
-                return false;
-            }
-
-            if (Math.Abs(angle) > 1e-9)
-            {
-                Line axis = Line.CreateUnbound(point, viewNormal);
-                ElementTransformUtils.RotateElement(doc, instance.Id, axis, angle);
-            }
-
-            return true;
+            dirUnit = direction.Normalize();
+            return Math.Abs(dirUnit.Z) <= HorizontalZTolerance;
         }
 
-        private static bool TryResolveFlowDirection(
-            MEPCurve curve,
-            out XYZ flowStart,
-            out XYZ flowEnd,
-            out string reason)
+        private static bool TryComputeAngleOnViewPlane(XYZ direction, XYZ viewDirection, out double angle)
         {
-            flowStart = null;
-            flowEnd = null;
-            reason = string.Empty;
+            angle = 0;
 
-            ConnectorSet connectorSet = curve?.ConnectorManager?.Connectors;
-            if (connectorSet == null)
-            {
-                reason = "No connectors found for the selected element.";
+            if (direction == null || viewDirection == null)
                 return false;
-            }
 
-            List<Connector> endConnectors = connectorSet
-                .Cast<Connector>()
-                .Where(c => c != null && c.ConnectorType == ConnectorType.End)
-                .ToList();
-
-            if (endConnectors.Count < 2)
-            {
-                reason = "Flow direction could not be resolved (missing end connectors).";
+            double dot = direction.DotProduct(viewDirection);
+            XYZ projected = direction - viewDirection.Multiply(dot);
+            if (projected.GetLength() < NormalizeTolerance)
                 return false;
-            }
 
-            // The Connector API in some Revit versions does not expose an explicit FlowDirection property.
-            // Fallback: infer flow direction from connector orientation (Direction) where possible.
-            // If a connector's direction vector points toward the other end connector, consider it the start.
+            projected = projected.Normalize();
 
-            // Try to use explicit flow direction if available via property name (guarded by reflection)
-            try
+            XYZ xAxis = XYZ.BasisX;
+            double dotX = xAxis.DotProduct(viewDirection);
+            XYZ refAxis = xAxis - viewDirection.Multiply(dotX);
+            if (refAxis.GetLength() < NormalizeTolerance)
             {
-                // Some Revit builds may expose a FlowDirection property on Connector; use it if present.
-                var t = typeof(Connector);
-                var prop = t.GetProperty("FlowDirection");
-                if (prop != null)
-                {
-                    var inC = endConnectors.FirstOrDefault(c =>
-                    {
-                        var val = prop.GetValue(c, null);
-                        return val != null && val.ToString().IndexOf("In", StringComparison.OrdinalIgnoreCase) >= 0;
-                    });
-
-                    var outC = endConnectors.FirstOrDefault(c =>
-                    {
-                        var val = prop.GetValue(c, null);
-                        return val != null && val.ToString().IndexOf("Out", StringComparison.OrdinalIgnoreCase) >= 0;
-                    });
-
-                    if (inC != null && outC != null)
-                    {
-                        flowStart = inC.Origin;
-                        flowEnd = outC.Origin;
-                        return true;
-                    }
-                }
+                refAxis = XYZ.BasisY;
             }
-            catch
+            else
             {
-                // ignore reflection failures and continue with heuristic
+                refAxis = refAxis.Normalize();
             }
 
-            // No explicit per-connector direction available; fall back to position-based heuristics below.
-
-            // Final fallback: if the MEPCurve has a location curve, choose connector closer to its start point.
-            try
-            {
-                LocationCurve lc = curve.Location as LocationCurve;
-                Curve geom = lc?.Curve;
-                if (geom != null && geom.IsBound)
-                {
-                    XYZ curveStart = geom.GetEndPoint(0);
-                    // Choose connector whose origin is closer to the curve start as the flow start
-                    Connector closer = endConnectors.OrderBy(c => c.Origin.DistanceTo(curveStart)).First();
-                    Connector other = endConnectors.First(c => !ReferenceEquals(c, closer));
-                    flowStart = closer.Origin;
-                    flowEnd = other.Origin;
-                    return true;
-                }
-            }
-            catch
-            {
-                // ignore and fallback to deterministic assignment below
-            }
-
-            // As a simple deterministic fallback, assign first connector as start and second as end.
-            flowStart = endConnectors[0].Origin;
-            flowEnd = endConnectors[1].Origin;
+            XYZ cross = refAxis.CrossProduct(projected);
+            double num = cross.DotProduct(viewDirection);
+            double den = refAxis.DotProduct(projected);
+            angle = Math.Atan2(num, den);
             return true;
-        }
-
-        private static bool IsFlowAlongCurve(Curve curve, XYZ flowStart, XYZ flowEnd)
-        {
-            XYZ curveDir = curve.GetEndPoint(1).Subtract(curve.GetEndPoint(0));
-            if (curveDir.GetLength() < 1e-9)
-                return true;
-
-            curveDir = curveDir.Normalize();
-            XYZ flowDir = flowEnd.Subtract(flowStart);
-            if (flowDir.GetLength() < 1e-9)
-                return true;
-
-            flowDir = flowDir.Normalize();
-            return curveDir.DotProduct(flowDir) >= 0.0;
         }
     }
 }

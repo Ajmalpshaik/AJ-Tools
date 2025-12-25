@@ -106,9 +106,9 @@ namespace AJTools.App
         {
             var panel = GetOrCreatePanel("MEP");
             CreatePushButton(panel, "Match\nElevation", "Match the middle elevation from a source MEP element to others.", typeof(CmdMatchElevation), "Match Elevation.png", "Match Elevation.png");
-            var flowPulldown = CreatePulldownButton(panel, "Flow\nDirection", "Flow direction annotation tools.", "Flowdirection.png", "Flowdirection.png");
-            CreatePushButton(flowPulldown, "Place", "Place flow direction annotations along ducts and pipes.", typeof(CmdFlowDirectionAnnotations), "Flowdirectioncreate.png", "Flowdirectioncreate.png");
-            CreatePushButton(flowPulldown, "Settings", "Choose the annotation family and spacing used for flow direction placement.", typeof(CmdFlowDirectionSettings), "settings.png", "settings.png");
+            var flowPulldown = CreatePulldownButton(panel, "Duct\nFlow", "Duct flow annotation tools.", "Flowdirectioncreate.png", "Flowdirectioncreate.png");
+            CreatePushButton(flowPulldown, "Place", "Place duct flow annotations along horizontal ducts.", typeof(CmdFlowDirectionAnnotations), "Flowdirectioncreate.png", "Flowdirectioncreate.png");
+            CreatePushButton(flowPulldown, "Settings", "Choose the annotation family and spacing used for duct flow placement.", typeof(CmdFlowDirectionSettings), "settings.png", "settings.png");
             var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), "FilterPro.png", "FilterPro.png");
             filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
         }

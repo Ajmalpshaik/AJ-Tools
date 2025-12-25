@@ -1,4 +1,4 @@
-// Tool Name: Flow Direction Annotations - Settings
+// Tool Name: Duct Flow Annotations - Settings
 // Description: Dialog for selecting the annotation family and spacing.
 // Author: Ajmal P.S.
 // Version: 1.0.0

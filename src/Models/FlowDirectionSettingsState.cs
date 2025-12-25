@@ -1,5 +1,5 @@
-// Tool Name: Flow Direction - Settings State
-// Description: Stores last-used flow direction annotation settings per document.
+// Tool Name: Duct Flow - Settings State
+// Description: Stores last-used duct flow annotation settings per document.
 // Author: Ajmal P.S.
 // Version: 1.0.0
 // Last Updated: 2025-12-21
@@ -11,7 +11,7 @@ using Autodesk.Revit.DB;
 namespace AJTools.Models
 {
     /// <summary>
-    /// Snapshot of flow direction annotation settings.
+    /// Snapshot of duct flow annotation settings.
     /// </summary>
     public class FlowDirectionSettingsState
     {

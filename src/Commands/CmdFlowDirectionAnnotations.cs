@@ -1,5 +1,5 @@
-// Tool Name: Flow Direction Annotations
-// Description: Places flow direction annotation families along ducts and pipes with user-controlled spacing.
+// Tool Name: Duct Flow Annotations
+// Description: Places duct flow annotation families along ducts with user-controlled spacing.
 // Author: Ajmal P.S.
 // Version: 1.0.0
 // Last Updated: 2025-12-21
@@ -18,34 +18,34 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Places flow direction annotations along ducts and pipes.
+    /// Places duct flow annotations along ducts.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdFlowDirectionAnnotations : IExternalCommand
     {
         /// <summary>
-        /// Executes the flow direction annotation workflow.
+        /// Executes the duct flow annotation workflow.
         /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
             if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
             {
-                DialogHelper.ShowError("Flow Direction", message);
+                DialogHelper.ShowError("Duct Flow", message);
                 return Result.Cancelled;
             }
 
             Document doc = uidoc.Document;
             if (!ValidationHelper.ValidateEditableDocument(doc, out message))
             {
-                DialogHelper.ShowError("Flow Direction", message);
+                DialogHelper.ShowError("Duct Flow", message);
                 return Result.Cancelled;
             }
 
             View view = doc.ActiveView;
             if (!IsSupportedView(view, out message))
             {
-                DialogHelper.ShowError("Flow Direction", message);
+                DialogHelper.ShowError("Duct Flow", message);
                 return Result.Cancelled;
             }
 
@@ -53,27 +53,27 @@ namespace AJTools.Commands
             FlowDirectionSettingsState state = settingsTracker.LastState;
             if (state == null)
             {
-                DialogHelper.ShowInfo("Flow Direction", "Run 'Flow Direction Settings' to choose the annotation family and spacing.");
+                DialogHelper.ShowInfo("Duct Flow", "Run 'Duct Flow Settings' to choose the annotation family and spacing.");
                 return Result.Cancelled;
             }
 
             FamilySymbol symbol = doc.GetElement(state.SymbolId) as FamilySymbol;
             if (!IsValidAnnotationSymbol(symbol))
             {
-                DialogHelper.ShowError("Flow Direction", "The saved annotation family is missing or invalid. Open Flow Direction Settings and choose a valid family.");
+                DialogHelper.ShowError("Duct Flow", "The saved annotation family is missing or invalid. Open Duct Flow Settings and choose a valid family.");
                 return Result.Cancelled;
             }
 
             double spacingInternal = state.SpacingInternal;
             if (spacingInternal <= 1e-6)
             {
-                DialogHelper.ShowError("Flow Direction", "The saved spacing is invalid. Open Flow Direction Settings and enter a valid spacing.");
+                DialogHelper.ShowError("Duct Flow", "The saved spacing is invalid. Open Duct Flow Settings and enter a valid spacing.");
                 return Result.Cancelled;
             }
 
             if (!symbol.IsActive)
             {
-                using (Transaction t = new Transaction(doc, "Activate Flow Annotation Family"))
+                using (Transaction t = new Transaction(doc, "Activate Duct Flow Annotation Family"))
                 {
                     t.Start();
                     symbol.Activate();
@@ -81,7 +81,7 @@ namespace AJTools.Commands
                 }
             }
 
-            var filter = new DuctPipeSelectionFilter();
+            var filter = new DuctSelectionFilter();
             int processedCount = 0;
             int placedTotal = 0;
             int skippedCount = 0;
@@ -95,7 +95,7 @@ namespace AJTools.Commands
                     pickedRef = uidoc.Selection.PickObject(
                         ObjectType.Element,
                         filter,
-                        "Select duct or pipe to place flow annotations (ESC to finish)");
+                        "Select duct to place duct flow annotations (ESC to finish)");
                 }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                 {
@@ -108,7 +108,7 @@ namespace AJTools.Commands
 
                 processedCount++;
 
-                using (Transaction t = new Transaction(doc, "Place Flow Direction Annotations"))
+                using (Transaction t = new Transaction(doc, "Place Duct Flow Annotations"))
                 {
                     t.Start();
                     bool placed = FlowDirectionAnnotationService.TryPlaceFlowAnnotations(
@@ -139,7 +139,7 @@ namespace AJTools.Commands
 
             if (processedCount == 0)
             {
-                DialogHelper.ShowInfo("Flow Direction", "No elements were selected.");
+                DialogHelper.ShowInfo("Duct Flow", "No elements were selected.");
                 return Result.Cancelled;
             }
 
@@ -158,7 +158,7 @@ namespace AJTools.Commands
                 }
             }
 
-            DialogHelper.ShowInfo("Flow Direction", summary);
+            DialogHelper.ShowInfo("Duct Flow", summary);
             return placedTotal > 0 ? Result.Succeeded : Result.Cancelled;
         }
 
@@ -185,7 +185,7 @@ namespace AJTools.Commands
                 viewType == ViewType.SystemBrowser ||
                 viewType == ViewType.Legend)
             {
-                message = "Flow direction annotations can only be placed in 2D model views.";
+                message = "Duct flow annotations can only be placed in 2D model views.";
                 return false;
             }
 

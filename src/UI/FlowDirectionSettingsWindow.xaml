@@ -1,5 +1,5 @@
 <!--
-  Tool Name: Flow Direction Annotations - Settings
+  Tool Name: Duct Flow Annotations - Settings
   Description: Dialog for selecting the annotation family and spacing.
   Author: Ajmal P.S.
   Version: 1.0.0
@@ -10,7 +10,7 @@
 <Window x:Class="AJTools.UI.FlowDirectionSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Flow Direction Settings"
+        Title="Duct Flow Settings"
         MinWidth="360"
         ResizeMode="NoResize"
         SizeToContent="Height"
@@ -38,7 +38,7 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Text="Flow Direction Settings"
+                <TextBlock Text="Duct Flow Settings"
                            FontWeight="Bold"
                            FontSize="14"
                            Foreground="{StaticResource TextPrimary}"

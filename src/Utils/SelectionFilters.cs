@@ -115,4 +115,24 @@ namespace AJTools.Utils
             return false;
         }
     }
+
+    /// <summary>
+    /// Selection filter for duct curves only.
+    /// </summary>
+    internal class DuctSelectionFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            Category cat = elem?.Category;
+            if (cat == null)
+                return false;
+
+            return cat.Id.IntegerValue == (int)BuiltInCategory.OST_DuctCurves;
+        }
+
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            return false;
+        }
+    }
 }

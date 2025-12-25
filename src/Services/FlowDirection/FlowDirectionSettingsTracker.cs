@@ -1,5 +1,5 @@
-// Tool Name: Flow Direction - Settings Tracker
-// Description: Keeps last-used flow direction settings per document session.
+// Tool Name: Duct Flow - Settings Tracker
+// Description: Keeps last-used duct flow settings per document session.
 // Author: Ajmal P.S.
 // Version: 1.0.0
 // Last Updated: 2025-12-21
@@ -13,7 +13,7 @@ using AJTools.Models;
 namespace AJTools.Services.FlowDirection
 {
     /// <summary>
-    /// Tracks last-used flow direction settings per active document.
+    /// Tracks last-used duct flow settings per active document.
     /// </summary>
     internal sealed class FlowDirectionSettingsTracker
     {

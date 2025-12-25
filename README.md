@@ -49,7 +49,7 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 
 ### MEP
 - Match Elevation - Match middle elevation from a source pipe, duct, cable tray, conduit, flex duct, or flex pipe to targets.
-- Flow Direction - Place flow direction annotations and manage settings.
+- Duct Flow - Place duct flow annotations and manage settings.
 - Filter Pro - Build parameter filters and apply them to the active view.
 
 ### Annotations
@@ -63,7 +63,7 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 ## Notes and Limitations
 - Commands run only in non-template project views.
 - Auto Dims requires Crop View to be enabled and works only in plan, section, or elevation views.
-- Flow Direction supports ducts and pipes with valid connectors; select an annotation family in Settings first.
+- Duct Flow supports horizontal ducts only; select an annotation family in Settings first.
 - Filter Pro only exposes Revit filterable categories/parameters; large models may limit value scanning.
 - View templates or locked view settings can block visibility/override changes.
 

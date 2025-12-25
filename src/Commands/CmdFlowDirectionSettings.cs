@@ -1,5 +1,5 @@
-// Tool Name: Flow Direction Settings
-// Description: Stores the flow direction annotation family and spacing for reuse.
+// Tool Name: Duct Flow Settings
+// Description: Stores the duct flow annotation family and spacing for reuse.
 // Author: Ajmal P.S.
 // Version: 1.0.0
 // Last Updated: 2025-12-21
@@ -18,7 +18,7 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Opens the settings dialog to store flow direction annotation preferences.
+    /// Opens the settings dialog to store duct flow annotation preferences.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdFlowDirectionSettings : IExternalCommand
@@ -31,14 +31,14 @@ namespace AJTools.Commands
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
             if (!ValidationHelper.ValidateUIDocument(uidoc, out message))
             {
-                DialogHelper.ShowError("Flow Direction", message);
+                DialogHelper.ShowError("Duct Flow", message);
                 return Result.Cancelled;
             }
 
             Document doc = uidoc.Document;
             if (!ValidationHelper.ValidateEditableDocument(doc, out message))
             {
-                DialogHelper.ShowError("Flow Direction", message);
+                DialogHelper.ShowError("Duct Flow", message);
                 return Result.Cancelled;
             }
 
@@ -55,7 +55,7 @@ namespace AJTools.Commands
 
             if (settingsWindow.SelectedSymbol == null || settingsWindow.SpacingInternal <= 1e-6)
             {
-                DialogHelper.ShowError("Flow Direction", "Please select a valid annotation family and spacing.");
+                DialogHelper.ShowError("Duct Flow", "Please select a valid annotation family and spacing.");
                 return Result.Cancelled;
             }
 
@@ -65,7 +65,7 @@ namespace AJTools.Commands
                 SpacingInternal = settingsWindow.SpacingInternal
             });
 
-            DialogHelper.ShowInfo("Flow Direction", "Settings saved. Use 'Flow Direction' -> 'Place' to apply.");
+            DialogHelper.ShowInfo("Duct Flow", "Settings saved. Use 'Duct Flow' -> 'Place' to apply.");
             return Result.Succeeded;
         }
     }
