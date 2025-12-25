@@ -1,6 +1,6 @@
 # AJ Tools - Revit Add-in Toolkit
 
-AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup, dimensioning, datums, view utilities, and MEP production workflows.
+AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup, dimensioning, datums, and MEP production workflows.
 
 ## Supported Versions
 - Revit 2020 (built and tested)
@@ -47,9 +47,6 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 - Reset to 3D Extents - Grids Only, Levels Only, or Grids + Levels.
 - Flip Grid Bubble - Toggle which end of a grid shows the bubble.
 
-### Views
-- Copy View Range - Copy the active plan view range and paste to other plan views.
-
 ### MEP
 - Match Elevation - Match middle elevation from a source pipe, duct, cable tray, conduit, flex duct, or flex pipe to targets.
 - Flow Direction - Place flow direction annotations and manage settings.
@@ -66,7 +63,6 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 ## Notes and Limitations
 - Commands run only in non-template project views.
 - Auto Dims requires Crop View to be enabled and works only in plan, section, or elevation views.
-- Copy View Range works only in plan views; it caches copied ranges in `%TEMP%\AJTools\CopyViewRange`.
 - Flow Direction supports ducts and pipes with valid connectors; select an annotation family in Settings first.
 - Filter Pro only exposes Revit filterable categories/parameters; large models may limit value scanning.
 - View templates or locked view settings can block visibility/override changes.

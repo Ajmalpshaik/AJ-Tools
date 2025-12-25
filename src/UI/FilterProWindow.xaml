@@ -175,14 +175,7 @@
                                     <Grid Grid.Column="0" Margin="0,0,6,0">
                                         <TextBox x:Name="value_search_textbox"
                                                  Style="{StaticResource ModernTextBox}"
-                                                 ToolTip="Filter the value list"
-                                                 Padding="30,5,5,5"/>
-                                        <Image Source="pack://siteoforigin:,,,/Resources/search.png" 
-                                               Height="16" 
-                                               Width="16" 
-                                               HorizontalAlignment="Left" 
-                                               Margin="8,0,0,0"
-                                               Opacity="0.6"/>
+                                                 ToolTip="Filter the value list"/>
                                     </Grid>
 
                                     <ComboBox x:Name="value_sort_combobox"
@@ -392,7 +385,6 @@
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
-                                    <Image Source="pack://siteoforigin:,,,/Resources/refresh.png" Height="16" Width="16" Margin="0,0,6,0"/>
                                     <TextBlock Text="Refresh Views" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -537,7 +529,6 @@
                             Margin="0,0,20,0"
                             Background="{StaticResource AccentOrange}">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="pack://siteoforigin:,,,/Resources/apply.png" Height="16" Width="16" Margin="0,0,8,0"/>
                             <TextBlock Text="APPLY TO VIEW" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
@@ -548,7 +539,6 @@
                             Margin="0,0,20,0"
                             Background="{StaticResource AccentBlue}">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="pack://siteoforigin:,,,/Resources/shuffle.png" Height="16" Width="16" Margin="0,0,8,0"/>
                             <TextBlock Text="SHUFFLE COLORS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
@@ -559,7 +549,6 @@
                             Margin="0,0,20,0"
                             Background="{StaticResource AccentGreen}">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="pack://siteoforigin:,,,/Resources/create.png" Height="16" Width="16" Margin="0,0,8,0"/>
                             <TextBlock Text="CREATE FILTERS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
@@ -570,7 +559,6 @@
                             Background="#FF757575"
                             Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="pack://siteoforigin:,,,/Resources/close.png" Height="16" Width="16" Margin="0,0,8,0"/>
                             <TextBlock Text="CLOSE" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>

@@ -4,13 +4,13 @@
 // Version: 1.0.0
 // Last Updated: 2025-12-10
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.UI, System.IO, System.Reflection, System.Windows.Media.Imaging, AJTools.Commands
+// Dependencies: Autodesk.Revit.UI, System.Reflection, System.Windows.Media.Imaging, AJTools.Commands, AJTools.Utils
 using Autodesk.Revit.UI;
 using System;
-using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using AJTools.Commands;
+using AJTools.Utils;
 
 namespace AJTools.App
 {
@@ -21,7 +21,7 @@ namespace AJTools.App
     {
         private readonly UIControlledApplication _app;
         private readonly string _assemblyPath;
-        private readonly string _assemblyFolder;
+        private readonly IconLoader _iconLoader;
 
         private const string TabName = "AJ Tools";
 
@@ -32,7 +32,7 @@ namespace AJTools.App
         {
             _app = app;
             _assemblyPath = Assembly.GetExecutingAssembly().Location;
-            _assemblyFolder = Path.GetDirectoryName(_assemblyPath);
+            _iconLoader = new IconLoader(_assemblyPath);
         }
 
         /// <summary>
@@ -53,7 +53,6 @@ namespace AJTools.App
             CreateLinksPanel();
             CreateDimensionsPanel();
             CreateDatumsPanel();
-            CreateViewsPanel();
             CreateMepPanel();
             CreateAnnotationsPanel();
             CreateInfoPanel();
@@ -62,126 +61,73 @@ namespace AJTools.App
         private void CreateGraphicsPanel()
         {
             var panel = GetOrCreatePanel("Graphics");
-            var toggleLarge = LoadIconLarge("ToggleLinks.png");
-            var toggleSmall = LoadIconSmall("ToggleLinks.png");
-            var unhideLarge = LoadIconLarge("UnhideAll.png");
-            var unhideSmall = LoadIconSmall("UnhideAll.png");
-            var resetLarge = LoadIconLarge("ResetOverrides.png");
-            var resetSmall = LoadIconSmall("ResetOverrides.png");
 
-            CreatePushButton(panel, "Toggle\nLinks", "Toggle visibility of all Revit Links in the active view.", typeof(CmdToggleRevitLinks), toggleLarge, toggleSmall);
-            CreatePushButton(panel, "Unhide\nAll", "Unhide all elements in the active view (Temporary Hide/Isolate + hidden items).", typeof(CmdUnhideAll), unhideLarge, unhideSmall);
-            CreatePushButton(panel, "Reset\nGraphics", "Clear per-element graphic overrides in the active view.", typeof(CmdResetOverrides), resetLarge, resetSmall);
+            CreatePushButton(panel, "Toggle\nLinks", "Toggle visibility of all Revit Links in the active view.", typeof(CmdToggleRevitLinks), "Toggle Links.png", "Toggle Links.png");
+            CreatePushButton(panel, "Unhide\nAll", "Unhide all elements in the active view (Temporary Hide/Isolate + hidden items).", typeof(CmdUnhideAll), "Unhide All.png", "Unhide All.png");
+            CreatePushButton(panel, "Reset\nGraphics", "Clear per-element graphic overrides in the active view.", typeof(CmdResetOverrides), "Reset Overrides.png", "Reset Overrides.png");
         }
 
         private void CreateLinksPanel()
         {
             var panel = GetOrCreatePanel("Links");
-
-            var linkedLarge = LoadIconLarge("linkedID.png");
-            var linkedSmall = LoadIconSmall("linkedID.png");
-
-            var pulldownButton = CreatePulldownButton(panel, "Element\nID", "Element ID tools for current and linked models.", linkedLarge, linkedSmall);
-            CreatePushButton(pulldownButton, "Linked ID of\nSelection", "Pick any element (model or linked) and view its Element ID with source info.", typeof(CmdLinkedElementIdViewer), linkedLarge, linkedSmall);
-            CreatePushButton(pulldownButton, "View by\nLinked ID", "Search by Element ID in current or linked models and zoom to it.", typeof(CmdLinkedElementSearch), linkedLarge, linkedSmall);
+            var pulldownButton = CreatePulldownButton(panel, "Element\nID", "Element ID tools for current and linked models.", "linkedID.png", "linkedID.png");
+            CreatePushButton(pulldownButton, "Linked ID of\nSelection", "Pick any element (model or linked) and view its Element ID with source info.", typeof(CmdLinkedElementIdViewer), "Linked ID of Selection.png", "Linked ID of Selection.png");
+            CreatePushButton(pulldownButton, "View by\nLinked ID", "Search by Element ID in current or linked models and zoom to it.", typeof(CmdLinkedElementSearch), "View by Linked ID.png", "View by Linked ID.png");
+            CreatePushButton(panel, "Set Link\nWorkset", "Assign selected Revit links and CAD imports to a workset.", typeof(CmdSetLinkWorkset), "Set Link Workset.png", "Set Link Workset.png");
         }
 
         private void CreateDimensionsPanel()
         {
             var panel = GetOrCreatePanel("Dimensions");
+            var autoDimsPulldown = CreatePulldownButton(panel, "Auto\nDims", "Dimension grids and levels automatically.", "Dimensions.png", "Dimensions.png");
+            CreatePushButton(autoDimsPulldown, "Grids Only", "Create horizontal/vertical grid dimension strings in plan views.", typeof(CmdAutoDimensionsGrids), "Dimensions.png", "Dimensions.png");
+            CreatePushButton(autoDimsPulldown, "Levels Only", "Create level dimension strings in section or elevation views.", typeof(CmdAutoDimensionsLevels), "Dimensions.png", "Dimensions.png");
+            CreatePushButton(autoDimsPulldown, "Grids + Levels", "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.", typeof(CmdAutoDimensions), "Dimensions.png", "Dimensions.png");
 
-            var dimensionsLarge = LoadIconLarge("Dimensions.png");
-            var dimensionsSmall = LoadIconSmall("Dimensions.png");
-            var dimByLineLarge = LoadIconLarge("Dimensions by Line.png");
-            var dimByLineSmall = LoadIconSmall("Dimensions by Line.png");
-            var copyDimLarge = LoadIconLarge("Copy Dim Text.png");
-            var copyDimSmall = LoadIconSmall("Copy Dim Text.png");
+            var dimsByLinePulldown = CreatePulldownButton(panel, "Dim By\nLine", "Pick two points to place grid or level dimensions along a custom line.", "Dimensions by Line.png", "Dimensions by Line.png");
+            CreatePushButton(dimsByLinePulldown, "Dim By Line\nGrid Only", "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).", typeof(CmdDimensionGridsByLine), "Dimensions by Line.png", "Dimensions by Line.png");
+            CreatePushButton(dimsByLinePulldown, "Dim By Line\nLevel Only", "Create a dimension string across levels within the picked vertical range.", typeof(CmdDimensionLevelsByLine), "Dimensions by Line.png", "Dimensions by Line.png");
 
-            var autoDimsPulldown = CreatePulldownButton(panel, "Auto\nDims", "Dimension grids and levels automatically.", dimensionsLarge, dimensionsSmall);
-            CreatePushButton(autoDimsPulldown, "Grids Only", "Create horizontal/vertical grid dimension strings in plan views.", typeof(CmdAutoDimensionsGrids), dimensionsLarge, dimensionsSmall);
-            CreatePushButton(autoDimsPulldown, "Levels Only", "Create level dimension strings in section or elevation views.", typeof(CmdAutoDimensionsLevels), dimensionsLarge, dimensionsSmall);
-            CreatePushButton(autoDimsPulldown, "Grids + Levels", "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.", typeof(CmdAutoDimensions), dimensionsLarge, dimensionsSmall);
-
-            var dimsByLinePulldown = CreatePulldownButton(panel, "Dim By\nLine", "Pick two points to place grid or level dimensions along a custom line.", dimByLineLarge, dimByLineSmall);
-            CreatePushButton(dimsByLinePulldown, "Dim By Line\nGrid Only", "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).", typeof(CmdDimensionGridsByLine), dimByLineLarge, dimByLineSmall);
-            CreatePushButton(dimsByLinePulldown, "Dim By Line\nLevel Only", "Create a dimension string across levels within the picked vertical range.", typeof(CmdDimensionLevelsByLine), dimByLineLarge, dimByLineSmall);
-
-            CreatePushButton(panel, "Copy Dim\nText", "Copy Above/Below/Prefix/Suffix text from one dimension to others.", typeof(CmdCopyDimensionText), copyDimLarge, copyDimSmall);
+            CreatePushButton(panel, "Copy Dim\nText", "Copy Above/Below/Prefix/Suffix text from one dimension to others.", typeof(CmdCopyDimensionText), "Copy Dim Text.png", "Copy Dim Text.png");
         }
 
         private void CreateDatumsPanel()
         {
             var panel = GetOrCreatePanel("Datums");
+            var resetDatumsPulldown = CreatePulldownButton(panel, "Reset to\n3D Extents", "Reset grid or level datum extents back to 3D.", "Resetto3DExtents.png", "Resetto3DExtents.png");
+            CreatePushButton(resetDatumsPulldown, "Grids Only", "Reset all visible grids to 3D extents in this view.", typeof(CmdResetDatumsGrids), "Resetto3DExtents.png", "Resetto3DExtents.png");
+            CreatePushButton(resetDatumsPulldown, "Levels Only", "Reset all visible levels to 3D extents in this view.", typeof(CmdResetDatumsLevels), "Resetto3DExtents.png", "Resetto3DExtents.png");
+            CreatePushButton(resetDatumsPulldown, "Grids + Levels", "Reset both grids and levels visible in this view.", typeof(CmdResetDatums), "Resetto3DExtents.png", "Resetto3DExtents.png");
 
-            var datumLarge = LoadIconLarge("Resetto3DExtents.png");
-            var datumSmall = LoadIconSmall("Resetto3DExtents.png");
-            var flipLarge = LoadIconLarge("Grid bubble Flip.png");
-            var flipSmall = LoadIconSmall("Grid bubble Flip.png");
-
-            var resetDatumsPulldown = CreatePulldownButton(panel, "Reset to\n3D Extents", "Reset grid or level datum extents back to 3D.", datumLarge, datumSmall);
-            CreatePushButton(resetDatumsPulldown, "Grids Only", "Reset all visible grids to 3D extents in this view.", typeof(CmdResetDatumsGrids), datumLarge, datumSmall);
-            CreatePushButton(resetDatumsPulldown, "Levels Only", "Reset all visible levels to 3D extents in this view.", typeof(CmdResetDatumsLevels), datumLarge, datumSmall);
-            CreatePushButton(resetDatumsPulldown, "Grids + Levels", "Reset both grids and levels visible in this view.", typeof(CmdResetDatums), datumLarge, datumSmall);
-
-            CreatePushButton(panel, "Flip Grid\nBubble", "Toggle which grid end shows the bubble, one grid at a time.", typeof(CmdFlipGridBubble), flipLarge, flipSmall);
-        }
-
-        private void CreateViewsPanel()
-        {
-            var panel = GetOrCreatePanel("Views");
-            var copyViewLarge = LoadIconLarge("Copy View Range.png");
-            var copyViewSmall = LoadIconSmall("Copy View Range.png");
-            CreatePushButton(panel, "Copy View\nRange", "Copy the active plan view's range and paste it to other plan views.", typeof(CmdCopyViewRange), copyViewLarge, copyViewSmall);
+            CreatePushButton(panel, "Flip Grid\nBubble", "Toggle which grid end shows the bubble, one grid at a time.", typeof(CmdFlipGridBubble), "GridbubbleFlip.png", "GridbubbleFlip.png");
         }
 
         private void CreateMepPanel()
         {
             var panel = GetOrCreatePanel("MEP");
-
-            var matchLarge = LoadIconLarge("Match Elevation.png");
-            var matchSmall = LoadIconSmall("Match Elevation.png");
-            var filterLarge = LoadIconLarge("FilterPro.png");
-            var filterSmall = LoadIconSmall("FilterPro.png");
-            BitmapImage flowLarge = null;
-            BitmapImage flowSmall = null;
-            BitmapImage flowSettingsLarge = null;
-            BitmapImage flowSettingsSmall = null;
-
-            CreatePushButton(panel, "Match\nElevation", "Match the middle elevation from a source MEP element to others.", typeof(CmdMatchElevation), matchLarge, matchSmall);
-            var flowPulldown = CreatePulldownButton(panel, "Flow\nDirection", "Flow direction annotation tools.", flowLarge, flowSmall);
-            CreatePushButton(flowPulldown, "Place", "Place flow direction annotations along ducts and pipes.", typeof(CmdFlowDirectionAnnotations), flowLarge, flowSmall);
-            CreatePushButton(flowPulldown, "Settings", "Choose the annotation family and spacing used for flow direction placement.", typeof(CmdFlowDirectionSettings), flowSettingsLarge, flowSettingsSmall);
-            var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), filterLarge, filterSmall);
+            CreatePushButton(panel, "Match\nElevation", "Match the middle elevation from a source MEP element to others.", typeof(CmdMatchElevation), "Match Elevation.png", "Match Elevation.png");
+            var flowPulldown = CreatePulldownButton(panel, "Flow\nDirection", "Flow direction annotation tools.", "Flowdirection.png", "Flowdirection.png");
+            CreatePushButton(flowPulldown, "Place", "Place flow direction annotations along ducts and pipes.", typeof(CmdFlowDirectionAnnotations), "Flowdirectioncreate.png", "Flowdirectioncreate.png");
+            CreatePushButton(flowPulldown, "Settings", "Choose the annotation family and spacing used for flow direction placement.", typeof(CmdFlowDirectionSettings), "settings.png", "settings.png");
+            var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), "FilterPro.png", "FilterPro.png");
             filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
         }
 
         private void CreateAnnotationsPanel()
         {
             var panel = GetOrCreatePanel("Annotations");
+            CreatePushButton(panel, "L-Shape\nLeader", "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc.", typeof(CmdForceTagLeaderLShape), "L-ShapeLeader.png", "L-ShapeLeader.png");
+            CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), "Reset Position.png", "Reset Position.png");
 
-            var leaderLarge = LoadIconLarge("apply.png");
-            var leaderSmall = LoadIconSmall("apply.png");
-            var resetLarge = LoadIconLarge("Rest Position.png");
-            var resetSmall = LoadIconSmall("Rest Position.png");
-            var copySwapLarge = LoadIconLarge("copyswaptext.png");
-            var copySwapSmall = LoadIconSmall("copyswaptext.png");
-            var copyLarge = LoadIconLarge("copy.png");
-            var copySmall = LoadIconSmall("copy.png");
-
-            CreatePushButton(panel, "L-Shape\nLeader", "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc.", typeof(CmdForceTagLeaderLShape), leaderLarge, leaderSmall);
-            CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), resetLarge, resetSmall);
-
-            var copySwapPulldown = CreatePulldownButton(panel, "Copy Swap\nText", "Copy or swap text values between text notes.", copySwapLarge, copySwapSmall);
-            CreatePushButton(copySwapPulldown, "Copy Text", "Copy the text value from one text note to others (click targets until ESC).", typeof(CmdCopyText), copyLarge, copySmall);
-            CreatePushButton(copySwapPulldown, "Swap Text", "Swap the text values between two picked text notes (one-time).", typeof(CmdSwapText), copySwapLarge, copySwapSmall);
+            var copySwapPulldown = CreatePulldownButton(panel, "Copy Swap\nText", "Copy or swap text values between text notes.", "copyswaptext.png", "copyswaptext.png");
+            CreatePushButton(copySwapPulldown, "Copy Text", "Copy the text value from one text note to others (click targets until ESC).", typeof(CmdCopyText), "copyswaptext.png", "copyswaptext.png");
+            CreatePushButton(copySwapPulldown, "Swap Text", "Swap the text values between two picked text notes (one-time).", typeof(CmdSwapText), "copyswaptext.png", "copyswaptext.png");
         }
 
         private void CreateInfoPanel()
         {
             var panel = GetOrCreatePanel("Info");
-            var aboutLarge = LoadIconLarge("information.png");
-            var aboutSmall = LoadIconSmall("information.png");
-            CreatePushButton(panel, "About", "About this AJ Tools add-in.", typeof(CmdAbout), aboutLarge, aboutSmall);
+            CreatePushButton(panel, "About", "About this AJ Tools add-in.", typeof(CmdAbout), "information.png", "information.png");
         }
 
         /// <summary>
@@ -203,22 +149,30 @@ namespace AJTools.App
         }
 
         /// <summary>
-        /// Adds a push button to a ribbon panel with the provided command and icons.
+        /// Adds a push button to a ribbon panel with the provided command and icon file names.
         /// </summary>
-        private PushButton CreatePushButton(RibbonPanel panel, string text, string tooltip, Type command, BitmapImage largeIcon, BitmapImage smallIcon)
+        private PushButton CreatePushButton(RibbonPanel panel, string text, string tooltip, Type command, string largeIconFileName, string smallIconFileName)
         {
             var pushButton = panel.AddItem(CreatePushButtonData(text, command)) as PushButton;
-            ConfigurePushButton(pushButton, tooltip, largeIcon, smallIcon);
+            ConfigurePushButton(
+                pushButton,
+                tooltip,
+                _iconLoader.LoadLarge(largeIconFileName),
+                _iconLoader.LoadSmall(smallIconFileName));
             return pushButton;
         }
 
         /// <summary>
-        /// Adds a push button to a pull-down menu with the provided command and icons.
+        /// Adds a push button to a pull-down menu with the provided command and icon file names.
         /// </summary>
-        private PushButton CreatePushButton(PulldownButton pulldown, string text, string tooltip, Type command, BitmapImage largeIcon, BitmapImage smallIcon)
+        private PushButton CreatePushButton(PulldownButton pulldown, string text, string tooltip, Type command, string largeIconFileName, string smallIconFileName)
         {
             var pushButton = pulldown.AddPushButton(CreatePushButtonData(text, command));
-            ConfigurePushButton(pushButton, tooltip, largeIcon, smallIcon);
+            ConfigurePushButton(
+                pushButton,
+                tooltip,
+                _iconLoader.LoadLarge(largeIconFileName),
+                _iconLoader.LoadSmall(smallIconFileName));
             return pushButton;
         }
 
@@ -233,7 +187,7 @@ namespace AJTools.App
         /// <summary>
         /// Applies tooltip and icons to a button.
         /// </summary>
-        private static void ConfigurePushButton(PushButton pushButton, string tooltip, BitmapImage largeIcon, BitmapImage smallIcon)
+        private static void ConfigurePushButton(PushButton pushButton, string tooltip, BitmapSource largeIcon, BitmapSource smallIcon)
         {
             if (pushButton == null)
             {
@@ -252,19 +206,21 @@ namespace AJTools.App
         }
 
         /// <summary>
-        /// Adds a pull-down button to a panel with the supplied tooltip and icons.
+        /// Adds a pull-down button to a panel with the supplied tooltip and icon file names.
         /// </summary>
-        private PulldownButton CreatePulldownButton(RibbonPanel panel, string text, string tooltip, BitmapImage largeIcon, BitmapImage smallIcon)
+        private PulldownButton CreatePulldownButton(RibbonPanel panel, string text, string tooltip, string largeIconFileName, string smallIconFileName)
         {
             var pulldownData = new PulldownButtonData($"pulldown_{text.Replace("\n", "")}", text);
             var pulldownButton = panel.AddItem(pulldownData) as PulldownButton;
             if (pulldownButton != null)
             {
                 pulldownButton.ToolTip = tooltip;
+                var largeIcon = _iconLoader.LoadLarge(largeIconFileName);
                 if (largeIcon != null)
                 {
                     pulldownButton.LargeImage = largeIcon;
                 }
+                var smallIcon = _iconLoader.LoadSmall(smallIconFileName);
                 if (smallIcon != null)
                 {
                     pulldownButton.Image = smallIcon;
@@ -274,38 +230,5 @@ namespace AJTools.App
             return pulldownButton;
         }
 
-        private BitmapImage LoadIconLarge(string fileName)
-        {
-            return LoadIcon(fileName, 32);
-        }
-
-        private BitmapImage LoadIconSmall(string fileName)
-        {
-            return LoadIcon(fileName, 16);
-        }
-
-        /// <summary>
-        /// Loads a PNG from the Resources folder and decodes it to the requested size.
-        /// Revit expects 32x32 for LargeImage and 16x16 for Image; decoding here keeps
-        /// the ribbon crisp and avoids oversized menu icons.
-        /// </summary>
-        private BitmapImage LoadIcon(string fileName, int decodePixels)
-        {
-            var path = Path.Combine(_assemblyFolder, "Resources", fileName);
-            if (!File.Exists(path))
-            {
-                return null;
-            }
-
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.UriSource = new Uri(path, UriKind.Absolute);
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.DecodePixelWidth = decodePixels;
-            bmp.DecodePixelHeight = decodePixels;
-            bmp.EndInit();
-            bmp.Freeze();
-            return bmp;
-        }
     }
 }
