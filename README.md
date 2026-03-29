@@ -13,7 +13,7 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 1. Build a Release DLL (or use a release package that includes `AJ Tools.dll` and `Resources`).
 2. Create `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools`.
 3. Copy `AJ Tools.dll` and the `Resources` folder into that folder.
-4. Copy `dist/AJ Tools.addin` to `%APPDATA%\Autodesk\Revit\Addins\2020`.
+4. Copy `Addin/AJ Tools.addin` (or `dist/AJ Tools.addin`) to `%APPDATA%\Autodesk\Revit\Addins\2020`.
 5. Open the `.addin` file and make sure `<Assembly>` points to `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools\AJ Tools.dll`.
 6. For all users, use `%PROGRAMDATA%\Autodesk\Revit\Addins\2020` instead of `%APPDATA%`.
 
@@ -37,6 +37,9 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 ### Links
 - Linked ID of Selection - Inspect Element ID and source for a picked host or linked element.
 - View by Linked ID - Search by Element ID across host and loaded links and zoom to the element.
+
+### 3D Views
+- 3D Views as per Workset - Create one 3D view per user workset; each view is named by workset and hides other user worksets.
 
 ### Dimensions
 - Auto Dims - Grids Only, Levels Only, or Grids + Levels.
@@ -69,6 +72,7 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 
 ## Repository Layout
 - `src/` contains the add-in source code. See `src/README.md` for the folder map.
+- `Addin/` contains the standalone `.addin` manifest template.
 - `dist/` contains install scripts and packaging assets.
 
 ## Versioning and Changelog

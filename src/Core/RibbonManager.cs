@@ -53,7 +53,9 @@ namespace AJTools.App
             CreateLinksPanel();
             CreateDimensionsPanel();
             CreateDatumsPanel();
+            CreateFamilyPanel();
             CreateMepPanel();
+            CreatePlanImportPanel();
             CreateAnnotationsPanel();
             CreateInfoPanel();
         }
@@ -65,6 +67,17 @@ namespace AJTools.App
             CreatePushButton(panel, "Toggle\nLinks", "Toggle visibility of all Revit Links in the active view.", typeof(CmdToggleRevitLinks), "Toggle Links.png", "Toggle Links.png");
             CreatePushButton(panel, "Unhide\nAll", "Unhide all elements in the active view (Temporary Hide/Isolate + hidden items).", typeof(CmdUnhideAll), "Unhide All.png", "Unhide All.png");
             CreatePushButton(panel, "Reset\nGraphics", "Clear per-element graphic overrides in the active view.", typeof(CmdResetOverrides), "Reset Overrides.png", "Reset Overrides.png");
+            var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), "FilterPro.png", "FilterPro.png");
+            filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
+
+            var threeDViewsPulldown = CreatePulldownButton(panel, "3D\nViews", "3D view tools.", "3D Views.png", "3D Views.png");
+            CreatePushButton(
+                threeDViewsPulldown,
+                "Create 3D View As Per Workset",
+                "Create one 3D view per user workset and isolate each workset in its matching view.",
+                typeof(Cmd3DViewsAsPerWorkset),
+                "3D Views.png",
+                "3D Views.png");
         }
 
         private void CreateLinksPanel()
@@ -85,6 +98,8 @@ namespace AJTools.App
             CreatePushButton(autoDimsPulldown, "Grids + Levels", "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.", typeof(CmdAutoDimensions), "Dimensions.png", "Dimensions.png");
 
             var dimsByLinePulldown = CreatePulldownButton(panel, "Dim By\nLine", "Pick two points to place grid or level dimensions along a custom line.", "Dimensions by Line.png", "Dimensions by Line.png");
+            CreatePushButton(dimsByLinePulldown, "Quick\nCenter Line", "Quickly create a dimension string for selected parallel elements using center line references.", typeof(CmdQuickParallelCenterLineDimension), "Dimensions by Line.png", "Dimensions by Line.png");
+            CreatePushButton(dimsByLinePulldown, "Quick\nFace/Edge", "Quickly create dimensions using both side faces/edges for each selected parallel element (for ducts/pipes this captures both sides).", typeof(CmdQuickParallelFaceEdgeDimension), "Dimensions by Line.png", "Dimensions by Line.png");
             CreatePushButton(dimsByLinePulldown, "Dim By Line\nGrid Only", "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).", typeof(CmdDimensionGridsByLine), "Dimensions by Line.png", "Dimensions by Line.png");
             CreatePushButton(dimsByLinePulldown, "Dim By Line\nLevel Only", "Create a dimension string across levels within the picked vertical range.", typeof(CmdDimensionLevelsByLine), "Dimensions by Line.png", "Dimensions by Line.png");
 
@@ -102,22 +117,39 @@ namespace AJTools.App
             CreatePushButton(panel, "Flip Grid\nBubble", "Toggle which grid end shows the bubble, one grid at a time.", typeof(CmdFlipGridBubble), "GridbubbleFlip.png", "GridbubbleFlip.png");
         }
 
+        private void CreateFamilyPanel()
+        {
+            var panel = GetOrCreatePanel("Family");
+            CreatePushButton(panel, "Shared\nTo Family", "Convert selected shared parameters in the active family into normal family parameters.", typeof(SharedParamToFamilyParamCommand), "Share To Family.png", "Share To Family.png");
+            CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), "Reset Position.png", "Reset Position.png");
+        }
+
         private void CreateMepPanel()
         {
             var panel = GetOrCreatePanel("MEP");
             CreatePushButton(panel, "Match\nElevation", "Match the middle elevation from a source MEP element to others.", typeof(CmdMatchElevation), "Match Elevation.png", "Match Elevation.png");
+            CreatePushButton(panel, "Smart\nConnect", "Connect two same-category MEP elements (Pipe, Duct, Cable Tray) with routing and angle settings.", typeof(SmartConnectCommand), "SmartConnect.png", "SmartConnect.png");
             var flowPulldown = CreatePulldownButton(panel, "Duct\nFlow", "Duct flow annotation tools.", "Flowdirectioncreate.png", "Flowdirectioncreate.png");
             CreatePushButton(flowPulldown, "Place", "Place duct flow annotations along horizontal ducts.", typeof(CmdFlowDirectionAnnotations), "Flowdirectioncreate.png", "Flowdirectioncreate.png");
             CreatePushButton(flowPulldown, "Settings", "Choose the annotation family and spacing used for duct flow placement.", typeof(CmdFlowDirectionSettings), "settings.png", "settings.png");
-            var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), "FilterPro.png", "FilterPro.png");
-            filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
+        }
+
+        private void CreatePlanImportPanel()
+        {
+            var panel = GetOrCreatePanel("Plan Import");
+            CreatePushButton(
+                panel,
+                "JSON\nFloor Plan",
+                "Create Revit walls from a JSON floor plan file.",
+                typeof(CreateFloorPlanFromJsonCommand),
+                "apply.png",
+                "apply.png");
         }
 
         private void CreateAnnotationsPanel()
         {
             var panel = GetOrCreatePanel("Annotations");
             CreatePushButton(panel, "L-Shape\nLeader", "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc.", typeof(CmdForceTagLeaderLShape), "L-ShapeLeader.png", "L-ShapeLeader.png");
-            CreatePushButton(panel, "Reset\nText", "Reset selected text notes/tags back to their default text offset.", typeof(CmdResetTextPosition), "Reset Position.png", "Reset Position.png");
 
             var copySwapPulldown = CreatePulldownButton(panel, "Copy Swap\nText", "Copy or swap text values between text notes.", "copyswaptext.png", "copyswaptext.png");
             CreatePushButton(copySwapPulldown, "Copy Text", "Copy the text value from one text note to others (click targets until ESC).", typeof(CmdCopyText), "copyswaptext.png", "copyswaptext.png");

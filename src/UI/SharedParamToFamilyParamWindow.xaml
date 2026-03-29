@@ -1,0 +1,168 @@
+<!--
+  Tool Name: Shared Parameter to Family Parameter - UI
+  Description: Select shared family parameters and convert them to family parameters.
+  Author: Ajmal P.S.
+  Version: 1.0.0
+  Last Updated: 2026-03-26
+  Revit Version: 2020
+  Dependencies: System.Windows
+-->
+<Window x:Class="AJTools.UI.SharedParamToFamilyParamWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Shared Parameter to Family Parameter"
+        MinWidth="900"
+        MinHeight="540"
+        Width="980"
+        Height="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundDark}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <DataTemplate x:Key="ParameterItemTemplate">
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Descriptor}"
+                               Foreground="{StaticResource TextSecondary}"
+                               FontSize="11"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource CardBackground}"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,10">
+            <TextBlock Text="Double-click parameters to move them between lists, then click OK to convert."
+                       Foreground="{StaticResource TextSecondary}"
+                       FontSize="12"/>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="{StaticResource CardBackground}"
+                    CornerRadius="8"
+                    Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Text="Shared Parameters in This Family"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontWeight="Bold"
+                               Margin="0,0,0,8"/>
+
+                    <ListBox x:Name="AvailableListBox"
+                             Grid.Row="1"
+                             Style="{StaticResource ModernListBox}"
+                             ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                             ItemTemplate="{StaticResource ParameterItemTemplate}"
+                             MouseDoubleClick="OnAvailableItemDoubleClick"
+                             SelectionChanged="OnSelectionChanged"/>
+                </Grid>
+            </Border>
+
+            <StackPanel Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Margin="10,0">
+                <Button x:Name="AddButton"
+                        Content="Add >"
+                        Style="{StaticResource ModernButton}"
+                        MinWidth="90"
+                        Height="30"
+                        Margin="0,0,0,8"
+                        Click="OnAddClick"/>
+                <Button x:Name="RemoveButton"
+                        Style="{StaticResource SecondaryButton}"
+                        MinWidth="90"
+                        Height="30"
+                        Click="OnRemoveClick">
+                    <Button.Content>
+                        &lt; Remove
+                    </Button.Content>
+                </Button>
+            </StackPanel>
+
+            <Border Grid.Column="2"
+                    Background="{StaticResource CardBackground}"
+                    CornerRadius="8"
+                    Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Text="Selected Family Parameters"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontWeight="Bold"
+                               Margin="0,0,0,8"/>
+
+                    <ListBox x:Name="SelectedListBox"
+                             Grid.Row="1"
+                             Style="{StaticResource ModernListBox}"
+                             ItemContainerStyle="{StaticResource ModernListBoxItemSuccess}"
+                             ItemTemplate="{StaticResource ParameterItemTemplate}"
+                             MouseDoubleClick="OnSelectedItemDoubleClick"
+                             SelectionChanged="OnSelectionChanged"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2"
+              Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="StatusText"
+                       Grid.Column="0"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource TextSecondary}"/>
+
+            <Button x:Name="OkButton"
+                    Grid.Column="1"
+                    Content="OK"
+                    Style="{StaticResource ModernButton}"
+                    MinWidth="90"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    Click="OnOkClick"/>
+
+            <Button Grid.Column="2"
+                    Content="Cancel"
+                    Style="{StaticResource SecondaryButton}"
+                    MinWidth="90"
+                    Height="32"
+                    Click="OnCancelClick"/>
+        </Grid>
+    </Grid>
+</Window>
