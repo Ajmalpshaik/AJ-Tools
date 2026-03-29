@@ -3,7 +3,7 @@
 AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup, dimensioning, datums, and MEP production workflows.
 
 ## Ribbon Preview
-![AJ Tools Ribbon Preview](docs/images/aj-tools-ribbon-preview-v1.1.2.png)
+![AJ Tools Ribbon Preview](docs/images/aj-tools-ribbon-preview.png)
 
 ## Supported Versions
 - Revit 2020 (built and tested)
