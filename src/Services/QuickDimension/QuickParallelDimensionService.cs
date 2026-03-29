@@ -351,13 +351,18 @@ namespace AJTools.Services.QuickDimension
                 }
                 else
                 {
-                    if (!TryGetCenterlineReferenceForElement(element, leadDirection, placementPoint, out Reference reference))
+                    if (!TryGetCenterlineReferenceForElement(
+                        element,
+                        view,
+                        leadDirection,
+                        placementPoint,
+                        out Reference reference))
                     {
                         skippedCount++;
                         continue;
                     }
 
-                    XYZ anchor = GetElementAnchor(element, view) ?? new XYZ();
+                    XYZ anchor = GetCenterlineAnchor(element, view) ?? new XYZ();
                     if (!TryAppendCandidate(doc, seenStableRefs, allCandidates, reference, anchor.DotProduct(sortDirection)))
                         skippedCount++;
                 }
@@ -446,6 +451,7 @@ namespace AJTools.Services.QuickDimension
 
         private static bool TryGetCenterlineReferenceForElement(
             Element element,
+            View view,
             XYZ leadDirection,
             XYZ placementPoint,
             out Reference reference)
@@ -455,14 +461,27 @@ namespace AJTools.Services.QuickDimension
             if (element == null)
                 return false;
 
+            // First preference: explicit location-curve reference (true element axis).
+            if (TryGetLocationCurveReference(element, leadDirection, out reference))
+                return true;
+
+            XYZ axisAnchor = GetCenterlineAnchor(element, view) ?? placementPoint;
+
+            // Second preference: non-edge curve references nearest to the element axis.
+            if (TryGetCenterlineCurveReferenceFromGeometry(
+                element,
+                leadDirection,
+                axisAnchor,
+                out reference))
+            {
+                return true;
+            }
+
             if (element is FamilyInstance familyInstance &&
                 TryGetFamilyInstanceReference(familyInstance, leadDirection, out reference))
             {
                 return true;
             }
-
-            if (TryGetGeometryLineReference(element, leadDirection, placementPoint, out reference))
-                return true;
 
             try
             {
@@ -474,6 +493,63 @@ namespace AJTools.Services.QuickDimension
                 reference = null;
                 return false;
             }
+        }
+
+        private static bool TryGetLocationCurveReference(
+            Element element,
+            XYZ leadDirection,
+            out Reference reference)
+        {
+            reference = null;
+            if (!(element?.Location is LocationCurve locationCurve))
+                return false;
+
+            if (!(locationCurve.Curve is Line locationLine))
+                return false;
+
+            if (!IsParallel(locationLine.Direction, leadDirection))
+                return false;
+
+            try
+            {
+                if (locationCurve.Curve.Reference != null)
+                {
+                    reference = locationCurve.Curve.Reference;
+                    return true;
+                }
+            }
+            catch
+            {
+                // Ignore and continue with geometry-based centerline detection.
+            }
+
+            return false;
+        }
+
+        private static bool TryGetCenterlineCurveReferenceFromGeometry(
+            Element element,
+            XYZ leadDirection,
+            XYZ axisAnchor,
+            out Reference reference)
+        {
+            reference = null;
+
+            if (!TryCollectCenterlineCurveCandidates(element, out List<LineReferenceCandidate> candidates))
+                return false;
+
+            List<LineReferenceCandidate> aligned = candidates
+                .Where(c => IsParallel(c.Direction, leadDirection))
+                .ToList();
+
+            if (aligned.Count == 0)
+                return false;
+
+            LineReferenceCandidate best = aligned
+                .OrderBy(c => c.Anchor.DistanceTo(axisAnchor))
+                .FirstOrDefault();
+
+            reference = best?.Ref;
+            return reference != null;
         }
 
         private static bool TryGetFamilyInstanceReference(
@@ -645,6 +721,31 @@ namespace AJTools.Services.QuickDimension
             return candidates.Count > 0;
         }
 
+        private static bool TryCollectCenterlineCurveCandidates(
+            Element element,
+            out List<LineReferenceCandidate> candidates)
+        {
+            candidates = new List<LineReferenceCandidate>();
+            if (element == null)
+                return false;
+
+            GeometryElement geometry;
+            try
+            {
+                geometry = element.get_Geometry(GeometryOptions);
+            }
+            catch
+            {
+                geometry = null;
+            }
+
+            if (geometry == null)
+                return false;
+
+            CollectCenterlineCurveCandidates(geometry, candidates);
+            return candidates.Count > 0;
+        }
+
         private static void CollectLineReferenceCandidates(
             GeometryElement geometry,
             XYZ placementPoint,
@@ -670,7 +771,7 @@ namespace AJTools.Services.QuickDimension
                         {
                             Ref = edge.Reference,
                             Direction = line.Direction.Normalize(),
-                            Anchor = (line.GetEndPoint(0) + line.GetEndPoint(1)) * 0.5,
+                            Anchor = GetLineAnchor(line),
                             DistanceToPick = DistanceToLine(placementPoint, line)
                         });
                     }
@@ -685,7 +786,7 @@ namespace AJTools.Services.QuickDimension
                     {
                         Ref = curve.Reference,
                         Direction = line.Direction.Normalize(),
-                        Anchor = (line.GetEndPoint(0) + line.GetEndPoint(1)) * 0.5,
+                        Anchor = GetLineAnchor(line),
                         DistanceToPick = DistanceToLine(placementPoint, line)
                     });
                 }
@@ -694,6 +795,54 @@ namespace AJTools.Services.QuickDimension
                     CollectLineReferenceCandidates(instance.GetInstanceGeometry(), placementPoint, candidates);
                 }
             }
+        }
+
+        private static void CollectCenterlineCurveCandidates(
+            GeometryElement geometry,
+            IList<LineReferenceCandidate> candidates)
+        {
+            if (geometry == null)
+                return;
+
+            foreach (GeometryObject obj in geometry)
+            {
+                if (obj is Curve curve)
+                {
+                    Line line = curve as Line;
+                    if (line == null || curve.Reference == null)
+                        continue;
+
+                    candidates.Add(new LineReferenceCandidate
+                    {
+                        Ref = curve.Reference,
+                        Direction = line.Direction.Normalize(),
+                        Anchor = GetLineAnchor(line),
+                        DistanceToPick = 0.0
+                    });
+                }
+                else if (obj is GeometryInstance instance)
+                {
+                    CollectCenterlineCurveCandidates(instance.GetInstanceGeometry(), candidates);
+                }
+            }
+        }
+
+        private static XYZ GetLineAnchor(Line line)
+        {
+            if (line == null)
+                return new XYZ();
+
+            try
+            {
+                if (line.IsBound)
+                    return (line.GetEndPoint(0) + line.GetEndPoint(1)) * 0.5;
+            }
+            catch
+            {
+                // Fall back to line origin for unbound/invalid lines.
+            }
+
+            return line.Origin;
         }
 
         private static bool TryGetLinearDirection(Element element, out XYZ direction)
@@ -748,6 +897,23 @@ namespace AJTools.Services.QuickDimension
                 return (box.Min + box.Max) * 0.5;
 
             return null;
+        }
+
+        private static XYZ GetCenterlineAnchor(Element element, View view)
+        {
+            if (element?.Location is LocationCurve locationCurve && locationCurve.Curve != null)
+            {
+                try
+                {
+                    return locationCurve.Curve.Evaluate(0.5, true);
+                }
+                catch
+                {
+                    // Fall back to generic anchor.
+                }
+            }
+
+            return GetElementAnchor(element, view);
         }
 
         private static double DistanceToLine(XYZ point, Line line)
