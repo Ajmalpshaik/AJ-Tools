@@ -93,6 +93,13 @@
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
     <Compile Include="Commands\CmdUnhideAll.cs" />
     <Compile Include="Commands\CreateFloorPlanFromJsonCommand.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdCategoryGraphics.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdMatchCategoryGraphics.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdResetCategoryGraphics.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdResetCategoryGraphicsAllElements.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdElementGraphics.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdMatchElementGraphics.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdClearSelectedElementGraphics.cs" />
     <Compile Include="Models\ApplyViewItem.cs" />
     <Compile Include="Models\ColorPalette.cs" />
     <Compile Include="Models\FilterCategoryItem.cs" />
@@ -114,6 +121,11 @@
     <Compile Include="Models\SharedParamToFamilyParamItem.cs" />
     <Compile Include="Models\SpecialParameterIds.cs" />
     <Compile Include="Models\SmartConnectSettings.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsIdOption.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsLineWeightOption.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsColorValue.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsOverrideInput.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsOperationSummary.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AutoDimension\AutoDimensionService.cs" />
     <Compile Include="Services\DimensionByLine\DimensionByLineService.cs" />
@@ -133,6 +145,12 @@
     <Compile Include="Services\ResetDatums\ResetDatumService.cs" />
     <Compile Include="Services\SharedParamToFamilyParamService.cs" />
     <Compile Include="Services\WorksetViews\Workset3DViewService.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsSelectionFilters.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsSelectionService.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsDataProvider.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsOverrideBuilder.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsCategoryService.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsElementService.cs" />
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
@@ -153,6 +171,9 @@
     </Compile>
     <Compile Include="UI\SmartConnectWindow.xaml.cs">
       <DependentUpon>SmartConnectWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\GraphicsTools\GraphicsOverrideWindow.xaml.cs">
+      <DependentUpon>GraphicsOverrideWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Helpers\Constants.cs" />
     <Compile Include="Helpers\DialogHelper.cs" />
@@ -193,6 +214,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\SmartConnectWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\GraphicsTools\GraphicsOverrideWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -12,24 +12,47 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 - For newer Revit versions, update RevitAPI/RevitAPIUI references and rebuild.
 
 ## Installation
-### Option A: Manual install
-1. Build a Release DLL (or use a release package that includes `AJ Tools.dll` and `Resources`).
+### Option A (Recommended): Install from GitHub Release zip
+1. Download `AJ-Tools-vX.Y.Z.zip` from **GitHub Releases** (not the source-code zip).
+2. Extract it.
+3. Run `install.cmd` (or `install.ps1`) from the extracted folder.
+
+### Option B: Scripted install from local `dist/`
+1. Run `dist/package.ps1` (or build manually and place all required DLLs in `dist/`).
+2. Run `dist/install.ps1` (or `dist/install.cmd`) to copy files to both user and all-users add-in folders.
+3. Run `dist/uninstall.ps1` (or `dist/uninstall.cmd`) to remove the add-in.
+
+### Option C: Manual install
+1. Build a Release DLL.
 2. Create `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools`.
-3. Copy `AJ Tools.dll` and the `Resources` folder into that folder.
+3. Copy `AJ Tools.dll`, dependency DLLs (for example `Newtonsoft.Json.dll`), and the `Resources` folder into that folder.
 4. Copy `Addin/AJ Tools.addin` (or `dist/AJ Tools.addin`) to `%APPDATA%\Autodesk\Revit\Addins\2020`.
 5. Open the `.addin` file and make sure `<Assembly>` points to `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools\AJ Tools.dll`.
 6. For all users, use `%PROGRAMDATA%\Autodesk\Revit\Addins\2020` instead of `%APPDATA%`.
 
-### Option B: Scripted install
-- Place a built `AJ Tools.dll` (and optional `AJ Tools.pdb`) in `dist/`.
-- Run `dist/install.ps1` (or `dist/install.cmd`) to copy files to both user and all-users add-in folders.
-- Run `dist/uninstall.ps1` (or `dist/uninstall.cmd`) to remove the add-in.
+> Note: the repository source-code zip is not a prebuilt installer package. Use a release zip or run `dist/package.ps1` first.
 
 ## Build
 1. Open `AJ Tools.sln` in Visual Studio 2019 or 2022.
 2. Confirm Revit API references point to `C:\Program Files\Autodesk\Revit 2020\RevitAPI.dll` and `C:\Program Files\Autodesk\Revit 2020\RevitAPIUI.dll`.
 3. Build x64 Debug or Release.
 4. A post-build target deploys to `%PROGRAMDATA%\Autodesk\Revit\Addins\2020\AJ Tools` by default. Set `SkipRevitAddinDeploy=true` to skip deployment.
+5. To create a clean release package zip, run:
+   - `powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release`
+
+## GitHub Release and Tag Flow
+1. Update assembly version in `src/Properties/AssemblyInfo.cs` (example: `1.2.0.0`).
+2. Run `dist/package.ps1` and verify `dist/release/AJ-Tools-vX.Y.Z.zip` was generated.
+3. Commit and push your code:
+   - `git add .`
+   - `git commit -m "Release vX.Y.Z"`
+   - `git push origin master`
+4. Create and push one annotated tag format only: `vX.Y.Z` (lowercase `v`):
+   - `powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -Push`
+5. On GitHub, create a Release from that tag and upload `AJ-Tools-vX.Y.Z.zip`.
+6. Optional one-time cleanup for legacy tag names:
+   - `git tag -d V_1.0.0 V_1.1.0`
+   - `git push origin :refs/tags/V_1.0.0 :refs/tags/V_1.1.0`
 
 ## Tool List (AJ Tools Ribbon)
 ### Graphics
@@ -80,6 +103,7 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 
 ## Versioning and Changelog
 - Assembly version is defined in `src/Properties/AssemblyInfo.cs` (current: 1.2.0.0).
+- Git tag format should be `vX.Y.Z` only (example: `v1.2.0`).
 - No `CHANGELOG.md` is included yet.
 
 ## Credits and Contact

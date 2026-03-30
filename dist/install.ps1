@@ -1,38 +1,58 @@
 $ErrorActionPreference = "Stop"
 
 $scriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$addinRoot   = Join-Path $env:APPDATA "Autodesk\Revit\Addins\2020"
-$addinRootPc = Join-Path $env:ProgramData "Autodesk\Revit\Addins\2020"
-$targetDir   = Join-Path $addinRoot "AJ Tools"
-$targetDirPc = Join-Path $addinRootPc "AJ Tools"
+$requiredDll = "AJ Tools.dll"
+$requiredDllPath = Join-Path $scriptDir $requiredDll
+$resourcesPath = Join-Path $scriptDir "Resources"
 
-Write-Host "Installing AJ Tools to $targetDir"
-
-# Clean old payloads and ensure target folders exist (user + all-users)
-Remove-Item -Path $targetDir -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path $targetDirPc -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path (Join-Path $addinRoot "AJ Tools.addin") -Force -ErrorAction SilentlyContinue
-Remove-Item -Path (Join-Path $addinRootPc "AJ Tools.addin") -Force -ErrorAction SilentlyContinue
-
-New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-New-Item -ItemType Directory -Path $targetDirPc -Force | Out-Null
-New-Item -ItemType Directory -Path $addinRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $addinRootPc -Force | Out-Null
-
-# Copy payload (user + all-users to keep in sync)
-Copy-Item -Path (Join-Path $scriptDir "AJ Tools.dll") -Destination $targetDir -Force
-Copy-Item -Path (Join-Path $scriptDir "AJ Tools.dll") -Destination $targetDirPc -Force
-if (Test-Path (Join-Path $scriptDir "AJ Tools.pdb")) {
-    Copy-Item -Path (Join-Path $scriptDir "AJ Tools.pdb") -Destination $targetDir -Force
-    Copy-Item -Path (Join-Path $scriptDir "AJ Tools.pdb") -Destination $targetDirPc -Force
+if (-not (Test-Path -LiteralPath $requiredDllPath)) {
+    throw "AJ Tools.dll is missing in dist. Run .\dist\package.ps1 first, then run install again."
 }
-Copy-Item -Path (Join-Path $scriptDir "Resources") -Destination $targetDir -Recurse -Force
-Copy-Item -Path (Join-Path $scriptDir "Resources") -Destination $targetDirPc -Recurse -Force
 
-# Generate manifest with absolute assembly path (avoid env var expansion issues)
-$assemblyPath = Join-Path $targetDir "AJ Tools.dll"
-$assemblyPathPc = Join-Path $targetDirPc "AJ Tools.dll"
-$addinXml = @"
+if (-not (Test-Path -LiteralPath $resourcesPath)) {
+    throw "Resources folder is missing in dist. Run .\dist\package.ps1 first, then run install again."
+}
+
+$blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
+$dllPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.dll -File |
+    Where-Object { $blockedDllNames -notcontains $_.Name }
+$pdbPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.pdb -File -ErrorAction SilentlyContinue
+
+$installTargets = @(
+    @{
+        Scope = "Current User"
+        AddinRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\2020"
+    },
+    @{
+        Scope = "All Users"
+        AddinRoot = Join-Path $env:ProgramData "Autodesk\Revit\Addins\2020"
+    }
+)
+
+foreach ($target in $installTargets) {
+    $addinRoot = $target.AddinRoot
+    $targetDir = Join-Path $addinRoot "AJ Tools"
+    $manifestPath = Join-Path $addinRoot "AJ Tools.addin"
+
+    Write-Host "Installing AJ Tools ($($target.Scope)) to $targetDir"
+
+    New-Item -ItemType Directory -Path $addinRoot -Force | Out-Null
+    Remove-Item -LiteralPath $targetDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $manifestPath -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+
+    foreach ($dll in $dllPayload) {
+        Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $targetDir $dll.Name) -Force
+    }
+
+    foreach ($pdb in $pdbPayload) {
+        Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $targetDir $pdb.Name) -Force
+    }
+
+    Copy-Item -LiteralPath $resourcesPath -Destination $targetDir -Recurse -Force
+
+    $assemblyPath = Join-Path $targetDir $requiredDll
+    $addinXml = @"
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <RevitAddIns>
   <AddIn Type="Application">
@@ -46,12 +66,7 @@ $addinXml = @"
 </RevitAddIns>
 "@
 
-$addinRoots = @($addinRoot, $addinRootPc)
-($addinRoot, $addinRootPc) | ForEach-Object {
-    $assembly = if ($_ -eq $addinRootPc) { $assemblyPathPc } else { $assemblyPath }
-    $xml = $addinXml -replace [regex]::Escape($assemblyPath), $assembly
-    $outPath = Join-Path $_ "AJ Tools.addin"
-    $xml | Out-File -FilePath $outPath -Encoding utf8 -Force
+    $addinXml | Out-File -FilePath $manifestPath -Encoding utf8 -Force
 }
 
 Write-Host "AJ Tools installation complete."

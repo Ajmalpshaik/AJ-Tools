@@ -10,6 +10,7 @@ using System;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using AJTools.Commands;
+using AJTools.Commands.GraphicsTools;
 using AJTools.Utils;
 
 namespace AJTools.App
@@ -66,9 +67,85 @@ namespace AJTools.App
 
             CreatePushButton(panel, "Toggle\nLinks", "Toggle visibility of all Revit Links in the active view.", typeof(CmdToggleRevitLinks), "Toggle Links.png", "Toggle Links.png");
             CreatePushButton(panel, "Unhide\nAll", "Unhide all elements in the active view (Temporary Hide/Isolate + hidden items).", typeof(CmdUnhideAll), "Unhide All.png", "Unhide All.png");
-            CreatePushButton(panel, "Reset\nGraphics", "Clear per-element graphic overrides in the active view.", typeof(CmdResetOverrides), "Reset Overrides.png", "Reset Overrides.png");
             var filterProButton = CreatePushButton(panel, "Filter\nPro", "Create parameter filters quickly (category, parameter, values) and apply them to the active view.", typeof(CmdFilterPro), "FilterPro.png", "FilterPro.png");
             filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
+
+            var applyGraphicsPulldown = CreatePulldownButton(
+                panel,
+                "Apply\nGraphics",
+                "Apply category or element graphics overrides in the active view.",
+                "apply.png",
+                "apply.png");
+            CreatePushButton(
+                applyGraphicsPulldown,
+                "Category\nGraphics",
+                "Apply graphics overrides to unique model categories from selected elements in the active view.",
+                typeof(CmdCategoryGraphics),
+                "apply.png",
+                "apply.png");
+            CreatePushButton(
+                applyGraphicsPulldown,
+                "Element\nGraphics",
+                "Apply element-level graphics overrides to selected elements in the active view.",
+                typeof(CmdElementGraphics),
+                "apply.png",
+                "apply.png");
+
+            var matchGraphicsPulldown = CreatePulldownButton(
+                panel,
+                "Match\nGraphics",
+                "Match category or element graphics from a picked source.",
+                "copy.png",
+                "copy.png");
+            CreatePushButton(
+                matchGraphicsPulldown,
+                "Match Category\nGraphics",
+                "Copy category graphics from one source category and apply them to selected target categories.",
+                typeof(CmdMatchCategoryGraphics),
+                "copy.png",
+                "copy.png");
+            CreatePushButton(
+                matchGraphicsPulldown,
+                "Match Element\nGraphics",
+                "Copy element-level graphics from one source element to selected target elements.",
+                typeof(CmdMatchElementGraphics),
+                "copy.png",
+                "copy.png");
+
+            var resetGraphicsPulldown = CreatePulldownButton(
+                panel,
+                "Reset\nGraphics",
+                "Reset category and element graphics overrides in the active view.",
+                "Reset Overrides.png",
+                "Reset Overrides.png");
+            CreatePushButton(
+                resetGraphicsPulldown,
+                "Reset Category\nBy Selection",
+                "Reset category graphics overrides using selected model elements in the active view.",
+                typeof(CmdResetCategoryGraphics),
+                "Reset Overrides.png",
+                "Reset Overrides.png");
+            CreatePushButton(
+                resetGraphicsPulldown,
+                "Reset Category\nAll Elements",
+                "Reset category graphics overrides for model categories found from all elements in the active view.",
+                typeof(CmdResetCategoryGraphicsAllElements),
+                "Reset Overrides.png",
+                "Reset Overrides.png");
+            CreatePushButton(
+                resetGraphicsPulldown,
+                "Reset Element\nBy Selection",
+                "Reset element-level graphics overrides for selected elements in the active view.",
+                typeof(CmdClearSelectedElementGraphics),
+                "Reset Overrides.png",
+                "Reset Overrides.png");
+            CreatePushButton(
+                resetGraphicsPulldown,
+                "Reset Element\nAll Elements",
+                "Reset all element-level graphics overrides in the active view.",
+                typeof(CmdResetOverrides),
+                "Reset Overrides.png",
+                "Reset Overrides.png");
 
             var threeDViewsPulldown = CreatePulldownButton(panel, "3D\nViews", "3D view tools.", "3D Views.png", "3D Views.png");
             CreatePushButton(

@@ -20,6 +20,7 @@ _ReSharper*/
 # Revit add-in packaging outputs
 dist/*.dll
 dist/*.pdb
+dist/release/
 
 # Logs and caches
 *.log
