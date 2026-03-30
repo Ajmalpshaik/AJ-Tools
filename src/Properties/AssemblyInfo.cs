@@ -1,8 +1,8 @@
 // Tool Name: AJ Tools Assembly Info
 // Description: Assembly metadata for the AJ Tools add-in.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
+// Version: 1.1.3
+// Last Updated: 2026-03-30
 // Revit Version: 2020
 // Dependencies: System.Reflection
 using System.Reflection;
@@ -35,5 +35,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.1.3.0")]
+[assembly: AssemblyFileVersion("1.1.3.0")]

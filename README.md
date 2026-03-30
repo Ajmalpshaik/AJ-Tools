@@ -41,7 +41,7 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
    - `powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release`
 
 ## GitHub Release and Tag Flow
-1. Update assembly version in `src/Properties/AssemblyInfo.cs` (example: `1.2.0.0`).
+1. Update assembly version in `src/Properties/AssemblyInfo.cs` (example: `1.1.3.0`).
 2. Run `dist/package.ps1` and verify `dist/release/AJ-Tools-vX.Y.Z.zip` was generated.
 3. Commit and push your code:
    - `git add .`
@@ -102,8 +102,8 @@ AJ Tools is a Revit 2020 add-in that provides ribbon tools for graphics cleanup,
 - `dist/` contains install scripts and packaging assets.
 
 ## Versioning and Changelog
-- Assembly version is defined in `src/Properties/AssemblyInfo.cs` (current: 1.2.0.0).
-- Git tag format should be `vX.Y.Z` only (example: `v1.2.0`).
+- Assembly version is defined in `src/Properties/AssemblyInfo.cs` (current: 1.1.3.0).
+- Git tag format should be `vX.Y.Z` only (example: `v1.1.3`).
 - No `CHANGELOG.md` is included yet.
 
 ## Credits and Contact
