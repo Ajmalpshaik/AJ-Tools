@@ -16,6 +16,8 @@ AJ Tools supports Revit 2020 on Windows x64.
    - `install.cmd` for current user
    - `install-all-users.cmd` for current user + all users (run as Administrator)
 
+> Note: Installer now unblocks downloaded files automatically to avoid Revit `0x80131515` / `FileLoadException` errors on other systems.
+
 ### From Source Repository
 1. Open PowerShell in repository root.
 2. Generate payload:
@@ -40,6 +42,11 @@ AJ Tools supports Revit 2020 on Windows x64.
    - Path: `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools.addin` (or `%PROGRAMDATA%\...` for all users)
    - Use `Addin\AJ Tools.addin` as template
    - Ensure `<Assembly>` points to the DLL path you copied
+5. If files were downloaded from internet, unblock copied files before launching Revit:
+   ```powershell
+   Get-ChildItem "$env:APPDATA\Autodesk\Revit\Addins\2020\AJ Tools" -Recurse -File | Unblock-File
+   Unblock-File "$env:APPDATA\Autodesk\Revit\Addins\2020\AJ Tools.addin"
+   ```
 
 ## Uninstall
 - Current user uninstall:

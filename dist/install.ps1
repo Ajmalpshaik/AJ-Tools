@@ -10,6 +10,36 @@ function Test-IsAdministrator {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Unblock-FilesInPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    $items = @()
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $items = @(Get-Item -LiteralPath $Path -Force)
+    } else {
+        $items = @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue)
+    }
+
+    foreach ($item in $items) {
+        try {
+            Unblock-File -LiteralPath $item.FullName -ErrorAction SilentlyContinue
+        } catch {
+        }
+
+        try {
+            Remove-Item -LiteralPath $item.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue
+        } catch {
+        }
+    }
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $requiredDll = "AJ Tools.dll"
 $requiredDllPath = Join-Path $scriptDir $requiredDll
@@ -22,6 +52,9 @@ if (-not (Test-Path -LiteralPath $requiredDllPath)) {
 if (-not (Test-Path -LiteralPath $resourcesPath)) {
     throw "Resources folder is missing in dist. Run .\dist\package.ps1 first, then run install again."
 }
+
+# Downloaded zip payloads can carry Mark-of-the-Web and trigger 0x80131515 in Revit.
+Unblock-FilesInPath -Path $scriptDir
 
 $blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
 $dllPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.dll -File |
@@ -67,6 +100,7 @@ foreach ($target in $installTargets) {
     }
 
     Copy-Item -LiteralPath $resourcesPath -Destination $targetDir -Recurse -Force
+    Unblock-FilesInPath -Path $targetDir
 
     $assemblyPath = Join-Path $targetDir $requiredDll
     $addinXml = @"
@@ -84,6 +118,7 @@ foreach ($target in $installTargets) {
 "@
 
     $addinXml | Out-File -FilePath $manifestPath -Encoding utf8 -Force
+    Unblock-FilesInPath -Path $manifestPath
 }
 
 if ($AllUsers) {
