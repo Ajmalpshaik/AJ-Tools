@@ -1,5 +1,0 @@
-{
-    "dotnet.preferCSharpExtension": true,
-    "chatgpt.openOnStartup": true,
-    "dotnet.defaultSolution": "AJ Tools.sln"
-}

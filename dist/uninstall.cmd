@@ -9,5 +9,6 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo AJ Tools removed.
+echo AJ Tools removed for current user.
+echo To remove all-users install, run uninstall-all-users.cmd as Administrator.
 pause

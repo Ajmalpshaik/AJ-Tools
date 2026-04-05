@@ -2,7 +2,8 @@ param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
     [string]$Version,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$IncludeSymbols
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,8 +74,10 @@ Get-ChildItem -LiteralPath $distDir -File |
 foreach ($dll in $dllPayload) {
     Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $distDir $dll.Name) -Force
 }
-foreach ($pdb in $pdbPayload) {
-    Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $distDir $pdb.Name) -Force
+if ($IncludeSymbols) {
+    foreach ($pdb in $pdbPayload) {
+        Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $distDir $pdb.Name) -Force
+    }
 }
 
 if (-not (Test-Path -LiteralPath $resourcesSource)) {
@@ -109,6 +112,9 @@ $packageRootName = "AJ-Tools-v$Version"
 $packageRootPath = Join-Path $releaseDir $packageRootName
 $zipPath = Join-Path $releaseDir "$packageRootName.zip"
 
+New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+Get-ChildItem -LiteralPath $releaseDir -Force -ErrorAction SilentlyContinue |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $packageRootPath -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $packageRootPath -Force | Out-Null
@@ -116,8 +122,10 @@ New-Item -ItemType Directory -Path $packageRootPath -Force | Out-Null
 $staticFiles = @(
     "install.ps1",
     "install.cmd",
+    "install-all-users.cmd",
     "uninstall.ps1",
     "uninstall.cmd",
+    "uninstall-all-users.cmd",
     "AJ Tools.addin"
 )
 
@@ -132,8 +140,10 @@ foreach ($name in $staticFiles) {
 foreach ($dll in (Get-ChildItem -LiteralPath $distDir -Filter *.dll -File)) {
     Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $packageRootPath $dll.Name) -Force
 }
-foreach ($pdb in (Get-ChildItem -LiteralPath $distDir -Filter *.pdb -File -ErrorAction SilentlyContinue)) {
-    Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $packageRootPath $pdb.Name) -Force
+if ($IncludeSymbols) {
+    foreach ($pdb in (Get-ChildItem -LiteralPath $distDir -Filter *.pdb -File -ErrorAction SilentlyContinue)) {
+        Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $packageRootPath $pdb.Name) -Force
+    }
 }
 
 Copy-Item -LiteralPath (Join-Path $distDir "Resources") -Destination $packageRootPath -Recurse -Force
@@ -144,4 +154,9 @@ Write-Host ""
 Write-Host "Package prepared successfully."
 Write-Host "Payload folder: $packageRootPath"
 Write-Host "Release zip   : $zipPath"
+if ($IncludeSymbols) {
+    Write-Host "Symbols       : included (.pdb)"
+} else {
+    Write-Host "Symbols       : excluded (use -IncludeSymbols to include .pdb)"
+}
 Write-Host "Next step     : Upload the zip to a GitHub Release (tag format: vX.Y.Z)."

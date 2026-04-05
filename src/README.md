@@ -1,13 +1,13 @@
 # Source Overview
 
-This folder contains the C# source for the AJ Tools Revit add-in.
+This folder contains all C# and XAML source for the AJ Tools Revit add-in.
 
 ## Folder Map
-- `Core/` - Revit add-in entry point and ribbon setup.
-- `Commands/` - ExternalCommand entry points for each ribbon tool.
-- `Services/` - Core logic for tools (Auto Dimension, Filter Pro, Duct Flow, Reset Datums).
-- `Models/` - Data models and enums used by the UI and services.
-- `UI/` - Shared WPF styles/resources.
-- `Helpers/` - Shared helpers, selection filters, and constants.
-- `Resources/` - Ribbon icons and UI assets (deployed next to the DLL).
+- `Core/` - Revit add-in startup and ribbon registration.
+- `Commands/` - `IExternalCommand` entry points.
+- `Services/` - Feature logic and Revit API workflows.
+- `Models/` - Data models, enums, and state contracts.
+- `UI/` - XAML windows, code-behind, and shared UI styles.
+- `Helpers/` - Shared utility/helper classes.
+- `Resources/` - Icons/assets copied next to the build output.
 - `Properties/` - Assembly metadata.

@@ -1,6 +1,16 @@
+param(
+    [switch]$AllUsers
+)
+
 $ErrorActionPreference = "Stop"
 
-$scriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Definition
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $requiredDll = "AJ Tools.dll"
 $requiredDllPath = Join-Path $scriptDir $requiredDll
 $resourcesPath = Join-Path $scriptDir "Resources"
@@ -22,12 +32,19 @@ $installTargets = @(
     @{
         Scope = "Current User"
         AddinRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\2020"
-    },
-    @{
+    }
+)
+
+if ($AllUsers) {
+    if (-not (Test-IsAdministrator)) {
+        throw "All-users install requires Administrator privileges. Run install-all-users.cmd as Administrator."
+    }
+
+    $installTargets += @{
         Scope = "All Users"
         AddinRoot = Join-Path $env:ProgramData "Autodesk\Revit\Addins\2020"
     }
-)
+}
 
 foreach ($target in $installTargets) {
     $addinRoot = $target.AddinRoot
@@ -69,4 +86,9 @@ foreach ($target in $installTargets) {
     $addinXml | Out-File -FilePath $manifestPath -Encoding utf8 -Force
 }
 
-Write-Host "AJ Tools installation complete."
+if ($AllUsers) {
+    Write-Host "AJ Tools installation complete (Current User + All Users)."
+} else {
+    Write-Host "AJ Tools installation complete (Current User)."
+    Write-Host "Tip: run install-all-users.cmd as Administrator to install for all users."
+}

@@ -6,6 +6,7 @@ TestResults/
 
 # Visual Studio / IDE
 .vs/
+.vscode/
 *.suo
 *.user
 *.userosscache
@@ -20,7 +21,13 @@ _ReSharper*/
 # Revit add-in packaging outputs
 dist/*.dll
 dist/*.pdb
+dist/AJ Tools.addin
+dist/Resources/
 dist/release/
+dist/*.zip
+
+# Local cleanup quarantine
+_backup_review/
 
 # Logs and caches
 *.log

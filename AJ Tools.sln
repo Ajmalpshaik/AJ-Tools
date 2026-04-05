@@ -8,7 +8,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Directory.Build.props = Directory.Build.props
 		Directory.Build.targets = Directory.Build.targets
 		README.md = README.md
-		AJTOOLS_PROJECT_CHECKLIST.md = AJTOOLS_PROJECT_CHECKLIST.md
+		docs\FOLDER_STRUCTURE.md = docs\FOLDER_STRUCTURE.md
+		docs\INSTALLATION.md = docs\INSTALLATION.md
+		docs\USAGE.md = docs\USAGE.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"

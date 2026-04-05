@@ -9,5 +9,6 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo AJ Tools installed successfully.
+echo AJ Tools installed successfully for current user.
+echo To install for all users, run install-all-users.cmd as Administrator.
 pause
