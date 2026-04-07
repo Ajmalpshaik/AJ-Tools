@@ -226,7 +226,13 @@ namespace AJTools.App
         private void CreateAnnotationsPanel()
         {
             var panel = GetOrCreatePanel("Annotations");
+            var smartTagPulldown = CreatePulldownButton(panel, "Smart MEP\nTag", "Smart MEP tagging tools.", "Smart MEP TAG.png", "Smart MEP TAG.png");
+            CreatePushButton(smartTagPulldown, "Place", "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.", typeof(CmdSmartMepTag), "Smart MEP TAG.png", "Smart MEP TAG.png");
+            CreatePushButton(smartTagPulldown, "Settings", "Configure category-wise enable/disable and offset for Smart MEP Tag.", typeof(CmdSmartMepTagSettings), "settings.png", "settings.png");
             CreatePushButton(panel, "L-Shape\nLeader", "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc.", typeof(CmdForceTagLeaderLShape), "L-ShapeLeader.png", "L-ShapeLeader.png");
+            var arrangeTagsPulldown = CreatePulldownButton(panel, "Arrange\nTags", "Arrange tag tools.", "Arrange Tag.png", "Arrange Tag.png");
+            CreatePushButton(arrangeTagsPulldown, "Place", "Rearrange selected tags into a clean vertical stack. The nearest T1-to-L1 tag position is placed first, then remaining tags stack above or below based on T1 relative to L1.", typeof(CmdIntelligentTagArranger), "Arrange Tag.png", "Arrange Tag.png");
+            CreatePushButton(arrangeTagsPulldown, "Settings", "Set default vertical spacing for Arrange Tags (tag_spacing_mm).", typeof(CmdIntelligentTagArrangerSettings), "settings.png", "settings.png");
 
             var copySwapPulldown = CreatePulldownButton(panel, "Copy Swap\nText", "Copy or swap text values between text notes.", "copyswaptext.png", "copyswaptext.png");
             CreatePushButton(copySwapPulldown, "Copy Text", "Copy the text value from one text note to others (click targets until ESC).", typeof(CmdCopyText), "copyswaptext.png", "copyswaptext.png");

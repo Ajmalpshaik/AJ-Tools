@@ -1,10 +1,10 @@
 // Tool Name: Force Tag Leader L-Shape
-// Description: Forces selected tags to use a right-angle (L-shaped) leader elbow, toggling sides on repeat runs.
+// Description: Forces selected tags to use a right-angle (L-shaped) leader elbow.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-21
+// Version: 2.0.0
+// Last Updated: 2026-04-07
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.LeaderLogicService
 
 using System;
 using System.Collections.Generic;
@@ -13,17 +13,19 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using AJTools.Services.LeaderLogic;
 using AJTools.Utils;
 
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Forces tags to use a right-angle leader by editing the leader elbow position.
+    /// Forces tags to use a right-angle leader by computing the elbow position
+    /// using <see cref="LeaderLogicService"/> view-space logic.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdForceTagLeaderLShape : IExternalCommand
     {
-        private const double ElbowNudgeFeet = 0.1;
+        private const double ElbowOutsideTextMarginMm = 3.0;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -42,12 +44,21 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
+            View activeView = doc.ActiveView;
+            if (activeView == null)
+            {
+                message = "No active view.";
+                return Result.Failed;
+            }
+
+            LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
+
             IList<Element> preselected = CollectPreselectedTags(doc, uidoc.Selection.GetElementIds());
             if (preselected.Count > 0)
             {
                 int updated;
                 int skipped;
-                ApplyToSelection(doc, preselected, out updated, out skipped);
+                ApplyToSelection(doc, activeView, preselected, leaderLogic, out updated, out skipped);
 
                 if (updated == 0)
                 {
@@ -92,7 +103,7 @@ namespace AJTools.Commands
                 using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leader"))
                 {
                     t.Start();
-                    ok = TryForceLShape(tag);
+                    ok = TryForceLShape(tag, activeView, leaderLogic);
                     if (ok)
                     {
                         t.Commit();
@@ -150,7 +161,8 @@ namespace AJTools.Commands
             return results;
         }
 
-        private static void ApplyToSelection(Document doc, IList<Element> tags, out int updated, out int skipped)
+        private static void ApplyToSelection(Document doc, View activeView, IList<Element> tags, LeaderLogicService leaderLogic,
+            out int updated, out int skipped)
         {
             updated = 0;
             skipped = 0;
@@ -161,84 +173,241 @@ namespace AJTools.Commands
 
                 foreach (Element tag in tags)
                 {
-                    if (TryForceLShape(tag))
-                        updated++;
-                    else
-                        skipped++;
+                    using (SubTransaction st = new SubTransaction(doc))
+                    {
+                        st.Start();
+
+                        if (TryForceLShape(tag, activeView, leaderLogic))
+                        {
+                            st.Commit();
+                            updated++;
+                        }
+                        else
+                        {
+                            st.RollBack();
+                            skipped++;
+                        }
+                    }
                 }
 
                 t.Commit();
             }
         }
 
-        private static bool TryForceLShape(Element tag)
+        private static bool TryForceLShape(Element tag, View activeView, LeaderLogicService leaderLogic)
         {
-            if (tag == null)
+            if (tag == null || leaderLogic == null)
                 return false;
 
             if (!EnsureLeaderEnabled(tag))
                 return false;
 
-            TryForceLeaderEndFree(tag);
+            if (!HasWritableProperty(tag, "LeaderElbow"))
+                return false;
 
+            bool hasInitialCondition = TryGetLeaderEndCondition(tag, out object initialCondition);
+
+            // First attempt: preserve the current leader end condition.
+            if (TryApplyComputedElbow(tag, activeView, leaderLogic))
+                return true;
+
+            // Fallback: switch to Free only when the current condition blocks edit.
+            if (!TrySetLeaderEndCondition(tag, "Free"))
+                return false;
+
+            if (!TryApplyComputedElbow(tag, activeView, leaderLogic))
+                return false;
+
+            // Restore the original leader condition after fallback.
+            // If restore fails, caller rolls back this tag's subtransaction.
+            if (hasInitialCondition && !TrySetLeaderEndConditionValue(tag, initialCondition))
+                return false;
+
+            return true;
+        }
+        private static bool TryApplyComputedElbow(Element tag, View activeView, LeaderLogicService leaderLogic)
+        {
             if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
 
             if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
                 return false;
 
-            if (!HasWritableProperty(tag, "LeaderElbow"))
-                return false;
+            // Use LeaderLogicService to compute the elbow in view space.
+            // L1 = leader end (on the element), T1 = tag head position.
+            XYZ elbow = leaderLogic.ComputeElbow(head, end);
 
-            XYZ currentElbow = null;
-            TryGetXYZProperty(tag, "LeaderElbow", out currentElbow);
-            XYZ elbow = ChooseElbow(head, end, currentElbow);
+            // Guard 2 (same Y): no elbow needed - Revit draws a straight line.
+            if (elbow == null)
+                return true;
+
+            elbow = AdjustElbowOutsideTextBoundsRight(tag, activeView, leaderLogic, elbow);
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
-        private static XYZ ChooseElbow(XYZ head, XYZ end, XYZ currentElbow)
+        private static XYZ AdjustElbowOutsideTextBoundsRight(
+            Element tag,
+            View activeView,
+            LeaderLogicService leaderLogic,
+            XYZ elbow)
         {
-            XYZ elbow1 = new XYZ(head.X, end.Y, end.Z);
-            XYZ elbow2 = new XYZ(end.X, head.Y, end.Z);
+            if (tag == null || leaderLogic == null || elbow == null)
+                return elbow;
 
-            XYZ elbow = null;
-            if (currentElbow != null)
-            {
-                double d1 = currentElbow.DistanceTo(elbow1);
-                double d2 = currentElbow.DistanceTo(elbow2);
+            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
+                return elbow;
 
-                if (d1 <= Constants.MIN_DISTANCE_TOLERANCE && d2 > Constants.MIN_DISTANCE_TOLERANCE)
-                {
-                    elbow = elbow2;
-                }
-                else if (d2 <= Constants.MIN_DISTANCE_TOLERANCE && d1 > Constants.MIN_DISTANCE_TOLERANCE)
-                {
-                    elbow = elbow1;
-                }
-            }
+            UV elbowUv = leaderLogic.ProjectToView(elbow);
+            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
+                return elbow;
 
-            if (elbow == null)
-            {
-                elbow = elbow1;
-                if (IsCollinear(head, elbow, end))
-                    elbow = elbow2;
-            }
-
-            if (IsCollinear(head, elbow, end))
-                elbow = new XYZ(elbow.X + ElbowNudgeFeet, elbow.Y, elbow.Z);
-
-            return elbow;
+            double rightMarginFeet = GetScaledElbowOutsideMarginFeet(activeView);
+            double targetX = maxX + rightMarginFeet;
+            double deltaX = targetX - elbowUv.U;
+            return leaderLogic.OffsetInView(elbow, deltaX, 0);
         }
 
-        private static bool IsCollinear(XYZ p1, XYZ p2, XYZ p3)
+        private static double GetScaledElbowOutsideMarginFeet(View activeView)
         {
-            if (p1 == null || p2 == null || p3 == null)
+            int scale = 1;
+            try
+            {
+                if (activeView != null && activeView.Scale > 0)
+                    scale = activeView.Scale;
+            }
+            catch
+            {
+            }
+
+            return ElbowOutsideTextMarginMm * Constants.MM_TO_FEET * scale;
+        }
+
+        private static bool TryGetTagBoundsInView(
+            Element tag,
+            View activeView,
+            LeaderLogicService leaderLogic,
+            out double minX,
+            out double maxX,
+            out double minY,
+            out double maxY)
+        {
+            minX = 0;
+            maxX = 0;
+            minY = 0;
+            maxY = 0;
+
+            BoundingBoxXYZ bb = GetTagBoundingBox(tag, activeView);
+            if (bb == null || bb.Min == null || bb.Max == null)
                 return false;
 
-            XYZ v1 = p2 - p1;
-            XYZ v2 = p3 - p1;
-            XYZ cross = v1.CrossProduct(v2);
-            return cross.GetLength() < Constants.ZERO_LENGTH_TOLERANCE;
+            XYZ min = bb.Min;
+            XYZ max = bb.Max;
+            Transform transform = bb.Transform ?? Transform.Identity;
+            XYZ[] corners = new[]
+            {
+                new XYZ(min.X, min.Y, min.Z),
+                new XYZ(min.X, min.Y, max.Z),
+                new XYZ(min.X, max.Y, min.Z),
+                new XYZ(min.X, max.Y, max.Z),
+                new XYZ(max.X, min.Y, min.Z),
+                new XYZ(max.X, min.Y, max.Z),
+                new XYZ(max.X, max.Y, min.Z),
+                new XYZ(max.X, max.Y, max.Z)
+            };
+
+            double localMinX = double.MaxValue;
+            double localMinY = double.MaxValue;
+            double localMaxX = double.MinValue;
+            double localMaxY = double.MinValue;
+
+            foreach (XYZ corner in corners)
+            {
+                XYZ worldCorner = transform.OfPoint(corner);
+                UV uv = leaderLogic.ProjectToView(worldCorner);
+                if (uv.U < localMinX) localMinX = uv.U;
+                if (uv.U > localMaxX) localMaxX = uv.U;
+                if (uv.V < localMinY) localMinY = uv.V;
+                if (uv.V > localMaxY) localMaxY = uv.V;
+            }
+
+            // Bounding boxes may include leader geometry. Re-center around TagHeadPosition
+            // to better represent text extents when one side is heavily skewed.
+            if (TryGetXYZProperty(tag, "TagHeadPosition", out XYZ headPoint))
+            {
+                UV headUv = leaderLogic.ProjectToView(headPoint);
+                bool headInside = headUv != null
+                    && headUv.U > localMinX && headUv.U < localMaxX
+                    && headUv.V > localMinY && headUv.V < localMaxY;
+
+                if (headInside)
+                {
+                    double left = headUv.U - localMinX;
+                    double right = localMaxX - headUv.U;
+                    double down = headUv.V - localMinY;
+                    double up = localMaxY - headUv.V;
+
+                    double halfWidth = Math.Min(left, right);
+                    double halfHeight = Math.Min(down, up);
+
+                    if (halfWidth > Constants.ZERO_LENGTH_TOLERANCE)
+                    {
+                        localMinX = headUv.U - halfWidth;
+                        localMaxX = headUv.U + halfWidth;
+                    }
+
+                    if (halfHeight > Constants.ZERO_LENGTH_TOLERANCE)
+                    {
+                        localMinY = headUv.V - halfHeight;
+                        localMaxY = headUv.V + halfHeight;
+                    }
+                }
+            }
+
+            if (localMinX > localMaxX || localMinY > localMaxY)
+                return false;
+
+            minX = localMinX;
+            maxX = localMaxX;
+            minY = localMinY;
+            maxY = localMaxY;
+            return true;
+        }
+
+        private static BoundingBoxXYZ GetTagBoundingBox(Element tag, View activeView)
+        {
+            if (tag == null)
+                return null;
+
+            try
+            {
+                if (activeView != null)
+                {
+                    BoundingBoxXYZ viewBox = tag.get_BoundingBox(activeView);
+                    if (viewBox != null)
+                        return viewBox;
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                return tag.get_BoundingBox(null);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool IsPointInsideBounds(UV point, double minX, double maxX, double minY, double maxY)
+        {
+            if (point == null)
+                return false;
+
+            return point.U >= minX && point.U <= maxX
+                && point.V >= minY && point.V <= maxY;
         }
 
         private static bool EnsureLeaderEnabled(Element tag)
@@ -252,43 +421,120 @@ namespace AJTools.Commands
             return TrySetBoolProperty(tag, "HasLeader", true);
         }
 
-        private static void TryForceLeaderEndFree(Element tag)
+        private static bool TryGetLeaderEndCondition(Element tag, out object value)
         {
+            value = null;
             PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
-            if (prop == null || !prop.CanWrite)
-                return;
-
+            if (prop == null)
+                return false;
             try
             {
-                object current = prop.GetValue(tag, null);
-                if (current != null && current.ToString().IndexOf("Free", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return;
-
-                if (prop.PropertyType == typeof(LeaderEndCondition))
-                {
-                    prop.SetValue(tag, LeaderEndCondition.Free, null);
-                    return;
-                }
-
-                if (prop.PropertyType.IsEnum)
-                {
-                    foreach (object value in Enum.GetValues(prop.PropertyType))
-                    {
-                        if (string.Equals(value.ToString(), "Free", StringComparison.OrdinalIgnoreCase))
-                        {
-                            prop.SetValue(tag, value, null);
-                            return;
-                        }
-                    }
-                }
-
-                prop.SetValue(tag, 0, null);
+                value = prop.GetValue(tag, null);
+                return true;
             }
             catch
             {
-                // Best-effort only.
+                return false;
             }
         }
+        private static bool TrySetLeaderEndCondition(Element tag, string targetConditionName)
+        {
+            if (string.IsNullOrWhiteSpace(targetConditionName))
+                return false;
+            PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
+            if (prop == null || !prop.CanWrite)
+                return false;
+            try
+            {
+                object current = prop.GetValue(tag, null);
+                if (IsCondition(current, targetConditionName))
+                    return true;
+                if (prop.PropertyType == typeof(LeaderEndCondition))
+                {
+                    LeaderEndCondition target = string.Equals(targetConditionName, "Attached", StringComparison.OrdinalIgnoreCase)
+                        ? LeaderEndCondition.Attached
+                        : LeaderEndCondition.Free;
+                    prop.SetValue(tag, target, null);
+                    return true;
+                }
+                if (prop.PropertyType.IsEnum)
+                {
+                    foreach (object enumValue in Enum.GetValues(prop.PropertyType))
+                    {
+                        if (IsCondition(enumValue, targetConditionName))
+                        {
+                            prop.SetValue(tag, enumValue, null);
+                            return true;
+                        }
+                    }
+                }
+                int fallbackNumeric = string.Equals(targetConditionName, "Attached", StringComparison.OrdinalIgnoreCase)
+                    ? 1
+                    : 0;
+                object numericValue = Convert.ChangeType(
+                    fallbackNumeric,
+                    prop.PropertyType.IsEnum ? Enum.GetUnderlyingType(prop.PropertyType) : prop.PropertyType);
+                if (prop.PropertyType.IsEnum)
+                    numericValue = Enum.ToObject(prop.PropertyType, numericValue);
+                prop.SetValue(tag, numericValue, null);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TrySetLeaderEndConditionValue(Element tag, object value)
+        {
+            if (value == null)
+                return false;
+
+            PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
+            if (prop == null || !prop.CanWrite)
+                return false;
+
+            try
+            {
+                object targetValue;
+
+                if (prop.PropertyType.IsInstanceOfType(value))
+                {
+                    targetValue = value;
+                }
+                else if (prop.PropertyType.IsEnum)
+                {
+                    if (value is string name)
+                    {
+                        targetValue = Enum.Parse(prop.PropertyType, name, true);
+                    }
+                    else
+                    {
+                        object numeric = Convert.ChangeType(value, Enum.GetUnderlyingType(prop.PropertyType));
+                        targetValue = Enum.ToObject(prop.PropertyType, numeric);
+                    }
+                }
+                else
+                {
+                    targetValue = Convert.ChangeType(value, prop.PropertyType);
+                }
+
+                prop.SetValue(tag, targetValue, null);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        private static bool IsCondition(object value, string conditionName)
+        {
+            if (value == null || string.IsNullOrWhiteSpace(conditionName))
+                return false;
+            return string.Equals(value.ToString(), conditionName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        #region Reflection Helpers
 
         private static PropertyInfo GetProperty(Element element, string propertyName)
         {
@@ -389,6 +635,8 @@ namespace AJTools.Commands
             }
         }
 
+        #endregion
+
         private class TagLeaderSelectionFilter : ISelectionFilter
         {
             public bool AllowElement(Element elem)
@@ -403,3 +651,4 @@ namespace AJTools.Commands
         }
     }
 }
+
