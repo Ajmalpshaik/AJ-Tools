@@ -1,10 +1,11 @@
 // Tool Name: Match Elevation
-// Description: Matches the middle elevation from a source MEP element to target elements.
+// Description: Matches center, top, or bottom elevation from a source MEP element to target elements.
 // Author: Ajmal P.S.
-// Version: 1.0.1
-// Last Updated: 2025-12-10
+// Version: 1.1.0
+// Last Updated: 2026-04-11
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+
 using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -14,12 +15,53 @@ using AJTools.Utils;
 
 namespace AJTools.Commands
 {
+    public enum ElevationMatchMode
+    {
+        Center,
+        Top,
+        Bottom
+    }
+
     /// <summary>
-    /// Matches the middle elevation from a source MEP element to selected targets.
+    /// Matches center elevation from a source MEP element to selected targets.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
-    public class CmdMatchElevation : IExternalCommand
+    public class CmdMatchElevation : MatchElevationCommandBase
     {
+        protected override ElevationMatchMode MatchMode => ElevationMatchMode.Center;
+        protected override string ModeLabel => "Center";
+    }
+
+    /// <summary>
+    /// Matches top elevation from a source MEP element to selected targets.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class CmdMatchElevationTop : MatchElevationCommandBase
+    {
+        protected override ElevationMatchMode MatchMode => ElevationMatchMode.Top;
+        protected override string ModeLabel => "Top";
+    }
+
+    /// <summary>
+    /// Matches bottom elevation from a source MEP element to selected targets.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class CmdMatchElevationBottom : MatchElevationCommandBase
+    {
+        protected override ElevationMatchMode MatchMode => ElevationMatchMode.Bottom;
+        protected override string ModeLabel => "Bottom";
+    }
+
+    /// <summary>
+    /// Shared implementation for elevation matching command variants.
+    /// </summary>
+    public abstract class MatchElevationCommandBase : IExternalCommand
+    {
+        private const double ElevationTolerance = 1e-9;
+
+        protected abstract ElevationMatchMode MatchMode { get; }
+        protected abstract string ModeLabel { get; }
+
         /// <summary>
         /// Executes the match elevation workflow.
         /// </summary>
@@ -34,6 +76,8 @@ namespace AJTools.Commands
 
             Document doc = uidoc.Document;
             var filter = new MepSelectionFilter();
+            string title = $"Match Elevation ({ModeLabel})";
+            string modeLower = ModeLabel.ToLowerInvariant();
 
             try
             {
@@ -41,13 +85,13 @@ namespace AJTools.Commands
                 Reference sourceRef = uidoc.Selection.PickObject(
                     ObjectType.Element,
                     filter,
-                    "Select SOURCE element to copy elevation from");
+                    $"Select SOURCE element to copy {modeLower} elevation from");
 
                 Element sourceElem = doc.GetElement(sourceRef);
-                double? sourceElevation = GetMiddleElevation(sourceElem);
-                if (sourceElevation == null)
+                double? sourceReferenceElevation = GetReferenceElevation(sourceElem, MatchMode);
+                if (sourceReferenceElevation == null)
                 {
-                    DialogHelper.ShowError("Match Elevation", "Could not read elevation from the selected element.");
+                    DialogHelper.ShowError(title, "Could not read elevation from the selected element.");
                     return Result.Cancelled;
                 }
 
@@ -61,7 +105,7 @@ namespace AJTools.Commands
                         targetRef = uidoc.Selection.PickObject(
                             ObjectType.Element,
                             filter,
-                            "Select TARGET element to match elevation (ESC to finish)");
+                            $"Select TARGET element to match {modeLower} elevation (ESC to finish)");
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                     {
@@ -70,15 +114,20 @@ namespace AJTools.Commands
 
                     Element targetElem = doc.GetElement(targetRef);
                     if (targetElem == null)
+                    {
                         continue;
+                    }
 
-                    using (Transaction t = new Transaction(doc, "Match Elevation"))
+                    using (Transaction t = new Transaction(doc, title))
                     {
                         try
                         {
                             t.Start();
 
-                            bool changed = SetMiddleElevation(targetElem, sourceElevation.Value);
+                            bool changed = SetTargetReferenceElevation(
+                                targetElem,
+                                sourceReferenceElevation.Value,
+                                MatchMode);
                             if (changed)
                             {
                                 t.Commit();
@@ -92,19 +141,21 @@ namespace AJTools.Commands
                         catch (Exception)
                         {
                             if (t.HasStarted() && !t.HasEnded())
+                            {
                                 t.RollBack();
-                            // Continue to next element on error
+                            }
+                            // Continue to next element on error.
                         }
                     }
                 }
 
                 if (updatedCount > 0)
                 {
-                    DialogHelper.ShowInfo("Match Elevation", $"Updated {updatedCount} element(s) to match elevation.");
+                    DialogHelper.ShowInfo(title, $"Updated {updatedCount} element(s) to match {modeLower} elevation.");
                     return Result.Succeeded;
                 }
 
-                DialogHelper.ShowInfo("Match Elevation", "No elements were updated.");
+                DialogHelper.ShowInfo(title, "No elements were updated.");
                 return Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -118,18 +169,42 @@ namespace AJTools.Commands
             }
         }
 
+        private static double? GetReferenceElevation(Element elem, ElevationMatchMode mode)
+        {
+            double? centerElevation = GetCenterElevation(elem);
+            if (centerElevation == null)
+            {
+                return null;
+            }
+
+            double halfVerticalSize = GetHalfVerticalSize(elem);
+            switch (mode)
+            {
+                case ElevationMatchMode.Top:
+                    return centerElevation.Value + halfVerticalSize;
+                case ElevationMatchMode.Bottom:
+                    return centerElevation.Value - halfVerticalSize;
+                default:
+                    return centerElevation.Value;
+            }
+        }
+
         /// <summary>
-        /// Returns the middle elevation (Z at mid-point) of the element's location curve.
+        /// Returns the center elevation (Z at mid-point) of the element's location curve.
         /// </summary>
-        private static double? GetMiddleElevation(Element elem)
+        private static double? GetCenterElevation(Element elem)
         {
             LocationCurve loc = elem?.Location as LocationCurve;
             if (loc == null)
+            {
                 return null;
+            }
 
             Curve curve = loc.Curve;
             if (curve == null)
+            {
                 return null;
+            }
 
             XYZ p0 = curve.GetEndPoint(0);
             XYZ p1 = curve.GetEndPoint(1);
@@ -138,32 +213,99 @@ namespace AJTools.Commands
         }
 
         /// <summary>
-        /// Moves the element vertically so that its middle elevation equals targetElevation.
+        /// Moves the element vertically so that the requested reference elevation matches targetReferenceElevation.
         /// </summary>
-        private static bool SetMiddleElevation(Element elem, double targetElevation)
+        private static bool SetTargetReferenceElevation(Element elem, double targetReferenceElevation, ElevationMatchMode mode)
         {
             LocationCurve loc = elem?.Location as LocationCurve;
             if (loc == null)
+            {
                 return false;
+            }
 
             Curve curve = loc.Curve;
             if (curve == null)
+            {
                 return false;
+            }
 
             XYZ p0 = curve.GetEndPoint(0);
             XYZ p1 = curve.GetEndPoint(1);
+            double currentCenter = (p0.Z + p1.Z) / 2.0;
 
-            double currentMiddle = (p0.Z + p1.Z) / 2.0;
-            double diff = targetElevation - currentMiddle;
+            double targetCenter = targetReferenceElevation;
+            double halfVerticalSize = GetHalfVerticalSize(elem);
+            switch (mode)
+            {
+                case ElevationMatchMode.Top:
+                    targetCenter = targetReferenceElevation - halfVerticalSize;
+                    break;
+                case ElevationMatchMode.Bottom:
+                    targetCenter = targetReferenceElevation + halfVerticalSize;
+                    break;
+            }
 
-            if (Math.Abs(diff) < 1e-9)
+            double diff = targetCenter - currentCenter;
+            if (Math.Abs(diff) < ElevationTolerance)
+            {
                 return false; // already matched
+            }
 
             // Translate the whole curve in Z direction, preserving curve type (Line, Arc, NURBS, etc.)
             Transform translation = Transform.CreateTranslation(new XYZ(0, 0, diff));
             Curve movedCurve = curve.CreateTransformed(translation);
 
             loc.Curve = movedCurve;
+            return true;
+        }
+
+        /// <summary>
+        /// Returns half of the element's profile size in internal units (feet) for top/bottom matching.
+        /// Falls back to 0 when a profile parameter is unavailable.
+        /// </summary>
+        private static double GetHalfVerticalSize(Element elem)
+        {
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_CABLETRAY_HEIGHT_PARAM, out double cableTrayHeight))
+            {
+                return cableTrayHeight / 2.0;
+            }
+
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, out double curveHeight))
+            {
+                return curveHeight / 2.0;
+            }
+
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, out double pipeDiameter))
+            {
+                return pipeDiameter / 2.0;
+            }
+
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM, out double curveDiameter))
+            {
+                return curveDiameter / 2.0;
+            }
+
+            return 0.0;
+        }
+
+        private static bool TryGetPositiveDouble(Element elem, BuiltInParameter parameterId, out double value)
+        {
+            value = 0;
+            Parameter parameter = elem?.get_Parameter(parameterId);
+            if (parameter == null ||
+                parameter.StorageType != StorageType.Double ||
+                !parameter.HasValue)
+            {
+                return false;
+            }
+
+            double rawValue = parameter.AsDouble();
+            if (rawValue <= ElevationTolerance)
+            {
+                return false;
+            }
+
+            value = rawValue;
             return true;
         }
     }

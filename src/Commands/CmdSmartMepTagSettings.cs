@@ -1,12 +1,11 @@
 // Tool Name: Smart MEP Tag Settings Command
-// Description: Opens settings to configure Smart MEP Tag category offsets.
+// Description: Opens settings to configure Smart MEP Tag category selection.
 // Author: Ajmal P.S.
 // Version: 1.2.0
 // Revit Version: 2020
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -60,10 +59,6 @@ namespace AJTools.Commands
         {
             newState = null;
 
-            DisplayUnitType displayUnit = ResolveLengthDisplayUnit(doc);
-            string unitLabel = SafeUnitLabel(displayUnit);
-            string offsetHeader = string.IsNullOrWhiteSpace(unitLabel) ? "Offset" : $"Offset ({unitLabel})";
-
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
             var rowCategoryMap = new Dictionary<int, BuiltInCategory>();
 
@@ -77,7 +72,7 @@ namespace AJTools.Commands
                 form.Text = "Smart MEP Tag Settings";
                 form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
                 form.StartPosition = WinForms.FormStartPosition.CenterScreen;
-                form.ClientSize = new Drawing.Size(700, 420);
+                form.ClientSize = new Drawing.Size(560, 420);
                 form.MaximizeBox = false;
                 form.MinimizeBox = false;
 
@@ -86,13 +81,13 @@ namespace AJTools.Commands
                 title.AutoSize = true;
                 title.Location = new Drawing.Point(12, 12);
 
-                note.Text = "Choose category-wise tag ON/OFF. Offset = element to tag text edge.";
+                note.Text = "Choose category-wise tag ON/OFF.";
                 note.AutoSize = true;
                 note.ForeColor = Drawing.Color.DimGray;
                 note.Location = new Drawing.Point(12, 36);
 
                 grid.Location = new Drawing.Point(12, 60);
-                grid.Size = new Drawing.Size(676, 300);
+                grid.Size = new Drawing.Size(536, 300);
                 grid.AllowUserToAddRows = false;
                 grid.AllowUserToDeleteRows = false;
                 grid.AllowUserToResizeRows = false;
@@ -120,41 +115,30 @@ namespace AJTools.Commands
                     FillWeight = 45
                 };
 
-                var colOffset = new WinForms.DataGridViewTextBoxColumn
-                {
-                    HeaderText = offsetHeader
-                };
-
                 grid.Columns.Add(colCategory);
                 grid.Columns.Add(colCount);
                 grid.Columns.Add(colEnable);
-                grid.Columns.Add(colOffset);
 
                 foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
                 {
                     bool enabled = SmartTagSettingsTracker.IsCategoryEnabled(initialState, category);
-                    double offsetInternal = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, category);
                     int countInModel = inModelCounts.TryGetValue(category, out int count) ? count : 0;
-
-                    string offsetText = UnitUtils.ConvertFromInternalUnits(offsetInternal, displayUnit)
-                        .ToString("0.###", CultureInfo.CurrentCulture);
 
                     int rowIndex = grid.Rows.Add(
                         SmartTagSettingsTracker.GetCategoryLabel(category),
-                        countInModel.ToString(CultureInfo.InvariantCulture),
-                        enabled,
-                        offsetText);
+                        countInModel.ToString(),
+                        enabled);
                     rowCategoryMap[rowIndex] = category;
                 }
 
                 save.Text = "Save";
                 save.DialogResult = WinForms.DialogResult.OK;
-                save.Location = new Drawing.Point(532, 376);
+                save.Location = new Drawing.Point(392, 376);
                 save.Width = 75;
 
                 cancel.Text = "Cancel";
                 cancel.DialogResult = WinForms.DialogResult.Cancel;
-                cancel.Location = new Drawing.Point(613, 376);
+                cancel.Location = new Drawing.Point(473, 376);
                 cancel.Width = 75;
 
                 form.Controls.Add(title);
@@ -173,7 +157,6 @@ namespace AJTools.Commands
                 if (!TryBuildStateFromGrid(
                     grid,
                     rowCategoryMap,
-                    displayUnit,
                     initialState,
                     out newState,
                     out string error))
@@ -189,7 +172,6 @@ namespace AJTools.Commands
         private static bool TryBuildStateFromGrid(
             WinForms.DataGridView grid,
             IDictionary<int, BuiltInCategory> rowCategoryMap,
-            DisplayUnitType displayUnit,
             SmartTagSettingsState initialState,
             out SmartTagSettingsState state,
             out string error)
@@ -214,18 +196,7 @@ namespace AJTools.Commands
                 if (enabledRaw is bool b)
                     enabled = b;
 
-                double defaultOffset = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, category);
-                if (!TryReadLengthCell(row.Cells[3].Value, displayUnit, defaultOffset, out double offsetInternal))
-                {
-                    error = $"Invalid offset value for {SmartTagSettingsTracker.GetCategoryLabel(category)}.";
-                    return false;
-                }
-
-                if (offsetInternal <= Constants.ZERO_LENGTH_TOLERANCE)
-                {
-                    error = $"Offset must be greater than zero for {SmartTagSettingsTracker.GetCategoryLabel(category)}.";
-                    return false;
-                }
+                double offsetInternal = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, category);
 
                 state.CategoryEnabled[category] = enabled;
                 state.CategoryOffsetInternal[category] = offsetInternal;
@@ -249,27 +220,6 @@ namespace AJTools.Commands
                 : SmartTagSettingsTracker.ResolveOffsetInternal(initialState);
 
             return true;
-        }
-
-        private static bool TryReadLengthCell(
-            object value,
-            DisplayUnitType displayUnit,
-            double defaultInternal,
-            out double internalLength)
-        {
-            internalLength = defaultInternal;
-            string raw = Convert.ToString(value)?.Trim();
-            if (string.IsNullOrWhiteSpace(raw))
-                return true;
-
-            if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out double parsedDisplay))
-                return false;
-
-            if (parsedDisplay <= 0)
-                return false;
-
-            internalLength = UnitUtils.ConvertToInternalUnits(parsedDisplay, displayUnit);
-            return internalLength > Constants.ZERO_LENGTH_TOLERANCE;
         }
 
         private static Dictionary<BuiltInCategory, int> CountElementsInModel(Document doc)
@@ -297,28 +247,6 @@ namespace AJTools.Commands
             }
 
             return counts;
-        }
-
-        private static DisplayUnitType ResolveLengthDisplayUnit(Document doc)
-        {
-            if (doc == null)
-                return DisplayUnitType.DUT_MILLIMETERS;
-
-            Units units = doc.GetUnits();
-            FormatOptions options = units.GetFormatOptions(UnitType.UT_Length);
-            return options.DisplayUnits;
-        }
-
-        private static string SafeUnitLabel(DisplayUnitType displayUnit)
-        {
-            try
-            {
-                return LabelUtils.GetLabelFor(displayUnit);
-            }
-            catch
-            {
-                return string.Empty;
-            }
         }
     }
 }

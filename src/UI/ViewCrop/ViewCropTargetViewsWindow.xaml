@@ -1,0 +1,208 @@
+﻿<!--
+  Tool Name: View Crop Target Views Window
+  Description: Selects one or more views with grouping by sheet and search/filter support.
+  Author: Ajmal P.S.
+  Version: 1.0.0
+  Last Updated: 2026-04-08
+  Revit Version: 2020
+-->
+<Window x:Class="AJTools.UI.ViewCrop.ViewCropTargetViewsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select Views"
+        Width="900"
+        Height="620"
+        MinWidth="760"
+        MinHeight="480"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundDark}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Select target views"
+                   Foreground="{StaticResource TextPrimary}"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,8"/>
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="SearchTextBox"
+                     Grid.Column="0"
+                     Style="{StaticResource ModernTextBox}"
+                     Margin="0,0,8,0"
+                     ToolTip="Search by view name, type, sheet number, or sheet name"
+                     TextChanged="OnSearchChanged"/>
+
+            <Button Grid.Column="1"
+                    Content="Select All"
+                    Style="{StaticResource ModernButton}"
+                    Height="30"
+                    Margin="0,0,8,0"
+                    Click="OnSelectAll"/>
+
+            <Button Grid.Column="2"
+                    Content="Clear All"
+                    Style="{StaticResource SecondaryButton}"
+                    Height="30"
+                    Click="OnClearAll"/>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="46"/>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="1.5*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="Pick" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="1" Text="View Name" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="2" Text="View Type" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="3" Text="Sheet No" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="4" Text="Sheet Name" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="5" Text="Status" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+        </Grid>
+
+        <ListBox x:Name="ViewsListBox"
+                 Grid.Row="3"
+                 Style="{StaticResource ModernListBox}"
+                 ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                 BorderBrush="{StaticResource AccentBlue}"
+                 BorderThickness="1"
+                 VirtualizingPanel.IsVirtualizing="True"
+                 VirtualizingPanel.VirtualizationMode="Recycling"
+                 ScrollViewer.CanContentScroll="True">
+            <ListBox.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.HeaderTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource BackgroundMedium}" Padding="8" Margin="0,10,0,0" CornerRadius="4">
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="{StaticResource AccentBlue}"
+                                           FontWeight="Bold"/>
+                            </Border>
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </ListBox.GroupStyle>
+
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="0,1,0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="46"/>
+                            <ColumnDefinition Width="3*"/>
+                            <ColumnDefinition Width="1.4*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="1.5*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <CheckBox Grid.Column="0"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                  IsEnabled="{Binding CanSelect}"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding ViewName}"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="4,0"/>
+
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding ViewTypeName}"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="4,0"/>
+
+                        <TextBlock Grid.Column="3"
+                                   Text="{Binding SheetNumber}"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="4,0"/>
+
+                        <TextBlock Grid.Column="4"
+                                   Text="{Binding SheetName}"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="4,0"/>
+
+                        <TextBlock Grid.Column="5"
+                                   Text="{Binding StatusText}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="4,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentGreen}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CanSelect}" Value="False">
+                                            <Setter Property="Foreground" Value="{StaticResource AccentOrange}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Grid Grid.Row="4" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="SelectionCountText"
+                       Grid.Column="0"
+                       Foreground="{StaticResource TextSecondary}"
+                       VerticalAlignment="Center"/>
+
+            <Button Grid.Column="1"
+                    Content="Run"
+                    Style="{StaticResource ModernButton}"
+                    Height="32"
+                    MinWidth="90"
+                    Margin="0,0,8,0"
+                    Click="OnRun"/>
+
+            <Button Grid.Column="2"
+                    Content="Cancel"
+                    Style="{StaticResource SecondaryButton}"
+                    Height="32"
+                    MinWidth="80"
+                    Click="OnCancel"/>
+        </Grid>
+    </Grid>
+</Window>

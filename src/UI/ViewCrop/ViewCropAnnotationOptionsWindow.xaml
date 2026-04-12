@@ -1,0 +1,137 @@
+<!--
+  Tool Name: View Crop Annotation Options Window
+  Description: Collects run scope and annotation crop offset settings before processing views.
+  Author: Ajmal P.S.
+  Version: 1.0.0
+  Last Updated: 2026-04-11
+  Revit Version: 2020
+-->
+<Window x:Class="AJTools.UI.ViewCrop.ViewCropAnnotationOptionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Annotation Crop Settings"
+        Width="520"
+        Height="360"
+        MinWidth="420"
+        MinHeight="300"
+        ResizeMode="CanResize"
+        SizeToContent="Manual"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundDark}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <Border Background="{StaticResource CardBackground}"
+                        CornerRadius="8"
+                        Padding="12"
+                        Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Apply Scope"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
+
+                        <RadioButton x:Name="ActiveViewOnlyRadio"
+                                     Content="Apply to Active View Only"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     IsChecked="True"
+                                     Checked="OnApplyScopeChanged"/>
+
+                        <RadioButton x:Name="MultipleViewsRadio"
+                                     Content="Apply to Multiple Views"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Checked="OnApplyScopeChanged"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource CardBackground}"
+                        CornerRadius="8"
+                        Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Grid.ColumnSpan="2"
+                                   Text="Settings"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Text="Annotation crop offset (mm):"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,6"/>
+
+                        <TextBox x:Name="OffsetTextBox"
+                                 Grid.Row="1"
+                                 Grid.Column="1"
+                                 Style="{StaticResource ModernTextBox}"
+                                 Margin="0,0,0,6"
+                                 MinWidth="120"/>
+
+                        <TextBlock Grid.Row="2"
+                                   Grid.ColumnSpan="2"
+                                   Text="Uses each target view's current active crop box and applies the same annotation offset on all sides."
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <TextBlock x:Name="ErrorText"
+                   Grid.Row="1"
+                   Foreground="Crimson"
+                   Margin="2,0,0,10"/>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="RunButton"
+                    Grid.Column="1"
+                    Content="Run"
+                    Style="{StaticResource ModernButton}"
+                    Height="32"
+                    MinWidth="90"
+                    Margin="0,0,8,0"
+                    Click="OnRun"/>
+
+            <Button Grid.Column="2"
+                    Content="Cancel"
+                    Style="{StaticResource SecondaryButton}"
+                    Height="32"
+                    MinWidth="80"
+                    Click="OnCancel"/>
+        </Grid>
+    </Grid>
+</Window>

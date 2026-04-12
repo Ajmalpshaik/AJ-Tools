@@ -1,0 +1,81 @@
+{
+    "general": {
+        "standard_name": "SMACNA Style Editable",
+        "edition": "Project Editable",
+        "mode": "editable",
+        "apply_scope_default": "project",
+        "write_to_revit": true,
+        "include_allowances": true,
+        "write_rule_source": true,
+        "skip_if_missing_required_parameter": false
+    },
+    "materials": [
+        { "name": "GI", "density_kg_m3": 7850.0 },
+        { "name": "Stainless Steel", "density_kg_m3": 8000.0 },
+        { "name": "Aluminium", "density_kg_m3": 2700.0 },
+        { "name": "Black Steel", "density_kg_m3": 7850.0 }
+    ],
+    "default_material": "GI",
+    "pressure_classes": ["low", "medium", "high"],
+    "default_pressure_class": "low",
+    "allowances": {
+        "seam_percent": 3.0,
+        "joint_percent": 2.0,
+        "flange_percent": 4.0,
+        "reinforcement_percent": 5.0,
+        "fittings_percent": 10.0,
+        "wastage_percent": 5.0
+    },
+    "rules": [
+        { "shape": "rectangular", "pressure": "low",    "min_mm": 0,    "max_mm": 400,   "thickness_mm": 0.60, "gauge": "26", "reinforcement": false, "notes": "" },
+        { "shape": "rectangular", "pressure": "low",    "min_mm": 401,  "max_mm": 550,   "thickness_mm": 0.80, "gauge": "24", "reinforcement": false, "notes": "" },
+        { "shape": "rectangular", "pressure": "low",    "min_mm": 551,  "max_mm": 1200,  "thickness_mm": 1.00, "gauge": "22", "reinforcement": true,  "notes": "" },
+        { "shape": "rectangular", "pressure": "low",    "min_mm": 1201, "max_mm": 99999, "thickness_mm": 1.20, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "rectangular", "pressure": "medium", "min_mm": 0,    "max_mm": 400,   "thickness_mm": 0.80, "gauge": "24", "reinforcement": false, "notes": "" },
+        { "shape": "rectangular", "pressure": "medium", "min_mm": 401,  "max_mm": 550,   "thickness_mm": 1.00, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "rectangular", "pressure": "medium", "min_mm": 551,  "max_mm": 1200,  "thickness_mm": 1.20, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "rectangular", "pressure": "medium", "min_mm": 1201, "max_mm": 99999, "thickness_mm": 1.50, "gauge": "18", "reinforcement": true,  "notes": "" },
+        { "shape": "rectangular", "pressure": "high",   "min_mm": 0,    "max_mm": 400,   "thickness_mm": 1.00, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "rectangular", "pressure": "high",   "min_mm": 401,  "max_mm": 550,   "thickness_mm": 1.20, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "rectangular", "pressure": "high",   "min_mm": 551,  "max_mm": 1200,  "thickness_mm": 1.50, "gauge": "18", "reinforcement": true,  "notes": "" },
+        { "shape": "rectangular", "pressure": "high",   "min_mm": 1201, "max_mm": 99999, "thickness_mm": 1.90, "gauge": "16", "reinforcement": true,  "notes": "" },
+
+        { "shape": "round", "pressure": "low",    "min_mm": 0,    "max_mm": 406,   "thickness_mm": 0.55, "gauge": "26", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "low",    "min_mm": 407,  "max_mm": 559,   "thickness_mm": 0.70, "gauge": "24", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "low",    "min_mm": 560,  "max_mm": 1219,  "thickness_mm": 0.86, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "low",    "min_mm": 1220, "max_mm": 99999, "thickness_mm": 1.00, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "round", "pressure": "medium", "min_mm": 0,    "max_mm": 381,   "thickness_mm": 0.61, "gauge": "24", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "medium", "min_mm": 382,  "max_mm": 686,   "thickness_mm": 0.76, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "medium", "min_mm": 687,  "max_mm": 1067,  "thickness_mm": 0.91, "gauge": "20", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "medium", "min_mm": 1068, "max_mm": 1524,  "thickness_mm": 1.21, "gauge": "18", "reinforcement": true,  "notes": "" },
+        { "shape": "round", "pressure": "medium", "min_mm": 1525, "max_mm": 99999, "thickness_mm": 1.52, "gauge": "16", "reinforcement": true,  "notes": "" },
+        { "shape": "round", "pressure": "high",   "min_mm": 0,    "max_mm": 381,   "thickness_mm": 0.76, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "high",   "min_mm": 382,  "max_mm": 686,   "thickness_mm": 0.91, "gauge": "20", "reinforcement": false, "notes": "" },
+        { "shape": "round", "pressure": "high",   "min_mm": 687,  "max_mm": 1067,  "thickness_mm": 1.21, "gauge": "18", "reinforcement": true,  "notes": "" },
+        { "shape": "round", "pressure": "high",   "min_mm": 1068, "max_mm": 1524,  "thickness_mm": 1.52, "gauge": "16", "reinforcement": true,  "notes": "" },
+        { "shape": "round", "pressure": "high",   "min_mm": 1525, "max_mm": 99999, "thickness_mm": 1.90, "gauge": "14", "reinforcement": true,  "notes": "" },
+
+        { "shape": "oval", "pressure": "low",    "min_mm": 0,    "max_mm": 400,   "thickness_mm": 0.60, "gauge": "26", "reinforcement": false, "notes": "" },
+        { "shape": "oval", "pressure": "low",    "min_mm": 401,  "max_mm": 550,   "thickness_mm": 0.80, "gauge": "24", "reinforcement": false, "notes": "" },
+        { "shape": "oval", "pressure": "low",    "min_mm": 551,  "max_mm": 1200,  "thickness_mm": 1.00, "gauge": "22", "reinforcement": true,  "notes": "" },
+        { "shape": "oval", "pressure": "low",    "min_mm": 1201, "max_mm": 99999, "thickness_mm": 1.20, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "oval", "pressure": "medium", "min_mm": 0,    "max_mm": 400,   "thickness_mm": 0.80, "gauge": "24", "reinforcement": false, "notes": "" },
+        { "shape": "oval", "pressure": "medium", "min_mm": 401,  "max_mm": 550,   "thickness_mm": 1.00, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "oval", "pressure": "medium", "min_mm": 551,  "max_mm": 1200,  "thickness_mm": 1.20, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "oval", "pressure": "medium", "min_mm": 1201, "max_mm": 99999, "thickness_mm": 1.50, "gauge": "18", "reinforcement": true,  "notes": "" },
+        { "shape": "oval", "pressure": "high",   "min_mm": 0,    "max_mm": 400,   "thickness_mm": 1.00, "gauge": "22", "reinforcement": false, "notes": "" },
+        { "shape": "oval", "pressure": "high",   "min_mm": 401,  "max_mm": 550,   "thickness_mm": 1.20, "gauge": "20", "reinforcement": true,  "notes": "" },
+        { "shape": "oval", "pressure": "high",   "min_mm": 551,  "max_mm": 1200,  "thickness_mm": 1.50, "gauge": "18", "reinforcement": true,  "notes": "" },
+        { "shape": "oval", "pressure": "high",   "min_mm": 1201, "max_mm": 99999, "thickness_mm": 1.90, "gauge": "16", "reinforcement": true,  "notes": "" }
+    ],
+    "parameter_map": {
+        "sheet_thickness": "Sheet Thickness",
+        "gauge": "Gauge",
+        "weight_per_meter": "Duct Weight per Meter",
+        "total_weight": "Duct Total Weight",
+        "sheet_area": "Duct Sheet Area",
+        "rule_source": "Duct Rule Source",
+        "pressure_class": "Duct Pressure Class",
+        "material_name": "Duct Material Name"
+    }
+}

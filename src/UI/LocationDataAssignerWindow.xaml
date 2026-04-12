@@ -1,0 +1,238 @@
+<!--
+  Tool Name: Location Data Assigner UI
+  Description: WPF dialog for assigning room, level, coordinate, altitude, and HVAC data.
+  Author: Ajmal P.S.
+  Version: 1.1.0
+  Last Updated: 2026-04-09
+  Revit Version: 2020
+  Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Windows
+-->
+<Window x:Class="AJTools.UI.LocationDataAssignerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Location Data Assigner - AJ Tools"
+        Width="860"
+        Height="620"
+        MinWidth="820"
+        MinHeight="580"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        Background="{DynamicResource BackgroundDark}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Location Data Assigner"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock Text="Assign room, level, coordinates, altitude, and HVAC zone values with mapped parameter names."
+                           Foreground="{StaticResource TextSecondary}"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="1" Background="{StaticResource BackgroundDark}" BorderBrush="{StaticResource BackgroundLight}">
+            <TabItem Header="Process">
+                <Grid Margin="10">
+                    <GroupBox Header="Categories" Style="{StaticResource ModernGroupBox}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="CategorySearchBox"
+                                         Grid.Column="0"
+                                         Height="30"
+                                         Style="{StaticResource ModernTextBox}"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="Search categories..."/>
+                                <TextBlock x:Name="CategoryCountText"
+                                           Grid.Column="1"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextSecondary}"/>
+                            </Grid>
+
+                            <ListBox x:Name="CategoriesListBox"
+                                     Grid.Row="1"
+                                     Style="{StaticResource ModernListBox}"
+                                     ItemContainerStyle="{StaticResource ModernListBoxItem}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="2,2,2,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0"
+                                                      Content="{Binding Name}"
+                                                      IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                      Style="{StaticResource ModernCheckBox}"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Count}"
+                                                       Margin="10,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource TextSecondary}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <StackPanel Grid.Row="2" Margin="0,10,0,0" Orientation="Horizontal">
+                                <Button x:Name="SelectAllCategoriesButton"
+                                        Content="Select All"
+                                        Style="{StaticResource ModernButton}"
+                                        Height="30"
+                                        MinWidth="100"
+                                        Margin="0,0,8,0"/>
+                                <Button x:Name="SelectNoneCategoriesButton"
+                                        Content="Select None"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Height="30"
+                                        MinWidth="100"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Data">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <GroupBox Header="Data Source" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel Margin="4">
+                                <CheckBox x:Name="UseLinkedModelCheckBox" Content="Use Rooms/Spaces from linked model" Style="{StaticResource ModernCheckBox}"/>
+                                <ComboBox x:Name="LinkedModelsComboBox" Height="30" Margin="0,6,0,0" IsEnabled="False"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Data To Assign" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Room Name + Room Number are always included." Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                                <CheckBox x:Name="IncludeLevelsCheckBox" Content="Include Level Name" Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="IncludeCoordinatesCheckBox" Content="Include Coordinates (Easting / Northing)" Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="IncludeAltitudeCheckBox" Content="Include Altitude" Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="IncludeHvacCheckBox" Content="Include HVAC Zone (via Spaces)" Style="{StaticResource ModernCheckBox}"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Options" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel Margin="4">
+                                <CheckBox x:Name="OverwriteCheckBox" Content="Overwrite existing text values" Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="UseSharedCoordinatesCheckBox" Content="Use shared coordinates (survey point)" Style="{StaticResource ModernCheckBox}"/>
+                                <CheckBox x:Name="DebugCheckBox" Content="Debug mode (collect skip reasons)" Style="{StaticResource ModernCheckBox}"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Parameters">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <GroupBox Header="Parameter Names" Style="{StaticResource ModernGroupBox}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Grid.Row="0" Grid.Column="0" Content="Room Name:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamRoomName" Grid.Row="0" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="1" Grid.Column="0" Content="Room Number:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamRoomNumber" Grid.Row="1" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="2" Grid.Column="0" Content="Level Name:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamLevelName" Grid.Row="2" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="3" Grid.Column="0" Content="Easting:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamEasting" Grid.Row="3" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="4" Grid.Column="0" Content="Northing:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamNorthing" Grid.Row="4" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="5" Grid.Column="0" Content="Altitude:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamAltitude" Grid.Row="5" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="6" Grid.Column="0" Content="HVAC Zone Name:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamHvacZoneName" Grid.Row="6" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                                <Label Grid.Row="7" Grid.Column="0" Content="HVAC Zone Number:" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBox x:Name="txtParamHvacZoneNumber" Grid.Row="7" Grid.Column="1" Style="{StaticResource ModernTextBox}" Margin="4"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Parameter Tools" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Check mapped parameters and create/rebind when missing."
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Margin="0,0,0,8"/>
+                                <WrapPanel>
+                                    <Button x:Name="CheckParametersButton" Content="Check Parameters" Style="{StaticResource SecondaryButton}" Width="150" Margin="0,0,8,0"/>
+                                    <Button x:Name="CreateParametersButton" Content="Create/Rebind Parameters" Style="{StaticResource ModernButton}" Width="200"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <StackPanel x:Name="ProgressPanel" Grid.Row="2" Orientation="Vertical" Margin="0,10,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="ProgressText" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4"/>
+            <ProgressBar x:Name="ProcessProgressBar" Height="18" Minimum="0" Maximum="100"/>
+        </StackPanel>
+
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatusText"
+                       Grid.Column="0"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource TextSecondary}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,10,0"/>
+            <Button x:Name="ProcessButton"
+                    Grid.Column="1"
+                    Content="Process Elements"
+                    Style="{StaticResource ModernButton}"
+                    Height="32"
+                    MinWidth="150"
+                    Margin="0,0,8,0"/>
+            <Button x:Name="CancelButton"
+                    Grid.Column="2"
+                    Content="Close"
+                    Style="{StaticResource SecondaryButton}"
+                    Height="32"
+                    MinWidth="90"/>
+        </Grid>
+    </Grid>
+</Window>

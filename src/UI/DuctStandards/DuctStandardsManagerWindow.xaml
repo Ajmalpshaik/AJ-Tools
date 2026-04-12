@@ -1,0 +1,635 @@
+<Window x:Class="AJTools.UI.DuctStandards.DuctStandardsManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Duct Standards Manager - AJ Tools"
+        Width="920" Height="680"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        Background="#FF1E1E1E">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ========== DARK COLORS ========== -->
+            <SolidColorBrush x:Key="DkBg"       Color="#FF1E1E1E"/>
+            <SolidColorBrush x:Key="DkBgMed"    Color="#FF2D2D30"/>
+            <SolidColorBrush x:Key="DkBgLight"  Color="#FF3F3F46"/>
+            <SolidColorBrush x:Key="DkBorder"   Color="#FF555555"/>
+            <SolidColorBrush x:Key="DkFg"       Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="DkFgDim"    Color="#FFB0B0B0"/>
+            <SolidColorBrush x:Key="DkAccent"   Color="#FF007ACC"/>
+
+            <!-- ========== TAB ITEM ========== -->
+            <Style x:Key="DarkTabItem" TargetType="TabItem">
+                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
+                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
+                <Setter Property="Padding" Value="14,6"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TabItem">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                    BorderBrush="{StaticResource DkBgLight}" BorderThickness="1,1,1,0"
+                                    Padding="{TemplateBinding Padding}" Margin="0,0,2,0"
+                                    CornerRadius="4,4,0,0">
+                                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkAccent}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkBgLight}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ========== TAB CONTROL (dark content area) ========== -->
+            <Style x:Key="DarkTabControl" TargetType="TabControl">
+                <Setter Property="Background" Value="{StaticResource DkBg}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource DkBgLight}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TabControl">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TabPanel Grid.Row="0" IsItemsHost="True" Background="{StaticResource DkBg}"/>
+                                <Border Grid.Row="1"
+                                        Background="{StaticResource DkBg}"
+                                        BorderBrush="{StaticResource DkBgLight}"
+                                        BorderThickness="1,0,1,1">
+                                    <ContentPresenter ContentSource="SelectedContent" Margin="0"/>
+                                </Border>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ========== LABEL ========== -->
+            <Style TargetType="Label">
+                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <!-- ========== TEXTBOX ========== -->
+            <Style x:Key="DarkTextBox" TargetType="TextBox">
+                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="CaretBrush" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource DkBorder}"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
+
+            <!-- ========== COMBOBOX (full dark template) ========== -->
+            <ControlTemplate x:Key="DarkComboBoxToggle" TargetType="ToggleButton">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="20"/>
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="Border" Grid.ColumnSpan="2"
+                            Background="{StaticResource DkBgMed}"
+                            BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
+                            CornerRadius="2"/>
+                    <Path x:Name="Arrow" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Data="M 0 0 L 4 4 L 8 0 Z" Fill="{StaticResource DkFgDim}"/>
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Border" Property="Background" Value="{StaticResource DkBgLight}"/>
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+
+            <Style x:Key="DarkComboBox" TargetType="ComboBox">
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Grid>
+                                <ToggleButton x:Name="ToggleButton"
+                                              Template="{StaticResource DarkComboBoxToggle}"
+                                              IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                              Focusable="False" ClickMode="Press"/>
+                                <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  Margin="8,4,24,4" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                    <ContentPresenter.Resources>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                                        </Style>
+                                    </ContentPresenter.Resources>
+                                </ContentPresenter>
+                                <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                       AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                    <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                          MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                        <Border x:Name="DropDownBorder"
+                                                Background="{StaticResource DkBgMed}"
+                                                BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
+                                                CornerRadius="0,0,2,2"/>
+                                        <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Popup>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ComboBoxItem dark -->
+            <Style TargetType="ComboBoxItem">
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBoxItem">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsHighlighted" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkAccent}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkBgLight}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ========== CHECKBOX ========== -->
+            <Style x:Key="DarkCheckBox" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <StackPanel Orientation="Horizontal">
+                                <Border x:Name="box" Width="16" Height="16"
+                                        Background="{StaticResource DkBgMed}"
+                                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
+                                        CornerRadius="2" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <Path x:Name="check" Data="M 2 5 L 5 8 L 10 2"
+                                          Stroke="White" StrokeThickness="2"
+                                          Visibility="Collapsed" Margin="1"/>
+                                </Border>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="box" Property="Background" Value="{StaticResource DkAccent}"/>
+                                    <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ========== RADIOBUTTON ========== -->
+            <Style x:Key="DarkRadioButton" TargetType="RadioButton">
+                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <StackPanel Orientation="Horizontal">
+                                <Border x:Name="circle" Width="16" Height="16"
+                                        Background="{StaticResource DkBgMed}"
+                                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
+                                        CornerRadius="8" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <Ellipse x:Name="dot" Width="8" Height="8" Fill="White"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                             Visibility="Collapsed"/>
+                                </Border>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="circle" Property="Background" Value="{StaticResource DkAccent}"/>
+                                    <Setter TargetName="circle" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="circle" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ========== GROUPBOX ========== -->
+            <Style TargetType="GroupBox">
+                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource DkBgLight}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Margin" Value="4"/>
+                <Setter Property="Padding" Value="6"/>
+            </Style>
+
+            <!-- ========== DATAGRID ========== -->
+            <Style x:Key="DarkDataGrid" TargetType="DataGrid">
+                <Setter Property="Background" Value="{StaticResource DkBg}"/>
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource DkBgLight}"/>
+                <Setter Property="RowBackground" Value="{StaticResource DkBgMed}"/>
+                <Setter Property="AlternatingRowBackground" Value="#FF252833"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource DkBgLight}"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="True"/>
+                <Setter Property="CanUserDeleteRows" Value="True"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="ColumnHeaderStyle">
+                    <Setter.Value>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="{StaticResource DkBgLight}"/>
+                            <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                            <Setter Property="Padding" Value="6,4"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource DkBorder}"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- DataGrid cell text -->
+            <Style x:Key="DgCell" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="Padding" Value="4,2"/>
+            </Style>
+            <Style x:Key="DgEdit" TargetType="TextBox">
+                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="CaretBrush" Value="White"/>
+            </Style>
+
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#FF252833" Padding="12,8">
+            <StackPanel>
+                <TextBlock Text="Duct Standards Manager" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Calculate sheet thickness, gauge, weight, and area for ducts based on SMACNA-style rules"
+                           Foreground="#FFB0B0B0" FontSize="11" Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Tabs -->
+        <TabControl Grid.Row="1" Style="{StaticResource DarkTabControl}" Margin="8,4,8,4">
+
+            <!-- ============= PROCESS TAB ============= -->
+            <TabItem Header="  Process  " Style="{StaticResource DarkTabItem}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource DkBg}">
+                    <StackPanel Margin="12">
+                        <GroupBox Header="Processing Mode">
+                            <StackPanel>
+                                <RadioButton x:Name="rbSelectedDucts" Content="Selected Ducts Only"
+                                             Style="{StaticResource DarkRadioButton}" Margin="4" IsChecked="True"/>
+                                <RadioButton x:Name="rbActiveView" Content="Active View Ducts"
+                                             Style="{StaticResource DarkRadioButton}" Margin="4"/>
+                                <RadioButton x:Name="rbWholeProject" Content="Whole Project Ducts"
+                                             Style="{StaticResource DarkRadioButton}" Margin="4"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Default Overrides" Margin="4,8,4,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Grid.Row="0" Grid.Column="0" Content="Default Material:"/>
+                                <ComboBox x:Name="cboDefaultMaterial" Grid.Row="0" Grid.Column="1"
+                                          Style="{StaticResource DarkComboBox}" Margin="4" Width="200" HorizontalAlignment="Left"/>
+                                <Label Grid.Row="1" Grid.Column="0" Content="Default Pressure:"/>
+                                <ComboBox x:Name="cboDefaultPressure" Grid.Row="1" Grid.Column="1"
+                                          Style="{StaticResource DarkComboBox}" Margin="4" Width="200" HorizontalAlignment="Left"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Actions" Margin="4,8,4,4">
+                            <WrapPanel Margin="4">
+                                <Button x:Name="btnRunProcess" Content="Run Processing" Style="{StaticResource ModernButton}"
+                                        Margin="4" Width="160" Click="BtnRunProcess_Click"/>
+                                <Button x:Name="btnPreviewCalc" Content="Preview (No Write)" Style="{StaticResource SecondaryButton}"
+                                        Margin="4" Width="160" Click="BtnPreviewCalc_Click"/>
+                                <Button x:Name="btnExportCsv" Content="Export Last Report CSV" Style="{StaticResource SecondaryButton}"
+                                        Margin="4" Width="180" Click="BtnExportCsv_Click" IsEnabled="False"/>
+                            </WrapPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Results" Margin="4,8,4,4">
+                            <TextBox x:Name="txtResults" Style="{StaticResource DarkTextBox}"
+                                     IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Auto" MinHeight="120" MaxHeight="300"
+                                     Text="Ready. Configure settings and click Run Processing."/>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============= GENERAL TAB ============= -->
+            <TabItem Header="  General  " Style="{StaticResource DarkTabItem}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource DkBg}">
+                    <StackPanel Margin="12">
+                        <GroupBox Header="Standard Information">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Grid.Row="0" Grid.Column="0" Content="Standard Name:"/>
+                                <TextBox x:Name="txtStandardName" Grid.Row="0" Grid.Column="1"
+                                         Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="1" Grid.Column="0" Content="Edition:"/>
+                                <TextBox x:Name="txtEdition" Grid.Row="1" Grid.Column="1"
+                                         Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="2" Grid.Column="0" Content="Mode:"/>
+                                <ComboBox x:Name="cboMode" Grid.Row="2" Grid.Column="1"
+                                          Style="{StaticResource DarkComboBox}" Margin="4" Width="200" HorizontalAlignment="Left">
+                                    <ComboBoxItem Content="editable"/>
+                                    <ComboBoxItem Content="strict"/>
+                                </ComboBox>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Options" Margin="4,8,4,4">
+                            <StackPanel>
+                                <CheckBox x:Name="chkWriteToRevit" Content="Write calculated values to Revit parameters"
+                                          Style="{StaticResource DarkCheckBox}" Margin="4"/>
+                                <CheckBox x:Name="chkIncludeAllowances" Content="Include fabrication allowances in weight"
+                                          Style="{StaticResource DarkCheckBox}" Margin="4"/>
+                                <CheckBox x:Name="chkWriteRuleSource" Content="Write rule source tag to parameter"
+                                          Style="{StaticResource DarkCheckBox}" Margin="4"/>
+                                <CheckBox x:Name="chkSkipMissing" Content="Skip ducts missing required parameters"
+                                          Style="{StaticResource DarkCheckBox}" Margin="4"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============= MATERIALS TAB ============= -->
+            <TabItem Header="  Materials  " Style="{StaticResource DarkTabItem}">
+                <Grid Margin="12" Background="{StaticResource DkBg}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Define materials and their densities. These are used for weight calculations."
+                               Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
+                    <DataGrid x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DarkDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Material Name" Binding="{Binding Name}" Width="*" MinWidth="150"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridTextColumn Header="Density (kg/m3)" Binding="{Binding DensityKgM3, StringFormat=F1}" Width="150"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Add Material" Style="{StaticResource SecondaryButton}" Margin="4" Click="BtnAddMaterial_Click"/>
+                        <Button Content="Remove Selected" Style="{StaticResource SecondaryButton}" Margin="4" Click="BtnRemoveMaterial_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ============= RULES TAB ============= -->
+            <TabItem Header="  Rules  " Style="{StaticResource DarkTabItem}">
+                <Grid Margin="12" Background="{StaticResource DkBg}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Duct thickness, gauge, and reinforcement rules by shape, pressure, and size range."
+                               Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,4"/>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,8">
+                        <Label Content="Filter Shape:"/>
+                        <ComboBox x:Name="cboFilterShape" Style="{StaticResource DarkComboBox}" Width="140" Margin="4"
+                                  SelectionChanged="CboFilterShape_Changed">
+                            <ComboBoxItem Content="All" IsSelected="True"/>
+                            <ComboBoxItem Content="rectangular"/>
+                            <ComboBoxItem Content="round"/>
+                            <ComboBoxItem Content="oval"/>
+                        </ComboBox>
+                        <Label Content="Filter Pressure:" Margin="12,0,0,0"/>
+                        <ComboBox x:Name="cboFilterPressure" Style="{StaticResource DarkComboBox}" Width="120" Margin="4"
+                                  SelectionChanged="CboFilterPressure_Changed">
+                            <ComboBoxItem Content="All" IsSelected="True"/>
+                            <ComboBoxItem Content="low"/>
+                            <ComboBoxItem Content="medium"/>
+                            <ComboBoxItem Content="high"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <DataGrid x:Name="dgRules" Grid.Row="2" Style="{StaticResource DarkDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Shape" Binding="{Binding Shape}" Width="100"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridTextColumn Header="Pressure" Binding="{Binding Pressure}" Width="80"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridTextColumn Header="Min (mm)" Binding="{Binding MinMm}" Width="80"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridTextColumn Header="Max (mm)" Binding="{Binding MaxMm}" Width="80"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridTextColumn Header="Thickness (mm)" Binding="{Binding ThicknessMm}" Width="110"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridTextColumn Header="Gauge" Binding="{Binding Gauge}" Width="60"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                            <DataGridCheckBoxColumn Header="Reinf." Binding="{Binding Reinforcement}" Width="55"/>
+                            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"
+                                                ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Add Rule" Style="{StaticResource SecondaryButton}" Margin="4" Click="BtnAddRule_Click"/>
+                        <Button Content="Remove Selected" Style="{StaticResource SecondaryButton}" Margin="4" Click="BtnRemoveRule_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ============= ALLOWANCES TAB ============= -->
+            <TabItem Header="  Allowances  " Style="{StaticResource DarkTabItem}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource DkBg}">
+                    <StackPanel Margin="12">
+                        <TextBlock Text="Fabrication allowances applied as percentages on top of the base sheet weight."
+                                   Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
+                        <GroupBox Header="Allowance Percentages">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Grid.Row="0" Grid.Column="0" Content="Seam Allowance (%):"/>
+                                <TextBox x:Name="txtSeam" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="1" Grid.Column="0" Content="Joint Allowance (%):"/>
+                                <TextBox x:Name="txtJoint" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="2" Grid.Column="0" Content="Flange Allowance (%):"/>
+                                <TextBox x:Name="txtFlange" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="3" Grid.Column="0" Content="Reinforcement (%):"/>
+                                <TextBox x:Name="txtReinforcement" Grid.Row="3" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="4" Grid.Column="0" Content="Fittings Allowance (%):"/>
+                                <TextBox x:Name="txtFittings" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="5" Grid.Column="0" Content="Wastage Allowance (%):"/>
+                                <TextBox x:Name="txtWastage" Grid.Row="5" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                            </Grid>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============= PARAMETERS TAB ============= -->
+            <TabItem Header="  Parameters  " Style="{StaticResource DarkTabItem}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource DkBg}">
+                    <StackPanel Margin="12">
+                        <TextBlock Text="Map the Revit shared/project parameter names used for writing results."
+                                   Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
+                        <GroupBox Header="Revit Parameter Names">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Grid.Row="0" Grid.Column="0" Content="Sheet Thickness:"/>
+                                <TextBox x:Name="txtParamThickness" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="1" Grid.Column="0" Content="Gauge:"/>
+                                <TextBox x:Name="txtParamGauge" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="2" Grid.Column="0" Content="Weight per Meter:"/>
+                                <TextBox x:Name="txtParamWeightPerMeter" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="3" Grid.Column="0" Content="Total Weight:"/>
+                                <TextBox x:Name="txtParamTotalWeight" Grid.Row="3" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="4" Grid.Column="0" Content="Sheet Area:"/>
+                                <TextBox x:Name="txtParamSheetArea" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="5" Grid.Column="0" Content="Rule Source:"/>
+                                <TextBox x:Name="txtParamRuleSource" Grid.Row="5" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="6" Grid.Column="0" Content="Pressure Class:"/>
+                                <TextBox x:Name="txtParamPressureClass" Grid.Row="6" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                <Label Grid.Row="7" Grid.Column="0" Content="Material Name:"/>
+                                <TextBox x:Name="txtParamMaterialName" Grid.Row="7" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                            </Grid>
+                        </GroupBox>
+                        <GroupBox Header="Parameter Tools" Margin="4,8,4,4">
+                            <StackPanel>
+                                <TextBlock Text="Check if mapped parameters exist on Ducts category and create/rebind them when missing."
+                                           Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
+                                <WrapPanel Margin="4">
+                                    <Button Content="Check Parameters" Style="{StaticResource SecondaryButton}" Margin="4" Width="160"
+                                            Click="BtnCheckParameters_Click"/>
+                                    <Button Content="Create/Rebind Parameters" Style="{StaticResource ModernButton}" Margin="4" Width="190"
+                                            Click="BtnCreateParameters_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============= CONFIG TAB ============= -->
+            <TabItem Header="  Config  " Style="{StaticResource DarkTabItem}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource DkBg}">
+                    <StackPanel Margin="12">
+                        <GroupBox Header="Configuration File">
+                            <StackPanel>
+                                <TextBlock x:Name="txtConfigPath" Text="" Foreground="{StaticResource DkFgDim}" FontSize="11"
+                                           Margin="4" TextWrapping="Wrap"/>
+                                <WrapPanel Margin="4,8,4,4">
+                                    <Button Content="Save Config" Style="{StaticResource ModernButton}" Margin="4" Width="130" Click="BtnSaveConfig_Click"/>
+                                    <Button Content="Load Config" Style="{StaticResource SecondaryButton}" Margin="4" Width="130" Click="BtnLoadConfig_Click"/>
+                                    <Button Content="Import JSON" Style="{StaticResource SecondaryButton}" Margin="4" Width="130" Click="BtnImportJson_Click"/>
+                                    <Button Content="Export JSON" Style="{StaticResource SecondaryButton}" Margin="4" Width="130" Click="BtnExportJson_Click"/>
+                                    <Button Content="Reset Default" Style="{StaticResource SecondaryButton}" Margin="4" Width="130" Click="BtnResetDefault_Click"/>
+                                    <Button Content="Open Folder" Style="{StaticResource SecondaryButton}" Margin="4" Width="130" Click="BtnOpenFolder_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="#FF252833" Padding="12,6">
+            <DockPanel>
+                <Button Content="Close" Style="{StaticResource SecondaryButton}" DockPanel.Dock="Right"
+                        Width="100" Click="BtnClose_Click"/>
+                <TextBlock Text="AJ Tools - Duct Standards Manager v1.0"
+                           Foreground="#FF6B6B6B" FontSize="10" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
