@@ -5,6 +5,7 @@
 // Revit Version: 2020
 
 using System.Collections.Generic;
+using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -71,7 +72,7 @@ namespace AJTools.Commands
                 form.Text = "Smart MEP Tag Settings";
                 form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
                 form.StartPosition = WinForms.FormStartPosition.CenterScreen;
-                form.ClientSize = new Drawing.Size(560, 420);
+                form.ClientSize = new Drawing.Size(660, 420);
                 form.MaximizeBox = false;
                 form.MinimizeBox = false;
 
@@ -80,13 +81,13 @@ namespace AJTools.Commands
                 title.AutoSize = true;
                 title.Location = new Drawing.Point(12, 12);
 
-                note.Text = "Choose category-wise tag ON/OFF.";
+                note.Text = "Choose category-wise Tag ON/OFF and Priority.";
                 note.AutoSize = true;
                 note.ForeColor = Drawing.Color.DimGray;
                 note.Location = new Drawing.Point(12, 36);
 
                 grid.Location = new Drawing.Point(12, 60);
-                grid.Size = new Drawing.Size(536, 300);
+                grid.Size = new Drawing.Size(636, 300);
                 grid.AllowUserToAddRows = false;
                 grid.AllowUserToDeleteRows = false;
                 grid.AllowUserToResizeRows = false;
@@ -113,31 +114,42 @@ namespace AJTools.Commands
                     HeaderText = "Tag?",
                     FillWeight = 45
                 };
+                
+                var colPriority = new WinForms.DataGridViewComboBoxColumn
+                {
+                    HeaderText = "Priority",
+                    FillWeight = 70,
+                    DisplayStyle = WinForms.DataGridViewComboBoxDisplayStyle.DropDownButton
+                };
+                colPriority.Items.AddRange("High", "Medium", "Low");
 
                 grid.Columns.Add(colCategory);
                 grid.Columns.Add(colCount);
+                grid.Columns.Add(colPriority);
                 grid.Columns.Add(colEnable);
 
                 foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
                 {
                     bool enabled = SmartTagSettingsTracker.IsCategoryEnabled(initialState, category);
+                    TagPriority priority = SmartTagSettingsTracker.ResolvePriority(initialState, category);
                     int countInModel = inModelCounts.TryGetValue(category, out int count) ? count : 0;
 
                     int rowIndex = grid.Rows.Add(
                         SmartTagSettingsTracker.GetCategoryLabel(category),
                         countInModel.ToString(),
+                        GetPriorityDisplay(priority),
                         enabled);
                     rowCategoryMap[rowIndex] = category;
                 }
 
                 save.Text = "Save";
                 save.DialogResult = WinForms.DialogResult.OK;
-                save.Location = new Drawing.Point(392, 376);
+                save.Location = new Drawing.Point(492, 376);
                 save.Width = 75;
 
                 cancel.Text = "Cancel";
                 cancel.DialogResult = WinForms.DialogResult.Cancel;
-                cancel.Location = new Drawing.Point(473, 376);
+                cancel.Location = new Drawing.Point(573, 376);
                 cancel.Width = 75;
 
                 form.Controls.Add(title);
@@ -178,7 +190,8 @@ namespace AJTools.Commands
             state = new SmartTagSettingsState
             {
                 CategoryEnabled = new Dictionary<BuiltInCategory, bool>(),
-                CategoryOffsetInternal = new Dictionary<BuiltInCategory, double>()
+                CategoryOffsetInternal = new Dictionary<BuiltInCategory, double>(),
+                CategoryPriority = new Dictionary<BuiltInCategory, TagPriority>()
             };
             error = null;
 
@@ -191,14 +204,22 @@ namespace AJTools.Commands
                     continue;
 
                 bool enabled = false;
-                object enabledRaw = row.Cells[2].Value;
+                object enabledRaw = row.Cells[3].Value;
                 if (enabledRaw is bool b)
                     enabled = b;
+                
+                object priorityRaw = row.Cells[2].Value;
+                if (!TryParsePriority(priorityRaw, out TagPriority priority))
+                {
+                    error = string.Format("Select a valid priority for '{0}'.", SmartTagSettingsTracker.GetCategoryLabel(category));
+                    return false;
+                }
 
                 double offsetInternal = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, category);
 
                 state.CategoryEnabled[category] = enabled;
                 state.CategoryOffsetInternal[category] = offsetInternal;
+                state.CategoryPriority[category] = priority;
 
                 if (enabled)
                 {
@@ -219,6 +240,47 @@ namespace AJTools.Commands
                 : SmartTagSettingsTracker.ResolveOffsetInternal(initialState);
 
             return true;
+        }
+
+        private static string GetPriorityDisplay(TagPriority priority)
+        {
+            switch (priority)
+            {
+                case TagPriority.High:
+                    return "High";
+                case TagPriority.Medium:
+                    return "Medium";
+                default:
+                    return "Low";
+            }
+        }
+
+        private static bool TryParsePriority(object value, out TagPriority priority)
+        {
+            priority = TagPriority.Low;
+            string text = value as string;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (string.Equals(text, "High", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = TagPriority.High;
+                return true;
+            }
+
+            if (string.Equals(text, "Medium", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = TagPriority.Medium;
+                return true;
+            }
+
+            if (string.Equals(text, "Low", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = TagPriority.Low;
+                return true;
+            }
+
+            return false;
         }
 
         private static Dictionary<BuiltInCategory, int> CountElementsInModel(Document doc)

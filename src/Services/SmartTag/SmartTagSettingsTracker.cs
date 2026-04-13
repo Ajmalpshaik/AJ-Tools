@@ -86,6 +86,17 @@ namespace AJTools.Services.SmartTag
             return ResolveOffsetInternal(state);
         }
 
+        internal static TagPriority ResolvePriority(SmartTagSettingsState state, BuiltInCategory category)
+        {
+            if (state?.CategoryPriority != null
+                && state.CategoryPriority.TryGetValue(category, out TagPriority priority))
+            {
+                return priority;
+            }
+
+            return GetDefaultPriority(category);
+        }
+
         internal static SmartTagSettingsState EnsureDefaults(SmartTagSettingsState state)
         {
             if (state == null)
@@ -103,7 +114,8 @@ namespace AJTools.Services.SmartTag
             {
                 OffsetInternal = DefaultOffsetMm * Constants.MM_TO_FEET,
                 CategoryEnabled = state.CategoryEnabled,
-                CategoryOffsetInternal = state.CategoryOffsetInternal
+                CategoryOffsetInternal = state.CategoryOffsetInternal,
+                CategoryPriority = state.CategoryPriority
             };
 
             return CloneWithDefaults(normalized);
@@ -138,7 +150,8 @@ namespace AJTools.Services.SmartTag
             {
                 OffsetInternal = defaultOffset,
                 CategoryEnabled = new Dictionary<BuiltInCategory, bool>(),
-                CategoryOffsetInternal = new Dictionary<BuiltInCategory, double>()
+                CategoryOffsetInternal = new Dictionary<BuiltInCategory, double>(),
+                CategoryPriority = new Dictionary<BuiltInCategory, TagPriority>()
             };
 
             foreach (BuiltInCategory category in SupportedCategories)
@@ -158,11 +171,33 @@ namespace AJTools.Services.SmartTag
                     offset = stateOffset;
                 }
 
+                TagPriority priority = ResolvePriority(state, category);
+
                 clone.CategoryEnabled[category] = enabled;
                 clone.CategoryOffsetInternal[category] = offset;
+                clone.CategoryPriority[category] = priority;
             }
 
             return clone;
+        }
+
+        private static TagPriority GetDefaultPriority(BuiltInCategory category)
+        {
+            switch (category)
+            {
+                case BuiltInCategory.OST_MechanicalEquipment:
+                case BuiltInCategory.OST_DuctCurves:
+                case BuiltInCategory.OST_PipeCurves:
+                    return TagPriority.High;
+
+                case BuiltInCategory.OST_PipeAccessory:
+                case BuiltInCategory.OST_DuctAccessory:
+                    return TagPriority.Medium;
+
+                case BuiltInCategory.OST_CableTray:
+                default:
+                    return TagPriority.Low;
+            }
         }
 
         private static string BuildDocKey(Document doc)

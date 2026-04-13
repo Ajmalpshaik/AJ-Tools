@@ -29,5 +29,10 @@ namespace AJTools.Models.SmartTag
         /// </summary>
         public Dictionary<BuiltInCategory, double> CategoryOffsetInternal { get; set; }
 
+        /// <summary>
+        /// Per-category tagging priority used to determine processing order.
+        /// </summary>
+        public Dictionary<BuiltInCategory, TagPriority> CategoryPriority { get; set; }
+
     }
 }

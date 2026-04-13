@@ -10,7 +10,7 @@ namespace AJTools.Models.SmartTag
     /// Tagging priority that determines processing order.
     /// HIGH-priority elements are tagged first so they claim the best annotation space.
     /// </summary>
-    internal enum TagPriority
+    public enum TagPriority
     {
         High,
         Medium,

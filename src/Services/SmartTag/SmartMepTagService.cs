@@ -371,7 +371,7 @@ namespace AJTools.Services.SmartTag
                 {
                     ElementId = eid,
                     Category = bic,
-                    Priority = GetPriority(bic),
+                    Priority = SmartTagSettingsTracker.ResolvePriority(settingsState, bic),
                     BoundingBox = elem.get_BoundingBox(activeView),
                     Midpoint = midpoint,
                     IsDenseZone = false,
@@ -984,30 +984,6 @@ namespace AJTools.Services.SmartTag
             catch (Exception)
             {
                 return ElementOrientation.Other;
-            }
-        }
-
-        /// <summary>
-        /// Maps a built-in category to its tagging priority.
-        /// </summary>
-        private static TagPriority GetPriority(BuiltInCategory category)
-        {
-            switch (category)
-            {
-                case BuiltInCategory.OST_MechanicalEquipment:
-                case BuiltInCategory.OST_DuctCurves:
-                case BuiltInCategory.OST_PipeCurves:
-                    return TagPriority.High;
-
-                case BuiltInCategory.OST_PipeAccessory:
-                case BuiltInCategory.OST_DuctAccessory:
-                    return TagPriority.Medium;
-
-                case BuiltInCategory.OST_CableTray:
-                    return TagPriority.Low;
-
-                default:
-                    return TagPriority.Low;
             }
         }
 
