@@ -34,6 +34,7 @@ namespace AJTools.Services.SmartTag
         /// The four cardinal directions for candidate tag positions.
         /// </summary>
         private enum TagDirection { Top, Bottom, Right, Left }
+        private const double SpatialIndexCellSizeMm = 20.0;
 
         private sealed class TagSizeHint
         {
@@ -135,7 +136,6 @@ namespace AJTools.Services.SmartTag
 
         private static Dictionary<TagDirection, XYZ> BuildCandidatePositions(
             TagCandidate candidate,
-            PreFlightResult preflight,
             double offset,
             double estimatedTagWidth,
             double estimatedTagHeight,
@@ -202,11 +202,12 @@ namespace AJTools.Services.SmartTag
 
         private static AnnotationBox ConvertBoundingBoxToViewPlane(BoundingBoxXYZ bb, XYZ viewRight, XYZ viewUp)
         {
-            if (bb == null)
+            if (bb == null || bb.Min == null || bb.Max == null)
                 return null;
 
             XYZ min = bb.Min;
             XYZ max = bb.Max;
+            Transform transform = bb.Transform ?? Transform.Identity;
             XYZ[] corners = new[]
             {
                 new XYZ(min.X, min.Y, min.Z),
@@ -226,7 +227,7 @@ namespace AJTools.Services.SmartTag
 
             foreach (XYZ corner in corners)
             {
-                UV uv = ProjectToViewPlane(corner, viewRight, viewUp);
+                UV uv = ProjectToViewPlane(transform.OfPoint(corner), viewRight, viewUp);
                 if (uv.U < minU) minU = uv.U;
                 if (uv.V < minV) minV = uv.V;
                 if (uv.U > maxU) maxU = uv.U;
@@ -236,18 +237,86 @@ namespace AJTools.Services.SmartTag
             return new AnnotationBox(minU, minV, maxU, maxV);
         }
 
-        private static bool IsWithinTagPlacementBoundary(
-            XYZ point,
+#if DEBUG
+        internal static bool TryRunGeometryRegressionChecks(out string error)
+        {
+            error = null;
+            const double tol = 1e-6;
+
+            try
+            {
+                var rotated = new BoundingBoxXYZ
+                {
+                    Min = new XYZ(0, 0, 0),
+                    Max = new XYZ(2, 1, 0),
+                    Transform = Transform.CreateRotationAtPoint(XYZ.BasisZ, 0.5 * Math.PI, XYZ.Zero)
+                };
+
+                AnnotationBox rotatedBox = ConvertBoundingBoxToViewPlane(rotated, XYZ.BasisX, XYZ.BasisY);
+                if (rotatedBox == null)
+                {
+                    error = "ConvertBoundingBoxToViewPlane returned null for rotated bbox.";
+                    return false;
+                }
+
+                if (!NearlyEqual(rotatedBox.MinX, -1, tol)
+                    || !NearlyEqual(rotatedBox.MaxX, 0, tol)
+                    || !NearlyEqual(rotatedBox.MinY, 0, tol)
+                    || !NearlyEqual(rotatedBox.MaxY, 2, tol))
+                {
+                    error = "Rotated bbox projection mismatch.";
+                    return false;
+                }
+
+                var translated = new BoundingBoxXYZ
+                {
+                    Min = new XYZ(0, 0, 0),
+                    Max = new XYZ(2, 1, 0),
+                    Transform = Transform.CreateTranslation(new XYZ(3, -2, 0))
+                };
+
+                AnnotationBox translatedBox = ConvertBoundingBoxToViewPlane(translated, XYZ.BasisX, XYZ.BasisY);
+                if (translatedBox == null)
+                {
+                    error = "ConvertBoundingBoxToViewPlane returned null for translated bbox.";
+                    return false;
+                }
+
+                if (!NearlyEqual(translatedBox.MinX, 3, tol)
+                    || !NearlyEqual(translatedBox.MaxX, 5, tol)
+                    || !NearlyEqual(translatedBox.MinY, -2, tol)
+                    || !NearlyEqual(translatedBox.MaxY, -1, tol))
+                {
+                    error = "Translated bbox projection mismatch.";
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private static bool NearlyEqual(double a, double b, double tolerance)
+        {
+            return Math.Abs(a - b) <= tolerance;
+        }
+#endif
+
+        private static AnnotationBox BuildPlacementBoundaryInViewPlane(
             PreFlightResult preflight,
             XYZ viewRight,
             XYZ viewUp)
         {
-            if (point == null || preflight == null)
-                return true;
+            if (preflight == null)
+                return null;
 
             Outline boundary = preflight.AnnotationCropOutline ?? preflight.CropOutline;
             if (boundary == null)
-                return true;
+                return null;
 
             XYZ min = boundary.MinimumPoint;
             XYZ max = boundary.MaximumPoint;
@@ -277,9 +346,58 @@ namespace AJTools.Services.SmartTag
                 if (cornerUv.V > maxV) maxV = cornerUv.V;
             }
 
+            if (minU > maxU || minV > maxV)
+                return null;
+
+            return new AnnotationBox(minU, minV, maxU, maxV);
+        }
+
+        private static bool IsWithinTagPlacementBoundary(
+            XYZ point,
+            AnnotationBox placementBoundary,
+            XYZ viewRight,
+            XYZ viewUp)
+        {
+            if (point == null || placementBoundary == null)
+                return true;
+
             UV pointUv = ProjectToViewPlane(point, viewRight, viewUp);
-            return pointUv.U >= minU && pointUv.U <= maxU
-                && pointUv.V >= minV && pointUv.V <= maxV;
+            return pointUv.U >= placementBoundary.MinX
+                && pointUv.U <= placementBoundary.MaxX
+                && pointUv.V >= placementBoundary.MinY
+                && pointUv.V <= placementBoundary.MaxY;
+        }
+
+        private static AnnotationSpatialIndex BuildAnnotationSpatialIndex(
+            List<AnnotationBox> annotations,
+            int viewScale)
+        {
+            try
+            {
+                int safeScale = Math.Max(1, viewScale);
+                double cellSize = SpatialIndexCellSizeMm * Constants.MM_TO_FEET * safeScale;
+                var index = new AnnotationSpatialIndex(cellSize);
+                index.AddRange(annotations);
+                return index;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static List<AnnotationBox> QueryNearbyAnnotations(
+            AnnotationSpatialIndex spatialIndex,
+            List<AnnotationBox> allAnnotations,
+            AnnotationBox searchArea)
+        {
+            if (searchArea == null)
+                return allAnnotations ?? new List<AnnotationBox>();
+
+            if (spatialIndex != null)
+                return spatialIndex.Query(searchArea);
+
+            return allAnnotations ?? new List<AnnotationBox>();
         }
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -295,6 +413,7 @@ namespace AJTools.Services.SmartTag
             XYZ candidatePos,
             TagDirection direction,
             List<AnnotationBox> existingAnnotations,
+            AnnotationSpatialIndex spatialIndex,
             double estimatedTagWidth,
             double estimatedTagHeight,
             int viewScale,
@@ -311,10 +430,16 @@ namespace AJTools.Services.SmartTag
             // No clash = 40 pts. Any overlap = disqualified.
             double tolerance = 1.5 * Constants.MM_TO_FEET * viewScale; // 1.5mm at view scale
             double nearMiss = 2.0 * Constants.MM_TO_FEET * viewScale;  // 2mm at view scale
+            double threshold10mm = 10.0 * Constants.MM_TO_FEET * viewScale;
+            double searchMargin = Math.Max(nearMiss, threshold10mm);
+            List<AnnotationBox> nearbyAnnotations = QueryNearbyAnnotations(
+                spatialIndex,
+                existingAnnotations,
+                proposed.Inflated(searchMargin));
             bool hasClash = false;
             bool hasNearMiss = false;
 
-            foreach (AnnotationBox existing in existingAnnotations)
+            foreach (AnnotationBox existing in nearbyAnnotations)
             {
                 if (proposed.Inflated(tolerance).Overlaps(existing))
                 {
@@ -334,17 +459,16 @@ namespace AJTools.Services.SmartTag
 
             // â”€â”€ CRITERION 2: DISTANCE FROM OTHER TAGS (0â€“20 pts) â”€â”€
             double minDist = double.MaxValue;
-            double threshold10mm = 10.0 * Constants.MM_TO_FEET * viewScale;
             double threshold5mm = 5.0 * Constants.MM_TO_FEET * viewScale;
 
-            foreach (AnnotationBox existing in existingAnnotations)
+            foreach (AnnotationBox existing in nearbyAnnotations)
             {
                 double dist = proposed.DistanceTo(existing);
                 if (dist < minDist)
                     minDist = dist;
             }
 
-            if (existingAnnotations.Count == 0 || minDist > threshold10mm)
+            if (minDist > threshold10mm)
                 totalScore += 20;
             else if (minDist >= threshold5mm)
                 totalScore += 10;
@@ -656,8 +780,6 @@ namespace AJTools.Services.SmartTag
 
         private static readonly double ParallelGroupDistance = 200.0 * Constants.MM_TO_FEET; // 200mm
         private const double ElbowOutsideTextMarginMm = 3.0;
-        // Stagger offset reserved for future parallel group stagger logic.
-        // private static readonly double StaggerOffset = 10.0 * Constants.MM_TO_FEET;
 
         /// <summary>
         /// Attempts to find the best tag position for a candidate.
@@ -668,12 +790,14 @@ namespace AJTools.Services.SmartTag
         private static XYZ FindBestTagPosition(
             TagCandidate candidate,
             List<AnnotationBox> annotations,
+            AnnotationSpatialIndex spatialIndex,
             int viewScale,
             SmartTagSettingsState settingsState,
             Dictionary<BuiltInCategory, TagSizeHint> sizeHints,
             List<TagCandidate> allCandidates,
             HashSet<ElementId> taggedGroupMembers,
             PreFlightResult preflight,
+            AnnotationBox placementBoundary,
             XYZ viewRight,
             XYZ viewUp,
             out TagSkipReason skipReason)
@@ -697,7 +821,7 @@ namespace AJTools.Services.SmartTag
             {
                 double baseOff = fixedOffsetInternal;
                 Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
-                    candidate, preflight, baseOff, tagWidth, tagHeight, viewRight, viewUp);
+                    candidate, baseOff, tagWidth, tagHeight, viewRight, viewUp);
 
                 // Score in direction priority order.
                 TagDirection[] priority = GetDirectionPriority(candidate, preflight);
@@ -710,14 +834,14 @@ namespace AJTools.Services.SmartTag
                     if (!positions.TryGetValue(dir, out pos))
                         continue;
 
-                    if (!IsWithinTagPlacementBoundary(pos, preflight, viewRight, viewUp))
+                    if (!IsWithinTagPlacementBoundary(pos, placementBoundary, viewRight, viewUp))
                         continue;
 
                     hadBoundaryCandidate = true;
 
                     int score = ScoreCandidatePosition(
                         pos, dir,
-                        annotations, tagWidth, tagHeight, viewScale, viewRight, viewUp);
+                        annotations, spatialIndex, tagWidth, tagHeight, viewScale, viewRight, viewUp);
 
                     if (score > bestScore)
                     {
@@ -772,7 +896,7 @@ namespace AJTools.Services.SmartTag
                 {
                     // Force tag at base offset â€” best available even if imperfect.
                     Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
-                        candidate, preflight, fixedOffsetInternal, tagWidth, tagHeight, viewRight, viewUp);
+                        candidate, fixedOffsetInternal, tagWidth, tagHeight, viewRight, viewUp);
                     TagDirection[] priority = GetDirectionPriority(candidate, preflight);
 
                     // Pick the direction with the least overlap (even if not perfect).
@@ -786,7 +910,7 @@ namespace AJTools.Services.SmartTag
                         if (!positions.TryGetValue(dir, out pos))
                             continue;
 
-                        if (!IsWithinTagPlacementBoundary(pos, preflight, viewRight, viewUp))
+                        if (!IsWithinTagPlacementBoundary(pos, placementBoundary, viewRight, viewUp))
                             continue;
 
                         hasBoundaryPosition = true;
@@ -794,8 +918,13 @@ namespace AJTools.Services.SmartTag
                         AnnotationBox proposed = CreateCandidateBoxInViewPlane(
                             pos, tagWidth, tagHeight, viewRight, viewUp);
 
+                        List<AnnotationBox> nearbyAnnotations = QueryNearbyAnnotations(
+                            spatialIndex,
+                            annotations,
+                            proposed);
+
                         double totalOverlap = 0;
-                        foreach (AnnotationBox existing in annotations)
+                        foreach (AnnotationBox existing in nearbyAnnotations)
                             totalOverlap += proposed.OverlapArea(existing);
 
                         if (totalOverlap < leastOverlap)
@@ -851,16 +980,21 @@ namespace AJTools.Services.SmartTag
 
             // Collect all existing annotations ONCE before the placement loop.
             List<AnnotationBox> annotations = CollectExistingAnnotations(doc, activeView);
+            AnnotationSpatialIndex annotationSpatialIndex = BuildAnnotationSpatialIndex(annotations, viewScale);
             Dictionary<BuiltInCategory, TagSizeHint> sizeHints =
                 BuildTagSizeHints(doc, activeView, candidates, viewRight, viewUp, viewScale);
+            AnnotationBox placementBoundary =
+                BuildPlacementBoundaryInViewPlane(preflight, viewRight, viewUp);
 
             // Track which elements have been successfully tagged â€” used for parallel group logic.
             var taggedGroupMembers = new HashSet<ElementId>();
-            int successCount = 0;
 
             // Process in priority order (candidates are already sorted HIGH â†’ MEDIUM â†’ LOW).
             foreach (TagCandidate candidate in candidates)
             {
+                if (candidate == null)
+                    continue;
+
                 if (candidate.TagTypeId == null || candidate.TagTypeId == ElementId.InvalidElementId)
                 {
                     results.Add(new TagPlacementResult
@@ -877,9 +1011,9 @@ namespace AJTools.Services.SmartTag
                 // â”€â”€ Find best position (Phases 3â€“5) â”€â”€
                 TagSkipReason skipReason;
                 XYZ tagPosition = FindBestTagPosition(
-                    candidate, annotations, viewScale, settingsState, sizeHints,
+                    candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
                     candidates, taggedGroupMembers,
-                    preflight, viewRight, viewUp,
+                    preflight, placementBoundary, viewRight, viewUp,
                     out skipReason);
 
                 if (tagPosition == null)
@@ -896,11 +1030,10 @@ namespace AJTools.Services.SmartTag
 
                 // â”€â”€ Place the tag in its own transaction â”€â”€
                 bool placed = PlaceSingleTag(
-                    doc, activeView, candidate, tagPosition, annotations, viewScale, viewRight, viewUp, leaderLogic);
+                    doc, activeView, candidate, tagPosition, annotations, annotationSpatialIndex, viewScale, viewRight, viewUp, leaderLogic);
 
                 if (placed)
                 {
-                    successCount++;
                     taggedGroupMembers.Add(candidate.ElementId);
                     results.Add(new TagPlacementResult
                     {
@@ -994,6 +1127,7 @@ namespace AJTools.Services.SmartTag
             TagCandidate candidate,
             XYZ tagPosition,
             List<AnnotationBox> annotations,
+            AnnotationSpatialIndex spatialIndex,
             int viewScale,
             XYZ viewRight,
             XYZ viewUp,
@@ -1007,7 +1141,14 @@ namespace AJTools.Services.SmartTag
                     try
                     {
                         // Revit 2020 API: IndependentTag.Create(Document, View.Id, Reference, bool addLeader, TagMode, TagOrientation, XYZ)
-                        Reference elemRef = new Reference(doc.GetElement(candidate.ElementId));
+                        Element targetElement = doc.GetElement(candidate.ElementId);
+                        if (targetElement == null)
+                        {
+                            t.RollBack();
+                            return false;
+                        }
+
+                        Reference elemRef = new Reference(targetElement);
 
                         IndependentTag newTag = IndependentTag.Create(
                             doc,
@@ -1050,7 +1191,10 @@ namespace AJTools.Services.SmartTag
                             {
                                 AnnotationBox placedBox = ConvertBoundingBoxToViewPlane(newBB, viewRight, viewUp);
                                 if (placedBox != null)
+                                {
                                     annotations.Add(placedBox);
+                                    spatialIndex?.Add(placedBox);
+                                }
                             }
                         }
                         catch (Exception)
@@ -1058,8 +1202,10 @@ namespace AJTools.Services.SmartTag
                             // If we can't read the new tag's bbox, estimate it.
                             double tagW, tagH;
                             EstimateFallbackTagSize(viewScale, out tagW, out tagH);
-                            annotations.Add(CreateCandidateBoxInViewPlane(
-                                tagPosition, tagW, tagH, viewRight, viewUp));
+                            AnnotationBox estimatedBox = CreateCandidateBoxInViewPlane(
+                                tagPosition, tagW, tagH, viewRight, viewUp);
+                            annotations.Add(estimatedBox);
+                            spatialIndex?.Add(estimatedBox);
                         }
 
                         return true;
@@ -1425,7 +1571,7 @@ namespace AJTools.Services.SmartTag
             if (!TrySetLeaderElbow(tag, elbow))
                 return false;
 
-            if (hadInitialCondition && !TrySetLeaderEndConditionValue(tag, initialCondition))
+            if (hadInitialCondition && !TrySetLeaderEndCondition(tag, initialCondition))
                 return false;
 
             return true;
@@ -1464,11 +1610,6 @@ namespace AJTools.Services.SmartTag
             }
         }
 
-        private static bool TrySetLeaderEndConditionValue(IndependentTag tag, LeaderEndCondition condition)
-        {
-            return TrySetLeaderEndCondition(tag, condition);
-        }
-
         private static bool TrySetLeaderEndCondition(IndependentTag tag, LeaderEndCondition condition)
         {
             if (tag == null)
@@ -1499,85 +1640,6 @@ namespace AJTools.Services.SmartTag
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // ANNOTATION BOX â€” Lightweight 2D bounding box for clash checks.
-    // Used instead of BoundingBoxXYZ for faster annotation-to-annotation
-    // overlap testing (no Z dimension needed for plan/section annotation).
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-    /// <summary>
-    /// A lightweight axis-aligned 2D rectangle for annotation clash detection.
-    /// Supports inflation, overlap testing, and distance measurement.
-    /// </summary>
-    internal class AnnotationBox
-    {
-        public double MinX { get; private set; }
-        public double MinY { get; private set; }
-        public double MaxX { get; private set; }
-        public double MaxY { get; private set; }
-
-        public AnnotationBox(double minX, double minY, double maxX, double maxY)
-        {
-            MinX = Math.Min(minX, maxX);
-            MinY = Math.Min(minY, maxY);
-            MaxX = Math.Max(minX, maxX);
-            MaxY = Math.Max(minY, maxY);
-        }
-
-        /// <summary>
-        /// Returns a new box inflated by the given margin on all sides.
-        /// </summary>
-        public AnnotationBox Inflated(double margin)
-        {
-            return new AnnotationBox(
-                MinX - margin, MinY - margin,
-                MaxX + margin, MaxY + margin);
-        }
-
-        /// <summary>
-        /// Tests whether this box overlaps another box.
-        /// </summary>
-        public bool Overlaps(AnnotationBox other)
-        {
-            if (MaxX <= other.MinX || MinX >= other.MaxX)
-                return false;
-            if (MaxY <= other.MinY || MinY >= other.MaxY)
-                return false;
-            return true;
-        }
-
-        /// <summary>
-        /// Returns the minimum edge-to-edge distance between two boxes.
-        /// Returns 0 if they overlap.
-        /// </summary>
-        public double DistanceTo(AnnotationBox other)
-        {
-            double dx = 0;
-            if (MaxX < other.MinX)
-                dx = other.MinX - MaxX;
-            else if (MinX > other.MaxX)
-                dx = MinX - other.MaxX;
-
-            double dy = 0;
-            if (MaxY < other.MinY)
-                dy = other.MinY - MaxY;
-            else if (MinY > other.MaxY)
-                dy = MinY - other.MaxY;
-
-            return Math.Sqrt(dx * dx + dy * dy);
-        }
-
-        /// <summary>
-        /// Returns the overlapping area between two boxes (0 if no overlap).
-        /// Used by the dense-zone force-placement to pick the least-bad position.
-        /// </summary>
-        public double OverlapArea(AnnotationBox other)
-        {
-            double overlapX = Math.Max(0, Math.Min(MaxX, other.MaxX) - Math.Max(MinX, other.MinX));
-            double overlapY = Math.Max(0, Math.Min(MaxY, other.MaxY) - Math.Max(MinY, other.MinY));
-            return overlapX * overlapY;
-        }
-    }
 }
 
 

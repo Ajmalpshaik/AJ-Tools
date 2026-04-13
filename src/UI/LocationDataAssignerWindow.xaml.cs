@@ -1458,6 +1458,11 @@ namespace AJTools.UI
 
             public string Name { get; }
             public RevitLinkInstance Link { get; }
+
+            public override string ToString()
+            {
+                return Name ?? base.ToString();
+            }
         }
 
         private sealed class CategoryItem : INotifyPropertyChanged

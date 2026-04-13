@@ -144,9 +144,12 @@
     <Compile Include="Models\ViewCrop\ViewCropTargetViewItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\SmartTag\SmartMepTagService.cs" />
+    <Compile Include="Services\SmartTag\AnnotationBox.cs" />
+    <Compile Include="Services\SmartTag\AnnotationSpatialIndex.cs" />
     <Compile Include="Services\SmartTag\SmartTagPlacementEngine.cs" />
     <Compile Include="Services\SmartTag\SmartTagReportGenerator.cs" />
     <Compile Include="Services\SmartTag\SmartTagSettingsTracker.cs" />
+    <Compile Include="Services\SmartTag\SmartTagTelemetryTracker.cs" />
     <Compile Include="Services\AutoDimension\AutoDimensionService.cs" />
     <Compile Include="Services\DimensionByLine\DimensionByLineService.cs" />
     <Compile Include="Services\FilterPro\FilterApplier.cs" />

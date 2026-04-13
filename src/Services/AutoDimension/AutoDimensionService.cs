@@ -43,6 +43,14 @@ namespace AJTools.Services.AutoDimension
             public Grid Grid;
         }
 
+        private class PlanGridEntry
+        {
+            public Grid Grid;
+            public double XCoord;
+            public double YCoord;
+            public XYZ DirectionView;
+        }
+
         /// <summary>
         /// Entry point for auto-dimension commands; routes based on view type and mode.
         /// </summary>
@@ -141,7 +149,8 @@ namespace AJTools.Services.AutoDimension
                 .Cast<Grid>()
                 .ToList();
 
-            var (verticalGrids, horizontalGrids) = SplitGridsByDirection(grids);
+            List<PlanGridEntry> planGridEntries = BuildPlanGridEntries(view, grids);
+            var (verticalGrids, horizontalGrids) = SplitPlanGridsByDirection(planGridEntries);
 
             if (horizontalGrids.Count < 2 && verticalGrids.Count < 2)
             {
@@ -150,6 +159,12 @@ namespace AJTools.Services.AutoDimension
             }
 
             BoundingBoxXYZ crop = view.CropBox;
+            if (!TryGetCropBoundsInViewCoordinates(view, crop, out double minX, out double maxX, out double minY, out double maxY))
+            {
+                TaskDialog.Show(title, "Could not read the crop extents for the active plan view.");
+                return Result.Cancelled;
+            }
+
             double scale = view.Scale;
             // Offset dimension strings based on view scale to avoid overlapping geometry.
             double offset = (8 * Constants.MM_TO_FEET) * scale;
@@ -165,14 +180,14 @@ namespace AJTools.Services.AutoDimension
                 if (verticalGrids.Count >= 2)
                 {
                     CreateVerticalGridDimensions(
-                        doc, view, crop, offset, overallOffset,
+                        doc, view, minX, maxX, maxY, offset, overallOffset,
                         verticalGrids, ref individualCount, ref overallCount);
                 }
 
                 if (horizontalGrids.Count >= 2)
                 {
                     CreateHorizontalGridDimensions(
-                        doc, view, crop, offset, overallOffset,
+                        doc, view, minX, minY, maxY, offset, overallOffset,
                         horizontalGrids, ref individualCount, ref overallCount);
                 }
 
@@ -294,27 +309,55 @@ namespace AJTools.Services.AutoDimension
         }
 
         /// <summary>
-        /// Splits grids into vertical (Y-dominant) and horizontal (X-dominant) groups.
+        /// Builds projected grid metadata in the active view coordinate system.
         /// </summary>
-        private static (List<Grid> vertical, List<Grid> horizontal) SplitGridsByDirection(IEnumerable<Grid> grids)
+        private static List<PlanGridEntry> BuildPlanGridEntries(View view, IEnumerable<Grid> grids)
         {
-            List<Grid> vertical = new List<Grid>();
-            List<Grid> horizontal = new List<Grid>();
+            List<PlanGridEntry> entries = new List<PlanGridEntry>();
 
             foreach (Grid grid in grids)
             {
-                Curve curve = grid.Curve;
-                if (curve == null)
+                Line line = TryGetGridLineInView(grid, view);
+                if (line == null)
                     continue;
 
-                XYZ direction = GetCurveDirection(curve);
+                XYZ startView = ToViewCoordinates(view, line.GetEndPoint(0));
+                XYZ endView = ToViewCoordinates(view, line.GetEndPoint(1));
+                XYZ directionView = new XYZ(endView.X - startView.X, endView.Y - startView.Y, 0);
+                if (directionView.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
+                    continue;
+
+                XYZ midView = (startView + endView) * 0.5;
+                entries.Add(new PlanGridEntry
+                {
+                    Grid = grid,
+                    XCoord = midView.X,
+                    YCoord = midView.Y,
+                    DirectionView = directionView.Normalize()
+                });
+            }
+
+            return entries;
+        }
+
+        /// <summary>
+        /// Splits grids into vertical (Y-dominant in view) and horizontal (X-dominant in view) groups.
+        /// </summary>
+        private static (List<PlanGridEntry> vertical, List<PlanGridEntry> horizontal) SplitPlanGridsByDirection(IEnumerable<PlanGridEntry> gridEntries)
+        {
+            List<PlanGridEntry> vertical = new List<PlanGridEntry>();
+            List<PlanGridEntry> horizontal = new List<PlanGridEntry>();
+
+            foreach (PlanGridEntry entry in gridEntries)
+            {
+                XYZ direction = entry.DirectionView;
                 if (direction == null)
                     continue;
 
                 if (Math.Abs(direction.Y) > 1.0 - Constants.PARALLEL_TOLERANCE)
-                    vertical.Add(grid);
+                    vertical.Add(entry);
                 else if (Math.Abs(direction.X) > 1.0 - Constants.PARALLEL_TOLERANCE)
-                    horizontal.Add(grid);
+                    horizontal.Add(entry);
             }
 
             return (vertical, horizontal);
@@ -323,33 +366,35 @@ namespace AJTools.Services.AutoDimension
         private static void CreateVerticalGridDimensions(
             Document doc,
             View view,
-            BoundingBoxXYZ crop,
+            double minX,
+            double maxX,
+            double maxY,
             double offset,
             double overallOffset,
-            List<Grid> verticalGrids,
+            List<PlanGridEntry> verticalGrids,
             ref int individualCount,
             ref int overallCount)
         {
-            List<Grid> ordered = verticalGrids
-                .OrderBy(g => g.Curve.GetEndPoint(0).X)
+            List<PlanGridEntry> ordered = verticalGrids
+                .OrderBy(g => g.XCoord)
                 .ToList();
 
             ReferenceArray allRefs = new ReferenceArray();
-            foreach (Grid grid in ordered)
-                allRefs.Append(new Reference(grid));
+            foreach (PlanGridEntry grid in ordered)
+                allRefs.Append(new Reference(grid.Grid));
 
             // Individual chain
-            XYZ p1 = new XYZ(crop.Min.X, crop.Max.Y + offset, 0);
-            XYZ p2 = new XYZ(crop.Max.X, crop.Max.Y + offset, 0);
+            XYZ p1 = FromViewCoordinates(view, new XYZ(minX, maxY + offset, 0));
+            XYZ p2 = FromViewCoordinates(view, new XYZ(maxX, maxY + offset, 0));
             doc.Create.NewDimension(view, Line.CreateBound(p1, p2), allRefs);
             individualCount++;
 
             // Overall
             ReferenceArray overallRefs = new ReferenceArray();
-            overallRefs.Append(new Reference(ordered.First()));
-            overallRefs.Append(new Reference(ordered.Last()));
-            XYZ p1o = new XYZ(p1.X, p1.Y + overallOffset, 0);
-            XYZ p2o = new XYZ(p2.X, p2.Y + overallOffset, 0);
+            overallRefs.Append(new Reference(ordered.First().Grid));
+            overallRefs.Append(new Reference(ordered.Last().Grid));
+            XYZ p1o = FromViewCoordinates(view, new XYZ(minX, maxY + offset + overallOffset, 0));
+            XYZ p2o = FromViewCoordinates(view, new XYZ(maxX, maxY + offset + overallOffset, 0));
             doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), overallRefs);
             overallCount++;
         }
@@ -357,33 +402,35 @@ namespace AJTools.Services.AutoDimension
         private static void CreateHorizontalGridDimensions(
             Document doc,
             View view,
-            BoundingBoxXYZ crop,
+            double minX,
+            double minY,
+            double maxY,
             double offset,
             double overallOffset,
-            List<Grid> horizontalGrids,
+            List<PlanGridEntry> horizontalGrids,
             ref int individualCount,
             ref int overallCount)
         {
-            List<Grid> ordered = horizontalGrids
-                .OrderBy(g => g.Curve.GetEndPoint(0).Y)
+            List<PlanGridEntry> ordered = horizontalGrids
+                .OrderBy(g => g.YCoord)
                 .ToList();
 
             ReferenceArray allRefs = new ReferenceArray();
-            foreach (Grid grid in ordered)
-                allRefs.Append(new Reference(grid));
+            foreach (PlanGridEntry grid in ordered)
+                allRefs.Append(new Reference(grid.Grid));
 
             // Individual chain
-            XYZ p1 = new XYZ(crop.Min.X - offset, crop.Min.Y, 0);
-            XYZ p2 = new XYZ(crop.Min.X - offset, crop.Max.Y, 0);
+            XYZ p1 = FromViewCoordinates(view, new XYZ(minX - offset, minY, 0));
+            XYZ p2 = FromViewCoordinates(view, new XYZ(minX - offset, maxY, 0));
             doc.Create.NewDimension(view, Line.CreateBound(p1, p2), allRefs);
             individualCount++;
 
             // Overall
             ReferenceArray overallRefs = new ReferenceArray();
-            overallRefs.Append(new Reference(ordered.First()));
-            overallRefs.Append(new Reference(ordered.Last()));
-            XYZ p1o = new XYZ(p1.X - overallOffset, p1.Y, 0);
-            XYZ p2o = new XYZ(p2.X - overallOffset, p2.Y, 0);
+            overallRefs.Append(new Reference(ordered.First().Grid));
+            overallRefs.Append(new Reference(ordered.Last().Grid));
+            XYZ p1o = FromViewCoordinates(view, new XYZ(minX - offset - overallOffset, minY, 0));
+            XYZ p2o = FromViewCoordinates(view, new XYZ(minX - offset - overallOffset, maxY, 0));
             doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), overallRefs);
             overallCount++;
         }
@@ -525,6 +572,99 @@ namespace AJTools.Services.AutoDimension
                 Line line = curve as Line;
                 return line?.Direction;
             }
+        }
+
+        private static Line TryGetGridLineInView(Grid grid, View view)
+        {
+            IList<Curve> curves = null;
+            try
+            {
+                curves = grid.GetCurvesInView(DatumExtentType.ViewSpecific, view);
+            }
+            catch
+            {
+                // ignore and fall back
+            }
+
+            if (curves == null || curves.Count == 0)
+            {
+                try
+                {
+                    curves = grid.GetCurvesInView(DatumExtentType.Model, view);
+                }
+                catch
+                {
+                    curves = null;
+                }
+            }
+
+            return curves?.OfType<Line>().FirstOrDefault();
+        }
+
+        private static XYZ ToViewCoordinates(View view, XYZ point)
+        {
+            XYZ origin = view.Origin;
+            XYZ delta = point - origin;
+            XYZ right = view.RightDirection.Normalize();
+            XYZ up = view.UpDirection.Normalize();
+            XYZ normal = view.ViewDirection.Normalize();
+
+            double x = delta.DotProduct(right);
+            double y = delta.DotProduct(up);
+            double z = delta.DotProduct(normal);
+
+            return new XYZ(x, y, z);
+        }
+
+        private static XYZ FromViewCoordinates(View view, XYZ point)
+        {
+            XYZ origin = view.Origin;
+            XYZ right = view.RightDirection.Normalize();
+            XYZ up = view.UpDirection.Normalize();
+            XYZ normal = view.ViewDirection.Normalize();
+
+            return origin + (right * point.X) + (up * point.Y) + (normal * point.Z);
+        }
+
+        private static bool TryGetCropBoundsInViewCoordinates(
+            View view,
+            BoundingBoxXYZ crop,
+            out double minX,
+            out double maxX,
+            out double minY,
+            out double maxY)
+        {
+            minX = double.MaxValue;
+            maxX = double.MinValue;
+            minY = double.MaxValue;
+            maxY = double.MinValue;
+
+            if (view == null || crop == null)
+                return false;
+
+            Transform boxTransform = crop.Transform ?? Transform.Identity;
+            double[] xs = { crop.Min.X, crop.Max.X };
+            double[] ys = { crop.Min.Y, crop.Max.Y };
+            double[] zs = { crop.Min.Z, crop.Max.Z };
+
+            foreach (double x in xs)
+            {
+                foreach (double y in ys)
+                {
+                    foreach (double z in zs)
+                    {
+                        XYZ corner = boxTransform.OfPoint(new XYZ(x, y, z));
+                        XYZ cornerView = ToViewCoordinates(view, corner);
+
+                        if (cornerView.X < minX) minX = cornerView.X;
+                        if (cornerView.X > maxX) maxX = cornerView.X;
+                        if (cornerView.Y < minY) minY = cornerView.Y;
+                        if (cornerView.Y > maxY) maxY = cornerView.Y;
+                    }
+                }
+            }
+
+            return minX <= maxX && minY <= maxY;
         }
     }
 }

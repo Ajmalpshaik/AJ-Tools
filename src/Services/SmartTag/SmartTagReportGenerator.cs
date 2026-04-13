@@ -29,6 +29,12 @@ namespace AJTools.Services.SmartTag
             List<TagPlacementResult> results,
             List<string> tagWarnings)
         {
+            if (preflight == null || preflight.ActiveView == null || results == null)
+            {
+                DialogHelper.ShowInfo("Smart MEP Tag", "Tagging completed, but report data was not available.");
+                return;
+            }
+
             int totalAnalysed = results.Count;
             int successCount = results.Count(r => r.Success);
             int alreadyTagged = results.Count(r => r.SkipReason == TagSkipReason.AlreadyTagged);
@@ -95,6 +101,14 @@ namespace AJTools.Services.SmartTag
                         catName,
                         string.IsNullOrEmpty(r.Note) ? "" : " — " + r.Note));
                 }
+            }
+
+            string telemetrySummary = SmartTagTelemetryTracker.GetSessionSummary();
+            if (!string.IsNullOrWhiteSpace(telemetrySummary))
+            {
+                sb.AppendLine();
+                sb.AppendLine("SESSION TELEMETRY:");
+                sb.AppendLine(telemetrySummary);
             }
 
             // ── Display ──

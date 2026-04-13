@@ -88,11 +88,25 @@ namespace AJTools.Services.SmartTag
 
         internal static SmartTagSettingsState EnsureDefaults(SmartTagSettingsState state)
         {
-            SmartTagSettingsState source = state ?? new SmartTagSettingsState();
-            if (source.OffsetInternal <= Constants.ZERO_LENGTH_TOLERANCE)
-                source.OffsetInternal = DefaultOffsetMm * Constants.MM_TO_FEET;
+            if (state == null)
+            {
+                return CloneWithDefaults(new SmartTagSettingsState
+                {
+                    OffsetInternal = DefaultOffsetMm * Constants.MM_TO_FEET
+                });
+            }
 
-            return CloneWithDefaults(source);
+            if (state.OffsetInternal > Constants.ZERO_LENGTH_TOLERANCE)
+                return CloneWithDefaults(state);
+
+            var normalized = new SmartTagSettingsState
+            {
+                OffsetInternal = DefaultOffsetMm * Constants.MM_TO_FEET,
+                CategoryEnabled = state.CategoryEnabled,
+                CategoryOffsetInternal = state.CategoryOffsetInternal
+            };
+
+            return CloneWithDefaults(normalized);
         }
 
         internal static string GetCategoryLabel(BuiltInCategory category)

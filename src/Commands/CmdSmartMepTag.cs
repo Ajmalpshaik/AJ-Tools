@@ -9,6 +9,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Services.SmartTag;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -21,6 +22,13 @@ namespace AJTools.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            if (commandData?.Application?.ActiveUIDocument == null)
+            {
+                message = "No active document found.";
+                DialogHelper.ShowError("Smart MEP Tag", message);
+                return Result.Cancelled;
+            }
+
             return SmartMepTagService.Execute(commandData, ref message);
         }
     }

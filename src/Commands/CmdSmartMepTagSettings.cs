@@ -4,7 +4,6 @@
 // Version: 1.2.0
 // Revit Version: 2020
 
-using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;

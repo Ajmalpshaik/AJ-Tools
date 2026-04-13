@@ -90,8 +90,10 @@ namespace AJTools.Services.FlowDirection
                 return false;
             }
 
+            XYZ viewRight = view.RightDirection;
+            XYZ viewUp = view.UpDirection;
             XYZ viewNormal = view.ViewDirection;
-            bool hasAngle = TryComputeAngleOnViewPlane(flowDirUnit, viewNormal, out double angle);
+            bool hasAngle = TryComputeAngleOnViewPlane(flowDirUnit, viewRight, viewUp, out double angle);
 
             foreach (double distance in distances)
             {
@@ -312,36 +314,29 @@ namespace AJTools.Services.FlowDirection
             return true;
         }
 
-        private static bool TryComputeAngleOnViewPlane(XYZ direction, XYZ viewDirection, out double angle)
+        private static bool TryComputeAngleOnViewPlane(
+            XYZ direction,
+            XYZ viewRight,
+            XYZ viewUp,
+            out double angle)
         {
             angle = 0;
 
-            if (direction == null || viewDirection == null)
+            if (direction == null || viewRight == null || viewUp == null)
                 return false;
 
-            double dot = direction.DotProduct(viewDirection);
-            XYZ projected = direction - viewDirection.Multiply(dot);
-            if (projected.GetLength() < NormalizeTolerance)
+            if (viewRight.GetLength() < NormalizeTolerance || viewUp.GetLength() < NormalizeTolerance)
                 return false;
 
-            projected = projected.Normalize();
+            XYZ right = viewRight.Normalize();
+            XYZ up = viewUp.Normalize();
+            double u = direction.DotProduct(right);
+            double v = direction.DotProduct(up);
 
-            XYZ xAxis = XYZ.BasisX;
-            double dotX = xAxis.DotProduct(viewDirection);
-            XYZ refAxis = xAxis - viewDirection.Multiply(dotX);
-            if (refAxis.GetLength() < NormalizeTolerance)
-            {
-                refAxis = XYZ.BasisY;
-            }
-            else
-            {
-                refAxis = refAxis.Normalize();
-            }
+            if (Math.Abs(u) < NormalizeTolerance && Math.Abs(v) < NormalizeTolerance)
+                return false;
 
-            XYZ cross = refAxis.CrossProduct(projected);
-            double num = cross.DotProduct(viewDirection);
-            double den = refAxis.DotProduct(projected);
-            angle = Math.Atan2(num, den);
+            angle = Math.Atan2(v, u);
             return true;
         }
     }

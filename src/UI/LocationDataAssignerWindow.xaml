@@ -124,7 +124,11 @@
                         <GroupBox Header="Data Source" Style="{StaticResource ModernGroupBox}">
                             <StackPanel Margin="4">
                                 <CheckBox x:Name="UseLinkedModelCheckBox" Content="Use Rooms/Spaces from linked model" Style="{StaticResource ModernCheckBox}"/>
-                                <ComboBox x:Name="LinkedModelsComboBox" Height="30" Margin="0,6,0,0" IsEnabled="False"/>
+                                <ComboBox x:Name="LinkedModelsComboBox"
+                                          Height="30"
+                                          Margin="0,6,0,0"
+                                          IsEnabled="False"
+                                          DisplayMemberPath="Name"/>
                             </StackPanel>
                         </GroupBox>
 

@@ -24,6 +24,12 @@ namespace AJTools.Services.SmartTag
     /// </summary>
     internal static class SmartMepTagService
     {
+        private const string ToolTitle = "Smart MEP Tag";
+#if DEBUG
+        private static readonly object GeometryCheckSync = new object();
+        private static bool _geometryChecksCompleted;
+#endif
+
         // ═══════════════════════════════════════════════════════════════
         // PHASE 0 — PRE-FLIGHT CHECKS
         // Validates that the active view is suitable for automated tagging.
@@ -100,28 +106,21 @@ namespace AJTools.Services.SmartTag
                     if (cropBox == null)
                         return PreFlightResult.Fail("Crop region is active but the crop box could not be retrieved.");
 
-                    // Transform crop box corners to model coordinates.
-                    Transform transform = cropBox.Transform;
-                    XYZ min = transform.OfPoint(cropBox.Min);
-                    XYZ max = transform.OfPoint(cropBox.Max);
+                    Outline cropOutline = TryCreateOutline(cropBox);
+                    if (cropOutline == null)
+                        return PreFlightResult.Fail("Crop region is active but its extents could not be resolved.");
 
-                    // Build an axis-aligned outline for fast intersection checks.
-                    double minX = Math.Min(min.X, max.X);
-                    double minY = Math.Min(min.Y, max.Y);
-                    double minZ = Math.Min(min.Z, max.Z);
-                    double maxX = Math.Max(min.X, max.X);
-                    double maxY = Math.Max(min.Y, max.Y);
-                    double maxZ = Math.Max(min.Z, max.Z);
-
-                    result.CropOutline = new Outline(new XYZ(minX, minY, minZ), new XYZ(maxX, maxY, maxZ));
+                    result.CropOutline = cropOutline;
+                    XYZ min = cropOutline.MinimumPoint;
+                    XYZ max = cropOutline.MaximumPoint;
 
                     // Store the 4 corner points of the crop region for polygon checks if needed.
                     result.CropRegionPoints = new List<XYZ>
                     {
-                        new XYZ(minX, minY, minZ),
-                        new XYZ(maxX, minY, minZ),
-                        new XYZ(maxX, maxY, minZ),
-                        new XYZ(minX, maxY, minZ)
+                        new XYZ(min.X, min.Y, min.Z),
+                        new XYZ(max.X, min.Y, min.Z),
+                        new XYZ(max.X, max.Y, min.Z),
+                        new XYZ(min.X, max.Y, min.Z)
                     };
                 }
             }
@@ -351,8 +350,7 @@ namespace AJTools.Services.SmartTag
                 {
                     // Fallback: use bounding box centre.
                     BoundingBoxXYZ bb = elem.get_BoundingBox(activeView);
-                    if (bb != null)
-                        midpoint = (bb.Min + bb.Max) * 0.5;
+                    midpoint = GetBoundingBoxCenter(bb);
                 }
 
                 if (midpoint == null)
@@ -668,25 +666,223 @@ namespace AJTools.Services.SmartTag
         {
             try
             {
-                // Axis-aligned bounding box intersection test (2D — ignore Z for plan views).
-                XYZ bMin = bbox.Min;
-                XYZ bMax = bbox.Max;
-                XYZ cMin = cropOutline.MinimumPoint;
-                XYZ cMax = cropOutline.MaximumPoint;
-
-                // No overlap if one box is entirely to the left/right/above/below the other.
-                if (bMax.X < cMin.X || bMin.X > cMax.X)
-                    return false;
-                if (bMax.Y < cMin.Y || bMin.Y > cMax.Y)
-                    return false;
-
-                return true;
+                // Use transformed world-space outlines so rotated bounding boxes are handled correctly.
+                Outline elementOutline = TryCreateOutline(bbox);
+                return OutlinesIntersect(elementOutline, cropOutline);
             }
             catch (Exception)
             {
                 return true; // On error, include the element.
             }
         }
+
+        private static bool OutlinesIntersect(Outline a, Outline b)
+        {
+            if (a == null || b == null)
+                return true;
+
+            XYZ aMin = a.MinimumPoint;
+            XYZ aMax = a.MaximumPoint;
+            XYZ bMin = b.MinimumPoint;
+            XYZ bMax = b.MaximumPoint;
+
+            if (aMax.X < bMin.X || aMin.X > bMax.X)
+                return false;
+            if (aMax.Y < bMin.Y || aMin.Y > bMax.Y)
+                return false;
+            if (aMax.Z < bMin.Z || aMin.Z > bMax.Z)
+                return false;
+
+            return true;
+        }
+
+        private static Outline TryCreateOutline(BoundingBoxXYZ bbox)
+        {
+            if (bbox == null || bbox.Min == null || bbox.Max == null)
+                return null;
+
+            try
+            {
+                XYZ[] corners = GetBoundingBoxCorners(bbox);
+                if (corners == null || corners.Length == 0)
+                    return null;
+
+                double minX = double.MaxValue;
+                double minY = double.MaxValue;
+                double minZ = double.MaxValue;
+                double maxX = double.MinValue;
+                double maxY = double.MinValue;
+                double maxZ = double.MinValue;
+
+                foreach (XYZ corner in corners)
+                {
+                    if (corner == null)
+                        continue;
+
+                    minX = Math.Min(minX, corner.X);
+                    minY = Math.Min(minY, corner.Y);
+                    minZ = Math.Min(minZ, corner.Z);
+                    maxX = Math.Max(maxX, corner.X);
+                    maxY = Math.Max(maxY, corner.Y);
+                    maxZ = Math.Max(maxZ, corner.Z);
+                }
+
+                if (minX > maxX || minY > maxY || minZ > maxZ)
+                    return null;
+
+                return new Outline(new XYZ(minX, minY, minZ), new XYZ(maxX, maxY, maxZ));
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static XYZ[] GetBoundingBoxCorners(BoundingBoxXYZ bbox)
+        {
+            if (bbox == null || bbox.Min == null || bbox.Max == null)
+                return null;
+
+            Transform transform = bbox.Transform ?? Transform.Identity;
+            XYZ min = bbox.Min;
+            XYZ max = bbox.Max;
+
+            var corners = new[]
+            {
+                new XYZ(min.X, min.Y, min.Z),
+                new XYZ(min.X, min.Y, max.Z),
+                new XYZ(min.X, max.Y, min.Z),
+                new XYZ(min.X, max.Y, max.Z),
+                new XYZ(max.X, min.Y, min.Z),
+                new XYZ(max.X, min.Y, max.Z),
+                new XYZ(max.X, max.Y, min.Z),
+                new XYZ(max.X, max.Y, max.Z)
+            };
+
+            for (int i = 0; i < corners.Length; i++)
+            {
+                corners[i] = transform.OfPoint(corners[i]);
+            }
+
+            return corners;
+        }
+
+        private static XYZ GetBoundingBoxCenter(BoundingBoxXYZ bbox)
+        {
+            Outline outline = TryCreateOutline(bbox);
+            if (outline == null)
+                return null;
+
+            XYZ min = outline.MinimumPoint;
+            XYZ max = outline.MaximumPoint;
+            return (min + max) * 0.5;
+        }
+
+#if DEBUG
+        private static void RunGeometryRegressionChecksOnce()
+        {
+            lock (GeometryCheckSync)
+            {
+                if (_geometryChecksCompleted)
+                    return;
+
+                _geometryChecksCompleted = true;
+            }
+
+            string error;
+            if (!TryRunGeometryRegressionChecks(out error))
+            {
+                SmartTagTelemetryTracker.RecordDiagnostic("Geometry regression check failed: " + error);
+                return;
+            }
+
+            SmartTagTelemetryTracker.RecordDiagnostic("Geometry regression check passed.");
+        }
+
+        private static bool TryRunGeometryRegressionChecks(out string error)
+        {
+            error = null;
+            const double tol = 1e-6;
+
+            try
+            {
+                // Case 1: pure translation.
+                var translated = new BoundingBoxXYZ
+                {
+                    Min = new XYZ(0, 0, 0),
+                    Max = new XYZ(2, 4, 0),
+                    Transform = Transform.CreateTranslation(new XYZ(10, -3, 5))
+                };
+
+                Outline translatedOutline = TryCreateOutline(translated);
+                if (translatedOutline == null)
+                {
+                    error = "Translated bounding box outline is null.";
+                    return false;
+                }
+
+                if (!NearlyEqual(translatedOutline.MinimumPoint, new XYZ(10, -3, 5), tol)
+                    || !NearlyEqual(translatedOutline.MaximumPoint, new XYZ(12, 1, 5), tol))
+                {
+                    error = "Translated bounding box outline did not match expected extents.";
+                    return false;
+                }
+
+                // Case 2: 90° rotation about Z at origin.
+                var rotated = new BoundingBoxXYZ
+                {
+                    Min = new XYZ(0, 0, 0),
+                    Max = new XYZ(2, 1, 0),
+                    Transform = Transform.CreateRotationAtPoint(XYZ.BasisZ, 0.5 * Math.PI, XYZ.Zero)
+                };
+
+                Outline rotatedOutline = TryCreateOutline(rotated);
+                XYZ rotatedCenter = GetBoundingBoxCenter(rotated);
+                if (rotatedOutline == null || rotatedCenter == null)
+                {
+                    error = "Rotated bounding box outline or center is null.";
+                    return false;
+                }
+
+                if (!NearlyEqual(rotatedOutline.MinimumPoint, new XYZ(-1, 0, 0), tol)
+                    || !NearlyEqual(rotatedOutline.MaximumPoint, new XYZ(0, 2, 0), tol))
+                {
+                    error = "Rotated bounding box outline did not match expected extents.";
+                    return false;
+                }
+
+                if (!NearlyEqual(rotatedCenter, new XYZ(-0.5, 1, 0), tol))
+                {
+                    error = "Rotated bounding box center did not match expected position.";
+                    return false;
+                }
+
+                string engineError;
+                if (!SmartTagPlacementEngine.TryRunGeometryRegressionChecks(out engineError))
+                {
+                    error = "Placement engine check failed: " + engineError;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private static bool NearlyEqual(XYZ a, XYZ b, double tolerance)
+        {
+            if (a == null || b == null)
+                return false;
+
+            return Math.Abs(a.X - b.X) <= tolerance
+                && Math.Abs(a.Y - b.Y) <= tolerance
+                && Math.Abs(a.Z - b.Z) <= tolerance;
+        }
+#endif
 
         /// <summary>
         /// Returns the midpoint of an MEP element.
@@ -713,8 +909,7 @@ namespace AJTools.Services.SmartTag
 
                 // Fallback: bounding box centre.
                 BoundingBoxXYZ bb = elem.get_BoundingBox(view);
-                if (bb != null)
-                    return (bb.Min + bb.Max) * 0.5;
+                return GetBoundingBoxCenter(bb);
             }
             catch (Exception) { }
 
@@ -1282,26 +1477,49 @@ namespace AJTools.Services.SmartTag
         /// </summary>
         public static Result Execute(ExternalCommandData commandData, ref string message)
         {
+            if (commandData?.Application == null)
+            {
+                message = "Revit command context is not available.";
+                DialogHelper.ShowError(ToolTitle, message);
+                return Result.Failed;
+            }
+
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            if (!ValidationHelper.ValidateUIDocument(uidoc, out message))
+            {
+                DialogHelper.ShowError(ToolTitle, message);
+                return Result.Cancelled;
+            }
+
             Document doc = uidoc.Document;
+            if (!ValidationHelper.ValidateEditableDocument(doc, out message))
+            {
+                DialogHelper.ShowError(ToolTitle, message);
+                return Result.Cancelled;
+            }
+
+#if DEBUG
+            RunGeometryRegressionChecksOnce();
+#endif
+
             View activeView = doc.ActiveView;
 
             // ── PHASE 0: Pre-flight checks ──
             PreFlightResult preflight = RunPreFlightChecks(doc, activeView);
             if (!preflight.Passed)
             {
-                DialogHelper.ShowError("Smart MEP Tag", preflight.ErrorMessage);
+                DialogHelper.ShowError(ToolTitle, preflight.ErrorMessage);
                 message = preflight.ErrorMessage;
-                return Result.Failed;
+                return Result.Cancelled;
             }
 
             // Show any warnings from pre-flight.
             if (preflight.Warnings.Count > 0)
             {
-                string warningText = string.Join("\n• ", preflight.Warnings);
+                string warningText = string.Join("\n- ", preflight.Warnings);
                 bool proceed = DialogHelper.ShowYesNo(
-                    "Smart MEP Tag — Warnings",
-                    string.Format("Pre-flight checks passed with warnings:\n\n• {0}\n\nDo you want to continue?", warningText));
+                    ToolTitle + " - Warnings",
+                    string.Format("Pre-flight checks passed with warnings:\n\n- {0}\n\nDo you want to continue?", warningText));
                 if (!proceed)
                     return Result.Cancelled;
             }
@@ -1314,12 +1532,13 @@ namespace AJTools.Services.SmartTag
                 .Any(c => SmartTagSettingsTracker.IsCategoryEnabled(settingsState, c));
             if (!hasEnabledCategory)
             {
-                DialogHelper.ShowError("Smart MEP Tag", "No category is enabled in Smart MEP Tag Settings.");
+                DialogHelper.ShowError(ToolTitle, "No category is enabled in Smart MEP Tag Settings.");
                 return Result.Cancelled;
             }
 
             var results = new List<TagPlacementResult>();
             List<TagCandidate> candidates = CollectAndFilterElements(doc, preflight, settingsState, results);
+            int candidatesAfterFilter = candidates.Count;
 
             if (candidates.Count == 0)
             {
@@ -1329,10 +1548,11 @@ namespace AJTools.Services.SmartTag
                                                || r.SkipReason == TagSkipReason.FilteredOutVisibility
                                                || r.SkipReason == TagSkipReason.OutsideCropRegion);
 
-                DialogHelper.ShowInfo("Smart MEP Tag",
+                DialogHelper.ShowInfo(ToolTitle,
                     string.Format("No elements to tag in this view.\n\n"
                         + "Already Tagged: {0}\nFiltered Out: {1}\nTotal Analysed: {2}",
                         alreadyTagged, filtered, results.Count));
+                RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
                 return Result.Succeeded;
             }
 
@@ -1341,20 +1561,44 @@ namespace AJTools.Services.SmartTag
 
             if (candidates.Count == 0)
             {
-                DialogHelper.ShowInfo("Smart MEP Tag",
+                DialogHelper.ShowInfo(ToolTitle,
                     "No tag families are loaded for the MEP categories in this view.\n"
                     + "Please load the required tag families and try again.");
+                RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
                 return Result.Succeeded;
             }
 
             // ── PHASES 3–6: Score positions, detect clashes, reposition, and place tags ──
             SmartTagPlacementEngine.ProcessAndPlaceTags(doc, preflight, settingsState, candidates, results);
+            RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
 
             // ── PHASE 7: Generate output report ──
             SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings);
 
             int successCount = results.Count(r => r.Success);
             return successCount > 0 ? Result.Succeeded : Result.Cancelled;
+        }
+
+        private static void RecordTelemetrySafe(
+            PreFlightResult preflight,
+            SmartTagSettingsState settingsState,
+            IList<TagPlacementResult> results,
+            int candidatesAfterFilter,
+            int candidatesAfterTagTypeResolution)
+        {
+            try
+            {
+                SmartTagTelemetryTracker.RecordRun(
+                    preflight,
+                    settingsState,
+                    results,
+                    candidatesAfterFilter,
+                    candidatesAfterTagTypeResolution);
+            }
+            catch
+            {
+                // Telemetry is best effort and must never block command execution.
+            }
         }
 
         private static IEnumerable<BuiltInCategory> GetEnabledCategories(SmartTagSettingsState settingsState)
