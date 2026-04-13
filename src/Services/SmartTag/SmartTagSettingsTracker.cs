@@ -91,7 +91,7 @@ namespace AJTools.Services.SmartTag
             if (state?.CategoryPriority != null
                 && state.CategoryPriority.TryGetValue(category, out TagPriority priority))
             {
-                return priority;
+                return NormalizePriority(priority, category);
             }
 
             return GetDefaultPriority(category);
@@ -197,6 +197,19 @@ namespace AJTools.Services.SmartTag
                 case BuiltInCategory.OST_CableTray:
                 default:
                     return TagPriority.Low;
+            }
+        }
+
+        private static TagPriority NormalizePriority(TagPriority priority, BuiltInCategory category)
+        {
+            switch (priority)
+            {
+                case TagPriority.High:
+                case TagPriority.Medium:
+                case TagPriority.Low:
+                    return priority;
+                default:
+                    return GetDefaultPriority(category);
             }
         }
 

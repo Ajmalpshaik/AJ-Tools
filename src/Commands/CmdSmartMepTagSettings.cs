@@ -4,8 +4,8 @@
 // Version: 1.2.0
 // Revit Version: 2020
 
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -24,6 +24,10 @@ namespace AJTools.Commands
     public class CmdSmartMepTagSettings : IExternalCommand
     {
         private const string ToolTitle = "Smart MEP Tag";
+        private const string ColumnCategory = "Category";
+        private const string ColumnCount = "CountInModel";
+        private const string ColumnEnable = "EnableTag";
+        private const string ColumnPriority = "Priority";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -81,7 +85,7 @@ namespace AJTools.Commands
                 title.AutoSize = true;
                 title.Location = new Drawing.Point(12, 12);
 
-                note.Text = "Choose category-wise Tag ON/OFF and Priority.";
+                note.Text = "Enable categories and set priority. High priority tags are placed first in crowded areas.";
                 note.AutoSize = true;
                 note.ForeColor = Drawing.Color.DimGray;
                 note.Location = new Drawing.Point(12, 36);
@@ -98,12 +102,14 @@ namespace AJTools.Commands
 
                 var colCategory = new WinForms.DataGridViewTextBoxColumn
                 {
+                    Name = ColumnCategory,
                     HeaderText = "Element Type",
                     ReadOnly = true
                 };
 
                 var colCount = new WinForms.DataGridViewTextBoxColumn
                 {
+                    Name = ColumnCount,
                     HeaderText = "In Model",
                     ReadOnly = true,
                     FillWeight = 60
@@ -111,22 +117,25 @@ namespace AJTools.Commands
 
                 var colEnable = new WinForms.DataGridViewCheckBoxColumn
                 {
+                    Name = ColumnEnable,
                     HeaderText = "Tag?",
                     FillWeight = 45
                 };
                 
                 var colPriority = new WinForms.DataGridViewComboBoxColumn
                 {
+                    Name = ColumnPriority,
                     HeaderText = "Priority",
                     FillWeight = 70,
-                    DisplayStyle = WinForms.DataGridViewComboBoxDisplayStyle.DropDownButton
+                    DisplayStyle = WinForms.DataGridViewComboBoxDisplayStyle.DropDownButton,
+                    ToolTipText = "Controls tagging order: High categories claim the best available positions first."
                 };
                 colPriority.Items.AddRange("High", "Medium", "Low");
 
                 grid.Columns.Add(colCategory);
                 grid.Columns.Add(colCount);
-                grid.Columns.Add(colPriority);
                 grid.Columns.Add(colEnable);
+                grid.Columns.Add(colPriority);
 
                 foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
                 {
@@ -137,8 +146,8 @@ namespace AJTools.Commands
                     int rowIndex = grid.Rows.Add(
                         SmartTagSettingsTracker.GetCategoryLabel(category),
                         countInModel.ToString(),
-                        GetPriorityDisplay(priority),
-                        enabled);
+                        enabled,
+                        GetPriorityDisplay(priority));
                     rowCategoryMap[rowIndex] = category;
                 }
 
@@ -204,15 +213,19 @@ namespace AJTools.Commands
                     continue;
 
                 bool enabled = false;
-                object enabledRaw = row.Cells[3].Value;
-                if (enabledRaw is bool b)
+                WinForms.DataGridViewCell enableCell = row.Cells[ColumnEnable];
+                if (enableCell != null && enableCell.Value is bool b)
                     enabled = b;
-                
-                object priorityRaw = row.Cells[2].Value;
-                if (!TryParsePriority(priorityRaw, out TagPriority priority))
+
+                TagPriority priority = SmartTagSettingsTracker.ResolvePriority(initialState, category);
+                WinForms.DataGridViewCell priorityCell = row.Cells[ColumnPriority];
+                if (priorityCell != null && priorityCell.Value != null)
                 {
-                    error = string.Format("Select a valid priority for '{0}'.", SmartTagSettingsTracker.GetCategoryLabel(category));
-                    return false;
+                    if (!TryParsePriority(priorityCell.Value, out priority))
+                    {
+                        error = string.Format("Select a valid priority for '{0}'.", SmartTagSettingsTracker.GetCategoryLabel(category));
+                        return false;
+                    }
                 }
 
                 double offsetInternal = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, category);
@@ -258,6 +271,13 @@ namespace AJTools.Commands
         private static bool TryParsePriority(object value, out TagPriority priority)
         {
             priority = TagPriority.Low;
+
+            if (value is TagPriority enumValue)
+            {
+                priority = enumValue;
+                return true;
+            }
+
             string text = value as string;
             if (string.IsNullOrWhiteSpace(text))
                 return false;
