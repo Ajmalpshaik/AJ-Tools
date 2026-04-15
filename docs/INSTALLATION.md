@@ -10,7 +10,8 @@ AJ Tools supports Revit 2020 on Windows x64.
 ## Option A: Automatic Install (Recommended)
 
 ### From GitHub Release
-1. Download `AJ-Tools-vX.Y.Z.zip` from the repository Releases page.
+1. Download `AJ-Tools-vX.Y.Z.zip` from the public installer repository Releases page:
+   - https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
 2. Extract the zip.
 3. Run one of these scripts from the extracted folder:
    - `install.cmd` for current user

@@ -159,4 +159,4 @@ if ($IncludeSymbols) {
 } else {
     Write-Host "Symbols       : excluded (use -IncludeSymbols to include .pdb)"
 }
-Write-Host "Next step     : Upload the zip to a GitHub Release (tag format: vX.Y.Z)."
+Write-Host "Next step     : Upload the zip to public installer releases: https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases"

@@ -19,8 +19,7 @@ Release date: 2026-04-07
 - `uninstall.cmd`, `uninstall-all-users.cmd`, `uninstall.ps1`
 
 ## Installation
-1. Download `AJ-Tools-v1.2.1.zip` from GitHub Releases.
+1. Download `AJ-Tools-v1.2.1.zip` from https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
 2. Extract the zip.
 3. Run `install.cmd` for current-user install.
 4. For all-users install, run `install-all-users.cmd` as Administrator.
-

@@ -10,7 +10,8 @@ AJ Tools is a Revit 2020 add-in that adds productivity tools for graphics cleanu
 - OS: Windows x64
 
 ## Quick Start
-1. Download `AJ-Tools-vX.Y.Z.zip` from GitHub Releases.
+1. Download `AJ-Tools-vX.Y.Z.zip` from the public installer repo Releases:
+   - https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
 2. Extract the zip.
 3. Run `install.cmd` for current user install.
 4. Open Revit 2020 and verify the AJ Tools ribbon tab is visible.
@@ -53,7 +54,8 @@ powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Relea
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -Push
    ```
-5. Create GitHub Release from that tag and upload the generated zip.
+5. Upload the generated zip to the public installer repository release page:
+   - https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
 
 ## Contact
 - Developer: Ajmal P.S.
