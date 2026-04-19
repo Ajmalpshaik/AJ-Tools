@@ -1,6 +1,7 @@
 # Changelog
 
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
+Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
 ## [1.3.4] - 2026-04-19
 

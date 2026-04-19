@@ -12,6 +12,15 @@
 - Do not push a source tag before the package and installer repo are ready.
 - Release from a clean working tree.
 
+## Release Standards
+
+- Source tag: `vX.Y.Z`
+- Installer tag: `vX.Y.Z`
+- GitHub Release title: `AJ Tools vX.Y.Z`
+- Installer asset: `AJ-Tools-vX.Y.Z.zip`
+- Checksum file: `SHA256SUMS.txt`
+- Historical legacy tags with other formats remain in Git history and should not be reused.
+
 ## Release Checklist
 
 1. Update release metadata in this repository:
@@ -44,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepo
 7. Publish the installer repository release:
 
 ```powershell
-git add releases CHANGELOG.md README.md INSTALL.md RELEASE_PROCESS.md SECURITY.md .github tools
+git add releases CHANGELOG.md README.md INSTALL.md RELEASE_PROCESS.md SUPPORT.md SECURITY.md .github tools
 git commit -m "release: vX.Y.Z"
 git tag vX.Y.Z
 git push origin main --tags

@@ -1,5 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: Installer and download support
     url: https://github.com/Ajmalpshaik/AJ-Tools-Installer/issues
     about: Use the installer repository for release downloads, checksums, and installation problems.
+  - name: Security reporting policy
+    url: https://github.com/Ajmalpshaik/AJ-Tools/security/policy
+    about: Follow the private reporting instructions for security issues or sensitive disclosures.

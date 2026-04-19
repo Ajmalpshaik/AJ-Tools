@@ -71,11 +71,13 @@ Expected output:
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md)
 - [CHANGELOG.md](CHANGELOG.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SUPPORT.md](SUPPORT.md)
 - [SECURITY.md](SECURITY.md)
 - [docs/FOLDER_STRUCTURE.md](docs/FOLDER_STRUCTURE.md)
 - [docs/USAGE.md](docs/USAGE.md)
 
 ## Support
 
-- Source and development work stays in this repository
-- Download, checksum, and installation issues belong in [AJ-Tools-Installer Issues](https://github.com/Ajmalpshaik/AJ-Tools-Installer/issues)
+- Source defects, feature requests, and development work stay in this repository
+- Download, checksum, installation, and uninstall issues belong in [AJ-Tools-Installer Issues](https://github.com/Ajmalpshaik/AJ-Tools-Installer/issues)
+- Support routing and reporting rules: [SUPPORT.md](SUPPORT.md)

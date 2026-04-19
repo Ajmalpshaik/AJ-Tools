@@ -1,13 +1,13 @@
 # Contributing
 
-AJ Tools should stay easy to maintain. Use a simple workflow and keep release work disciplined.
+AJ Tools should stay easy to maintain. Use a simple branch flow and keep release work disciplined.
 
-## Branching
+## Recommended Flow
 
-- Start from the current default branch.
-- Use short-lived branches such as `feature/<name>`, `fix/<name>`, or `docs/<name>`.
-- Do not keep a permanent `dev` branch.
-- Use a `release/<version>` branch only when a release needs isolated stabilization. Otherwise release from the default branch.
+1. Branch from the current default branch (`master` today).
+2. Use short-lived branches named `feature/<name>`, `fix/<name>`, `docs/<name>`, or `hotfix/<name>` for urgent post-release fixes.
+3. Open a pull request, merge after review, then tag the merged default branch for releases.
+4. Use `release/<version>` only when a release needs isolated stabilization.
 
 ## Before Opening a Pull Request
 
