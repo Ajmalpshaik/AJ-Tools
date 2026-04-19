@@ -1,8 +1,8 @@
 // Tool Name: AJ Tools Assembly Info
 // Description: Assembly metadata for the AJ Tools add-in.
 // Author: Ajmal P.S.
-// Version: 1.2.1
-// Last Updated: 2026-04-07
+// Version: 1.3.4
+// Last Updated: 2026-04-19
 // Revit Version: 2020
 // Dependencies: System.Reflection
 using System.Reflection;
@@ -16,7 +16,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("AJ Tools")]
-[assembly: AssemblyCopyright("Copyright (c) 2025")]
+[assembly: AssemblyCopyright("Copyright (c) 2025-2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -35,5 +35,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.3.4.0")]
+[assembly: AssemblyFileVersion("1.3.4.0")]

@@ -1,63 +1,81 @@
-# AJ Tools - Revit 2020 Add-in
+# AJ Tools
 
-AJ Tools is a Revit 2020 add-in that adds productivity tools for graphics cleanup, dimensions, datums, links, and MEP workflows.
+AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit 2020.
 
-![AJ Tools Ribbon Preview](docs/images/aj-tools-ribbon-preview.png)
+This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
 ## Compatibility
-- Revit: 2020
-- .NET Framework: 4.7.2
-- OS: Windows x64
 
-## Quick Start
-1. Download `AJ-Tools-vX.Y.Z.zip` from the public installer repo Releases:
-   - https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
-2. Extract the zip.
-3. Run `install.cmd` for current user install.
-4. Open Revit 2020 and verify the AJ Tools ribbon tab is visible.
+- Autodesk Revit 2020
+- .NET Framework 4.7.2
+- Windows x64
 
-For full install options, see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+## Technology Stack
 
-## Installation Options
-- Automatic (current user): `install.cmd`
-- Automatic (all users): `install-all-users.cmd` (run as Administrator)
-- Manual copy/install: documented in [docs/INSTALLATION.md](docs/INSTALLATION.md)
+- C#
+- .NET Framework 4.7.2
+- Autodesk Revit 2020 API (`RevitAPI`, `RevitAPIUI`)
+- WPF/XAML
+- `Newtonsoft.Json`
 
-## Build and Package
-1. Open `AJ Tools.sln` in Visual Studio 2019/2022.
-2. Verify Revit API references:
+## Product Scope
+
+AJ Tools provides commands for:
+
+- graphics cleanup and overrides
+- linked model lookup and workset utilities
+- dimension and datum workflows
+- annotation and tagging helpers
+- MEP coordination and duct utilities
+- family parameter cleanup and conversion
+- standards and data management tools
+
+## Repository Layout
+
+- [src/](src/): add-in source code, UI, services, models, and resources
+- [dist/](dist/): package creation, install, uninstall, and tag scripts
+- [Addin/](Addin/): add-in manifest template
+- [docs/](docs/): supporting product and repository documentation
+- `AJ Tools.sln`: Visual Studio solution
+
+## Installation
+
+- End users: download the published installer from [AJ-Tools-Installer Releases](https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases)
+- Developers and testers: use [INSTALL.md](INSTALL.md) or the detailed guide in [docs/INSTALLATION.md](docs/INSTALLATION.md)
+
+## Build From Source
+
+1. Install Autodesk Revit 2020 on the build machine.
+2. Open `AJ Tools.sln` in Visual Studio 2019 or 2022.
+3. Confirm the Revit API DLLs exist at:
    - `C:\Program Files\Autodesk\Revit 2020\RevitAPI.dll`
    - `C:\Program Files\Autodesk\Revit 2020\RevitAPIUI.dll`
-3. Generate release payload:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release
-   ```
-4. Generated zip output:
-   - `dist\release\AJ-Tools-vX.Y.Z.zip`
+4. Package the release payload:
 
-To include debug symbols in package output:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release -IncludeSymbols
+powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release
 ```
 
-## Project Docs
-- Installation: [docs/INSTALLATION.md](docs/INSTALLATION.md)
-- Folder map: [docs/FOLDER_STRUCTURE.md](docs/FOLDER_STRUCTURE.md)
-- Usage summary: [docs/USAGE.md](docs/USAGE.md)
-- Source map: [src/README.md](src/README.md)
+Expected output:
 
-## Release Workflow
-1. Update assembly version in `src/Properties/AssemblyInfo.cs`.
-2. Run `dist/package.ps1` and verify release zip output.
-3. Commit and push.
-4. Create/push tag in `vX.Y.Z` format:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -Push
-   ```
-5. Upload the generated zip to the public installer repository release page:
-   - https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
+- `dist\release\AJ-Tools-vX.Y.Z.zip`
 
-## Contact
-- Developer: Ajmal P.S.
-- LinkedIn: https://www.linkedin.com/in/ajmalps/
-- Email: ajmalnattika@gmail.com
+## Release Ownership
+
+- `AJ Tools`: source code, assembly version, package creation, source changelog
+- `AJ-Tools-Installer`: public zip download, checksum, release page, installer support
+
+## Repository Docs
+
+- [INSTALL.md](INSTALL.md)
+- [RELEASE_PROCESS.md](RELEASE_PROCESS.md)
+- [CHANGELOG.md](CHANGELOG.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [docs/FOLDER_STRUCTURE.md](docs/FOLDER_STRUCTURE.md)
+- [docs/USAGE.md](docs/USAGE.md)
+
+## Support
+
+- Source and development work stays in this repository
+- Download, checksum, and installation issues belong in [AJ-Tools-Installer Issues](https://github.com/Ajmalpshaik/AJ-Tools-Installer/issues)

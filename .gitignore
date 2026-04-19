@@ -1,6 +1,8 @@
 # Build outputs
 [Bb]in/
 [Oo]bj/
+obj*/
+src/obj*/
 artifacts/
 TestResults/
 
@@ -9,6 +11,7 @@ TestResults/
 .vscode/
 *.suo
 *.user
+*.userprefs
 *.userosscache
 *.sln.docstates
 *.VC.db
@@ -31,10 +34,16 @@ _backup_review/
 
 # Logs and caches
 *.log
+build_*.log
+_build_*.log
 *.cache
 *.tmp
 *.bak
+*.orig
+*.nupkg
+*.snupkg
 journal*.txt
+packages/
 
 # OS files
 Thumbs.db
