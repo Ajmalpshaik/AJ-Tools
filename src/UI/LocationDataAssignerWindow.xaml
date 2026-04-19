@@ -17,7 +17,8 @@
         MinHeight="580"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
-        Background="{DynamicResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -104,14 +105,14 @@
                                 <Button x:Name="SelectAllCategoriesButton"
                                         Content="Select All"
                                         Style="{StaticResource ModernButton}"
-                                        Height="30"
-                                        MinWidth="100"
+                                        Height="34"
+                                        MinWidth="110"
                                         Margin="0,0,8,0"/>
                                 <Button x:Name="SelectNoneCategoriesButton"
                                         Content="Select None"
                                         Style="{StaticResource SecondaryButton}"
-                                        Height="30"
-                                        MinWidth="100"/>
+                                        Height="34"
+                                        MinWidth="110"/>
                             </StackPanel>
                         </Grid>
                     </GroupBox>
@@ -228,15 +229,16 @@
                     Grid.Column="1"
                     Content="Process Elements"
                     Style="{StaticResource ModernButton}"
-                    Height="32"
+                    IsDefault="True"
+                    Height="34"
                     MinWidth="150"
                     Margin="0,0,8,0"/>
             <Button x:Name="CancelButton"
                     Grid.Column="2"
                     Content="Close"
                     Style="{StaticResource SecondaryButton}"
-                    Height="32"
-                    MinWidth="90"/>
+                    IsCancel="True"
+                    MinWidth="110"/>
         </Grid>
     </Grid>
 </Window>

@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   Tool Name: View Crop Target Views Window
   Description: Selects one or more views with grouping by sheet and search/filter support.
   Author: Ajmal P.S.
@@ -16,7 +16,8 @@
         MinHeight="480"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -58,14 +59,14 @@
             <Button Grid.Column="1"
                     Content="Select All"
                     Style="{StaticResource ModernButton}"
-                    Height="30"
+                    MinWidth="110"
                     Margin="0,0,8,0"
                     Click="OnSelectAll"/>
 
             <Button Grid.Column="2"
                     Content="Clear All"
                     Style="{StaticResource SecondaryButton}"
-                    Height="30"
+                    MinWidth="110"
                     Click="OnClearAll"/>
         </Grid>
 
@@ -102,7 +103,7 @@
                         <DataTemplate>
                             <Border Background="{StaticResource BackgroundMedium}" Padding="8" Margin="0,10,0,0" CornerRadius="4">
                                 <TextBlock Text="{Binding Name}"
-                                           Foreground="{StaticResource AccentBlue}"
+                                           Foreground="{StaticResource TextPrimary}"
                                            FontWeight="Bold"/>
                             </Border>
                         </DataTemplate>
@@ -192,17 +193,18 @@
             <Button Grid.Column="1"
                     Content="Run"
                     Style="{StaticResource ModernButton}"
-                    Height="32"
-                    MinWidth="90"
+                    IsDefault="True"
+                    MinWidth="110"
                     Margin="0,0,8,0"
                     Click="OnRun"/>
 
             <Button Grid.Column="2"
                     Content="Cancel"
                     Style="{StaticResource SecondaryButton}"
-                    Height="32"
-                    MinWidth="80"
+                    IsCancel="True"
+                    MinWidth="110"
                     Click="OnCancel"/>
         </Grid>
     </Grid>
 </Window>
+

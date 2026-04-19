@@ -62,7 +62,7 @@ namespace AJTools.Commands
                 form.Text = "About AJ Tools";
                 form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
                 form.StartPosition = WinForms.FormStartPosition.CenterScreen;
-                form.ClientSize = new Drawing.Size(820, 540);
+                form.ClientSize = new Drawing.Size(640, 420);
                 form.MaximizeBox = false;
                 form.MinimizeBox = false;
                 form.ShowInTaskbar = false;
@@ -93,9 +93,9 @@ namespace AJTools.Commands
             var headerPanel = new WinForms.Panel
             {
                 Dock = WinForms.DockStyle.Top,
-                Height = 104,
+                Height = 88,
                 BackColor = HeaderBackColor,
-                Padding = new WinForms.Padding(18, 14, 18, 14)
+                Padding = new WinForms.Padding(20, 14, 20, 14)
             };
 
             var headerLayout = new WinForms.TableLayoutPanel
@@ -163,10 +163,10 @@ namespace AJTools.Commands
                 Dock = WinForms.DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
-                Padding = new WinForms.Padding(18, 16, 18, 10),
+                Padding = new WinForms.Padding(20, 18, 20, 14),
                 BackColor = Drawing.Color.White
             };
-            bodyLayout.ColumnStyles.Add(new WinForms.ColumnStyle(WinForms.SizeType.Absolute, 270F));
+            bodyLayout.ColumnStyles.Add(new WinForms.ColumnStyle(WinForms.SizeType.Absolute, 220F));
             bodyLayout.ColumnStyles.Add(new WinForms.ColumnStyle(WinForms.SizeType.Percent, 100F));
             bodyLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Percent, 100F));
 
@@ -183,23 +183,22 @@ namespace AJTools.Commands
                 Padding = new WinForms.Padding(14),
                 BackColor = CardBackColor,
                 BorderStyle = WinForms.BorderStyle.FixedSingle,
-                Margin = new WinForms.Padding(0, 0, 16, 0)
+                Margin = new WinForms.Padding(0, 0, 18, 0)
             };
 
             var layout = new WinForms.TableLayoutPanel
             {
                 Dock = WinForms.DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 7,
+                RowCount = 6,
                 BackColor = CardBackColor
             };
-            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 216F));
-            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.AutoSize));
+            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 160F));
             layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.AutoSize));
             layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Percent, 100F));
-            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 36F));
+            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 34F));
             layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 8F));
-            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 36F));
+            layout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 34F));
 
             var picture = new WinForms.PictureBox
             {
@@ -208,25 +207,18 @@ namespace AJTools.Commands
                 SizeMode = WinForms.PictureBoxSizeMode.Zoom,
                 BackColor = Drawing.Color.White,
                 Image = photo,
-                Margin = new WinForms.Padding(0, 0, 0, 10)
+                Margin = new WinForms.Padding(0, 0, 0, 12)
             };
 
             var developerLabel = new WinForms.Label
             {
                 AutoSize = true,
+                Anchor = WinForms.AnchorStyles.Top | WinForms.AnchorStyles.Left | WinForms.AnchorStyles.Right,
+                TextAlign = Drawing.ContentAlignment.MiddleCenter,
                 Font = new Drawing.Font("Segoe UI Semibold", 10F, Drawing.FontStyle.Bold, Drawing.GraphicsUnit.Point),
                 ForeColor = BodyTextColor,
-                Text = "Developer: Ajmal P.S.",
-                Margin = new WinForms.Padding(0, 0, 0, 2)
-            };
-
-            var contactLabel = new WinForms.Label
-            {
-                AutoSize = true,
-                Font = new Drawing.Font("Segoe UI", 9F, Drawing.FontStyle.Regular, Drawing.GraphicsUnit.Point),
-                ForeColor = MutedTextColor,
-                Text = "Support and feature requests are welcome.",
-                Margin = new WinForms.Padding(0, 0, 0, 10)
+                Text = "Ajmal P.S.",
+                Margin = new WinForms.Padding(0, 0, 0, 8)
             };
 
             var linkedInButton = CreateActionButton("LinkedIn Profile", true);
@@ -237,9 +229,8 @@ namespace AJTools.Commands
 
             layout.Controls.Add(picture, 0, 0);
             layout.Controls.Add(developerLabel, 0, 1);
-            layout.Controls.Add(contactLabel, 0, 2);
-            layout.Controls.Add(linkedInButton, 0, 4);
-            layout.Controls.Add(emailButton, 0, 6);
+            layout.Controls.Add(linkedInButton, 0, 3);
+            layout.Controls.Add(emailButton, 0, 5);
 
             card.Controls.Add(layout);
             return card;
@@ -251,13 +242,11 @@ namespace AJTools.Commands
             {
                 Dock = WinForms.DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 6,
-                Padding = new WinForms.Padding(0),
+                RowCount = 4,
+                Padding = new WinForms.Padding(0, 4, 0, 0),
                 BackColor = Drawing.Color.White
             };
             detailsLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.AutoSize));
-            detailsLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.AutoSize));
-            detailsLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Absolute, 14F));
             detailsLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.AutoSize));
             detailsLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.Percent, 100F));
             detailsLayout.RowStyles.Add(new WinForms.RowStyle(WinForms.SizeType.AutoSize));
@@ -268,63 +257,32 @@ namespace AJTools.Commands
                 Font = new Drawing.Font("Segoe UI Semibold", 15F, Drawing.FontStyle.Bold, Drawing.GraphicsUnit.Point),
                 ForeColor = BodyTextColor,
                 Text = "Built for Fast, Reliable Revit Production",
-                Margin = new WinForms.Padding(0, 0, 0, 8)
+                Margin = new WinForms.Padding(0, 0, 0, 10)
             };
 
             var summary = new WinForms.Label
             {
                 AutoSize = true,
-                MaximumSize = new Drawing.Size(490, 0),
+                MaximumSize = new Drawing.Size(370, 0),
                 Font = new Drawing.Font("Segoe UI", 10F, Drawing.FontStyle.Regular, Drawing.GraphicsUnit.Point),
                 ForeColor = MutedTextColor,
                 Text = "AJ Tools is a practical command suite for Revit 2020 users who want to reduce repetitive work and keep documentation quality consistent across projects.",
                 Margin = new WinForms.Padding(0, 0, 0, 0)
             };
 
-            var capabilitiesTitle = new WinForms.Label
-            {
-                AutoSize = true,
-                Font = new Drawing.Font("Segoe UI Semibold", 11F, Drawing.FontStyle.Bold, Drawing.GraphicsUnit.Point),
-                ForeColor = BodyTextColor,
-                Text = "Key Capabilities",
-                Margin = new WinForms.Padding(0, 0, 0, 6)
-            };
-
-            var capabilitiesText = new WinForms.TextBox
-            {
-                Dock = WinForms.DockStyle.Fill,
-                Multiline = true,
-                ReadOnly = true,
-                BorderStyle = WinForms.BorderStyle.FixedSingle,
-                BackColor = Drawing.Color.White,
-                ForeColor = BodyTextColor,
-                Font = new Drawing.Font("Segoe UI", 10F, Drawing.FontStyle.Regular, Drawing.GraphicsUnit.Point),
-                Text =
-                    "- Streamline view graphics with quick toggle, apply, match, and reset tools.\r\n" +
-                    "- Accelerate documentation with auto dimensions, dim-by-line, and datum reset tools.\r\n" +
-                    "- Improve annotation quality using smart MEP tag placement and tag arrangement utilities.\r\n" +
-                    "- Navigate linked model data faster with linked ID lookup and search workflows.\r\n" +
-                    "- Extend MEP standards with Smart Connect, location data assignment, and duct standards automation.",
-                Margin = new WinForms.Padding(0),
-                ScrollBars = WinForms.ScrollBars.Vertical,
-                TabStop = false
-            };
-
             var supportNote = new WinForms.Label
             {
                 AutoSize = true,
-                MaximumSize = new Drawing.Size(490, 0),
+                MaximumSize = new Drawing.Size(370, 0),
                 Font = new Drawing.Font("Segoe UI", 9F, Drawing.FontStyle.Italic, Drawing.GraphicsUnit.Point),
                 ForeColor = MutedTextColor,
                 Text = "For support, improvements, or collaboration requests, use the contact options on the left.",
-                Margin = new WinForms.Padding(0, 10, 0, 0)
+                Margin = new WinForms.Padding(0, 12, 0, 0)
             };
 
             detailsLayout.Controls.Add(heading, 0, 0);
             detailsLayout.Controls.Add(summary, 0, 1);
-            detailsLayout.Controls.Add(capabilitiesTitle, 0, 3);
-            detailsLayout.Controls.Add(capabilitiesText, 0, 4);
-            detailsLayout.Controls.Add(supportNote, 0, 5);
+            detailsLayout.Controls.Add(supportNote, 0, 3);
 
             return detailsLayout;
         }

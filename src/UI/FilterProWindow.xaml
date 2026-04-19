@@ -13,9 +13,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Filter Pro" MinHeight="820" MinWidth="1230"
+        Title="Filter Pro"
+        Width="1360"
+        Height="860"
+        MinHeight="680"
+        MinWidth="1020"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     
     <Window.Resources>
         <ResourceDictionary>
@@ -45,7 +50,7 @@
                     <TextBlock Text="Filter Pro" 
                                FontSize="26" 
                                FontWeight="Bold" 
-                               Foreground="{StaticResource AccentBlue}"/>
+                               Foreground="{StaticResource TextPrimary}"/>
                     <TextBlock Text="by Ajmal PS"
                                FontSize="12"
                                Foreground="{StaticResource TextSecondary}"
@@ -377,17 +382,14 @@
                                      Content="Selected Views"
                                      Style="{StaticResource ModernRadioButton}"
                                      Margin="8,0,0,0"/>
-                                <Button x:Name="refresh_views_button"
+                            <Button x:Name="refresh_views_button"
                                     Grid.Column="4"
                                     Style="{StaticResource ModernButton}"
-                                    Height="28"
+                                    MinWidth="130"
                                     Margin="0"
                                     HorizontalAlignment="Right"
-                                    VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Refresh Views" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
+                                    VerticalAlignment="Center"
+                                    Content="Refresh Views"/>
                         </Grid>
 
                         <Grid Grid.Row="1">
@@ -484,7 +486,7 @@
 
             <Border x:Name="loading_indicator"
                     Grid.Row="0"
-                    Background="#AA1E1E1E"
+                    Background="{StaticResource OverlayBackground}"
                     Visibility="Collapsed">
                 <TextBlock Text="Loading, please wait..."
                            Foreground="{StaticResource TextPrimary}"
@@ -524,44 +526,29 @@
                               ToolTip="When on, existing filters with the same name will be updated with new categories and rules."/>
 
                     <Button x:Name="apply_view_button"
-                            Style="{StaticResource ModernButton}"
-                            Height="35"
+                            Style="{StaticResource PrimaryButton}"
+                            MinWidth="150"
                             Margin="0,0,20,0"
-                            Background="{StaticResource AccentOrange}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="APPLY TO VIEW" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                            Content="Apply To View"/>
 
                     <Button x:Name="shuffle_colors_button"
-                            Style="{StaticResource ModernButton}"
-                            Height="35"
+                            Style="{StaticResource SecondaryButton}"
+                            MinWidth="150"
                             Margin="0,0,20,0"
-                            Background="{StaticResource AccentBlue}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="SHUFFLE COLORS" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                            Content="Shuffle Colors"/>
 
                     <Button x:Name="create_button" 
-                            Style="{StaticResource ModernButton}"
-                            Height="35"
+                            Style="{StaticResource SuccessButton}"
+                            MinWidth="150"
                             Margin="0,0,20,0"
-                            Background="{StaticResource AccentGreen}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="CREATE FILTERS" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                            Content="Create Filters"/>
                     
                     <Button x:Name="close_button" 
-                            Style="{StaticResource ModernButton}"
-                            Height="35"
-                            Background="#FF757575"
-                            Margin="10,0,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="CLOSE" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                            Style="{StaticResource DangerButton}"
+                            MinWidth="110"
+                            IsCancel="True"
+                            Margin="10,0,0,0"
+                            Content="Close"/>
                 </StackPanel>
             </Grid>
         </Border>

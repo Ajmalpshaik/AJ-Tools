@@ -7,33 +7,33 @@
         MinWidth="520"
         MinHeight="560"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
-                <Setter Property="Background" Value="#FF3A3A3A"/>
-                <Setter Property="Foreground" Value="#FFFFFFFF"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
+            <Style x:Key="ColorSwatchButton" TargetType="Button">
+                <Setter Property="Width" Value="22"/>
+                <Setter Property="Height" Value="20"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="border"
+                            <Border x:Name="SwatchRoot"
                                     Background="{TemplateBinding Background}"
-                                    BorderBrush="#FF646464"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3"/>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="#FF4A4A4A"/>
+                                    <Setter TargetName="SwatchRoot" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="#FF2E2E2E"/>
+                                    <Setter TargetName="SwatchRoot" Property="Opacity" Value="0.82"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -43,16 +43,14 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="8">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                Background="{StaticResource CardBackground}"
-                CornerRadius="8"
-                Padding="8">
+                Style="{StaticResource PanelCard}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -84,9 +82,6 @@
                     <ComboBox x:Name="QuickColorTargetCombo"
                               Grid.Column="1"
                               Height="24"
-                              Background="{StaticResource BackgroundLight}"
-                              Foreground="{StaticResource TextPrimary}"
-                              BorderBrush="#FF555555"
                               SelectedIndex="0">
                         <ComboBoxItem Content="Projection Line Color" Tag="ProjectionLineColor"/>
                         <ComboBoxItem Content="Surface Foreground Color" Tag="SurfaceForegroundColor"/>
@@ -105,17 +100,17 @@
                 </Grid>
 
                 <WrapPanel Grid.Row="2" Margin="0,6,0,6">
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Black" Tag="0,0,0" Click="OnQuickColorPreset" Background="#FF000000" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="White" Tag="255,255,255" Click="OnQuickColorPreset" Background="#FFFFFFFF" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Red" Tag="255,0,0" Click="OnQuickColorPreset" Background="#FFFF0000" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Green" Tag="0,255,0" Click="OnQuickColorPreset" Background="#FF00FF00" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Blue" Tag="0,0,255" Click="OnQuickColorPreset" Background="#FF0000FF" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Cyan" Tag="0,255,255" Click="OnQuickColorPreset" Background="#FF00FFFF" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Magenta" Tag="255,0,255" Click="OnQuickColorPreset" Background="#FFFF00FF" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Yellow" Tag="255,255,0" Click="OnQuickColorPreset" Background="#FFFFFF00" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,4,0" ToolTip="Orange" Tag="255,165,0" Click="OnQuickColorPreset" Background="#FFFFA500" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Width="22" Height="20" Margin="0,0,8,0" ToolTip="Gray" Tag="128,128,128" Click="OnQuickColorPreset" Background="#FF808080" BorderBrush="#FF707070" BorderThickness="1"/>
-                    <Button Height="20" MinWidth="66" Content="By View" Tag="ByView" Click="OnQuickColorPreset" Style="{StaticResource SecondaryButton}" Padding="6,0"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Black" Tag="0,0,0" Click="OnQuickColorPreset" Background="#FF000000"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="White" Tag="255,255,255" Click="OnQuickColorPreset" Background="#FFFFFFFF"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Red" Tag="255,0,0" Click="OnQuickColorPreset" Background="#FFFF0000"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Green" Tag="0,255,0" Click="OnQuickColorPreset" Background="#FF00FF00"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Blue" Tag="0,0,255" Click="OnQuickColorPreset" Background="#FF0000FF"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Cyan" Tag="0,255,255" Click="OnQuickColorPreset" Background="#FF00FFFF"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Magenta" Tag="255,0,255" Click="OnQuickColorPreset" Background="#FFFF00FF"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Yellow" Tag="255,255,0" Click="OnQuickColorPreset" Background="#FFFFFF00"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Orange" Tag="255,165,0" Click="OnQuickColorPreset" Background="#FFFFA500"/>
+                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,8,0" ToolTip="Gray" Tag="128,128,128" Click="OnQuickColorPreset" Background="#FF808080"/>
+                    <Button MinWidth="74" Content="By View" Tag="ByView" Click="OnQuickColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
                 </WrapPanel>
 
                 <TabControl Grid.Row="3" Margin="0,2,0,0">
@@ -132,11 +127,11 @@
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Projection Line Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="ProjectionLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="#FF707070" BorderThickness="1" Background="#FF3F3F46" Margin="0,0,6,0">
+                                    <Border x:Name="ProjectionLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
                                         <TextBlock x:Name="ProjectionLineColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
-                                    <Button Grid.Column="2" Content="Pick" Tag="ProjectionLineColor" Style="{StaticResource ModernButton}" Height="22" Margin="0,0,4,0" Padding="6,0" Click="OnPickColor"/>
-                                    <Button Grid.Column="3" Content="By" Tag="ProjectionLineColor" Style="{StaticResource SecondaryButton}" Height="22" Padding="6,0" Click="OnClearColor"/>
+                                    <Button Grid.Column="2" Content="Pick" Tag="ProjectionLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                    <Button Grid.Column="3" Content="By" Tag="ProjectionLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -145,7 +140,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Projection Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="ProjectionLinePatternCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="ProjectionLinePatternCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -154,7 +149,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Projection Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="ProjectionLineWeightCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="ProjectionLineWeightCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Separator Margin="0,8,0,8"/>
@@ -166,7 +161,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Surface Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="SurfaceForegroundPatternCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="SurfaceForegroundPatternCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -177,11 +172,11 @@
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Surface Foreground Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="SurfaceForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="#FF707070" BorderThickness="1" Background="#FF3F3F46" Margin="0,0,6,0">
+                                    <Border x:Name="SurfaceForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
                                         <TextBlock x:Name="SurfaceForegroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
-                                    <Button Grid.Column="2" Content="Pick" Tag="SurfaceForegroundColor" Style="{StaticResource ModernButton}" Height="22" Margin="0,0,4,0" Padding="6,0" Click="OnPickColor"/>
-                                    <Button Grid.Column="3" Content="By" Tag="SurfaceForegroundColor" Style="{StaticResource SecondaryButton}" Height="22" Padding="6,0" Click="OnClearColor"/>
+                                    <Button Grid.Column="2" Content="Pick" Tag="SurfaceForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                    <Button Grid.Column="3" Content="By" Tag="SurfaceForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -190,7 +185,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Surface Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="SurfaceBackgroundPatternCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="SurfaceBackgroundPatternCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -201,11 +196,11 @@
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Surface Background Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="SurfaceBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="#FF707070" BorderThickness="1" Background="#FF3F3F46" Margin="0,0,6,0">
+                                    <Border x:Name="SurfaceBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
                                         <TextBlock x:Name="SurfaceBackgroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
-                                    <Button Grid.Column="2" Content="Pick" Tag="SurfaceBackgroundColor" Style="{StaticResource ModernButton}" Height="22" Margin="0,0,4,0" Padding="6,0" Click="OnPickColor"/>
-                                    <Button Grid.Column="3" Content="By" Tag="SurfaceBackgroundColor" Style="{StaticResource SecondaryButton}" Height="22" Padding="6,0" Click="OnClearColor"/>
+                                    <Button Grid.Column="2" Content="Pick" Tag="SurfaceBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                    <Button Grid.Column="3" Content="By" Tag="SurfaceBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -214,7 +209,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Transparency (0-100)" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="TransparencyCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="TransparencyCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
                             </StackPanel>
                         </ScrollViewer>
@@ -240,11 +235,11 @@
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Line Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="CutLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="#FF707070" BorderThickness="1" Background="#FF3F3F46" Margin="0,0,6,0">
+                                    <Border x:Name="CutLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
                                         <TextBlock x:Name="CutLineColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
-                                    <Button x:Name="CutLineColorPickButton" Grid.Column="2" Content="Pick" Tag="CutLineColor" Style="{StaticResource ModernButton}" Height="22" Margin="0,0,4,0" Padding="6,0" Click="OnPickColor"/>
-                                    <Button x:Name="CutLineColorClearButton" Grid.Column="3" Content="By" Tag="CutLineColor" Style="{StaticResource SecondaryButton}" Height="22" Padding="6,0" Click="OnClearColor"/>
+                                    <Button x:Name="CutLineColorPickButton" Grid.Column="2" Content="Pick" Tag="CutLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                    <Button x:Name="CutLineColorClearButton" Grid.Column="3" Content="By" Tag="CutLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -253,7 +248,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutLinePatternCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="CutLinePatternCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -262,7 +257,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutLineWeightCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="CutLineWeightCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Separator Margin="0,8,0,8"/>
@@ -274,7 +269,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutForegroundPatternCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="CutForegroundPatternCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -285,11 +280,11 @@
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Foreground Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="CutForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="#FF707070" BorderThickness="1" Background="#FF3F3F46" Margin="0,0,6,0">
+                                    <Border x:Name="CutForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
                                         <TextBlock x:Name="CutForegroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
-                                    <Button x:Name="CutForegroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutForegroundColor" Style="{StaticResource ModernButton}" Height="22" Margin="0,0,4,0" Padding="6,0" Click="OnPickColor"/>
-                                    <Button x:Name="CutForegroundColorClearButton" Grid.Column="3" Content="By" Tag="CutForegroundColor" Style="{StaticResource SecondaryButton}" Height="22" Padding="6,0" Click="OnClearColor"/>
+                                    <Button x:Name="CutForegroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                    <Button x:Name="CutForegroundColorClearButton" Grid.Column="3" Content="By" Tag="CutForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -298,7 +293,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutBackgroundPatternCombo" Grid.Column="1" Height="24" Background="{StaticResource BackgroundLight}" Foreground="{StaticResource TextPrimary}" BorderBrush="#FF555555"/>
+                                    <ComboBox x:Name="CutBackgroundPatternCombo" Grid.Column="1" Height="24"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -309,11 +304,11 @@
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Cut Background Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="CutBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="#FF707070" BorderThickness="1" Background="#FF3F3F46" Margin="0,0,6,0">
+                                    <Border x:Name="CutBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
                                         <TextBlock x:Name="CutBackgroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
-                                    <Button x:Name="CutBackgroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutBackgroundColor" Style="{StaticResource ModernButton}" Height="22" Margin="0,0,4,0" Padding="6,0" Click="OnPickColor"/>
-                                    <Button x:Name="CutBackgroundColorClearButton" Grid.Column="3" Content="By" Tag="CutBackgroundColor" Style="{StaticResource SecondaryButton}" Height="22" Padding="6,0" Click="OnClearColor"/>
+                                    <Button x:Name="CutBackgroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                    <Button x:Name="CutBackgroundColorClearButton" Grid.Column="3" Content="By" Tag="CutBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
                             </StackPanel>
                         </ScrollViewer>
@@ -328,7 +323,7 @@
 
                 <TextBlock x:Name="ErrorText"
                            Grid.Row="5"
-                           Foreground="Crimson"
+                           Foreground="{StaticResource AccentDanger}"
                            Margin="0,6,0,0"
                            TextWrapping="Wrap"/>
             </Grid>
@@ -345,26 +340,24 @@
             <Button Grid.Column="1"
                     Content="Reset"
                     Style="{StaticResource SecondaryButton}"
-                    Height="30"
-                    MinWidth="92"
-                    FontSize="13"
+                    MinWidth="110"
                     Margin="0,0,6,0"
                     Click="OnReset"/>
             <Button Grid.Column="2"
                     Content="OK"
                     Style="{StaticResource ModernButton}"
-                    Height="30"
-                    MinWidth="92"
-                    FontSize="13"
+                    IsDefault="True"
+                    MinWidth="110"
                     Margin="0,0,6,0"
                     Click="OnOk"/>
             <Button Grid.Column="3"
                     Content="Cancel"
                     Style="{StaticResource SecondaryButton}"
-                    Height="30"
-                    MinWidth="92"
-                    FontSize="13"
+                    IsCancel="True"
+                    MinWidth="110"
                     Click="OnCancel"/>
         </Grid>
     </Grid>
 </Window>
+
+

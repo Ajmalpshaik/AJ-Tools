@@ -17,7 +17,8 @@
         ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -93,7 +94,7 @@
                                  Grid.Column="1"
                                  Style="{StaticResource ModernTextBox}"
                                  Margin="0,0,0,6"
-                                 MinWidth="120"/>
+                                 MinWidth="140"/>
 
                         <TextBlock Grid.Row="2"
                                    Grid.ColumnSpan="2"
@@ -107,7 +108,7 @@
 
         <TextBlock x:Name="ErrorText"
                    Grid.Row="1"
-                   Foreground="Crimson"
+                   Foreground="{StaticResource AccentDanger}"
                    Margin="2,0,0,10"/>
 
         <Grid Grid.Row="2">
@@ -121,17 +122,19 @@
                     Grid.Column="1"
                     Content="Run"
                     Style="{StaticResource ModernButton}"
-                    Height="32"
-                    MinWidth="90"
+                    IsDefault="True"
+                    MinWidth="110"
                     Margin="0,0,8,0"
                     Click="OnRun"/>
 
             <Button Grid.Column="2"
                     Content="Cancel"
                     Style="{StaticResource SecondaryButton}"
-                    Height="32"
-                    MinWidth="80"
+                    IsCancel="True"
+                    MinWidth="110"
                     Click="OnCancel"/>
         </Grid>
     </Grid>
 </Window>
+
+

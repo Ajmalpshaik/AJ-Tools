@@ -32,7 +32,9 @@ namespace AJTools.UI.GraphicsTools
         private const string CutForegroundColorKey = "CutForegroundColor";
         private const string CutBackgroundColorKey = "CutBackgroundColor";
 
-        private static readonly Brush ByViewBrush = new SolidColorBrush(MediaColor.FromRgb(63, 63, 70));
+        private static readonly Brush ByViewBrush = new SolidColorBrush(MediaColor.FromRgb(17, 26, 46));
+        private static readonly Brush PreviewTextOnDarkBrush = Brushes.White;
+        private static readonly Brush PreviewTextOnLightBrush = new SolidColorBrush(MediaColor.FromRgb(17, 17, 17));
 
         private readonly Dictionary<string, GraphicsColorValue> _colorValues =
             new Dictionary<string, GraphicsColorValue>(StringComparer.Ordinal)
@@ -217,12 +219,20 @@ namespace AJTools.UI.GraphicsTools
             {
                 preview.Background = ByViewBrush;
                 textBlock.Text = "By View";
+                textBlock.Foreground = PreviewTextOnDarkBrush;
                 return;
             }
 
             var mediaColor = MediaColor.FromRgb(value.Red, value.Green, value.Blue);
             preview.Background = new SolidColorBrush(mediaColor);
             textBlock.Text = string.Format(CultureInfo.InvariantCulture, "{0}, {1}, {2}", value.Red, value.Green, value.Blue);
+            textBlock.Foreground = ResolvePreviewTextBrush(mediaColor);
+        }
+
+        private static Brush ResolvePreviewTextBrush(MediaColor background)
+        {
+            double luminance = ((0.299 * background.R) + (0.587 * background.G) + (0.114 * background.B)) / 255.0;
+            return luminance >= 0.65 ? PreviewTextOnLightBrush : PreviewTextOnDarkBrush;
         }
 
         private bool TryGetColorControls(string key, out Border preview, out TextBlock textBlock)

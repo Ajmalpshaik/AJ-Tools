@@ -393,9 +393,9 @@ namespace AJTools.Services.FilterPro
 
             parts.Add(value.Display ?? "Value");
 
-            string separator = string.IsNullOrWhiteSpace(selection.Separator)
-                ? " - "
-                : $" {selection.Separator.Trim()} ";
+            string separator = string.IsNullOrEmpty(selection.Separator)
+                ? "_"
+                : selection.Separator;
 
             string core = string.Join(separator, parts);
 
@@ -432,7 +432,7 @@ namespace AJTools.Services.FilterPro
             if (string.IsNullOrWhiteSpace(name))
                 return "Filter";
 
-            char[] invalid = { '<', '>', '{', '}', '[', ']', '|', ';', ':', '\\', '/', '?', '*', '"' };
+            char[] invalid = { '<', '>', '{', '}', '[', ']', '|', ';', ':', '\\', '?', '*', '"' };
             foreach (char c in invalid)
                 name = name.Replace(c, '_');
 

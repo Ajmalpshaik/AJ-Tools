@@ -9,7 +9,6 @@ using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Windows.Media.Imaging;
 using AJTools.Commands;
 using AJTools.Commands.GraphicsTools;
 using AJTools.Utils;
@@ -91,43 +90,14 @@ namespace AJTools.App
             // To move a tool group to another panel, change the PanelKey used here.
             _toolLayout = new List<ToolPlacement>
             {
-                new ToolPlacement(PanelKey.Graphics, AddToggleLinksTool),
-                new ToolPlacement(PanelKey.Graphics, AddUnhideAllTool),
-                new ToolPlacement(PanelKey.Graphics, AddFilterProTool),
-                new ToolPlacement(PanelKey.Graphics, AddApplyGraphicsTools),
-                new ToolPlacement(PanelKey.Graphics, AddMatchGraphicsTools),
-                new ToolPlacement(PanelKey.Graphics, AddResetGraphicsTools),
-                new ToolPlacement(PanelKey.Graphics, Add3DViewsTools),
-
-                new ToolPlacement(PanelKey.Links, AddElementIdTools),
-                new ToolPlacement(PanelKey.Links, AddSetLinkWorksetTool),
-
-                new ToolPlacement(PanelKey.Dimensions, AddAutoDimensionsTools),
-                new ToolPlacement(PanelKey.Dimensions, AddDimensionByLineTools),
-                new ToolPlacement(PanelKey.Dimensions, AddCopyDimensionTextTool),
-
-                new ToolPlacement(PanelKey.Family, AddSharedToFamilyTool),
-
-                new ToolPlacement(PanelKey.Mep, AddMatchElevationTool),
-                new ToolPlacement(PanelKey.Mep, AddSmartConnectTool),
-                new ToolPlacement(PanelKey.Mep, AddCeilingMagnetTool),
-
-                new ToolPlacement(PanelKey.DataStandards, AddLocationDataTool),
-                new ToolPlacement(PanelKey.DataStandards, AddDuctStandardsTool),
-
-                new ToolPlacement(PanelKey.Annotations, AddSmartMepTagTools),
-                new ToolPlacement(PanelKey.Annotations, AddDuctFlowTools),
-                new ToolPlacement(PanelKey.Annotations, AddRevisionCloudByElementsTool),
-                new ToolPlacement(PanelKey.Annotations, AddResetTextTool),
-                new ToolPlacement(PanelKey.Annotations, AddResetDatumsTools),
-                new ToolPlacement(PanelKey.Annotations, AddExtendLevelsTool),
-                new ToolPlacement(PanelKey.Annotations, AddFlipGridBubbleTool),
-                new ToolPlacement(PanelKey.Annotations, AddViewCrop3DExtentsTools),
-                new ToolPlacement(PanelKey.Annotations, AddLShapeLeaderTool),
-                new ToolPlacement(PanelKey.Annotations, AddArrangeTagsTools),
-                new ToolPlacement(PanelKey.Annotations, AddCopySwapTextTools),
-
-                new ToolPlacement(PanelKey.Info, AddAboutTool)
+                new ToolPlacement(PanelKey.Graphics, BuildGraphicsPanel),
+                new ToolPlacement(PanelKey.Links, BuildLinksPanel),
+                new ToolPlacement(PanelKey.Dimensions, BuildDimensionsPanel),
+                new ToolPlacement(PanelKey.Family, BuildFamilyPanel),
+                new ToolPlacement(PanelKey.Mep, BuildMepPanel),
+                new ToolPlacement(PanelKey.DataStandards, BuildDataStandardsPanel),
+                new ToolPlacement(PanelKey.Annotations, BuildAnnotationsPanel),
+                new ToolPlacement(PanelKey.Info, BuildInfoPanel)
             };
         }
 
@@ -160,6 +130,44 @@ namespace AJTools.App
             return panels;
         }
 
+        private sealed class TopLevelToolSpec
+        {
+            public TopLevelToolSpec(RibbonItemData data, Action<RibbonItem> configureItem)
+            {
+                Data = data;
+                ConfigureItem = configureItem ?? (_ => { });
+            }
+
+            public RibbonItemData Data { get; }
+            public Action<RibbonItem> ConfigureItem { get; }
+        }
+
+        private sealed class SplitChildToolSpec
+        {
+            public SplitChildToolSpec(
+                string text,
+                string tooltip,
+                Type command,
+                string largeIconFileName,
+                string smallIconFileName,
+                Action<PushButton> afterCreate)
+            {
+                Text = text;
+                Tooltip = tooltip;
+                Command = command;
+                LargeIconFileName = largeIconFileName;
+                SmallIconFileName = smallIconFileName;
+                AfterCreate = afterCreate;
+            }
+
+            public string Text { get; }
+            public string Tooltip { get; }
+            public Type Command { get; }
+            public string LargeIconFileName { get; }
+            public string SmallIconFileName { get; }
+            public Action<PushButton> AfterCreate { get; }
+        }
+
         private void AddToolsToPanels(IReadOnlyDictionary<PanelKey, RibbonPanel> panels)
         {
             foreach (var placement in _toolLayout)
@@ -168,10 +176,60 @@ namespace AJTools.App
             }
         }
 
-        private void AddToggleLinksTool(RibbonPanel panel)
+        private void BuildGraphicsPanel(RibbonPanel panel)
         {
-            CreatePushButton(
-                panel,
+            AddStackedTools(panel, AddToggleLinksTool(), AddUnhideAllTool(), AddPinElementsTool());
+            AddStackedTools(panel, AddApplyGraphicsTools(), AddMatchGraphicsTools(), AddResetGraphicsTools());
+            AddTopLevelTool(panel, Add3DViewsTools());
+            AddTopLevelTool(panel, AddFilterProTool());
+            AddTopLevelTool(panel, AddTransferViewTemplatesTool());
+        }
+
+        private void BuildLinksPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddElementIdTools(), AddSetLinkWorksetTool());
+        }
+
+        private void BuildDimensionsPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddAutoDimensionsTools(), AddDimensionByLineTools());
+            AddTopLevelTool(panel, AddCopyDimensionTextTool());
+        }
+
+        private void BuildFamilyPanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddSharedToFamilyTool());
+        }
+
+        private void BuildMepPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddMatchElevationTool(), AddReassignLevelTool());
+            AddStackedTools(panel, AddSmartConnectTool(), AddCeilingMagnetTool());
+        }
+
+        private void BuildDataStandardsPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddLocationDataTool(), AddDuctStandardsTool(), AddPurgeTools());
+        }
+
+        private void BuildAnnotationsPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddSmartMepTagTools(), AddDuctFlowTools(), AddRevisionCloudByElementsTool());
+            AddTopLevelTool(panel, AddResetTextTool());
+            AddStackedTools(panel, AddResetDatumsTools(), AddExtendLevelsTool());
+            AddTopLevelTool(panel, AddFlipGridBubbleTool());
+            AddTopLevelTool(panel, AddLShapeLeaderTool());
+            AddStackedTools(panel, AddViewCrop3DExtentsTools(), AddArrangeTagsTools(), AddCopySwapTextTools());
+        }
+
+        private void BuildInfoPanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddAboutTool());
+        }
+
+        private TopLevelToolSpec AddToggleLinksTool()
+        {
+            return CreatePushToolSpec(
                 "Toggle\nLinks",
                 "Toggle visibility of all Revit Links in the active view.",
                 typeof(CmdToggleRevitLinks),
@@ -179,10 +237,9 @@ namespace AJTools.App
                 "Toggle Links.png");
         }
 
-        private void AddUnhideAllTool(RibbonPanel panel)
+        private TopLevelToolSpec AddUnhideAllTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Unhide\nAll",
                 "Unhide all elements in the active view (Temporary Hide/Isolate + hidden items).",
                 typeof(CmdUnhideAll),
@@ -190,150 +247,151 @@ namespace AJTools.App
                 "Unhide All.png");
         }
 
-        private void AddFilterProTool(RibbonPanel panel)
+        private TopLevelToolSpec AddPinElementsTool()
         {
-            var filterProButton = CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
+                "Pin",
+                "Pin/unpin separated Sheet groups (Title Blocks, Placed Views, Legends, Schedules) with Active Sheet Only or All Sheets mode, and Model groups (Duct, Pipe, Cable Tray, Generic Models, Mechanical Equipment, Plumbing Fixtures, Electrical Equipment).",
+                typeof(CmdPinElements),
+                "apply.png",
+                "apply.png");
+        }
+
+        private TopLevelToolSpec AddFilterProTool()
+        {
+            return CreatePushToolSpec(
                 "Filter\nPro",
                 "Create parameter filters quickly (category, parameter, values) and apply them to the active view.",
                 typeof(CmdFilterPro),
                 "FilterPro.png",
-                "FilterPro.png");
-            filterProButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName;
+                "FilterPro.png",
+                pushButton => pushButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName);
         }
 
-        private void AddApplyGraphicsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddApplyGraphicsTools()
         {
-            var applyGraphicsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Apply\nGraphics",
                 "Apply category or element graphics overrides in the active view.",
                 "apply.png",
-                "apply.png");
-
-            CreatePushButton(
-                applyGraphicsPulldown,
-                "Category\nGraphics",
-                "Apply graphics overrides to unique model categories from selected elements in the active view.",
-                typeof(CmdCategoryGraphics),
                 "apply.png",
-                "apply.png");
-            CreatePushButton(
-                applyGraphicsPulldown,
-                "Element\nGraphics",
-                "Apply element-level graphics overrides to selected elements in the active view.",
-                typeof(CmdElementGraphics),
-                "apply.png",
-                "apply.png");
+                CreateSplitChildTool(
+                    "Category\nGraphics",
+                    "Apply graphics overrides to unique model categories from selected elements in the active view.",
+                    typeof(CmdCategoryGraphics),
+                    "apply.png",
+                    "apply.png"),
+                CreateSplitChildTool(
+                    "Element\nGraphics",
+                    "Apply element-level graphics overrides to selected elements in the active view.",
+                    typeof(CmdElementGraphics),
+                    "apply.png",
+                    "apply.png"));
         }
 
-        private void AddMatchGraphicsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddMatchGraphicsTools()
         {
-            var matchGraphicsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Match\nGraphics",
                 "Match category or element graphics from a picked source.",
                 "copy.png",
-                "copy.png");
-            CreatePushButton(
-                matchGraphicsPulldown,
-                "Match Category\nGraphics",
-                "Copy category graphics from one source category and apply them to selected target categories.",
-                typeof(CmdMatchCategoryGraphics),
                 "copy.png",
-                "copy.png");
-            CreatePushButton(
-                matchGraphicsPulldown,
-                "Match Element\nGraphics",
-                "Copy element-level graphics from one source element to selected target elements.",
-                typeof(CmdMatchElementGraphics),
-                "copy.png",
-                "copy.png");
+                CreateSplitChildTool(
+                    "Match Category\nGraphics",
+                    "Copy category graphics from one source category and apply them to selected target categories.",
+                    typeof(CmdMatchCategoryGraphics),
+                    "copy.png",
+                    "copy.png"),
+                CreateSplitChildTool(
+                    "Match Element\nGraphics",
+                    "Copy element-level graphics from one source element to selected target elements.",
+                    typeof(CmdMatchElementGraphics),
+                    "copy.png",
+                    "copy.png"));
         }
 
-        private void AddResetGraphicsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddResetGraphicsTools()
         {
-            var resetGraphicsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Reset\nGraphics",
                 "Reset category and element graphics overrides in the active view.",
                 "Reset Overrides.png",
-                "Reset Overrides.png");
-            CreatePushButton(
-                resetGraphicsPulldown,
-                "Reset Category\nBy Selection",
-                "Reset category graphics overrides using selected model elements in the active view.",
-                typeof(CmdResetCategoryGraphics),
                 "Reset Overrides.png",
-                "Reset Overrides.png");
-            CreatePushButton(
-                resetGraphicsPulldown,
-                "Reset Category\nAll Elements",
-                "Reset category graphics overrides for model categories found from all elements in the active view.",
-                typeof(CmdResetCategoryGraphicsAllElements),
-                "Reset Overrides.png",
-                "Reset Overrides.png");
-            CreatePushButton(
-                resetGraphicsPulldown,
-                "Reset Element\nBy Selection",
-                "Reset element-level graphics overrides for selected elements in the active view.",
-                typeof(CmdClearSelectedElementGraphics),
-                "Reset Overrides.png",
-                "Reset Overrides.png");
-            CreatePushButton(
-                resetGraphicsPulldown,
-                "Reset Element\nAll Elements",
-                "Reset all element-level graphics overrides in the active view.",
-                typeof(CmdResetOverrides),
-                "Reset Overrides.png",
-                "Reset Overrides.png");
+                CreateSplitChildTool(
+                    "Reset Category\nBy Selection",
+                    "Reset category graphics overrides using selected model elements in the active view.",
+                    typeof(CmdResetCategoryGraphics),
+                    "Reset Overrides.png",
+                    "Reset Overrides.png"),
+                CreateSplitChildTool(
+                    "Reset Category\nAll Elements",
+                    "Reset category graphics overrides for model categories found from all elements in the active view.",
+                    typeof(CmdResetCategoryGraphicsAllElements),
+                    "Reset Overrides.png",
+                    "Reset Overrides.png"),
+                CreateSplitChildTool(
+                    "Reset Element\nBy Selection",
+                    "Reset element-level graphics overrides for selected elements in the active view.",
+                    typeof(CmdClearSelectedElementGraphics),
+                    "Reset Overrides.png",
+                    "Reset Overrides.png"),
+                CreateSplitChildTool(
+                    "Reset Element\nAll Elements",
+                    "Reset all element-level graphics overrides in the active view.",
+                    typeof(CmdResetOverrides),
+                    "Reset Overrides.png",
+                    "Reset Overrides.png"));
         }
 
-        private void Add3DViewsTools(RibbonPanel panel)
+        private TopLevelToolSpec Add3DViewsTools()
         {
-            var threeDViewsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "3D\nViews",
                 "3D view tools.",
                 "3D Views.png",
-                "3D Views.png");
-            CreatePushButton(
-                threeDViewsPulldown,
-                "Create 3D View As Per Workset",
-                "Create one 3D view per user workset and isolate each workset in its matching view.",
-                typeof(Cmd3DViewsAsPerWorkset),
                 "3D Views.png",
-                "3D Views.png");
+                CreateSplitChildTool(
+                    "Create 3D View As Per Workset",
+                    "Create one 3D view per user workset and isolate each workset in its matching view.",
+                    typeof(Cmd3DViewsAsPerWorkset),
+                    "3D Views.png",
+                    "3D Views.png"));
         }
 
-        private void AddElementIdTools(RibbonPanel panel)
+        private TopLevelToolSpec AddTransferViewTemplatesTool()
         {
-            var pulldownButton = CreatePulldownButton(
-                panel,
+            return CreatePushToolSpec(
+                "Transfer\nTemplates",
+                "Transfer selected view templates between open project documents, with optional override.",
+                typeof(CmdTransferViewTemplates),
+                "Transfer View Template.png",
+                "Transfer View Template.png");
+        }
+
+        private TopLevelToolSpec AddElementIdTools()
+        {
+            return CreateSplitToolSpec(
                 "Element\nID",
                 "Element ID tools for current and linked models.",
                 "linkedID.png",
-                "linkedID.png");
-            CreatePushButton(
-                pulldownButton,
-                "Linked ID of\nSelection",
-                "Pick any element (model or linked) and view its Element ID with source info.",
-                typeof(CmdLinkedElementIdViewer),
-                "Linked ID of Selection.png",
-                "Linked ID of Selection.png");
-            CreatePushButton(
-                pulldownButton,
-                "View by\nLinked ID",
-                "Search by Element ID in current or linked models and zoom to it.",
-                typeof(CmdLinkedElementSearch),
-                "View by Linked ID.png",
-                "View by Linked ID.png");
+                "linkedID.png",
+                CreateSplitChildTool(
+                    "Linked ID of\nSelection",
+                    "Pick any element (model or linked) and view its Element ID with source info.",
+                    typeof(CmdLinkedElementIdViewer),
+                    "Linked ID of Selection.png",
+                    "Linked ID of Selection.png"),
+                CreateSplitChildTool(
+                    "View by\nLinked ID",
+                    "Search by Element ID in current or linked models and zoom to it.",
+                    typeof(CmdLinkedElementSearch),
+                    "View by Linked ID.png",
+                    "View by Linked ID.png"));
         }
 
-        private void AddSetLinkWorksetTool(RibbonPanel panel)
+        private TopLevelToolSpec AddSetLinkWorksetTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Set Link\nWorkset",
                 "Assign selected Revit links and CAD imports to a workset.",
                 typeof(CmdSetLinkWorkset),
@@ -341,79 +399,69 @@ namespace AJTools.App
                 "Set Link Workset.png");
         }
 
-        private void AddAutoDimensionsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddAutoDimensionsTools()
         {
-            var autoDimsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Auto\nDims",
                 "Dimension grids and levels automatically.",
                 "Dimensions.png",
-                "Dimensions.png");
-            CreatePushButton(
-                autoDimsPulldown,
-                "Grids Only",
-                "Create horizontal/vertical grid dimension strings in plan views.",
-                typeof(CmdAutoDimensionsGrids),
                 "Dimensions.png",
-                "Dimensions.png");
-            CreatePushButton(
-                autoDimsPulldown,
-                "Levels Only",
-                "Create level dimension strings in section or elevation views.",
-                typeof(CmdAutoDimensionsLevels),
-                "Dimensions.png",
-                "Dimensions.png");
-            CreatePushButton(
-                autoDimsPulldown,
-                "Grids + Levels",
-                "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.",
-                typeof(CmdAutoDimensions),
-                "Dimensions.png",
-                "Dimensions.png");
+                CreateSplitChildTool(
+                    "Grids Only",
+                    "Create horizontal/vertical grid dimension strings in plan views.",
+                    typeof(CmdAutoDimensionsGrids),
+                    "Dimensions.png",
+                    "Dimensions.png"),
+                CreateSplitChildTool(
+                    "Levels Only",
+                    "Create level dimension strings in section or elevation views.",
+                    typeof(CmdAutoDimensionsLevels),
+                    "Dimensions.png",
+                    "Dimensions.png"),
+                CreateSplitChildTool(
+                    "Grids + Levels",
+                    "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.",
+                    typeof(CmdAutoDimensions),
+                    "Dimensions.png",
+                    "Dimensions.png"));
         }
 
-        private void AddDimensionByLineTools(RibbonPanel panel)
+        private TopLevelToolSpec AddDimensionByLineTools()
         {
-            var dimsByLinePulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Dim By\nLine",
                 "Pick two points to place grid or level dimensions along a custom line.",
                 "Dimensions by Line.png",
-                "Dimensions by Line.png");
-            CreatePushButton(
-                dimsByLinePulldown,
-                "Quick\nCenter Line",
-                "Quickly create a dimension string for selected parallel elements using center line references.",
-                typeof(CmdQuickParallelCenterLineDimension),
                 "Dimensions by Line.png",
-                "Dimensions by Line.png");
-            CreatePushButton(
-                dimsByLinePulldown,
-                "Quick\nFace/Edge",
-                "Quickly create dimensions using both side faces/edges for each selected parallel element (for ducts/pipes this captures both sides).",
-                typeof(CmdQuickParallelFaceEdgeDimension),
-                "Dimensions by Line.png",
-                "Dimensions by Line.png");
-            CreatePushButton(
-                dimsByLinePulldown,
-                "Dim By Line\nGrid Only",
-                "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).",
-                typeof(CmdDimensionGridsByLine),
-                "Dimensions by Line.png",
-                "Dimensions by Line.png");
-            CreatePushButton(
-                dimsByLinePulldown,
-                "Dim By Line\nLevel Only",
-                "Create a dimension string across levels within the picked vertical range.",
-                typeof(CmdDimensionLevelsByLine),
-                "Dimensions by Line.png",
-                "Dimensions by Line.png");
+                CreateSplitChildTool(
+                    "Quick\nCenter Line",
+                    "Quickly create a dimension string for selected parallel elements using center line references.",
+                    typeof(CmdQuickParallelCenterLineDimension),
+                    "Dimensions by Line.png",
+                    "Dimensions by Line.png"),
+                CreateSplitChildTool(
+                    "Quick\nFace/Edge",
+                    "Quickly create dimensions using both side faces/edges for each selected parallel element (for ducts/pipes this captures both sides).",
+                    typeof(CmdQuickParallelFaceEdgeDimension),
+                    "Dimensions by Line.png",
+                    "Dimensions by Line.png"),
+                CreateSplitChildTool(
+                    "Dim By Line\nGrid Only",
+                    "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).",
+                    typeof(CmdDimensionGridsByLine),
+                    "Dimensions by Line.png",
+                    "Dimensions by Line.png"),
+                CreateSplitChildTool(
+                    "Dim By Line\nLevel Only",
+                    "Create a dimension string across levels within the picked vertical range.",
+                    typeof(CmdDimensionLevelsByLine),
+                    "Dimensions by Line.png",
+                    "Dimensions by Line.png"));
         }
 
-        private void AddCopyDimensionTextTool(RibbonPanel panel)
+        private TopLevelToolSpec AddCopyDimensionTextTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Copy Dim\nText",
                 "Copy Above/Below/Prefix/Suffix text from one dimension to others.",
                 typeof(CmdCopyDimensionText),
@@ -421,96 +469,84 @@ namespace AJTools.App
                 "Copy Dim Text.png");
         }
 
-        private void AddResetDatumsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddResetDatumsTools()
         {
-            var resetDatumsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Reset to\n3D Extents",
                 "Reset grid or level datum extents back to 3D.",
                 "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
-            CreatePushButton(
-                resetDatumsPulldown,
-                "Grids Only",
-                "Reset all visible grids to 3D extents in this view.",
-                typeof(CmdResetDatumsGrids),
                 "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
-            CreatePushButton(
-                resetDatumsPulldown,
-                "Levels Only",
-                "Reset all visible levels to 3D extents in this view.",
-                typeof(CmdResetDatumsLevels),
-                "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
-            CreatePushButton(
-                resetDatumsPulldown,
-                "Grids + Levels",
-                "Reset both grids and levels visible in this view.",
-                typeof(CmdResetDatums),
-                "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
+                CreateSplitChildTool(
+                    "Grids Only",
+                    "Reset all visible grids to 3D extents in this view.",
+                    typeof(CmdResetDatumsGrids),
+                    "Resetto3DExtents.png",
+                    "Resetto3DExtents.png"),
+                CreateSplitChildTool(
+                    "Levels Only",
+                    "Reset all visible levels to 3D extents in this view.",
+                    typeof(CmdResetDatumsLevels),
+                    "Resetto3DExtents.png",
+                    "Resetto3DExtents.png"),
+                CreateSplitChildTool(
+                    "Grids + Levels",
+                    "Reset both grids and levels visible in this view.",
+                    typeof(CmdResetDatums),
+                    "Resetto3DExtents.png",
+                    "Resetto3DExtents.png"));
         }
 
-        private void AddExtendLevelsTool(RibbonPanel panel)
+        private TopLevelToolSpec AddExtendLevelsTool()
         {
-            var levelExtentsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Level\nExtents",
                 "Match or maximize level 3D extents.",
-                "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
-            CreatePushButton(
-                levelExtentsPulldown,
-                "Match Level Extents",
-                "Select one source level, then pick target levels one-by-one to match extents (Esc to finish).",
-                typeof(CmdExtendLevelsBySelected),
-                "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
-            CreatePushButton(
-                levelExtentsPulldown,
-                "Maximize by Section Box",
-                "Maximize all level 3D extents to the active 3D view's section box.",
-                typeof(CmdMaximizeLevelsBySectionBox),
-                "Resetto3DExtents.png",
-                "Resetto3DExtents.png");
+                "Level Extents.png",
+                "Level Extents.png",
+                CreateSplitChildTool(
+                    "Match Level Extents",
+                    "Select one source level, then pick target levels one-by-one to match extents (Esc to finish).",
+                    typeof(CmdExtendLevelsBySelected),
+                    "Level Extents.png",
+                    "Level Extents.png"),
+                CreateSplitChildTool(
+                    "Maximize by Section Box",
+                    "Maximize all level 3D extents to the active 3D view's section box.",
+                    typeof(CmdMaximizeLevelsBySectionBox),
+                    "Level Extents.png",
+                    "Level Extents.png"));
         }
 
-        private void AddViewCrop3DExtentsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddViewCrop3DExtentsTools()
         {
-            var viewCropPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "View Crop\n3D Extents",
                 "Resize view crop by projected model extents.",
                 "view crop 3d extents.png",
-                "view crop 3d extents.png");
-            CreatePushButton(
-                viewCropPulldown,
-                "View Crop by Active View Elements",
-                "Fit crop per target view using only elements currently visible in that view.",
-                typeof(CmdViewCropByActiveViewElements),
                 "view crop 3d extents.png",
-                "view crop 3d extents.png");
-            CreatePushButton(
-                viewCropPulldown,
-                "View Crop by All Model Elements",
-                "Fit crop per target view using project-wide model extents projected to that view.",
-                typeof(CmdViewCropByAllModelElements),
-                "view crop 3d extents.png",
-                "view crop 3d extents.png");
-            CreatePushButton(
-                viewCropPulldown,
-                "Set Annotation Crop\nby View Crop",
-                "Enable annotation crop in selected views and set equal offsets on all sides using each view's active crop box.",
-                typeof(CmdSetAnnotationCropByViewCrop),
-                "view crop 3d extents.png",
-                "view crop 3d extents.png");
+                CreateSplitChildTool(
+                    "View Crop by Active View Elements",
+                    "Fit crop per target view using only elements currently visible in that view.",
+                    typeof(CmdViewCropByActiveViewElements),
+                    "view crop 3d extents.png",
+                    "view crop 3d extents.png"),
+                CreateSplitChildTool(
+                    "View Crop by All Model Elements",
+                    "Fit crop per target view using project-wide model extents projected to that view.",
+                    typeof(CmdViewCropByAllModelElements),
+                    "view crop 3d extents.png",
+                    "view crop 3d extents.png"),
+                CreateSplitChildTool(
+                    "Set Annotation Crop\nby View Crop",
+                    "Enable annotation crop in selected views and set equal offsets on all sides using each view's active crop box.",
+                    typeof(CmdSetAnnotationCropByViewCrop),
+                    "view crop 3d extents.png",
+                    "view crop 3d extents.png"));
         }
 
-        private void AddFlipGridBubbleTool(RibbonPanel panel)
+        private TopLevelToolSpec AddFlipGridBubbleTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Flip Grid\nBubble",
                 "Toggle which grid end shows the bubble, one grid at a time.",
                 typeof(CmdFlipGridBubble),
@@ -518,10 +554,9 @@ namespace AJTools.App
                 "GridbubbleFlip.png");
         }
 
-        private void AddSharedToFamilyTool(RibbonPanel panel)
+        private TopLevelToolSpec AddSharedToFamilyTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Shared\nTo Family",
                 "Convert selected shared parameters in the active family into normal family parameters.",
                 typeof(SharedParamToFamilyParamCommand),
@@ -529,36 +564,30 @@ namespace AJTools.App
                 "Share To Family.png");
         }
 
-        private void AddRevisionCloudByElementsTool(RibbonPanel panel)
+        private TopLevelToolSpec AddRevisionCloudByElementsTool()
         {
-            var cloudByElementsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Cloud By\nElements",
                 "Create orthogonal stepped revision cloud boundaries and configure settings.",
                 "Cloud By Elements.png",
-                "Cloud By Elements.png");
-
-            CreatePushButton(
-                cloudByElementsPulldown,
-                "Place",
-                "Create orthogonal stepped revision cloud boundaries aligned to dominant selected-element angle. Keeps running until Esc.",
-                typeof(CmdRevisionCloudByElements),
                 "Cloud By Elements.png",
-                "Cloud By Elements.png");
-
-            CreatePushButton(
-                cloudByElementsPulldown,
-                "Settings",
-                "Configure offset distance for Cloud By Elements.",
-                typeof(CmdRevisionCloudByElementsSettings),
-                "settings.png",
-                "settings.png");
+                CreateSplitChildTool(
+                    "Place",
+                    "Create orthogonal stepped revision cloud boundaries aligned to dominant selected-element angle. Keeps running until Esc.",
+                    typeof(CmdRevisionCloudByElements),
+                    "Cloud By Elements.png",
+                    "Cloud By Elements.png"),
+                CreateSplitChildTool(
+                    "Settings",
+                    "Configure offset distance for Cloud By Elements.",
+                    typeof(CmdRevisionCloudByElementsSettings),
+                    "settings.png",
+                    "settings.png"));
         }
 
-        private void AddResetTextTool(RibbonPanel panel)
+        private TopLevelToolSpec AddResetTextTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Reset\nText",
                 "Reset selected text notes/tags back to their default text offset.",
                 typeof(CmdResetTextPosition),
@@ -566,42 +595,46 @@ namespace AJTools.App
                 "Reset Position.png");
         }
 
-        private void AddMatchElevationTool(RibbonPanel panel)
+        private TopLevelToolSpec AddMatchElevationTool()
         {
-            var matchElevationPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Match\nElevation",
                 "Match center, top, or bottom elevation from a source MEP element to others.",
                 "Match Elevation.png",
-                "Match Elevation.png");
-
-            CreatePushButton(
-                matchElevationPulldown,
-                "By\nCenter",
-                "Match center elevation from a source MEP element to selected targets.",
-                typeof(CmdMatchElevation),
                 "Match Elevation.png",
-                "Match Elevation.png");
-            CreatePushButton(
-                matchElevationPulldown,
-                "By\nTop",
-                "Match top elevation from a source MEP element to selected targets.",
-                typeof(CmdMatchElevationTop),
-                "Match Elevation.png",
-                "Match Elevation.png");
-            CreatePushButton(
-                matchElevationPulldown,
-                "By\nBottom",
-                "Match bottom elevation from a source MEP element to selected targets.",
-                typeof(CmdMatchElevationBottom),
-                "Match Elevation.png",
-                "Match Elevation.png");
+                CreateSplitChildTool(
+                    "By\nCenter",
+                    "Match center elevation from a source MEP element to selected targets.",
+                    typeof(CmdMatchElevation),
+                    "Match Elevation.png",
+                    "Match Elevation.png"),
+                CreateSplitChildTool(
+                    "By\nTop",
+                    "Match top elevation from a source MEP element to selected targets.",
+                    typeof(CmdMatchElevationTop),
+                    "Match Elevation.png",
+                    "Match Elevation.png"),
+                CreateSplitChildTool(
+                    "By\nBottom",
+                    "Match bottom elevation from a source MEP element to selected targets.",
+                    typeof(CmdMatchElevationBottom),
+                    "Match Elevation.png",
+                    "Match Elevation.png"));
         }
 
-        private void AddLocationDataTool(RibbonPanel panel)
+        private TopLevelToolSpec AddReassignLevelTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
+                "Reassign\nLevel",
+                "Reassign supported MEP elements from one level to another without moving them physically.",
+                typeof(CmdReassignLevel),
+                "Reassign Level.png",
+                "Reassign Level.png");
+        }
+
+        private TopLevelToolSpec AddLocationDataTool()
+        {
+            return CreatePushToolSpec(
                 "Location\nData",
                 "Assign Room, Level, Coordinates, Altitude, and HVAC Zone data to selected categories.",
                 typeof(CmdLocationDataAssigner),
@@ -609,10 +642,9 @@ namespace AJTools.App
                 "Location Data.png");
         }
 
-        private void AddSmartConnectTool(RibbonPanel panel)
+        private TopLevelToolSpec AddSmartConnectTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Smart\nConnect",
                 "Connect two same-category MEP elements (Pipe, Duct, Cable Tray) with routing and angle settings.",
                 typeof(SmartConnectCommand),
@@ -620,10 +652,9 @@ namespace AJTools.App
                 "SmartConnect.png");
         }
 
-        private void AddCeilingMagnetTool(RibbonPanel panel)
+        private TopLevelToolSpec AddCeilingMagnetTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Ceiling\nMagnet",
                 "Pick ceiling, pick grid intersection, then snap point-based elements to nearest tile centers.",
                 typeof(CmdCeilingMagnet),
@@ -631,34 +662,30 @@ namespace AJTools.App
                 "cursor.png");
         }
 
-        private void AddDuctFlowTools(RibbonPanel panel)
+        private TopLevelToolSpec AddDuctFlowTools()
         {
-            var flowPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Duct\nFlow",
                 "Duct flow annotation tools.",
                 "Flowdirectioncreate.png",
-                "Flowdirectioncreate.png");
-            CreatePushButton(
-                flowPulldown,
-                "Place",
-                "Place duct flow annotations along horizontal ducts.",
-                typeof(CmdFlowDirectionAnnotations),
                 "Flowdirectioncreate.png",
-                "Flowdirectioncreate.png");
-            CreatePushButton(
-                flowPulldown,
-                "Settings",
-                "Choose the annotation family and spacing used for duct flow placement.",
-                typeof(CmdFlowDirectionSettings),
-                "settings.png",
-                "settings.png");
+                CreateSplitChildTool(
+                    "Place",
+                    "Place duct flow annotations along horizontal ducts.",
+                    typeof(CmdFlowDirectionAnnotations),
+                    "Flowdirectioncreate.png",
+                    "Flowdirectioncreate.png"),
+                CreateSplitChildTool(
+                    "Settings",
+                    "Choose the annotation family and spacing used for duct flow placement.",
+                    typeof(CmdFlowDirectionSettings),
+                    "settings.png",
+                    "settings.png"));
         }
 
-        private void AddDuctStandardsTool(RibbonPanel panel)
+        private TopLevelToolSpec AddDuctStandardsTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "Duct\nStandards",
                 "Calculate and write duct sheet thickness, gauge, weight, and area based on SMACNA-style rules.",
                 typeof(CmdDuctStandardsManager),
@@ -666,34 +693,46 @@ namespace AJTools.App
                 "Duct Standards.png");
         }
 
-        private void AddSmartMepTagTools(RibbonPanel panel)
+        private TopLevelToolSpec AddPurgeTools()
         {
-            var smartTagPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
+                "Purge",
+                "Project cleanup and purge tools.",
+                "Remove.png",
+                "Remove.png",
+                CreateSplitChildTool(
+                    "Purge Unused\nFamily Parameters",
+                    "Scan family parameters, classify unused candidates safely, and remove selected parameters in the active family document.",
+                    typeof(CmdPurgeUnusedFamilyParameters),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnusedFamilyParametersAvailability).FullName));
+        }
+
+        private TopLevelToolSpec AddSmartMepTagTools()
+        {
+            return CreateSplitToolSpec(
                 "Smart MEP\nTag",
                 "Smart MEP tagging tools.",
                 "Smart MEP TAG.png",
-                "Smart MEP TAG.png");
-            CreatePushButton(
-                smartTagPulldown,
-                "Place",
-                "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.",
-                typeof(CmdSmartMepTag),
                 "Smart MEP TAG.png",
-                "Smart MEP TAG.png");
-            CreatePushButton(
-                smartTagPulldown,
-                "Settings",
-                "Configure category-wise enable/disable for Smart MEP Tag.",
-                typeof(CmdSmartMepTagSettings),
-                "settings.png",
-                "settings.png");
+                CreateSplitChildTool(
+                    "Place",
+                    "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.",
+                    typeof(CmdSmartMepTag),
+                    "Smart MEP TAG.png",
+                    "Smart MEP TAG.png"),
+                CreateSplitChildTool(
+                    "Settings",
+                    "Configure category-wise enable/disable for Smart MEP Tag.",
+                    typeof(CmdSmartMepTagSettings),
+                    "settings.png",
+                    "settings.png"));
         }
 
-        private void AddLShapeLeaderTool(RibbonPanel panel)
+        private TopLevelToolSpec AddLShapeLeaderTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "L-Shape\nLeader",
                 "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc.",
                 typeof(CmdForceTagLeaderLShape),
@@ -701,63 +740,181 @@ namespace AJTools.App
                 "L-ShapeLeader.png");
         }
 
-        private void AddArrangeTagsTools(RibbonPanel panel)
+        private TopLevelToolSpec AddArrangeTagsTools()
         {
-            var arrangeTagsPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Arrange\nTags",
                 "Arrange tag tools.",
                 "Arrange Tag.png",
-                "Arrange Tag.png");
-            CreatePushButton(
-                arrangeTagsPulldown,
-                "Place",
-                "Rearrange selected tags into a clean vertical stack. The nearest T1-to-L1 tag position is placed first, then remaining tags stack above or below based on T1 relative to L1.",
-                typeof(CmdIntelligentTagArranger),
                 "Arrange Tag.png",
-                "Arrange Tag.png");
-            CreatePushButton(
-                arrangeTagsPulldown,
-                "Settings",
-                "Set default vertical spacing for Arrange Tags (tag_spacing_mm).",
-                typeof(CmdIntelligentTagArrangerSettings),
-                "settings.png",
-                "settings.png");
+                CreateSplitChildTool(
+                    "Place",
+                    "Rearrange selected tags into a clean vertical stack. The nearest T1-to-L1 tag position is placed first, then remaining tags stack above or below based on T1 relative to L1.",
+                    typeof(CmdIntelligentTagArranger),
+                    "Arrange Tag.png",
+                    "Arrange Tag.png"),
+                CreateSplitChildTool(
+                    "Settings",
+                    "Set default vertical spacing for Arrange Tags (tag_spacing_mm).",
+                    typeof(CmdIntelligentTagArrangerSettings),
+                    "settings.png",
+                    "settings.png"));
         }
 
-        private void AddCopySwapTextTools(RibbonPanel panel)
+        private TopLevelToolSpec AddCopySwapTextTools()
         {
-            var copySwapPulldown = CreatePulldownButton(
-                panel,
+            return CreateSplitToolSpec(
                 "Copy Swap\nText",
                 "Copy or swap text values between text notes.",
                 "copyswaptext.png",
-                "copyswaptext.png");
-            CreatePushButton(
-                copySwapPulldown,
-                "Copy Text",
-                "Copy the text value from one text note to others (click targets until ESC).",
-                typeof(CmdCopyText),
                 "copyswaptext.png",
-                "copyswaptext.png");
-            CreatePushButton(
-                copySwapPulldown,
-                "Swap Text",
-                "Swap the text values between two picked text notes (one-time).",
-                typeof(CmdSwapText),
-                "copyswaptext.png",
-                "copyswaptext.png");
+                CreateSplitChildTool(
+                    "Copy Text",
+                    "Copy the text value from one text note to others (click targets until ESC).",
+                    typeof(CmdCopyText),
+                    "copyswaptext.png",
+                    "copyswaptext.png"),
+                CreateSplitChildTool(
+                    "Swap Text",
+                    "Swap the text values between two picked text notes (one-time).",
+                    typeof(CmdSwapText),
+                    "copyswaptext.png",
+                    "copyswaptext.png"));
         }
 
-        private void AddAboutTool(RibbonPanel panel)
+        private TopLevelToolSpec AddAboutTool()
         {
-            CreatePushButton(
-                panel,
+            return CreatePushToolSpec(
                 "About\nAJ Tools",
                 "View AJ Tools version, capabilities, and support contact.",
                 typeof(CmdAbout),
                 "information.png",
                 "information.png");
+        }
+
+        private void AddTopLevelTool(RibbonPanel panel, TopLevelToolSpec toolSpec)
+        {
+            if (panel == null || toolSpec == null)
+            {
+                return;
+            }
+
+            var createdItem = panel.AddItem(toolSpec.Data);
+            toolSpec.ConfigureItem(createdItem);
+        }
+
+        private void AddStackedTools(RibbonPanel panel, TopLevelToolSpec first, TopLevelToolSpec second)
+        {
+            AddStackedToolsCore(panel, new[] { first, second });
+        }
+
+        private void AddStackedTools(RibbonPanel panel, TopLevelToolSpec first, TopLevelToolSpec second, TopLevelToolSpec third)
+        {
+            AddStackedToolsCore(panel, new[] { first, second, third });
+        }
+
+        private void AddStackedToolsCore(RibbonPanel panel, TopLevelToolSpec[] toolSpecs)
+        {
+            if (panel == null || toolSpecs == null || toolSpecs.Length < 2 || toolSpecs.Length > 3)
+            {
+                return;
+            }
+
+            IList<RibbonItem> createdItems;
+
+            try
+            {
+                createdItems = toolSpecs.Length == 2
+                    ? panel.AddStackedItems(toolSpecs[0].Data, toolSpecs[1].Data)
+                    : panel.AddStackedItems(toolSpecs[0].Data, toolSpecs[1].Data, toolSpecs[2].Data);
+            }
+            catch (Exception)
+            {
+                // Fallback keeps ribbon startup safe across Revit versions that may reject
+                // a specific stacked type combination (for example split buttons).
+                createdItems = new List<RibbonItem>(toolSpecs.Length);
+                foreach (var spec in toolSpecs)
+                {
+                    createdItems.Add(panel.AddItem(spec.Data));
+                }
+            }
+
+            for (var i = 0; i < toolSpecs.Length && i < createdItems.Count; i++)
+            {
+                toolSpecs[i].ConfigureItem(createdItems[i]);
+            }
+        }
+
+        private TopLevelToolSpec CreatePushToolSpec(
+            string text,
+            string tooltip,
+            Type command,
+            string largeIconFileName,
+            string smallIconFileName,
+            Action<PushButton> afterCreate = null)
+        {
+            return new TopLevelToolSpec(
+                CreatePushButtonData(text, command, tooltip, largeIconFileName, smallIconFileName),
+                item =>
+                {
+                    var pushButton = item as PushButton;
+                    if (pushButton != null)
+                    {
+                        afterCreate?.Invoke(pushButton);
+                    }
+                });
+        }
+
+        private TopLevelToolSpec CreateSplitToolSpec(
+            string text,
+            string tooltip,
+            string largeIconFileName,
+            string smallIconFileName,
+            params SplitChildToolSpec[] childTools)
+        {
+            return new TopLevelToolSpec(
+                CreateSplitButtonData(text, tooltip, largeIconFileName, smallIconFileName),
+                item =>
+                {
+                    var splitButton = item as SplitButton;
+                    if (splitButton == null || childTools == null)
+                    {
+                        return;
+                    }
+
+                    foreach (var childTool in childTools)
+                    {
+                        var childButton = CreatePushButton(
+                            splitButton,
+                            childTool.Text,
+                            childTool.Tooltip,
+                            childTool.Command,
+                            childTool.LargeIconFileName,
+                            childTool.SmallIconFileName);
+
+                        if (childButton != null)
+                        {
+                            childTool.AfterCreate?.Invoke(childButton);
+                        }
+                    }
+                });
+        }
+
+        private static SplitChildToolSpec CreateSplitChildTool(
+            string text,
+            string tooltip,
+            Type command,
+            string largeIconFileName,
+            string smallIconFileName,
+            Action<PushButton> afterCreate = null)
+        {
+            return new SplitChildToolSpec(
+                text,
+                tooltip,
+                command,
+                largeIconFileName,
+                smallIconFileName,
+                afterCreate);
         }
 
         /// <summary>
@@ -779,85 +936,95 @@ namespace AJTools.App
         }
 
         /// <summary>
-        /// Adds a push button to a ribbon panel with the provided command and icon file names.
+        /// Adds a push button to a split button menu.
         /// </summary>
-        private PushButton CreatePushButton(RibbonPanel panel, string text, string tooltip, Type command, string largeIconFileName, string smallIconFileName)
+        private PushButton CreatePushButton(
+            SplitButton splitButton,
+            string text,
+            string tooltip,
+            Type command,
+            string largeIconFileName,
+            string smallIconFileName)
         {
-            var pushButton = panel.AddItem(CreatePushButtonData(text, command)) as PushButton;
-            ConfigurePushButton(
-                pushButton,
-                tooltip,
-                _iconLoader.LoadLarge(largeIconFileName),
-                _iconLoader.LoadSmall(smallIconFileName));
-            return pushButton;
-        }
+            if (splitButton == null)
+            {
+                return null;
+            }
 
-        /// <summary>
-        /// Adds a push button to a pull-down menu with the provided command and icon file names.
-        /// </summary>
-        private PushButton CreatePushButton(PulldownButton pulldown, string text, string tooltip, Type command, string largeIconFileName, string smallIconFileName)
-        {
-            var pushButton = pulldown.AddPushButton(CreatePushButtonData(text, command));
-            ConfigurePushButton(
-                pushButton,
-                tooltip,
-                _iconLoader.LoadLarge(largeIconFileName),
-                _iconLoader.LoadSmall(smallIconFileName));
-            return pushButton;
+            return splitButton.AddPushButton(
+                CreatePushButtonData(
+                    text,
+                    command,
+                    tooltip,
+                    largeIconFileName,
+                    smallIconFileName));
         }
 
         /// <summary>
         /// Creates button data pointing at the given external command type.
         /// </summary>
-        private PushButtonData CreatePushButtonData(string text, Type command)
+        private PushButtonData CreatePushButtonData(
+            string text,
+            Type command,
+            string tooltip,
+            string largeIconFileName,
+            string smallIconFileName)
         {
-            return new PushButtonData($"cmd{command.Name}", text, _assemblyPath, command.FullName);
-        }
-
-        /// <summary>
-        /// Applies tooltip and icons to a button.
-        /// </summary>
-        private static void ConfigurePushButton(PushButton pushButton, string tooltip, BitmapSource largeIcon, BitmapSource smallIcon)
-        {
-            if (pushButton == null)
+            var pushButtonData = new PushButtonData($"cmd{command.Name}", text, _assemblyPath, command.FullName)
             {
-                return;
-            }
+                ToolTip = tooltip
+            };
 
-            pushButton.ToolTip = tooltip;
+            var largeIcon = _iconLoader.LoadLarge(largeIconFileName);
             if (largeIcon != null)
             {
-                pushButton.LargeImage = largeIcon;
+                pushButtonData.LargeImage = largeIcon;
             }
+
+            var smallIcon = _iconLoader.LoadSmall(smallIconFileName);
             if (smallIcon != null)
             {
-                pushButton.Image = smallIcon;
+                pushButtonData.Image = smallIcon;
             }
+
+            return pushButtonData;
         }
 
         /// <summary>
-        /// Adds a pull-down button to a panel with the supplied tooltip and icon file names.
+        /// Creates split button data with tooltip and icons.
         /// </summary>
-        private PulldownButton CreatePulldownButton(RibbonPanel panel, string text, string tooltip, string largeIconFileName, string smallIconFileName)
+        private SplitButtonData CreateSplitButtonData(
+            string text,
+            string tooltip,
+            string largeIconFileName,
+            string smallIconFileName)
         {
-            var pulldownData = new PulldownButtonData($"pulldown_{text.Replace("\n", "")}", text);
-            var pulldownButton = panel.AddItem(pulldownData) as PulldownButton;
-            if (pulldownButton != null)
+            var splitButtonData = new SplitButtonData(CreateSplitButtonName(text), text)
             {
-                pulldownButton.ToolTip = tooltip;
-                var largeIcon = _iconLoader.LoadLarge(largeIconFileName);
-                if (largeIcon != null)
-                {
-                    pulldownButton.LargeImage = largeIcon;
-                }
-                var smallIcon = _iconLoader.LoadSmall(smallIconFileName);
-                if (smallIcon != null)
-                {
-                    pulldownButton.Image = smallIcon;
-                }
+                ToolTip = tooltip
+            };
+
+            var largeIcon = _iconLoader.LoadLarge(largeIconFileName);
+            if (largeIcon != null)
+            {
+                splitButtonData.LargeImage = largeIcon;
             }
 
-            return pulldownButton;
+            var smallIcon = _iconLoader.LoadSmall(smallIconFileName);
+            if (smallIcon != null)
+            {
+                splitButtonData.Image = smallIcon;
+            }
+
+            return splitButtonData;
+        }
+
+        private static string CreateSplitButtonName(string text)
+        {
+            var normalizedText = (text ?? string.Empty)
+                .Replace("\n", string.Empty)
+                .Replace(" ", string.Empty);
+            return $"split_{normalizedText}";
         }
     }
 }

@@ -1,0 +1,201 @@
+<!--
+  Tool Name: Pin Elements UI
+  Description: WPF dialog for selecting groups and applying pin/unpin.
+  Author: Ajmal P.S.
+  Version: 1.2.0
+  Last Updated: 2026-04-18
+  Revit Version: 2020
+-->
+<Window x:Class="AJTools.UI.PinElementsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pin Elements"
+        Width="540"
+        MinWidth="500"
+        MinHeight="430"
+        MaxHeight="760"
+        ResizeMode="CanResizeWithGrip"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <DataTemplate x:Key="CategoryItemTemplate">
+                <Grid Margin="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <CheckBox Content="{Binding Name}"
+                                  IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  Margin="0,0,0,2"/>
+                        <TextBlock Text="{Binding Description}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding CandidateCount}"
+                               Margin="10,0,0,0"
+                               VerticalAlignment="Top"
+                               Foreground="{StaticResource AccentBlue}"
+                               FontWeight="SemiBold"/>
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Style="{StaticResource PanelCard}"
+                Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Pin Elements"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock Text="Select groups, then apply Pin or Unpin."
+                           Foreground="{StaticResource TextSecondary}"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="{StaticResource CardBackground}"
+                BorderBrush="{StaticResource BorderSoft}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock x:Name="ContextText"
+                           Foreground="{StaticResource AccentBlue}"
+                           FontWeight="SemiBold"/>
+                <TextBlock x:Name="SelectionSummaryText"
+                           Margin="0,4,0,0"
+                           Foreground="{StaticResource TextSecondary}"
+                           TextWrapping="Wrap"/>
+                <StackPanel x:Name="SheetScopePanel"
+                            Margin="0,8,0,0">
+                    <TextBlock Text="Sheet Scope"
+                               Foreground="{StaticResource TextSecondary}"/>
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0,4,0,0">
+                        <RadioButton x:Name="ActiveSheetOnlyRadioButton"
+                                     Content="Active Sheet Only"
+                                     IsChecked="True"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Margin="0,0,16,0"/>
+                        <RadioButton x:Name="AllSheetsRadioButton"
+                                     Content="All Sheets"
+                                     Style="{StaticResource ModernRadioButton}"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <ScrollViewer Grid.Row="0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="0,0,4,0">
+                    <GroupBox x:Name="SheetItemsGroupBox"
+                              Header="Sheet Items"
+                              Style="{StaticResource ModernGroupBox}"
+                              Margin="0,0,0,8">
+                        <ListBox x:Name="SheetCategoryListBox"
+                                 Style="{StaticResource ModernListBox}"
+                                 ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                 ItemTemplate="{StaticResource CategoryItemTemplate}"/>
+                    </GroupBox>
+
+                    <GroupBox x:Name="ModelItemsGroupBox"
+                              Header="Model Items"
+                              Style="{StaticResource ModernGroupBox}">
+                        <ListBox x:Name="ModelCategoryListBox"
+                                 Style="{StaticResource ModernListBox}"
+                                 ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                 ItemTemplate="{StaticResource CategoryItemTemplate}"/>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="1"
+                        Orientation="Horizontal"
+                        Margin="0,10,0,0">
+                <Button x:Name="SelectAllButton"
+                        Content="Select All"
+                        Style="{StaticResource SecondaryButton}"
+                        MinWidth="110"
+                        Margin="0,0,8,0"
+                        Click="OnSelectAllClick"/>
+                <Button x:Name="ClearAllButton"
+                        Content="Clear All"
+                        Style="{StaticResource SecondaryButton}"
+                        MinWidth="110"
+                        Click="OnClearAllClick"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="StatusText"
+                       Grid.Column="0"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource TextSecondary}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,10,0"/>
+
+            <Button x:Name="PinButton"
+                    Grid.Column="1"
+                    Content="Pin"
+                    Style="{StaticResource SuccessButton}"
+                    IsDefault="True"
+                    MinWidth="104"
+                    Margin="0,0,8,0"
+                    Click="OnPinClick"/>
+
+            <Button x:Name="UnpinButton"
+                    Grid.Column="2"
+                    Content="Unpin"
+                    Style="{StaticResource DangerButton}"
+                    MinWidth="104"
+                    Margin="0,0,8,0"
+                    Click="OnUnpinClick"/>
+
+            <Button Grid.Column="3"
+                    Content="Close"
+                    Style="{StaticResource SecondaryButton}"
+                    IsCancel="True"
+                    MinWidth="104"
+                    Click="OnCloseClick"/>
+        </Grid>
+    </Grid>
+</Window>

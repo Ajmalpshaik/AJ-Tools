@@ -10,7 +10,6 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 
 namespace AJTools.UI
 {
@@ -26,13 +25,6 @@ namespace AJTools.UI
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
             ApplyTextWidthSizing();
-            // Auto-size once to content, then allow manual resizing.
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                SizeToContent = SizeToContent.Manual;
-                Width = ActualWidth;
-                Height = ActualHeight;
-            }), DispatcherPriority.Background);
         }
 
         private void OnCopyId(object sender, RoutedEventArgs e)
@@ -61,13 +53,9 @@ namespace AJTools.UI
                 MeasureTextWidth(ElementIdBox),
                 MeasureTextWidth(ModelSourceBox));
 
-            double minWidth = Math.Max(200, targetWidth);
+            double minWidth = Math.Max(280, Math.Min(targetWidth, 640));
             ElementIdBox.MinWidth = minWidth;
             ModelSourceBox.MinWidth = minWidth;
-            if (InfoText != null)
-            {
-                InfoText.MaxWidth = minWidth;
-            }
         }
 
         private double MeasureTextWidth(TextBox box)

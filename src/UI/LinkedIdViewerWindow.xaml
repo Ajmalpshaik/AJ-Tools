@@ -11,14 +11,16 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Linked ID Viewer"
-        MinHeight="160"
-        MinWidth="200"
-        ResizeMode="CanResizeWithGrip"
-        SizeToContent="WidthAndHeight"
+        Width="520"
+        Height="320"
+        MinHeight="260"
+        MinWidth="420"
+        ResizeMode="CanResize"
+        SizeToContent="Manual"
         Loaded="OnWindowLoaded"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="ToolWindow"
-        Background="{DynamicResource BackgroundDark}">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -29,6 +31,8 @@
 
     <Grid Margin="10">
         <Border Background="{StaticResource CardBackground}"
+                BorderBrush="{StaticResource BorderSoft}"
+                BorderThickness="1"
                 CornerRadius="8"
                 Padding="12">
             <Grid>
@@ -44,7 +48,7 @@
                 <TextBlock Grid.Row="0"
                            Text="Element ID"
                            FontWeight="Bold"
-                           FontSize="13"
+                           FontSize="14"
                            Foreground="{StaticResource TextPrimary}"/>
                 <TextBox x:Name="ElementIdBox"
                          Grid.Row="1"
@@ -52,27 +56,25 @@
                          Style="{StaticResource ModernTextBox}"
                          IsReadOnly="True"
                          FontSize="14"
-                         Height="28"
                          HorizontalScrollBarVisibility="Auto"/>
 
                 <TextBlock Grid.Row="2"
                            Text="Model Source"
                            FontWeight="Bold"
-                           FontSize="13"
+                           FontSize="14"
                            Foreground="{StaticResource TextPrimary}"/>
                 <TextBox x:Name="ModelSourceBox"
                          Grid.Row="3"
                          Margin="0,6,0,10"
                          Style="{StaticResource ModernTextBox}"
                          IsReadOnly="True"
-                         Height="28"
                          HorizontalScrollBarVisibility="Auto"/>
 
                 <Border Grid.Row="4"
-                        Background="#13203A"
+                        Background="{StaticResource CardBackground}"
                         CornerRadius="6"
                         Padding="8"
-                        BorderBrush="#22314F"
+                        BorderBrush="{StaticResource BorderSoft}"
                         BorderThickness="1">
                     <TextBlock x:Name="InfoText"
                                Text="Copy the ID to reuse in filters, schedules, or linked searches."
@@ -88,14 +90,14 @@
                     <Button Content="Copy"
                             Style="{StaticResource ModernButton}"
                             Click="OnCopyId"
-                            Height="34"
-                            MinWidth="70"
+                            IsDefault="True"
+                            MinWidth="110"
                             Margin="0,0,8,0"/>
                     <Button Content="Close"
                             Style="{StaticResource SecondaryButton}"
                             Click="OnClose"
-                            Height="34"
-                            MinWidth="70"/>
+                            IsCancel="True"
+                            MinWidth="110"/>
                 </StackPanel>
             </Grid>
         </Border>

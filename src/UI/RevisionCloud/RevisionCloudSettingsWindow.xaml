@@ -2,10 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Revision Cloud By Elements"
-        Width="400" Height="250"
+        Width="500" Height="340"
+        MinWidth="420"
+        MinHeight="280"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        Background="#FF1E1E1E">
+        ResizeMode="CanResize"
+        SizeToContent="Manual"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -15,43 +19,60 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Title -->
-        <TextBlock Grid.Row="0" Text="Revision Cloud By Elements"
-                   Foreground="{StaticResource TextPrimary}"
-                   FontSize="16" FontWeight="Bold" Margin="0,0,0,12"/>
+        <Border Grid.Row="0" Style="{StaticResource PanelCard}" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Revision Cloud By Elements"
+                           Style="{StaticResource TitleText}"
+                           FontSize="20"/>
+                <TextBlock Text="Configure offset distance for continuous cloud placement."
+                           Style="{StaticResource SubtitleText}"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
 
-        <!-- Cloud Settings -->
-        <GroupBox Grid.Row="1" Header="Cloud Settings" Style="{StaticResource ModernGroupBox}">
-            <Grid Margin="0,4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="30"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Offset Distance" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
-                <TextBox x:Name="txtOffset" Grid.Column="1" Style="{StaticResource ModernTextBox}" Text="50"/>
-                <TextBlock Grid.Column="2" Text="mm" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-            </Grid>
-        </GroupBox>
-
-        <!-- Info -->
-        <TextBlock Grid.Row="2" Text="Used by Cloud By Elements > Place. Press Esc while selecting to stop continuous run."
-                   Foreground="{StaticResource TextSecondary}" FontSize="10" Margin="5,8,0,0" FontStyle="Italic"
-                   VerticalAlignment="Top"/>
+        <Border Grid.Row="1" Style="{StaticResource PanelCard}">
+            <StackPanel>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="30"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Offset Distance"
+                               Foreground="{StaticResource TextSecondary}"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="txtOffset"
+                             Grid.Column="1"
+                             Style="{StaticResource ModernTextBox}"
+                             Text="50"/>
+                    <TextBlock Grid.Column="2"
+                               Text="mm"
+                               Foreground="{StaticResource TextSecondary}"
+                               VerticalAlignment="Center"
+                               Margin="4,0,0,0"/>
+                </Grid>
+                <TextBlock Text="Used by Cloud By Elements > Place. Press Esc while selecting to stop continuous run."
+                           Foreground="{StaticResource TextSecondary}"
+                           FontSize="11"
+                           FontStyle="Italic"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Save" Style="{StaticResource ModernButton}" Width="100"
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Save" Style="{StaticResource ModernButton}" MinWidth="110"
+                    IsDefault="True"
                     Click="BtnCreate_Click" Margin="0,0,8,0"/>
-            <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Width="100"
+            <Button Content="Cancel" Style="{StaticResource SecondaryButton}" MinWidth="110"
+                    IsCancel="True"
                     Click="BtnCancel_Click"/>
         </StackPanel>
     </Grid>

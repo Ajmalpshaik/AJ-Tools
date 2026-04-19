@@ -87,7 +87,10 @@
     <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
     <Compile Include="Commands\CmdLinkedElementSearch.cs" />
     <Compile Include="Commands\CmdLocationDataAssigner.cs" />
+    <Compile Include="Commands\CmdPinElements.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
+    <Compile Include="Commands\CmdReassignLevel.cs" />
+    <Compile Include="Commands\CmdTransferViewTemplates.cs" />
     <Compile Include="Commands\CmdQuickParallelDimension.cs" />
     <Compile Include="Commands\CmdResetDatums.cs" />
     <Compile Include="Commands\CmdResetOverrides.cs" />
@@ -119,6 +122,9 @@
     <Compile Include="Models\FilterValueKey.cs" />
     <Compile Include="Models\LinkDisplayItem.cs" />
     <Compile Include="Models\PatternItem.cs" />
+    <Compile Include="Models\PinTools\PinTargetGroup.cs" />
+    <Compile Include="Models\PinTools\PinCategoryItem.cs" />
+    <Compile Include="Models\PinTools\PinOperationSummary.cs" />
     <Compile Include="Models\ResetDatumMode.cs" />
     <Compile Include="Models\RuleTypeItem.cs" />
     <Compile Include="Models\RuleTypes.cs" />
@@ -161,6 +167,7 @@
     <Compile Include="Services\FilterPro\FilterValueKeyMatcher.cs" />
     <Compile Include="Services\FlowDirection\FlowDirectionAnnotationService.cs" />
     <Compile Include="Services\FlowDirection\FlowDirectionSettingsTracker.cs" />
+    <Compile Include="Services\PinTools\PinElementsService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropAnnotationCommandService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropAnnotationService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropAnnotationSettingsTracker.cs" />
@@ -202,6 +209,12 @@
     <Compile Include="UI\LocationDataAssignerWindow.xaml.cs">
       <DependentUpon>LocationDataAssignerWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\PinElementsWindow.xaml.cs">
+      <DependentUpon>PinElementsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\TransferViewTemplatesWindow.xaml.cs">
+      <DependentUpon>TransferViewTemplatesWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\SetLinkWorksetWindow.xaml.cs">
       <DependentUpon>SetLinkWorksetWindow.xaml</DependentUpon>
     </Compile>
@@ -238,6 +251,8 @@
     <Compile Include="Commands\CmdRevisionCloudByElements.cs" />
     <Compile Include="Commands\CmdRevisionCloudByElementsSettings.cs" />
     <Compile Include="Commands\CmdDuctStandardsManager.cs" />
+    <Compile Include="Commands\CmdPurgeUnusedFamilyParameters.cs" />
+    <Compile Include="Commands\CmdPurgeUnusedFamilyParametersAvailability.cs" />
     <Compile Include="Models\RevisionCloud\RevisionCloudSettings.cs" />
     <Compile Include="Models\DuctStandards\GeneralSettings.cs" />
     <Compile Include="Models\DuctStandards\MaterialInfo.cs" />
@@ -247,6 +262,10 @@
     <Compile Include="Models\DuctStandards\DuctStandardsConfig.cs" />
     <Compile Include="Models\DuctStandards\DuctCalculationResult.cs" />
     <Compile Include="Models\DuctStandards\DuctProcessingReport.cs" />
+    <Compile Include="Models\Purge\ParameterPurgeStatus.cs" />
+    <Compile Include="Models\Purge\FamilyParameterPurgeItem.cs" />
+    <Compile Include="Models\Purge\FamilyParameterPurgeScanResult.cs" />
+    <Compile Include="Models\Purge\FamilyParameterPurgeDeleteResult.cs" />
     <Compile Include="Services\RevisionCloud\GeometryProjectionService.cs" />
     <Compile Include="Services\RevisionCloud\OrthogonalOutlineBuilder.cs" />
     <Compile Include="Services\RevisionCloud\RevisionCloudCreator.cs" />
@@ -258,11 +277,17 @@
     <Compile Include="Services\DuctStandards\DuctWeightService.cs" />
     <Compile Include="Services\DuctStandards\DuctParameterWriter.cs" />
     <Compile Include="Services\DuctStandards\DuctStandardsProcessor.cs" />
+    <Compile Include="Services\Purge\FamilyParameterUsageEvaluator.cs" />
+    <Compile Include="Services\Purge\FamilyParameterScanService.cs" />
+    <Compile Include="Services\Purge\FamilyParameterDeleteService.cs" />
     <Compile Include="UI\RevisionCloud\RevisionCloudSettingsWindow.xaml.cs">
       <DependentUpon>RevisionCloudSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\DuctStandards\DuctStandardsManagerWindow.xaml.cs">
       <DependentUpon>DuctStandardsManagerWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Purge\PurgeUnusedFamilyParametersWindow.xaml.cs">
+      <DependentUpon>PurgeUnusedFamilyParametersWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -283,6 +308,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\LocationDataAssignerWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\PinElementsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\TransferViewTemplatesWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -323,6 +356,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\DuctStandards\DuctStandardsManagerWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Purge\PurgeUnusedFamilyParametersWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

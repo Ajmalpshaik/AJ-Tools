@@ -3,301 +3,56 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Duct Standards Manager - AJ Tools"
         Width="920" Height="680"
+        MinWidth="820"
+        MinHeight="560"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResizeWithGrip"
-        Background="#FF1E1E1E">
+        ResizeMode="CanResize"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- ========== DARK COLORS ========== -->
-            <SolidColorBrush x:Key="DkBg"       Color="#FF1E1E1E"/>
-            <SolidColorBrush x:Key="DkBgMed"    Color="#FF2D2D30"/>
-            <SolidColorBrush x:Key="DkBgLight"  Color="#FF3F3F46"/>
-            <SolidColorBrush x:Key="DkBorder"   Color="#FF555555"/>
-            <SolidColorBrush x:Key="DkFg"       Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="DkFgDim"    Color="#FFB0B0B0"/>
-            <SolidColorBrush x:Key="DkAccent"   Color="#FF007ACC"/>
+            <!-- Local aliases mapped to shared design system -->
+            <SolidColorBrush x:Key="DkBg" Color="#FF070B14"/>
+            <SolidColorBrush x:Key="DkBgMed" Color="#FF111A2E"/>
+            <SolidColorBrush x:Key="DkBgLight" Color="#FF1A2742"/>
+            <SolidColorBrush x:Key="DkBorder" Color="#FF2A3958"/>
+            <SolidColorBrush x:Key="DkFg" Color="#FFF4F8FF"/>
+            <SolidColorBrush x:Key="DkFgDim" Color="#FFB6C4E3"/>
+            <SolidColorBrush x:Key="DkAccent" Color="#FF00E5FF"/>
 
-            <!-- ========== TAB ITEM ========== -->
-            <Style x:Key="DarkTabItem" TargetType="TabItem">
-                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
-                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
-                <Setter Property="Padding" Value="14,6"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="TabItem">
-                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                    BorderBrush="{StaticResource DkBgLight}" BorderThickness="1,1,1,0"
-                                    Padding="{TemplateBinding Padding}" Margin="0,0,2,0"
-                                    CornerRadius="4,4,0,0">
-                                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkAccent}"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkBgLight}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
+            <Style x:Key="DarkTabItem" TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                <Setter Property="Padding" Value="14,8"/>
             </Style>
 
-            <!-- ========== TAB CONTROL (dark content area) ========== -->
-            <Style x:Key="DarkTabControl" TargetType="TabControl">
+            <Style x:Key="DarkTabControl" TargetType="TabControl" BasedOn="{StaticResource {x:Type TabControl}}">
                 <Setter Property="Background" Value="{StaticResource DkBg}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource DkBgLight}"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="0"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="TabControl">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <TabPanel Grid.Row="0" IsItemsHost="True" Background="{StaticResource DkBg}"/>
-                                <Border Grid.Row="1"
-                                        Background="{StaticResource DkBg}"
-                                        BorderBrush="{StaticResource DkBgLight}"
-                                        BorderThickness="1,0,1,1">
-                                    <ContentPresenter ContentSource="SelectedContent" Margin="0"/>
-                                </Border>
-                            </Grid>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
             </Style>
 
-            <!-- ========== LABEL ========== -->
-            <Style TargetType="Label">
-                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-            </Style>
+            <Style x:Key="DarkTextBox" TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}"/>
+            <Style x:Key="DarkComboBox" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"/>
+            <Style x:Key="DarkCheckBox" TargetType="CheckBox" BasedOn="{StaticResource ModernCheckBox}"/>
+            <Style x:Key="DarkRadioButton" TargetType="RadioButton" BasedOn="{StaticResource ModernRadioButton}"/>
+            <Style TargetType="GroupBox" BasedOn="{StaticResource ModernGroupBox}"/>
 
-            <!-- ========== TEXTBOX ========== -->
-            <Style x:Key="DarkTextBox" TargetType="TextBox">
-                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
-                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                <Setter Property="CaretBrush" Value="White"/>
-                <Setter Property="BorderBrush" Value="{StaticResource DkBorder}"/>
-                <Setter Property="Padding" Value="6,4"/>
-                <Setter Property="FontSize" Value="12"/>
-            </Style>
-
-            <!-- ========== COMBOBOX (full dark template) ========== -->
-            <ControlTemplate x:Key="DarkComboBoxToggle" TargetType="ToggleButton">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition Width="20"/>
-                    </Grid.ColumnDefinitions>
-                    <Border x:Name="Border" Grid.ColumnSpan="2"
-                            Background="{StaticResource DkBgMed}"
-                            BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
-                            CornerRadius="2"/>
-                    <Path x:Name="Arrow" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Data="M 0 0 L 4 4 L 8 0 Z" Fill="{StaticResource DkFgDim}"/>
-                </Grid>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Border" Property="Background" Value="{StaticResource DkBgLight}"/>
-                    </Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate>
-
-            <Style x:Key="DarkComboBox" TargetType="ComboBox">
-                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Padding" Value="6,4"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="ComboBox">
-                            <Grid>
-                                <ToggleButton x:Name="ToggleButton"
-                                              Template="{StaticResource DarkComboBoxToggle}"
-                                              IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                              Focusable="False" ClickMode="Press"/>
-                                <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
-                                                  Content="{TemplateBinding SelectionBoxItem}"
-                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                  Margin="8,4,24,4" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <ContentPresenter.Resources>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                                        </Style>
-                                    </ContentPresenter.Resources>
-                                </ContentPresenter>
-                                <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
-                                       AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                    <Grid x:Name="DropDown" SnapsToDevicePixels="True"
-                                          MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                        <Border x:Name="DropDownBorder"
-                                                Background="{StaticResource DkBgMed}"
-                                                BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
-                                                CornerRadius="0,0,2,2"/>
-                                        <ScrollViewer Margin="2" SnapsToDevicePixels="True">
-                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
-                                        </ScrollViewer>
-                                    </Grid>
-                                </Popup>
-                            </Grid>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
-            <!-- ComboBoxItem dark -->
-            <Style TargetType="ComboBoxItem">
-                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                <Setter Property="Background" Value="Transparent"/>
-                <Setter Property="Padding" Value="6,4"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="ComboBoxItem">
-                            <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                <ContentPresenter/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsHighlighted" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkAccent}"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                </Trigger>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource DkBgLight}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
-            <!-- ========== CHECKBOX ========== -->
-            <Style x:Key="DarkCheckBox" TargetType="CheckBox">
-                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="CheckBox">
-                            <StackPanel Orientation="Horizontal">
-                                <Border x:Name="box" Width="16" Height="16"
-                                        Background="{StaticResource DkBgMed}"
-                                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
-                                        CornerRadius="2" VerticalAlignment="Center" Margin="0,0,6,0">
-                                    <Path x:Name="check" Data="M 2 5 L 5 8 L 10 2"
-                                          Stroke="White" StrokeThickness="2"
-                                          Visibility="Collapsed" Margin="1"/>
-                                </Border>
-                                <ContentPresenter VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="check" Property="Visibility" Value="Visible"/>
-                                    <Setter TargetName="box" Property="Background" Value="{StaticResource DkAccent}"/>
-                                    <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
-            <!-- ========== RADIOBUTTON ========== -->
-            <Style x:Key="DarkRadioButton" TargetType="RadioButton">
-                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="RadioButton">
-                            <StackPanel Orientation="Horizontal">
-                                <Border x:Name="circle" Width="16" Height="16"
-                                        Background="{StaticResource DkBgMed}"
-                                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
-                                        CornerRadius="8" VerticalAlignment="Center" Margin="0,0,6,0">
-                                    <Ellipse x:Name="dot" Width="8" Height="8" Fill="White"
-                                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                                             Visibility="Collapsed"/>
-                                </Border>
-                                <ContentPresenter VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
-                                    <Setter TargetName="circle" Property="Background" Value="{StaticResource DkAccent}"/>
-                                    <Setter TargetName="circle" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="circle" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
-            <!-- ========== GROUPBOX ========== -->
-            <Style TargetType="GroupBox">
-                <Setter Property="Foreground" Value="{StaticResource DkFgDim}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource DkBgLight}"/>
-                <Setter Property="Background" Value="Transparent"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Margin" Value="4"/>
-                <Setter Property="Padding" Value="6"/>
-            </Style>
-
-            <!-- ========== DATAGRID ========== -->
-            <Style x:Key="DarkDataGrid" TargetType="DataGrid">
-                <Setter Property="Background" Value="{StaticResource DkBg}"/>
-                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource DkBgLight}"/>
-                <Setter Property="RowBackground" Value="{StaticResource DkBgMed}"/>
-                <Setter Property="AlternatingRowBackground" Value="#FF252833"/>
-                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-                <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource DkBgLight}"/>
-                <Setter Property="HeadersVisibility" Value="Column"/>
-                <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Style x:Key="DarkDataGrid" TargetType="DataGrid" BasedOn="{StaticResource ModernDataGrid}">
                 <Setter Property="CanUserAddRows" Value="True"/>
                 <Setter Property="CanUserDeleteRows" Value="True"/>
-                <Setter Property="SelectionMode" Value="Single"/>
                 <Setter Property="FontSize" Value="11"/>
-                <Setter Property="ColumnHeaderStyle">
-                    <Setter.Value>
-                        <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="Background" Value="{StaticResource DkBgLight}"/>
-                            <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                            <Setter Property="Padding" Value="6,4"/>
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                            <Setter Property="BorderBrush" Value="{StaticResource DkBorder}"/>
-                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                        </Style>
-                    </Setter.Value>
-                </Setter>
             </Style>
 
-            <!-- DataGrid cell text -->
             <Style x:Key="DgCell" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
                 <Setter Property="Padding" Value="4,2"/>
             </Style>
-            <Style x:Key="DgEdit" TargetType="TextBox">
-                <Setter Property="Background" Value="{StaticResource DkBgMed}"/>
-                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
-                <Setter Property="CaretBrush" Value="White"/>
+
+            <Style x:Key="DgEdit" TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}">
+                <Setter Property="Padding" Value="4,2"/>
             </Style>
 
         </ResourceDictionary>
@@ -311,11 +66,11 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#FF252833" Padding="12,8">
+        <Border Grid.Row="0" Background="{StaticResource DkBgMed}" Padding="12,8">
             <StackPanel>
-                <TextBlock Text="Duct Standards Manager" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Duct Standards Manager" FontSize="18" FontWeight="Bold" Foreground="{StaticResource DkFg}"/>
                 <TextBlock Text="Calculate sheet thickness, gauge, weight, and area for ducts based on SMACNA-style rules"
-                           Foreground="#FFB0B0B0" FontSize="11" Margin="0,2,0,0"/>
+                           Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="0,2,0,0"/>
             </StackPanel>
         </Border>
 
@@ -623,12 +378,14 @@
         </TabControl>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="#FF252833" Padding="12,6">
+        <Border Grid.Row="2" Background="{StaticResource DkBgMed}" Padding="12,6">
             <DockPanel>
                 <Button Content="Close" Style="{StaticResource SecondaryButton}" DockPanel.Dock="Right"
+                        IsCancel="True"
+                        Height="34"
                         Width="100" Click="BtnClose_Click"/>
                 <TextBlock Text="AJ Tools - Duct Standards Manager v1.0"
-                           Foreground="#FF6B6B6B" FontSize="10" VerticalAlignment="Center"/>
+                           Foreground="{StaticResource DkFgDim}" FontSize="10" VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
     </Grid>

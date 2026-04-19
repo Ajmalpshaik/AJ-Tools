@@ -1,9 +1,9 @@
-<!--
+﻿<!--
   Tool Name: Set Link Workset UI
   Description: Dialog to assign Revit links and CAD imports to a workset.
   Author: Ajmal P.S.
-  Version: 1.0.0
-  Last Updated: 2025-12-23
+  Version: 2.0.0
+  Last Updated: 2026-04-15
   Revit Version: 2020
   Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 -->
@@ -11,11 +11,23 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Assign Link Workset"
-        Height="500"
-        Width="450"
+        Height="560"
+        Width="520"
+        MinHeight="520"
+        MinWidth="480"
         WindowStartupLocation="CenterScreen"
-        Background="#F0F0F0">
-    <Grid Margin="15">
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -24,64 +36,101 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Grid.Row="0"
-               Content="Select links to move:"
-               FontWeight="Bold"
-               Foreground="#333"/>
+        <Border Grid.Row="0" Style="{StaticResource PanelCard}" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Assign Link Workset" Style="{StaticResource TitleText}" FontSize="20"/>
+                <TextBlock Text="Select Revit links or CAD imports and assign them to a target user workset."
+                           Style="{StaticResource SubtitleText}"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
 
-        <ListBox Grid.Row="1"
-                 x:Name="links_listbox"
-                 Margin="0,5,0,0"
-                 BorderBrush="#CCC"
-                 Background="White">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                              Content="{Binding Name}"
-                              Margin="5"/>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Border Grid.Row="1" Style="{StaticResource PanelCard}" Margin="0,0,0,10" Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Links to move"
+                           Style="{StaticResource SubtitleText}"
+                           Margin="2,0,0,8"/>
+
+                <ListBox Grid.Row="1"
+                         x:Name="links_listbox"
+                         Style="{StaticResource ModernListBox}"
+                         ItemContainerStyle="{StaticResource ModernListBoxItem}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                      Content="{Binding Name}"
+                                      Style="{StaticResource ModernCheckBox}"
+                                      Margin="2,0"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
 
         <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Margin="0,5,0,0">
+                    Margin="0,0,0,10">
             <Button Content="Select All"
+                    Style="{StaticResource SecondaryButton}"
                     Click="OnSelectAll"
-                    Margin="0,0,5,0"
-                    Padding="8,3"/>
+                    Margin="0,0,8,0"/>
             <Button Content="Select None"
+                    Style="{StaticResource SecondaryButton}"
                     Click="OnSelectNone"
-                    Margin="0,0,5,0"
-                    Padding="8,3"/>
-            <Button Content="Invert Selection"
-                    Click="OnInvertSelection"
-                    Padding="8,3"/>
+                    Margin="0,0,8,0"/>
+            <Button Content="Invert"
+                    Style="{StaticResource SecondaryButton}"
+                    Click="OnInvertSelection"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="3"
-                    Orientation="Horizontal"
-                    Margin="0,20,0,0">
-            <Label Content="Select or type workset name:"
-                   VerticalAlignment="Center"
-                   FontWeight="Bold"
-                   Foreground="#333"/>
-            <ComboBox x:Name="workset_combobox"
-                      Width="200"
-                      VerticalAlignment="Center"
-                      Margin="5,0,0,0"
-                      IsEditable="True"/>
-        </StackPanel>
+        <Border Grid.Row="3" Style="{StaticResource PanelCard}" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-        <Button Grid.Row="4"
-                x:Name="assign_workset_button"
-                Content="Assign Selected Links to Workset"
-                Margin="0,20,0,0"
-                Padding="10,8"
-                FontWeight="Bold"
-                Background="#007ACC"
-                Foreground="White"
-                Click="OnAssignWorkset"/>
+                <TextBlock Grid.Column="0"
+                           Text="Target workset"
+                           Style="{StaticResource SubtitleText}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0"/>
+
+                <ComboBox x:Name="workset_combobox"
+                          Grid.Column="1"
+                          Height="32"
+                          IsEditable="True"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1"
+                    x:Name="assign_workset_button"
+                    Content="Assign Selected Links To Workset"
+                    Style="{StaticResource PrimaryButton}"
+                    IsDefault="True"
+                    Height="34"
+                    Margin="0,0,8,0"
+                    Click="OnAssignWorkset"/>
+
+            <Button Grid.Column="2"
+                    Content="Close"
+                    Style="{StaticResource SecondaryButton}"
+                    IsCancel="True"
+                    MinWidth="110"/>
+        </Grid>
     </Grid>
 </Window>

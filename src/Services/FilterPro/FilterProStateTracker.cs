@@ -52,7 +52,7 @@ namespace AJTools.Services.FilterPro
                 RuleType = selection.RuleType,
                 Prefix = selection.Prefix ?? string.Empty,
                 Suffix = selection.Suffix ?? string.Empty,
-                Separator = string.IsNullOrWhiteSpace(separator) ? "_" : separator,
+                Separator = string.IsNullOrEmpty(separator) ? "_" : separator,
                 CaseSensitive = caseSensitive,
                 IncludeCategory = selection.IncludeCategory,
                 IncludeParameter = selection.IncludeParameter,

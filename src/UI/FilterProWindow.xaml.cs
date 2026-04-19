@@ -253,7 +253,7 @@ namespace AJTools.UI
             else if (values.Count > 1)
                 valueText = $"{values.Count} Values";
 
-            string separator = string.IsNullOrWhiteSpace(separator_textbox.Text)
+            string separator = string.IsNullOrEmpty(separator_textbox.Text)
                 ? "_"
                 : separator_textbox.Text;
 
@@ -456,7 +456,7 @@ namespace AJTools.UI
             ApplyRuleTypeSelection(lastState.RuleType);
             prefix_textbox.Text = lastState.Prefix ?? string.Empty;
             suffix_textbox.Text = lastState.Suffix ?? string.Empty;
-            separator_textbox.Text = string.IsNullOrWhiteSpace(lastState.Separator) ? "_" : lastState.Separator;
+            separator_textbox.Text = string.IsNullOrEmpty(lastState.Separator) ? "_" : lastState.Separator;
             case_sensitive_checkbox.IsChecked = lastState.CaseSensitive;
             include_cat_checkbox.IsChecked = lastState.IncludeCategory;
             include_param_checkbox.IsChecked = lastState.IncludeParameter;
@@ -596,7 +596,7 @@ namespace AJTools.UI
                     return null;
             }
 
-            string separator = string.IsNullOrWhiteSpace(separator_textbox.Text)
+            string separator = string.IsNullOrEmpty(separator_textbox.Text)
                 ? "_"
                 : separator_textbox.Text;
 

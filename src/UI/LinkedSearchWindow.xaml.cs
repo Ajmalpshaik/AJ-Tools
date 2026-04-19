@@ -72,12 +72,13 @@ namespace AJTools.UI
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
             ApplyModelListSizing();
-            // Auto-size once to content, then allow manual resizing.
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                SizeToContent = SizeToContent.Manual;
-                Width = ActualWidth;
-                Height = ActualHeight;
+                // Preserve user-resizable behavior while ensuring content has a safe baseline width.
+                if (Width < MinWidth)
+                {
+                    Width = MinWidth;
+                }
             }), DispatcherPriority.Background);
         }
 
@@ -254,16 +255,12 @@ namespace AJTools.UI
                              LinkSelector.BorderThickness.Left + LinkSelector.BorderThickness.Right;
             double targetWidth = maxNameWidth + chrome + columnPadding + padding + 10;
 
-            double minWidth = Math.Max(260, Math.Min(targetWidth, 560));
-            ElementIdBox.MinWidth = minWidth;
-            LinkSelector.MinWidth = minWidth;
+            double controlMinWidth = Math.Max(320, Math.Min(targetWidth, 560));
+            ElementIdBox.MinWidth = controlMinWidth;
+            LinkSelector.MinWidth = controlMinWidth;
             if (ModelDropdownButton != null)
             {
-                ModelDropdownButton.MinWidth = minWidth;
-            }
-            if (InfoText != null)
-            {
-                InfoText.MaxWidth = minWidth;
+                ModelDropdownButton.MinWidth = controlMinWidth;
             }
         }
 
