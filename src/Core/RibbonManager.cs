@@ -786,10 +786,14 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "About\nAJ Tools",
-                "View AJ Tools version, capabilities, and support contact.",
-                typeof(CmdAbout),
+                "Open the AJ Tools About window.",
+                typeof(AboutCommand),
                 "information.png",
-                "information.png");
+                "information.png",
+                pushButton =>
+                {
+                    pushButton.LongDescription = "Shows AJ Tools version, platform details, developer information, update notes, and repository links.";
+                });
         }
 
         private void AddTopLevelTool(RibbonPanel panel, TopLevelToolSpec toolSpec)

@@ -67,7 +67,7 @@
   <ItemGroup>
     <Compile Include="Core\App.cs" />
     <Compile Include="Core\RibbonManager.cs" />
-    <Compile Include="Commands\CmdAbout.cs" />
+    <Compile Include="Commands\AboutCommand.cs" />
     <Compile Include="Commands\Cmd3DViewsAsPerWorkset.cs" />
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
@@ -197,6 +197,9 @@
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\AboutWindow.xaml.cs">
+      <DependentUpon>AboutWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\FlowDirectionSettingsWindow.xaml.cs">
       <DependentUpon>FlowDirectionSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -291,6 +294,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="UI\AboutWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="UI\FilterProWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
