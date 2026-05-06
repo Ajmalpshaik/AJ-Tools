@@ -19,6 +19,7 @@
 5. For duct workflows, configure Duct Flow settings first.
 
 ## Notes
+- Unhide All clears Temporary Hide/Isolate and permanently hidden elements in the active view.
 - View Crop supports plan, section, elevation, area plan, engineering plan, and detail/callout views.
 - View Crop skips views controlled by scope boxes or view templates that lock crop settings.
 - Auto Dims requires Crop View enabled and plan/section/elevation context.
