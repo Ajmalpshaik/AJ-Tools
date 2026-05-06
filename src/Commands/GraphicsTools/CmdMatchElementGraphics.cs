@@ -1,4 +1,25 @@
+// ==================================================
+// Tool Name    : Graphics Tools
+// Purpose      : Copies element override settings from a source element to target elements.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2026-03-30
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : One source element and one or more target elements.
+// Output       : Target element graphics overrides matched in the active view.
+// Notes        : Normal success is silent; validation and critical errors are reported to the user.
+// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
+
 using System;
+using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -19,24 +40,16 @@ namespace AJTools.Commands.GraphicsTools
 
             try
             {
-                UIDocument uidoc = commandData.Application?.ActiveUIDocument;
-                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                Document doc = uidoc.Document;
-                if (!ValidationHelper.ValidateEditableDocument(doc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                View activeView = doc.ActiveView;
+                Result contextResult = GraphicsCommandService.TryCreateContext(
+                    commandData,
+                    dialogTitle,
+                    ref message,
+                    out GraphicsCommandContext context);
+                if (contextResult != Result.Succeeded)
+                    return contextResult;
 
                 if (!GraphicsSelectionService.TryPickSingleElementId(
-                    uidoc,
+                    context.UIDocument,
                     selectionFilter: null,
                     prompt: "Pick SOURCE element to copy element graphics from.",
                     out ElementId sourceElementId,
@@ -45,22 +58,22 @@ namespace AJTools.Commands.GraphicsTools
                     return Result.Cancelled;
                 }
 
-                if (doc.GetElement(sourceElementId) == null)
+                if (context.Document.GetElement(sourceElementId) == null)
                 {
-                    TaskDialog.Show(dialogTitle, "Source element is no longer valid.");
+                    DialogHelper.ShowError(dialogTitle, "Source element is no longer valid.");
                     return Result.Cancelled;
                 }
 
                 OverrideGraphicSettings sourceSettings = GraphicsOverrideBuilder.Clone(
-                    activeView.GetElementOverrides(sourceElementId));
+                    context.ActiveView.GetElementOverrides(sourceElementId));
 
+                var processedElementIds = new HashSet<int>();
                 int appliedCount = 0;
-                int skippedCount = 0;
 
                 while (true)
                 {
                     if (!GraphicsSelectionService.TryPickSingleElementId(
-                        uidoc,
+                        context.UIDocument,
                         selectionFilter: null,
                         prompt: "Select TARGET element (ESC to finish).",
                         out ElementId targetElementId,
@@ -74,47 +87,41 @@ namespace AJTools.Commands.GraphicsTools
                         continue;
                     }
 
-                    if (targetElementId == sourceElementId || doc.GetElement(targetElementId) == null)
+                    if (targetElementId == sourceElementId ||
+                        processedElementIds.Contains(targetElementId.IntegerValue) ||
+                        context.Document.GetElement(targetElementId) == null)
                     {
-                        skippedCount++;
                         continue;
                     }
 
-                    using (var transaction = new Transaction(doc, "AJ Tools - Match Element Graphics"))
+                    using (var transaction = new Transaction(context.Document, "AJ Tools - Match Element Graphics"))
                     {
                         transaction.Start();
                         try
                         {
-                            activeView.SetElementOverrides(targetElementId, sourceSettings);
+                            context.ActiveView.SetElementOverrides(targetElementId, sourceSettings);
                             transaction.Commit();
+                            processedElementIds.Add(targetElementId.IntegerValue);
                             appliedCount++;
                         }
                         catch
                         {
                             transaction.RollBack();
-                            skippedCount++;
                         }
                     }
                 }
 
                 if (appliedCount == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No element overrides were applied.");
                     return Result.Cancelled;
                 }
 
-                string resultMessage = $"Matched graphics to {appliedCount} element(s).";
-                if (skippedCount > 0)
-                {
-                    resultMessage += $"\nSkipped: {skippedCount}.";
-                }
-
-                TaskDialog.Show(dialogTitle, resultMessage);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(dialogTitle, ex.Message);
+                message = ex.Message;
+                DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }
         }

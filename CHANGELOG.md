@@ -3,6 +3,13 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.3.9] - 2026-05-06
+
+- Cleaned the Graphics Tools command group: Apply Graphics, Match Graphics, and Reset Graphics.
+- Added shared command context validation and summary transaction handling for graphics apply/reset flows.
+- Standardized production metadata headers for Graphics Tools commands, services, models, and WPF files.
+- Kept normal-success runs quiet and preserved the existing Revit graphics override behavior.
+
 ## [1.3.8] - 2026-05-06
 
 - Cleaned the Toggle Link command and added standardized production metadata.

@@ -1,3 +1,23 @@
+// ==================================================
+// Tool Name    : Graphics Tools
+// Purpose      : Resets category graphics overrides for model categories found in the active view.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2026-03-30
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Active Revit view with visible model elements.
+// Output       : Active-view model categories reset to By View graphics.
+// Notes        : Normal success is silent; validation and critical errors are reported to the user.
+// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
+
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
@@ -21,82 +41,54 @@ namespace AJTools.Commands.GraphicsTools
 
             try
             {
-                UIDocument uidoc = commandData.Application?.ActiveUIDocument;
-                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
+                Result contextResult = GraphicsCommandService.TryCreateContext(
+                    commandData,
+                    dialogTitle,
+                    ref message,
+                    out GraphicsCommandContext context);
+                if (contextResult != Result.Succeeded)
+                    return contextResult;
 
-                Document doc = uidoc.Document;
-                if (!ValidationHelper.ValidateEditableDocument(doc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                View activeView = doc.ActiveView;
-
-                ICollection<ElementId> allElementIdsInView = new FilteredElementCollector(doc, activeView.Id)
+                ICollection<ElementId> allElementIdsInView = new FilteredElementCollector(context.Document, context.ActiveView.Id)
                     .WhereElementIsNotElementType()
                     .ToElementIds();
 
                 if (allElementIdsInView.Count == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No elements were found in the active view.");
                     return Result.Cancelled;
                 }
 
                 IList<Category> categories = GraphicsCategoryService.GetUniqueCategoriesFromElements(
-                    doc,
-                    activeView,
+                    context.Document,
+                    context.ActiveView,
                     allElementIdsInView,
                     includeAnnotationCategories: false);
 
                 if (categories.Count == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No valid model categories were found in the active view.");
                     return Result.Cancelled;
                 }
 
-                GraphicsOperationSummary summary;
-                using (var transaction = new Transaction(doc, "AJ Tools - Reset Category Graphics (All Elements)"))
-                {
-                    transaction.Start();
-                    summary = GraphicsCategoryService.ApplyOverrides(
-                        activeView,
+                GraphicsOperationSummary summary = GraphicsCommandService.ExecuteSummaryTransaction(
+                    context.Document,
+                    "AJ Tools - Reset Category Graphics (All Elements)",
+                    () => GraphicsCategoryService.ApplyOverrides(
+                        context.ActiveView,
                         categories,
                         new OverrideGraphicSettings(),
-                        includeAnnotationCategories: false);
-
-                    if (summary.HasChanges)
-                    {
-                        transaction.Commit();
-                    }
-                    else
-                    {
-                        transaction.RollBack();
-                    }
-                }
+                        includeAnnotationCategories: false));
 
                 if (!summary.HasChanges)
                 {
-                    TaskDialog.Show(dialogTitle, "No category overrides were reset.");
                     return Result.Cancelled;
                 }
 
-                string resultMessage = $"Reset graphics for {summary.Applied} category(s).";
-                if (summary.Skipped > 0)
-                {
-                    resultMessage += $"\nSkipped: {summary.Skipped}.";
-                }
-
-                TaskDialog.Show(dialogTitle, resultMessage);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(dialogTitle, ex.Message);
+                message = ex.Message;
+                DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }
         }

@@ -1,9 +1,29 @@
+// ==================================================
+// Tool Name    : Graphics Tools
+// Purpose      : Clears element graphics overrides from selected elements.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2026-03-30
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Selected elements in the active view.
+// Output       : Selected element overrides reset to By View graphics.
+// Notes        : Normal success is silent; validation and critical errors are reported to the user.
+// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
+
 using System;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.Services.GraphicsTools;
 using AJTools.Models.GraphicsTools;
+using AJTools.Services.GraphicsTools;
 using AJTools.Utils;
 
 namespace AJTools.Commands.GraphicsTools
@@ -20,24 +40,16 @@ namespace AJTools.Commands.GraphicsTools
 
             try
             {
-                UIDocument uidoc = commandData.Application?.ActiveUIDocument;
-                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                Document doc = uidoc.Document;
-                if (!ValidationHelper.ValidateEditableDocument(doc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                View activeView = doc.ActiveView;
+                Result contextResult = GraphicsCommandService.TryCreateContext(
+                    commandData,
+                    dialogTitle,
+                    ref message,
+                    out GraphicsCommandContext context);
+                if (contextResult != Result.Succeeded)
+                    return contextResult;
 
                 SelectionCaptureResult selection = GraphicsSelectionService.GetPreselectedOrPromptElementIds(
-                    uidoc,
+                    context.UIDocument,
                     selectionFilter: null,
                     prompt: "Select elements to clear element graphics in the active view.");
 
@@ -48,44 +60,28 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (selection.ElementIds.Count == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No elements were selected.");
                     return Result.Cancelled;
                 }
 
-                GraphicsOperationSummary summary;
-                using (var transaction = new Transaction(doc, "AJ Tools - Clear Selected Element Graphics"))
-                {
-                    transaction.Start();
-                    summary = GraphicsElementService.ClearOverrides(doc, activeView, selection.ElementIds);
-
-                    if (summary.HasChanges)
-                    {
-                        transaction.Commit();
-                    }
-                    else
-                    {
-                        transaction.RollBack();
-                    }
-                }
+                GraphicsOperationSummary summary = GraphicsCommandService.ExecuteSummaryTransaction(
+                    context.Document,
+                    "AJ Tools - Clear Selected Element Graphics",
+                    () => GraphicsElementService.ClearOverrides(
+                        context.Document,
+                        context.ActiveView,
+                        selection.ElementIds));
 
                 if (!summary.HasChanges)
                 {
-                    TaskDialog.Show(dialogTitle, "No element overrides were cleared.");
                     return Result.Cancelled;
                 }
 
-                string resultMessage = $"Cleared graphics for {summary.Applied} element(s).";
-                if (summary.Skipped > 0)
-                {
-                    resultMessage += $"\nSkipped: {summary.Skipped}.";
-                }
-
-                TaskDialog.Show(dialogTitle, resultMessage);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(dialogTitle, ex.Message);
+                message = ex.Message;
+                DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }
         }

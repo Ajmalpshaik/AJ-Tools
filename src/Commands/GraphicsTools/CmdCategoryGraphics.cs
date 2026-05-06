@@ -1,3 +1,23 @@
+// ==================================================
+// Tool Name    : Graphics Tools
+// Purpose      : Applies category graphics overrides to selected model categories.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2026-03-30
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Selected model elements and graphics override settings.
+// Output       : Category graphics overrides applied in the active view.
+// Notes        : Normal success is silent; validation and critical errors are reported to the user.
+// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
+
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
@@ -22,24 +42,16 @@ namespace AJTools.Commands.GraphicsTools
 
             try
             {
-                UIDocument uidoc = commandData.Application?.ActiveUIDocument;
-                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                Document doc = uidoc.Document;
-                if (!ValidationHelper.ValidateEditableDocument(doc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                View activeView = doc.ActiveView;
+                Result contextResult = GraphicsCommandService.TryCreateContext(
+                    commandData,
+                    dialogTitle,
+                    ref message,
+                    out GraphicsCommandContext context);
+                if (contextResult != Result.Succeeded)
+                    return contextResult;
 
                 SelectionCaptureResult selection = GraphicsSelectionService.GetPreselectedOrPromptElementIds(
-                    uidoc,
+                    context.UIDocument,
                     new ModelCategorySelectionFilter(),
                     "Select model elements to apply category graphics in the active view.");
 
@@ -50,24 +62,22 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (selection.ElementIds.Count == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No elements were selected.");
                     return Result.Cancelled;
                 }
 
                 IList<Category> categories = GraphicsCategoryService.GetUniqueCategoriesFromElements(
-                    doc,
-                    activeView,
+                    context.Document,
+                    context.ActiveView,
                     selection.ElementIds,
                     includeAnnotationCategories: false);
 
                 if (categories.Count == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No valid model categories were found in the selection.");
                     return Result.Cancelled;
                 }
 
                 var settingsWindow = new GraphicsOverrideWindow(
-                    doc,
+                    context.Document,
                     "Category Graphics Settings",
                     GraphicsOverrideWindowMode.CategoryApply);
                 if (settingsWindow.ShowDialog() != true)
@@ -76,41 +86,27 @@ namespace AJTools.Commands.GraphicsTools
                 }
 
                 OverrideGraphicSettings settings = settingsWindow.SelectedOverrideSettings ?? new OverrideGraphicSettings();
-                GraphicsOperationSummary summary;
 
-                using (var transaction = new Transaction(doc, "AJ Tools - Category Graphics"))
-                {
-                    transaction.Start();
-                    summary = GraphicsCategoryService.ApplyOverrides(activeView, categories, settings, includeAnnotationCategories: false);
-
-                    if (summary.HasChanges)
-                    {
-                        transaction.Commit();
-                    }
-                    else
-                    {
-                        transaction.RollBack();
-                    }
-                }
+                GraphicsOperationSummary summary = GraphicsCommandService.ExecuteSummaryTransaction(
+                    context.Document,
+                    "AJ Tools - Category Graphics",
+                    () => GraphicsCategoryService.ApplyOverrides(
+                        context.ActiveView,
+                        categories,
+                        settings,
+                        includeAnnotationCategories: false));
 
                 if (!summary.HasChanges)
                 {
-                    TaskDialog.Show(dialogTitle, "No category overrides were applied.");
                     return Result.Cancelled;
                 }
 
-                string resultMessage = $"Applied graphics to {summary.Applied} category(s).";
-                if (summary.Skipped > 0)
-                {
-                    resultMessage += $"\nSkipped: {summary.Skipped}.";
-                }
-
-                TaskDialog.Show(dialogTitle, resultMessage);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(dialogTitle, ex.Message);
+                message = ex.Message;
+                DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }
         }
