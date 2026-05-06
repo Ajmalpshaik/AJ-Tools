@@ -49,12 +49,14 @@ namespace AJTools.UI.ViewCrop
 
         private void OnSearchChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
+            SelectionErrorText.Text = string.Empty;
             _collectionView.Refresh();
             UpdateSelectionCount();
         }
 
         private void OnSelectAll(object sender, RoutedEventArgs e)
         {
+            SelectionErrorText.Text = string.Empty;
             foreach (ViewCropTargetViewItem item in _items)
             {
                 if (item.CanSelect && FilterItem(item))
@@ -66,6 +68,7 @@ namespace AJTools.UI.ViewCrop
 
         private void OnClearAll(object sender, RoutedEventArgs e)
         {
+            SelectionErrorText.Text = string.Empty;
             foreach (ViewCropTargetViewItem item in _items)
             {
                 item.IsSelected = false;
@@ -76,6 +79,8 @@ namespace AJTools.UI.ViewCrop
 
         private void OnRun(object sender, RoutedEventArgs e)
         {
+            SelectionErrorText.Text = string.Empty;
+
             List<ElementId> selected = _items
                 .Where(i => i.CanSelect && i.IsSelected && i.ViewId != null)
                 .GroupBy(i => i.ViewId.IntegerValue)
@@ -84,12 +89,7 @@ namespace AJTools.UI.ViewCrop
 
             if (selected.Count == 0)
             {
-                MessageBox.Show(
-                    this,
-                    "Select at least one supported view.",
-                    "View Crop",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                SelectionErrorText.Text = "Select at least one supported view.";
                 return;
             }
 

@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.3.5] - 2026-05-06
+
+- Cleaned the View Crop command flow, shared target-view selection path, and command result handling.
+- Improved View Crop WPF labels, spacing, validation feedback, and normal-success dialog behavior.
+- Confirmed the View Crop cleanup remains scoped to Revit 2020 and .NET Framework 4.7.2.
+
 ## [1.3.4] - 2026-04-19
 
 - Refactored the About command to use a dedicated WPF About window.

@@ -8,7 +8,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Windows.Interop;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -66,12 +65,11 @@ namespace AJTools.Services.ViewCrop
                 ViewCropAnnotationSettings settings = optionsWindow.SelectedSettings ?? new ViewCropAnnotationSettings();
                 settingsTracker.Save(settings);
 
-                IList<View> targetViews = ResolveTargetViews(
+                IList<View> targetViews = ViewCropCommandService.ResolveTargetViews(
                     commandData,
                     doc,
                     activeView,
                     optionsWindow.ApplyToActiveViewOnly,
-                    commandTitle,
                     out string resolveError);
 
                 if (!string.IsNullOrWhiteSpace(resolveError))
@@ -81,18 +79,15 @@ namespace AJTools.Services.ViewCrop
                     return Result.Cancelled;
                 }
 
-                if (targetViews.Count == 0)
-                {
-                    DialogHelper.ShowInfo(commandTitle, "No views selected.");
+                if (targetViews == null || targetViews.Count == 0)
                     return Result.Cancelled;
-                }
 
                 var service = new ViewCropAnnotationService(doc, settings);
                 var batch = service.Process(targetViews, $"AJ Tools - {commandTitle}");
 
                 try
                 {
-                    ShowBatchSummary(commandTitle, batch);
+                    ShowBatchSummaryIfNeeded(commandTitle, batch);
                 }
                 catch (Exception summaryEx)
                 {
@@ -102,7 +97,7 @@ namespace AJTools.Services.ViewCrop
                         $"Processing finished, but summary dialog failed.\n{summaryEx.Message}\n\nLog: {summaryLog}");
                 }
 
-                return batch.UpdatedCount > 0 ? Result.Succeeded : Result.Cancelled;
+                return ViewCropCommandService.ToCommandResult(batch);
             }
             catch (Exception ex)
             {
@@ -111,64 +106,15 @@ namespace AJTools.Services.ViewCrop
                 DialogHelper.ShowError(
                     commandTitle,
                     $"{ex.Message}\n\nDetails log:\n{logPath}");
-                return Result.Cancelled;
+                return Result.Failed;
             }
         }
 
-        private static IList<View> ResolveTargetViews(
-            ExternalCommandData commandData,
-            Document doc,
-            View activeView,
-            bool applyToActiveOnly,
-            string commandTitle,
-            out string error)
+        private static void ShowBatchSummaryIfNeeded(string title, ViewCropBatchResult batch)
         {
-            error = string.Empty;
+            if (batch == null || (batch.SkippedCount == 0 && batch.FailedCount == 0))
+                return;
 
-            if (applyToActiveOnly)
-            {
-                if (!ViewCropViewSupport.TryValidateType(activeView, out string reason))
-                {
-                    error = $"Unsupported active view. {reason}";
-                    return new List<View>();
-                }
-
-                return new List<View> { activeView };
-            }
-
-            IList<ViewCropTargetViewItem> items = ViewCropTargetViewCollector.Collect(doc, activeView.Id);
-            var selectionWindow = new ViewCropTargetViewsWindow(items);
-            new WindowInteropHelper(selectionWindow)
-            {
-                Owner = commandData.Application.MainWindowHandle
-            };
-
-            bool? selectionResult = selectionWindow.ShowDialog();
-            if (selectionResult != true)
-                return new List<View>();
-
-            IList<ElementId> selectedIds = selectionWindow.SelectedViewIds ?? new List<ElementId>();
-            var views = new List<View>();
-            foreach (ElementId id in selectedIds)
-            {
-                View view = doc.GetElement(id) as View;
-                if (view != null)
-                    views.Add(view);
-            }
-
-            views = views
-                .GroupBy(v => v.Id.IntegerValue)
-                .Select(g => g.First())
-                .ToList();
-
-            if (views.Count == 0)
-                error = "No views selected.";
-
-            return views;
-        }
-
-        private static void ShowBatchSummary(string title, ViewCropBatchResult batch)
-        {
             var dialog = new TaskDialog(title)
             {
                 MainInstruction = "Annotation crop processing completed.",
