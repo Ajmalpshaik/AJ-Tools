@@ -1,12 +1,14 @@
 // Tool Name: Unhide All
 // Description: Unhides all elements in the active view (temporary hide and hidden items).
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
+// Version: 1.1.0
+// Last Updated: 2026-05-06
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 
 using System;
+using System.Collections.Generic;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Utils;
@@ -16,10 +18,11 @@ namespace AJTools.Commands
     /// <summary>
     /// Unhides all elements in the active view (temporary hide and hidden items).
     /// </summary>
-    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
+    [Transaction(TransactionMode.Manual)]
     public class CmdUnhideAll : IExternalCommand
     {
-        private const string Title = "Unhide All Elements in Active View";
+        private const string Title = "Unhide All";
+        private const string TransactionName = "AJ Tools - Unhide All";
 
         public Result Execute(
             ExternalCommandData commandData,
@@ -28,50 +31,88 @@ namespace AJTools.Commands
         {
             try
             {
-                UIDocument uiDoc = commandData.Application.ActiveUIDocument;
+                UIDocument uidoc = commandData.Application?.ActiveUIDocument;
+                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
+                {
+                    DialogHelper.ShowError(Title, message);
+                    return Result.Cancelled;
+                }
 
-                if (!ValidationHelper.ValidateUIDocumentAndView(uiDoc, out message))
-                    return Result.Failed;
+                Document doc = uidoc.Document;
+                if (doc.IsReadOnly)
+                {
+                    message = "The document is read-only. Please open an editable document.";
+                    DialogHelper.ShowError(Title, message);
+                    return Result.Cancelled;
+                }
 
-                Document doc = uiDoc.Document;
                 View view = doc.ActiveView;
 
-                // Same logic as your pyRevit script: collect all elements in the model
-                var allElementIds = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToElementIds();
+                ICollection<ElementId> hiddenElementIds = CollectPermanentlyHiddenElementIds(doc, view);
 
-                using (Transaction t = new Transaction(doc, Title))
+                using (Transaction transaction = new Transaction(doc, TransactionName))
                 {
-                    t.Start();
+                    transaction.Start();
 
-                    // Unhide all elements in the active view
-                    view.UnhideElements(allElementIds);
+                    if (hiddenElementIds.Count > 0)
+                        view.UnhideElements(hiddenElementIds);
 
-                    // Try to reset Temporary Hide/Isolate (ignore if not active / not supported)
-                    try
-                    {
-                        view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
-                    }
-                    catch
-                    {
-                        // No action needed
-                    }
+                    TryDisableTemporaryHideIsolate(view);
 
-                    t.Commit();
+                    transaction.Commit();
                 }
 
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
-                // User cancelled the operation
                 return Result.Cancelled;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(Title, $"An error occurred: {ex.Message}");
+                message = ex.Message;
+                DialogHelper.ShowError(Title, $"Could not unhide elements in the active view.\n\n{ex.Message}");
                 return Result.Failed;
+            }
+        }
+
+        private static ICollection<ElementId> CollectPermanentlyHiddenElementIds(Document doc, View view)
+        {
+            var hiddenElementIds = new List<ElementId>();
+
+            foreach (Element element in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                if (element == null || !element.IsValidObject)
+                    continue;
+
+                if (IsPermanentlyHidden(element, view))
+                    hiddenElementIds.Add(element.Id);
+            }
+
+            return hiddenElementIds;
+        }
+
+        private static bool IsPermanentlyHidden(Element element, View view)
+        {
+            try
+            {
+                return element.IsHidden(view);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void TryDisableTemporaryHideIsolate(View view)
+        {
+            try
+            {
+                view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+            }
+            catch
+            {
+                // Some view types or states may reject temporary mode changes.
             }
         }
     }

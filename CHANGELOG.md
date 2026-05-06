@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.3.6] - 2026-05-06
+
+- Cleaned the Unhide All command and removed old debug-style comments.
+- Fixed Unhide All to pass only elements permanently hidden in the active view to Revit's `UnhideElements` API.
+- Kept Temporary Hide/Isolate reset behavior and normal-success runs quiet.
+
 ## [1.3.5] - 2026-05-06
 
 - Cleaned the View Crop command flow, shared target-view selection path, and command result handling.
