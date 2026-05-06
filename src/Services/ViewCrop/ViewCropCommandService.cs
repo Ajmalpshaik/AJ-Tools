@@ -71,7 +71,6 @@ namespace AJTools.Services.ViewCrop
                     doc,
                     activeView,
                     optionsWindow.ApplyToActiveViewOnly,
-                    commandTitle,
                     out string resolveError);
 
                 if (!string.IsNullOrWhiteSpace(resolveError))
@@ -81,18 +80,15 @@ namespace AJTools.Services.ViewCrop
                     return Result.Cancelled;
                 }
 
-                if (targetViews.Count == 0)
-                {
-                    DialogHelper.ShowInfo(commandTitle, "No views selected.");
+                if (targetViews == null || targetViews.Count == 0)
                     return Result.Cancelled;
-                }
 
                 var service = new ViewCropExtentsService(doc, settings, source);
                 var batch = service.Process(targetViews, $"AJ Tools - {commandTitle}");
 
                 try
                 {
-                    ShowBatchSummary(commandTitle, batch);
+                    ShowBatchSummaryIfNeeded(commandTitle, batch);
                 }
                 catch (Exception summaryEx)
                 {
@@ -102,7 +98,7 @@ namespace AJTools.Services.ViewCrop
                         $"Processing finished, but summary dialog failed.\n{summaryEx.Message}\n\nLog: {summaryLog}");
                 }
 
-                return batch.UpdatedCount > 0 ? Result.Succeeded : Result.Cancelled;
+                return ToCommandResult(batch);
             }
             catch (Exception ex)
             {
@@ -111,16 +107,15 @@ namespace AJTools.Services.ViewCrop
                 DialogHelper.ShowError(
                     commandTitle,
                     $"{ex.Message}\n\nDetails log:\n{logPath}");
-                return Result.Cancelled;
+                return Result.Failed;
             }
         }
 
-        private static IList<View> ResolveTargetViews(
+        internal static IList<View> ResolveTargetViews(
             ExternalCommandData commandData,
             Document doc,
             View activeView,
             bool applyToActiveOnly,
-            string commandTitle,
             out string error)
         {
             error = string.Empty;
@@ -146,7 +141,7 @@ namespace AJTools.Services.ViewCrop
             bool? selectionResult = selectionWindow.ShowDialog();
             if (selectionResult != true)
             {
-                return new List<View>();
+                return null;
             }
 
             IList<ElementId> selectedIds = selectionWindow.SelectedViewIds ?? new List<ElementId>();
@@ -171,8 +166,22 @@ namespace AJTools.Services.ViewCrop
             return views;
         }
 
-        private static void ShowBatchSummary(string title, ViewCropBatchResult batch)
+        internal static Result ToCommandResult(ViewCropBatchResult batch)
         {
+            if (batch == null)
+                return Result.Cancelled;
+
+            if (batch.UpdatedCount > 0)
+                return Result.Succeeded;
+
+            return batch.FailedCount > 0 ? Result.Failed : Result.Cancelled;
+        }
+
+        private static void ShowBatchSummaryIfNeeded(string title, ViewCropBatchResult batch)
+        {
+            if (batch == null || (batch.SkippedCount == 0 && batch.FailedCount == 0))
+                return;
+
             var dialog = new TaskDialog(title)
             {
                 MainInstruction = "View crop processing completed.",
