@@ -1,11 +1,22 @@
-// Tool Name: Unhide All
-// Description: Unhides all elements in the active view (temporary hide and hidden items).
-// Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2026-05-06
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
-
+// ==================================================
+// Tool Name    : Unhide All
+// Purpose      : Unhides permanently hidden elements and clears Temporary Hide/Isolate in the active view.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2025-12-10
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Active editable Revit project view.
+// Output       : Hidden elements restored in the active view and Temporary Hide/Isolate disabled where supported.
+// Notes        : Normal success is silent; errors are shown only when the restore operation cannot complete.
+// Changelog    : v1.1.0 - API-safe hidden element restore and standardized metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;

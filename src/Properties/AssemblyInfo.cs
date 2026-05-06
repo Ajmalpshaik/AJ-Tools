@@ -1,10 +1,22 @@
-// Tool Name: AJ Tools Assembly Info
-// Description: Assembly metadata for the AJ Tools add-in.
-// Author: Ajmal P.S.
-// Version: 1.3.6
-// Last Updated: 2026-05-06
-// Revit Version: 2020
-// Dependencies: System.Reflection
+// ==================================================
+// Tool Name    : AJ Tools Assembly Metadata
+// Purpose      : Defines assembly-level metadata and version information for the AJ Tools add-in.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.3.7
+// Created      : 2025-12-10
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : System.Reflection, System.Runtime.InteropServices
+// Input        : Assembly build metadata.
+// Output       : Versioned AJ Tools assembly attributes.
+// Notes        : Keep this version aligned with release tags and installer package versions.
+// Changelog    : v1.3.7 - Standardized metadata headers for View Crop and Unhide All code.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -35,5 +47,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.3.6.0")]
-[assembly: AssemblyFileVersion("1.3.6.0")]
+[assembly: AssemblyVersion("1.3.7.0")]
+[assembly: AssemblyFileVersion("1.3.7.0")]
