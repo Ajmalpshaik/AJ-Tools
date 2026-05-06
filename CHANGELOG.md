@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.3.7] - 2026-05-06
+
+- Standardized production metadata headers for all View Crop C# and XAML files.
+- Standardized production metadata header for the Unhide All command.
+- Kept View Crop and Unhide All runtime logic unchanged from the previous releases.
+
 ## [1.3.6] - 2026-05-06
 
 - Cleaned the Unhide All command and removed old debug-style comments.
