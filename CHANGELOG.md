@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.3.8] - 2026-05-06
+
+- Cleaned the Toggle Link command and added standardized production metadata.
+- Added validation before changing Revit Links category visibility in the active view.
+- Kept Toggle Link normal-success runs quiet and scoped to Revit 2020 / .NET Framework 4.7.2.
+
 ## [1.3.7] - 2026-05-06
 
 - Standardized production metadata headers for all View Crop C# and XAML files.
