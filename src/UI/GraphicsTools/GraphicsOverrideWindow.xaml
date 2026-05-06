@@ -1,11 +1,33 @@
+<!--
+==================================================
+Tool Name    : Graphics Tools
+Purpose      : Defines the WPF graphics override settings window layout.
+Author       : Ajmal P.S.
+Company      : AJ Tools
+Version      : 1.1.0
+Created      : 2026-03-30
+Last Updated : 2026-05-06
+Target       : Revit 2020
+Framework    : .NET Framework 4.7.2
+Platform     : C# Revit Add-in
+Dependencies : Autodesk Revit API, WPF
+Input        : User graphics settings selections.
+Output       : Structured settings window for Apply and Match graphics workflows.
+Notes        : Normal success is silent; validation and critical errors are reported to the user.
+Changelog    : v1.1.0 - Cleaned Graphics Tools UI layout, labels, and metadata.
+License      : All Rights Reserved
+Repo         : AJ-Tools
+==================================================
+-->
+
 <Window x:Class="AJTools.UI.GraphicsTools.GraphicsOverrideWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Graphics Override Settings"
-        Width="560"
-        Height="620"
-        MinWidth="520"
-        MinHeight="560"
+        Width="600"
+        Height="650"
+        MinWidth="560"
+        MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundDark}"
         Foreground="{DynamicResource TextPrimary}">
@@ -75,7 +97,7 @@
 
                     <TextBlock x:Name="QuickColorTargetLabel"
                                Grid.Column="0"
-                               Text="Apply Preset To"
+                               Text="Preset Target"
                                VerticalAlignment="Center"
                                Foreground="{StaticResource TextSecondary}"/>
 
@@ -93,7 +115,7 @@
 
                     <TextBlock x:Name="QuickColorAllNoticeText"
                                Grid.Column="1"
-                               Text="Preset applies to all Projection/Surface/Cut colors."
+                               Text="Preset applies to all projection, surface, and cut colors."
                                VerticalAlignment="Center"
                                Foreground="{StaticResource TextSecondary}"
                                Visibility="Collapsed"/>
@@ -344,7 +366,7 @@
                     Margin="0,0,6,0"
                     Click="OnReset"/>
             <Button Grid.Column="2"
-                    Content="OK"
+                    Content="Apply"
                     Style="{StaticResource ModernButton}"
                     IsDefault="True"
                     MinWidth="110"

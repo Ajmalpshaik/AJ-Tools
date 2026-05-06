@@ -1,3 +1,23 @@
+// ==================================================
+// Tool Name    : Graphics Tools
+// Purpose      : Copies category override settings from a source category to target categories.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2026-03-30
+// Last Updated : 2026-05-06
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : One source model element and one or more target model elements.
+// Output       : Target category graphics overrides matched in the active view.
+// Notes        : Normal success is silent; validation and critical errors are reported to the user.
+// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
+
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
@@ -20,24 +40,16 @@ namespace AJTools.Commands.GraphicsTools
 
             try
             {
-                UIDocument uidoc = commandData.Application?.ActiveUIDocument;
-                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                Document doc = uidoc.Document;
-                if (!ValidationHelper.ValidateEditableDocument(doc, out message))
-                {
-                    TaskDialog.Show(dialogTitle, message);
-                    return Result.Failed;
-                }
-
-                View activeView = doc.ActiveView;
+                Result contextResult = GraphicsCommandService.TryCreateContext(
+                    commandData,
+                    dialogTitle,
+                    ref message,
+                    out GraphicsCommandContext context);
+                if (contextResult != Result.Succeeded)
+                    return contextResult;
 
                 if (!GraphicsSelectionService.TryPickSingleElementId(
-                    uidoc,
+                    context.UIDocument,
                     new ModelCategorySelectionFilter(),
                     "Pick SOURCE element to copy category graphics from.",
                     out ElementId sourceElementId,
@@ -46,29 +58,28 @@ namespace AJTools.Commands.GraphicsTools
                     return Result.Cancelled;
                 }
 
-                Element sourceElement = doc.GetElement(sourceElementId);
+                Element sourceElement = context.Document.GetElement(sourceElementId);
                 Category sourceCategory = GraphicsCategoryService.GetCategoryFromElement(
                     sourceElement,
-                    activeView,
+                    context.ActiveView,
                     includeAnnotationCategories: false);
 
                 if (sourceCategory == null)
                 {
-                    TaskDialog.Show(dialogTitle, "Source element does not have a valid overridable model category in this view.");
+                    DialogHelper.ShowError(dialogTitle, "Source element does not have a valid overridable model category in this view.");
                     return Result.Cancelled;
                 }
 
                 OverrideGraphicSettings sourceSettings = GraphicsOverrideBuilder.Clone(
-                    activeView.GetCategoryOverrides(sourceCategory.Id));
+                    context.ActiveView.GetCategoryOverrides(sourceCategory.Id));
 
                 var processedCategoryIds = new HashSet<int>();
                 int appliedCount = 0;
-                int skippedCount = 0;
 
                 while (true)
                 {
                     if (!GraphicsSelectionService.TryPickSingleElementId(
-                        uidoc,
+                        context.UIDocument,
                         new ModelCategorySelectionFilter(),
                         "Select TARGET element (ESC to finish).",
                         out ElementId targetElementId,
@@ -84,14 +95,13 @@ namespace AJTools.Commands.GraphicsTools
 
                     if (targetElementId == sourceElementId)
                     {
-                        skippedCount++;
                         continue;
                     }
 
-                    Element targetElement = doc.GetElement(targetElementId);
+                    Element targetElement = context.Document.GetElement(targetElementId);
                     Category targetCategory = GraphicsCategoryService.GetCategoryFromElement(
                         targetElement,
-                        activeView,
+                        context.ActiveView,
                         includeAnnotationCategories: false);
 
                     if (targetCategory == null ||
@@ -99,23 +109,21 @@ namespace AJTools.Commands.GraphicsTools
                         targetCategory.Id == ElementId.InvalidElementId ||
                         targetCategory.Id.IntegerValue == sourceCategory.Id.IntegerValue)
                     {
-                        skippedCount++;
                         continue;
                     }
 
                     int categoryKey = targetCategory.Id.IntegerValue;
                     if (processedCategoryIds.Contains(categoryKey))
                     {
-                        skippedCount++;
                         continue;
                     }
 
-                    using (var transaction = new Transaction(doc, "AJ Tools - Match Category Graphics"))
+                    using (var transaction = new Transaction(context.Document, "AJ Tools - Match Category Graphics"))
                     {
                         transaction.Start();
                         try
                         {
-                            activeView.SetCategoryOverrides(targetCategory.Id, sourceSettings);
+                            context.ActiveView.SetCategoryOverrides(targetCategory.Id, sourceSettings);
                             transaction.Commit();
                             processedCategoryIds.Add(categoryKey);
                             appliedCount++;
@@ -123,32 +131,21 @@ namespace AJTools.Commands.GraphicsTools
                         catch
                         {
                             transaction.RollBack();
-                            skippedCount++;
                         }
                     }
                 }
 
                 if (appliedCount == 0)
                 {
-                    TaskDialog.Show(dialogTitle, "No category overrides were applied.");
                     return Result.Cancelled;
                 }
 
-                string resultMessage =
-                    $"Source Category: {sourceCategory.Name}" +
-                    $"\nUpdated Categories: {appliedCount}";
-
-                if (skippedCount > 0)
-                {
-                    resultMessage += $"\nSkipped: {skippedCount}.";
-                }
-
-                TaskDialog.Show(dialogTitle, resultMessage);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show(dialogTitle, ex.Message);
+                message = ex.Message;
+                DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }
         }

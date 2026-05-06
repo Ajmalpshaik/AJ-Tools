@@ -2,7 +2,7 @@
 
 ## Ribbon Groups
 - View: View Crop, Unhide All, Toggle Links, Filter Pro
-- Graphics: Toggle Links, Unhide All, Reset Graphics
+- Graphics: Apply Graphics, Match Graphics, Reset Graphics
 - Links: Linked ID of Selection, View by Linked ID
 - 3D Views: 3D Views as per Workset
 - Dimensions: Auto Dims, Dim By Line, Copy Dim Text
@@ -23,6 +23,7 @@
 - Unhide All clears Temporary Hide/Isolate and permanently hidden elements in the active view.
 - View Crop supports plan, section, elevation, area plan, engineering plan, and detail/callout views.
 - View Crop skips views controlled by scope boxes or view templates that lock crop settings.
+- Graphics tools apply, match, or reset active-view override graphics only.
 - Auto Dims requires Crop View enabled and plan/section/elevation context.
 - Some tools are blocked by view template locks.
 - Very large models may take longer in Filter Pro value scanning.
