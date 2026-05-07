@@ -3,7 +3,7 @@
 // Purpose      : Defines assembly-level metadata and version information for the AJ Tools add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.2
+// Version      : 1.4.3
 // Created      : 2025-12-10
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Assembly build metadata.
 // Output       : Versioned AJ Tools assembly attributes.
 // Notes        : Keep this version aligned with release tags and installer package versions.
-// Changelog    : v1.4.2 - Simplified Apply Graphics direct color editing and removed preset-target UI.
+// Changelog    : v1.4.3 - Restored per-field preset colors and aligned category mode to the selected-element source.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -47,5 +47,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.4.2.0")]
-[assembly: AssemblyFileVersion("1.4.2.0")]
+[assembly: AssemblyVersion("1.4.3.0")]
+[assembly: AssemblyFileVersion("1.4.3.0")]

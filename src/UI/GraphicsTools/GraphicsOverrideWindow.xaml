@@ -4,7 +4,7 @@ Tool Name    : Apply Graphics
 Purpose      : Defines the WPF Apply Graphics settings window layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.4.2
+Version      : 1.4.3
 Created      : 2026-03-30
 Last Updated : 2026-05-07
 Target       : Revit 2020
@@ -14,7 +14,7 @@ Dependencies : Autodesk Revit API, WPF
 Input        : User graphics settings selections, apply mode choice, and selected categories.
 Output       : Structured settings window for the combined Apply Graphics workflow.
 Notes        : Normal success is silent; validation and critical errors are reported to the user.
-Changelog    : v1.4.2 - Removed preset-target UI, clarified apply mode labels, and kept direct color editing.
+Changelog    : v1.4.3 - Restored per-field preset colors and aligned category mode to the selected-element source.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -36,6 +36,33 @@ Repo         : AJ-Tools
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="ColorSwatchButton" TargetType="Button">
+                <Setter Property="Width" Value="18"/>
+                <Setter Property="Height" Value="18"/>
+                <Setter Property="Margin" Value="0,0,4,0"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="SwatchRoot"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3"/>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="SwatchRoot" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="SwatchRoot" Property="Opacity" Value="0.82"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -82,7 +109,7 @@ Repo         : AJ-Tools
                     <TextBlock x:Name="ElementModeHintText"
                                Margin="0,4,0,0"
                                Foreground="{StaticResource TextSecondary}"
-                               Text="Applies overrides to selected elements only. If nothing is preselected, the tool prompts after you click Apply."
+                               Text="Applies overrides to the selected elements only."
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
@@ -126,7 +153,7 @@ Repo         : AJ-Tools
                                    Grid.Row="1"
                                    Margin="0,6,0,0"
                                    Foreground="{StaticResource TextSecondary}"
-                                   Text="Choose one or more categories to override in the active view."
+                                   Text="Choose categories from the selected elements only, then apply active-view category overrides."
                                    TextWrapping="Wrap"/>
                         <ListBox x:Name="CategoryListBox"
                                  Grid.Row="2"
@@ -167,6 +194,15 @@ Repo         : AJ-Tools
                                     <Button Grid.Column="2" Content="Pick" Tag="ProjectionLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
                                     <Button Grid.Column="3" Content="By" Tag="ProjectionLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
+                                <WrapPanel Margin="185,4,0,0">
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="ProjectionLineColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="ProjectionLineColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="ProjectionLineColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="ProjectionLineColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="ProjectionLineColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="ProjectionLineColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
+                                    <Button MinWidth="64" Height="22" Content="By View" Tag="ProjectionLineColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
+                                </WrapPanel>
 
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
@@ -212,6 +248,15 @@ Repo         : AJ-Tools
                                     <Button Grid.Column="2" Content="Pick" Tag="SurfaceForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
                                     <Button Grid.Column="3" Content="By" Tag="SurfaceForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
+                                <WrapPanel Margin="185,4,0,0">
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="SurfaceForegroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="SurfaceForegroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="SurfaceForegroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="SurfaceForegroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="SurfaceForegroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="SurfaceForegroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
+                                    <Button MinWidth="64" Height="22" Content="By View" Tag="SurfaceForegroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
+                                </WrapPanel>
 
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
@@ -236,6 +281,15 @@ Repo         : AJ-Tools
                                     <Button Grid.Column="2" Content="Pick" Tag="SurfaceBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
                                     <Button Grid.Column="3" Content="By" Tag="SurfaceBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                 </Grid>
+                                <WrapPanel Margin="185,4,0,0">
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="SurfaceBackgroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="SurfaceBackgroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="SurfaceBackgroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="SurfaceBackgroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="SurfaceBackgroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
+                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="SurfaceBackgroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
+                                    <Button MinWidth="64" Height="22" Content="By View" Tag="SurfaceBackgroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
+                                </WrapPanel>
 
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
@@ -283,6 +337,15 @@ Repo         : AJ-Tools
                                         <Button x:Name="CutLineColorPickButton" Grid.Column="2" Content="Pick" Tag="CutLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
                                         <Button x:Name="CutLineColorClearButton" Grid.Column="3" Content="By" Tag="CutLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                     </Grid>
+                                    <WrapPanel Margin="185,4,0,0">
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="CutLineColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="CutLineColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="CutLineColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="CutLineColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="CutLineColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="CutLineColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
+                                        <Button MinWidth="64" Height="22" Content="By View" Tag="CutLineColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
+                                    </WrapPanel>
 
                                     <Grid Margin="0,4,0,0">
                                         <Grid.ColumnDefinitions>
@@ -328,6 +391,15 @@ Repo         : AJ-Tools
                                         <Button x:Name="CutForegroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
                                         <Button x:Name="CutForegroundColorClearButton" Grid.Column="3" Content="By" Tag="CutForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                     </Grid>
+                                    <WrapPanel Margin="185,4,0,0">
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="CutForegroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="CutForegroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="CutForegroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="CutForegroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="CutForegroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="CutForegroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
+                                        <Button MinWidth="64" Height="22" Content="By View" Tag="CutForegroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
+                                    </WrapPanel>
 
                                     <Grid Margin="0,4,0,0">
                                         <Grid.ColumnDefinitions>
@@ -352,6 +424,15 @@ Repo         : AJ-Tools
                                         <Button x:Name="CutBackgroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
                                         <Button x:Name="CutBackgroundColorClearButton" Grid.Column="3" Content="By" Tag="CutBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
                                     </Grid>
+                                    <WrapPanel Margin="185,4,0,0">
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="CutBackgroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="CutBackgroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="CutBackgroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="CutBackgroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="CutBackgroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
+                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="CutBackgroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
+                                        <Button MinWidth="64" Height="22" Content="By View" Tag="CutBackgroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
+                                    </WrapPanel>
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>

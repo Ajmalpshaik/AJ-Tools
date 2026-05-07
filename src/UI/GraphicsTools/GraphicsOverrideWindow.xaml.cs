@@ -3,17 +3,17 @@
 // Purpose      : Handles the Apply Graphics window behavior and input conversion.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.2
+// Version      : 1.4.3
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
-// Input        : User graphics settings selections, apply mode choice, and category selections.
+// Input        : User graphics settings selections, apply mode choice, selected source categories, and category selections.
 // Output       : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
 // Notes        : Keeps cut-link state explicit so linked cut settings match projection/surface settings exactly.
-// Changelog    : v1.4.2 - Removed preset-target logic and clarified direct color editing behavior.
+// Changelog    : v1.4.3 - Restored per-field preset colors and aligned category mode to the selected-element source.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -83,7 +83,7 @@ namespace AJTools.UI.GraphicsTools
         private CutOverrideState _manualCutState;
 
         public GraphicsOverrideWindow(Document doc, string windowTitle, OverrideGraphicSettings initialSettings = null)
-            : this(doc, doc?.ActiveView, windowTitle, null, initialSettings)
+            : this(doc, doc?.ActiveView, windowTitle, null, null, initialSettings)
         {
         }
 
@@ -91,6 +91,7 @@ namespace AJTools.UI.GraphicsTools
             Document doc,
             View activeView,
             string windowTitle,
+            ICollection<Category> availableCategories,
             ICollection<ElementId> preselectedCategoryIds,
             OverrideGraphicSettings initialSettings = null)
         {
@@ -101,7 +102,7 @@ namespace AJTools.UI.GraphicsTools
                 Title = windowTitle;
             }
 
-            _categoryOptions = GraphicsDataProvider.GetCategoryOptions(doc, activeView, preselectedCategoryIds);
+            _categoryOptions = GraphicsDataProvider.GetCategoryOptions(availableCategories, preselectedCategoryIds);
             BindDropdownData(doc);
             BindCategoryData();
             InitializeApplyMode();
@@ -147,6 +148,9 @@ namespace AJTools.UI.GraphicsTools
         private void BindCategoryData()
         {
             CategoryListBox.ItemsSource = _categoryOptions;
+            CategoryModeHintText.Text = _categoryOptions.Count == 0
+                ? "No supported categories were found from the selected elements."
+                : "Choose categories from the selected elements only, then apply active-view category overrides.";
         }
 
         private void InitializeApplyMode()
@@ -381,6 +385,59 @@ namespace AJTools.UI.GraphicsTools
             _colorValues[key] = GraphicsColorValue.ByView();
             UpdateColorVisual(key);
             HandleProjectionSurfaceDependencies(key);
+        }
+
+        private void OnColorPreset(object sender, RoutedEventArgs e)
+        {
+            Button button = sender as Button;
+            string tagValue = button?.Tag as string;
+            if (string.IsNullOrWhiteSpace(tagValue))
+            {
+                return;
+            }
+
+            string[] segments = tagValue.Split('|');
+            if (segments.Length != 2)
+            {
+                return;
+            }
+
+            string key = segments[0];
+            string presetValue = segments[1];
+
+            if (string.Equals(presetValue, "ByView", StringComparison.OrdinalIgnoreCase))
+            {
+                _colorValues[key] = GraphicsColorValue.ByView();
+            }
+            else
+            {
+                if (!TryParseRgb(presetValue, out byte red, out byte green, out byte blue))
+                {
+                    return;
+                }
+
+                _colorValues[key] = GraphicsColorValue.FromRgb(red, green, blue);
+            }
+
+            UpdateColorVisual(key);
+            HandleProjectionSurfaceDependencies(key);
+        }
+
+        private static bool TryParseRgb(string value, out byte red, out byte green, out byte blue)
+        {
+            red = 0;
+            green = 0;
+            blue = 0;
+
+            string[] segments = value.Split(',');
+            if (segments.Length != 3)
+            {
+                return false;
+            }
+
+            return byte.TryParse(segments[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out red) &&
+                   byte.TryParse(segments[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out green) &&
+                   byte.TryParse(segments[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out blue);
         }
 
         private void OnProjectionSurfaceSettingChanged(object sender, SelectionChangedEventArgs e)
