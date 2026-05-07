@@ -3,9 +3,9 @@
 // Purpose      : Holds graphics settings input before building Revit overrides.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : WPF graphics settings selections.
 // Output       : Structured graphics override input model.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -22,6 +22,12 @@ using Autodesk.Revit.DB;
 
 namespace AJTools.Models.GraphicsTools
 {
+    internal enum GraphicsApplyMode
+    {
+        SelectedElements = 0,
+        Categories = 1
+    }
+
     /// <summary>
     /// Input model used to build a complete OverrideGraphicSettings package.
     /// </summary>
@@ -50,6 +56,8 @@ namespace AJTools.Models.GraphicsTools
             CutBackgroundPatternColor = GraphicsColorValue.ByView();
 
             Halftone = false;
+            ApplyMode = GraphicsApplyMode.SelectedElements;
+            UseProjectionSurfaceSettingsForCut = false;
         }
 
         public GraphicsColorValue ProjectionLineColor { get; set; }
@@ -83,5 +91,9 @@ namespace AJTools.Models.GraphicsTools
         public GraphicsColorValue CutBackgroundPatternColor { get; set; }
 
         public bool Halftone { get; set; }
+
+        public GraphicsApplyMode ApplyMode { get; set; }
+
+        public bool UseProjectionSurfaceSettingsForCut { get; set; }
     }
 }

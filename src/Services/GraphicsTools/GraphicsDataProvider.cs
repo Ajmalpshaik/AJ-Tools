@@ -3,9 +3,9 @@
 // Purpose      : Provides Revit graphics option data for the override settings UI.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Active Revit document.
 // Output       : Line pattern, fill pattern, line weight, and transparency options.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -115,6 +115,31 @@ namespace AJTools.Services.GraphicsTools
             }
 
             return options;
+        }
+
+        public static IList<GraphicsCategoryOption> GetCategoryOptions(
+            Document doc,
+            View view,
+            ICollection<ElementId> preselectedCategoryIds)
+        {
+            var selectedIds = new HashSet<int>();
+            if (preselectedCategoryIds != null)
+            {
+                foreach (ElementId categoryId in preselectedCategoryIds)
+                {
+                    if (categoryId != null && categoryId != ElementId.InvalidElementId)
+                    {
+                        selectedIds.Add(categoryId.IntegerValue);
+                    }
+                }
+            }
+
+            return GraphicsCategoryService.GetAvailableCategories(doc, view, includeAnnotationCategories: false)
+                .Select(category => new GraphicsCategoryOption(
+                    category.Id,
+                    category.Name,
+                    selectedIds.Contains(category.Id.IntegerValue)))
+                .ToList();
         }
     }
 }

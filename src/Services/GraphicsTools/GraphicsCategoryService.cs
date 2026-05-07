@@ -3,9 +3,9 @@
 // Purpose      : Collects and applies category-level graphics overrides for active views.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Revit view, categories, elements, and override settings.
 // Output       : Category graphics operation summary.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -66,6 +66,36 @@ namespace AJTools.Services.GraphicsTools
             }
 
             return result.Values
+                .OrderBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+
+        public static IList<Category> GetAvailableCategories(
+            Document doc,
+            View view,
+            bool includeAnnotationCategories)
+        {
+            var result = new List<Category>();
+            if (doc == null || view == null)
+            {
+                return result;
+            }
+
+            Categories categories = doc.Settings?.Categories;
+            if (categories == null)
+            {
+                return result;
+            }
+
+            foreach (Category category in categories)
+            {
+                if (IsCategoryValidForOverride(category, view, includeAnnotationCategories))
+                {
+                    result.Add(category);
+                }
+            }
+
+            return result
                 .OrderBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
         }

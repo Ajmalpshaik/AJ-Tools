@@ -3,7 +3,7 @@
 // Purpose      : Builds the AJ Tools ribbon tab, panels, and tool registration.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2025-12-10
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -318,23 +318,16 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddApplyGraphicsTools()
         {
-            return CreatePulldownToolSpec(
+            return CreatePushToolSpec(
                 "Apply\nGraphics",
-                "Apply category or element graphics overrides in the active view.",
+                "Apply the same graphics override settings to selected elements or selected categories in the active view.",
+                typeof(CmdApplyGraphics),
                 "apply.png",
                 "apply.png",
-                CreateSplitChildTool(
-                    "Apply Category Graphics",
-                    "Apply graphics overrides to unique model categories from selected elements in the active view.",
-                    typeof(CmdCategoryGraphics),
-                    "apply.png",
-                    "apply.png"),
-                CreateSplitChildTool(
-                    "Apply Element Graphics",
-                    "Apply element-level graphics overrides to selected elements in the active view.",
-                    typeof(CmdElementGraphics),
-                    "apply.png",
-                    "apply.png"));
+                pushButton =>
+                {
+                    pushButton.LongDescription = "Choose Element mode or Category mode from one shared Apply Graphics window, then apply the same override settings in the active view.";
+                });
         }
 
         private TopLevelToolSpec AddMatchGraphicsTools()

@@ -1,20 +1,20 @@
 <!--
 ==================================================
 Tool Name    : Graphics Tools
-Purpose      : Defines the WPF graphics override settings window layout.
+Purpose      : Defines the WPF Apply Graphics settings window layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.1.0
+Version      : 1.2.0
 Created      : 2026-03-30
-Last Updated : 2026-05-06
+Last Updated : 2026-05-07
 Target       : Revit 2020
 Framework    : .NET Framework 4.7.2
 Platform     : C# Revit Add-in
 Dependencies : Autodesk Revit API, WPF
-Input        : User graphics settings selections.
-Output       : Structured settings window for Apply and Match graphics workflows.
+Input        : User graphics settings selections, apply mode choice, and selected categories.
+Output       : Structured settings window for the combined Apply Graphics workflow.
 Notes        : Normal success is silent; validation and critical errors are reported to the user.
-Changelog    : v1.1.0 - Cleaned Graphics Tools UI layout, labels, and metadata.
+Changelog    : v1.2.0 - Combined element/category apply workflow and fixed cut-link UI behavior.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -23,11 +23,11 @@ Repo         : AJ-Tools
 <Window x:Class="AJTools.UI.GraphicsTools.GraphicsOverrideWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Graphics Override Settings"
-        Width="600"
-        Height="650"
-        MinWidth="560"
-        MinHeight="600"
+        Title="Apply Graphics Settings"
+        Width="660"
+        Height="760"
+        MinWidth="620"
+        MinHeight="700"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundDark}"
         Foreground="{DynamicResource TextPrimary}">
@@ -71,10 +71,11 @@ Repo         : AJ-Tools
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
-                Style="{StaticResource PanelCard}">
+        <Border Grid.Row="0" Style="{StaticResource PanelCard}">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -84,19 +85,100 @@ Repo         : AJ-Tools
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0"
-                           Text="Graphics Override Settings"
+                           Text="Apply Graphics"
                            FontSize="14"
                            FontWeight="Bold"
                            Foreground="{StaticResource TextPrimary}"/>
 
-                <Grid Grid.Row="1" Margin="0,6,0,0">
+                <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                    <TextBlock Text="Apply Mode"
+                               Foreground="{StaticResource TextSecondary}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <RadioButton x:Name="ApplyModeElementsRadioButton"
+                                     Content="Apply to Selected Elements"
+                                     GroupName="ApplyMode"
+                                     Margin="0,0,20,0"
+                                     Checked="OnApplyModeChanged"/>
+                        <RadioButton x:Name="ApplyModeCategoriesRadioButton"
+                                     Content="Apply to Categories"
+                                     GroupName="ApplyMode"
+                                     Checked="OnApplyModeChanged"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ElementModeHintText"
+                               Margin="0,4,0,0"
+                               Foreground="{StaticResource TextSecondary}"
+                               Text="Elements come from preselection or from a prompt after you click Apply."
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Border x:Name="CategorySelectionPanel"
+                        Grid.Row="2"
+                        Margin="0,10,0,0"
+                        Padding="10"
+                        CornerRadius="6"
+                        BorderBrush="{StaticResource BorderSoft}"
+                        BorderThickness="1"
+                        Background="{StaticResource CardBackground}"
+                        Visibility="Collapsed">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Categories"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            <Button Grid.Column="1"
+                                    Content="Select All"
+                                    MinWidth="90"
+                                    Margin="0,0,6,0"
+                                    Style="{StaticResource CompactSecondaryButton}"
+                                    Click="OnSelectAllCategories"/>
+                            <Button Grid.Column="2"
+                                    Content="Clear"
+                                    MinWidth="90"
+                                    Style="{StaticResource CompactSecondaryButton}"
+                                    Click="OnClearCategories"/>
+                        </Grid>
+                        <TextBlock x:Name="CategoryModeHintText"
+                                   Grid.Row="1"
+                                   Margin="0,6,0,0"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Text="Choose only the categories you want to override in the active view."
+                                   TextWrapping="Wrap"/>
+                        <ListBox x:Name="CategoryListBox"
+                                 Grid.Row="2"
+                                 Margin="0,8,0,0"
+                                 Height="140"
+                                 BorderThickness="1"
+                                 BorderBrush="{StaticResource BorderSoft}"
+                                 Background="{StaticResource BackgroundDark}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding DisplayName}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Margin="0,1,0,1"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="3" Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="130"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock x:Name="QuickColorTargetLabel"
-                               Grid.Column="0"
+                    <TextBlock Grid.Column="0"
                                Text="Preset Target"
                                VerticalAlignment="Center"
                                Foreground="{StaticResource TextSecondary}"/>
@@ -112,16 +194,9 @@ Repo         : AJ-Tools
                         <ComboBoxItem Content="Cut Foreground Color" Tag="CutForegroundColor"/>
                         <ComboBoxItem Content="Cut Background Color" Tag="CutBackgroundColor"/>
                     </ComboBox>
-
-                    <TextBlock x:Name="QuickColorAllNoticeText"
-                               Grid.Column="1"
-                               Text="Preset applies to all projection, surface, and cut colors."
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextSecondary}"
-                               Visibility="Collapsed"/>
                 </Grid>
 
-                <WrapPanel Grid.Row="2" Margin="0,6,0,6">
+                <WrapPanel Grid.Row="4" Margin="0,6,0,6">
                     <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Black" Tag="0,0,0" Click="OnQuickColorPreset" Background="#FF000000"/>
                     <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="White" Tag="255,255,255" Click="OnQuickColorPreset" Background="#FFFFFFFF"/>
                     <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Red" Tag="255,0,0" Click="OnQuickColorPreset" Background="#FFFF0000"/>
@@ -135,7 +210,7 @@ Repo         : AJ-Tools
                     <Button MinWidth="74" Content="By View" Tag="ByView" Click="OnQuickColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
                 </WrapPanel>
 
-                <TabControl Grid.Row="3" Margin="0,2,0,0">
+                <TabControl Grid.Row="5" Margin="0,2,0,0">
                     <TabItem Header="Projection / Surface">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="8">
@@ -162,7 +237,7 @@ Repo         : AJ-Tools
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Projection Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="ProjectionLinePatternCombo" Grid.Column="1" Height="24"/>
+                                    <ComboBox x:Name="ProjectionLinePatternCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -171,7 +246,7 @@ Repo         : AJ-Tools
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Projection Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="ProjectionLineWeightCombo" Grid.Column="1" Height="24"/>
+                                    <ComboBox x:Name="ProjectionLineWeightCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                 </Grid>
 
                                 <Separator Margin="0,8,0,8"/>
@@ -183,7 +258,7 @@ Repo         : AJ-Tools
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Surface Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="SurfaceForegroundPatternCombo" Grid.Column="1" Height="24"/>
+                                    <ComboBox x:Name="SurfaceForegroundPatternCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -207,7 +282,7 @@ Repo         : AJ-Tools
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Surface Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="SurfaceBackgroundPatternCombo" Grid.Column="1" Height="24"/>
+                                    <ComboBox x:Name="SurfaceBackgroundPatternCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">
@@ -241,112 +316,121 @@ Repo         : AJ-Tools
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="8">
                                 <CheckBox x:Name="UseProjectionSurfaceColorsForCutCheckBox"
-                                          Content="Use Projection/Surface Colors For Cut"
+                                          Content="Use Projection / Surface settings for Cut"
                                           Style="{StaticResource ModernCheckBox}"
                                           Margin="0,0,0,4"
                                           Checked="OnUseProjectionSurfaceColorsForCutChanged"
                                           Unchecked="OnUseProjectionSurfaceColorsForCutChanged"/>
 
-                                <TextBlock Text="Lines" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock x:Name="CutLinkNoticeText"
+                                           Margin="0,0,0,8"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Text="Cut line, pattern, weight, and fill settings are linked to the Projection / Surface tab."
+                                           TextWrapping="Wrap"
+                                           Visibility="Collapsed"/>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="56"/>
-                                        <ColumnDefinition Width="56"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Line Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="CutLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                        <TextBlock x:Name="CutLineColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                    </Border>
-                                    <Button x:Name="CutLineColorPickButton" Grid.Column="2" Content="Pick" Tag="CutLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                    <Button x:Name="CutLineColorClearButton" Grid.Column="3" Content="By" Tag="CutLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                </Grid>
+                                <StackPanel x:Name="CutSettingsPanel">
+                                    <TextBlock Text="Lines" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutLinePatternCombo" Grid.Column="1" Height="24"/>
-                                </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Line Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <Border x:Name="CutLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
+                                            <TextBlock x:Name="CutLineColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                                        </Border>
+                                        <Button x:Name="CutLineColorPickButton" Grid.Column="2" Content="Pick" Tag="CutLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                        <Button x:Name="CutLineColorClearButton" Grid.Column="3" Content="By" Tag="CutLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
+                                    </Grid>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutLineWeightCombo" Grid.Column="1" Height="24"/>
-                                </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <ComboBox x:Name="CutLinePatternCombo" Grid.Column="1" Height="24"/>
+                                    </Grid>
 
-                                <Separator Margin="0,8,0,8"/>
-                                <TextBlock Text="Patterns" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <ComboBox x:Name="CutLineWeightCombo" Grid.Column="1" Height="24"/>
+                                    </Grid>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutForegroundPatternCombo" Grid.Column="1" Height="24"/>
-                                </Grid>
+                                    <Separator Margin="0,8,0,8"/>
+                                    <TextBlock Text="Patterns" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="56"/>
-                                        <ColumnDefinition Width="56"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Foreground Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="CutForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                        <TextBlock x:Name="CutForegroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                    </Border>
-                                    <Button x:Name="CutForegroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                    <Button x:Name="CutForegroundColorClearButton" Grid.Column="3" Content="By" Tag="CutForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <ComboBox x:Name="CutForegroundPatternCombo" Grid.Column="1" Height="24"/>
+                                    </Grid>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="CutBackgroundPatternCombo" Grid.Column="1" Height="24"/>
-                                </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Foreground Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <Border x:Name="CutForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
+                                            <TextBlock x:Name="CutForegroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                                        </Border>
+                                        <Button x:Name="CutForegroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                        <Button x:Name="CutForegroundColorClearButton" Grid.Column="3" Content="By" Tag="CutForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
+                                    </Grid>
 
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="56"/>
-                                        <ColumnDefinition Width="56"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Cut Background Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="CutBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                        <TextBlock x:Name="CutBackgroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                    </Border>
-                                    <Button x:Name="CutBackgroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                    <Button x:Name="CutBackgroundColorClearButton" Grid.Column="3" Content="By" Tag="CutBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <ComboBox x:Name="CutBackgroundPatternCombo" Grid.Column="1" Height="24"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Cut Background Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
+                                        <Border x:Name="CutBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
+                                            <TextBlock x:Name="CutBackgroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                                        </Border>
+                                        <Button x:Name="CutBackgroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
+                                        <Button x:Name="CutBackgroundColorClearButton" Grid.Column="3" Content="By" Tag="CutBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
+                                    </Grid>
+                                </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
                 </TabControl>
 
                 <CheckBox x:Name="HalftoneCheckBox"
-                           Grid.Row="4"
+                          Grid.Row="6"
                           Content="Enable Halftone"
                           Style="{StaticResource ToggleSwitchCheckBox}"
-                          Margin="0,6,0,0"/>
+                          Margin="0,8,0,0"/>
 
                 <TextBlock x:Name="ErrorText"
-                           Grid.Row="5"
+                           Grid.Row="7"
                            Foreground="{StaticResource AccentDanger}"
-                           Margin="0,6,0,0"
+                           Margin="0,8,0,0"
                            TextWrapping="Wrap"/>
             </Grid>
         </Border>
@@ -381,5 +465,3 @@ Repo         : AJ-Tools
         </Grid>
     </Grid>
 </Window>
-
-
