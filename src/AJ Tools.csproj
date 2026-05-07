@@ -98,6 +98,7 @@
     <Compile Include="Commands\CmdSetLinkWorkset.cs" />
     <Compile Include="Commands\SharedParamToFamilyParamCommand.cs" />
     <Compile Include="Commands\SmartConnectCommand.cs" />
+    <Compile Include="Commands\HvacSchematicCommand.cs" />
     <Compile Include="Commands\CmdSwapText.cs" />
     <Compile Include="Commands\CmdToggleRevitLinks.cs" />
     <Compile Include="Commands\CmdUnhideAll.cs" />
@@ -131,6 +132,8 @@
     <Compile Include="Models\SharedParamToFamilyParamItem.cs" />
     <Compile Include="Models\SpecialParameterIds.cs" />
     <Compile Include="Models\SmartConnectSettings.cs" />
+    <Compile Include="Models\HvacSchematic\SchematicNode.cs" />
+    <Compile Include="Models\HvacSchematic\SchematicEdge.cs" />
     <Compile Include="Models\SmartTag\TagPriority.cs" />
     <Compile Include="Models\SmartTag\ElementOrientation.cs" />
     <Compile Include="Models\SmartTag\TagSkipReason.cs" />
@@ -181,6 +184,10 @@
     <Compile Include="Services\SmartConnect\SmartConnectConnectorUtils.cs" />
     <Compile Include="Services\SmartConnect\SmartConnectRouteBuilder.cs" />
     <Compile Include="Services\SmartConnect\SmartConnectSettingsService.cs" />
+    <Compile Include="Services\HvacSchematic\LevelResolverService.cs" />
+    <Compile Include="Services\HvacSchematic\NetworkAnalysisService.cs" />
+    <Compile Include="Services\HvacSchematic\SchematicLayoutEngine.cs" />
+    <Compile Include="Services\HvacSchematic\DraftingViewBuilder.cs" />
     <Compile Include="Services\LeaderLogic\LeaderLogicService.cs" />
     <Compile Include="Services\TagArrange\IntelligentTagArrangerService.cs" />
     <Compile Include="Services\LevelExtents\LevelExtentsService.cs" />

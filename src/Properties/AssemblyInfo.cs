@@ -3,9 +3,9 @@
 // Purpose      : Defines assembly-level metadata and version information for the AJ Tools add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.3.9
+// Version      : 1.4.0
 // Created      : 2025-12-10
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Assembly build metadata.
 // Output       : Versioned AJ Tools assembly attributes.
 // Notes        : Keep this version aligned with release tags and installer package versions.
-// Changelog    : v1.3.9 - Cleaned Graphics Tools command group and metadata.
+// Changelog    : v1.4.0 - Added HVAC schematic release and updated ribbon/layout metadata.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -47,5 +47,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.3.9.0")]
-[assembly: AssemblyFileVersion("1.3.9.0")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.0")]
