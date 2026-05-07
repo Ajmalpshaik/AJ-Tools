@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
+// Tool Name    : Apply Graphics
 // Purpose      : Collects and applies category-level graphics overrides for active views.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Revit view, categories, elements, and override settings.
 // Output       : Category graphics operation summary.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
+// Changelog    : v1.4.2 - Supports the unified Apply Graphics category workflow.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

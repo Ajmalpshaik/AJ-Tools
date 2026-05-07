@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
-// Purpose      : Builds Revit OverrideGraphicSettings from graphics input values.
+// Tool Name    : Apply Graphics
+// Purpose      : Builds Revit OverrideGraphicSettings from Apply Graphics input values.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Graphics override input model.
 // Output       : Revit OverrideGraphicSettings object.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
+// Changelog    : v1.4.2 - Keeps cut overrides aligned with direct-edit and linked-cut UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

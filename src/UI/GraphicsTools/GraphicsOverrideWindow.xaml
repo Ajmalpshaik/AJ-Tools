@@ -1,10 +1,10 @@
 <!--
 ==================================================
-Tool Name    : Graphics Tools
+Tool Name    : Apply Graphics
 Purpose      : Defines the WPF Apply Graphics settings window layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.2.0
+Version      : 1.4.2
 Created      : 2026-03-30
 Last Updated : 2026-05-07
 Target       : Revit 2020
@@ -14,7 +14,7 @@ Dependencies : Autodesk Revit API, WPF
 Input        : User graphics settings selections, apply mode choice, and selected categories.
 Output       : Structured settings window for the combined Apply Graphics workflow.
 Notes        : Normal success is silent; validation and critical errors are reported to the user.
-Changelog    : v1.2.0 - Combined element/category apply workflow and fixed cut-link UI behavior.
+Changelog    : v1.4.2 - Removed preset-target UI, clarified apply mode labels, and kept direct color editing.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -36,32 +36,6 @@ Repo         : AJ-Tools
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="ColorSwatchButton" TargetType="Button">
-                <Setter Property="Width" Value="22"/>
-                <Setter Property="Height" Value="20"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="SwatchRoot"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="3"/>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="SwatchRoot" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="SwatchRoot" Property="Opacity" Value="0.82"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -74,7 +48,6 @@ Repo         : AJ-Tools
         <Border Grid.Row="0" Style="{StaticResource PanelCard}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -95,19 +68,21 @@ Repo         : AJ-Tools
                                Foreground="{StaticResource TextSecondary}"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <RadioButton x:Name="ApplyModeElementsRadioButton"
-                                     Content="Apply to Selected Elements"
+                                     Content="Apply as Element Graphics"
                                      GroupName="ApplyMode"
                                      Margin="0,0,20,0"
+                                     Foreground="{StaticResource TextPrimary}"
                                      Checked="OnApplyModeChanged"/>
                         <RadioButton x:Name="ApplyModeCategoriesRadioButton"
-                                     Content="Apply to Categories"
+                                     Content="Apply as Category Graphics"
                                      GroupName="ApplyMode"
+                                     Foreground="{StaticResource TextPrimary}"
                                      Checked="OnApplyModeChanged"/>
                     </StackPanel>
                     <TextBlock x:Name="ElementModeHintText"
                                Margin="0,4,0,0"
                                Foreground="{StaticResource TextSecondary}"
-                               Text="Elements come from preselection or from a prompt after you click Apply."
+                               Text="Applies overrides to selected elements only. If nothing is preselected, the tool prompts after you click Apply."
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
@@ -151,7 +126,7 @@ Repo         : AJ-Tools
                                    Grid.Row="1"
                                    Margin="0,6,0,0"
                                    Foreground="{StaticResource TextSecondary}"
-                                   Text="Choose only the categories you want to override in the active view."
+                                   Text="Choose one or more categories to override in the active view."
                                    TextWrapping="Wrap"/>
                         <ListBox x:Name="CategoryListBox"
                                  Grid.Row="2"
@@ -172,45 +147,7 @@ Repo         : AJ-Tools
                     </Grid>
                 </Border>
 
-                <Grid Grid.Row="3" Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0"
-                               Text="Preset Target"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextSecondary}"/>
-
-                    <ComboBox x:Name="QuickColorTargetCombo"
-                              Grid.Column="1"
-                              Height="24"
-                              SelectedIndex="0">
-                        <ComboBoxItem Content="Projection Line Color" Tag="ProjectionLineColor"/>
-                        <ComboBoxItem Content="Surface Foreground Color" Tag="SurfaceForegroundColor"/>
-                        <ComboBoxItem Content="Surface Background Color" Tag="SurfaceBackgroundColor"/>
-                        <ComboBoxItem Content="Cut Line Color" Tag="CutLineColor"/>
-                        <ComboBoxItem Content="Cut Foreground Color" Tag="CutForegroundColor"/>
-                        <ComboBoxItem Content="Cut Background Color" Tag="CutBackgroundColor"/>
-                    </ComboBox>
-                </Grid>
-
-                <WrapPanel Grid.Row="4" Margin="0,6,0,6">
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Black" Tag="0,0,0" Click="OnQuickColorPreset" Background="#FF000000"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="White" Tag="255,255,255" Click="OnQuickColorPreset" Background="#FFFFFFFF"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Red" Tag="255,0,0" Click="OnQuickColorPreset" Background="#FFFF0000"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Green" Tag="0,255,0" Click="OnQuickColorPreset" Background="#FF00FF00"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Blue" Tag="0,0,255" Click="OnQuickColorPreset" Background="#FF0000FF"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Cyan" Tag="0,255,255" Click="OnQuickColorPreset" Background="#FF00FFFF"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Magenta" Tag="255,0,255" Click="OnQuickColorPreset" Background="#FFFF00FF"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Yellow" Tag="255,255,0" Click="OnQuickColorPreset" Background="#FFFFFF00"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,4,0" ToolTip="Orange" Tag="255,165,0" Click="OnQuickColorPreset" Background="#FFFFA500"/>
-                    <Button Style="{StaticResource ColorSwatchButton}" Margin="0,0,8,0" ToolTip="Gray" Tag="128,128,128" Click="OnQuickColorPreset" Background="#FF808080"/>
-                    <Button MinWidth="74" Content="By View" Tag="ByView" Click="OnQuickColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                </WrapPanel>
-
-                <TabControl Grid.Row="5" Margin="0,2,0,0">
+                <TabControl Grid.Row="3" Margin="0,10,0,0">
                     <TabItem Header="Projection / Surface">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="8">
@@ -422,13 +359,13 @@ Repo         : AJ-Tools
                 </TabControl>
 
                 <CheckBox x:Name="HalftoneCheckBox"
-                          Grid.Row="6"
+                          Grid.Row="4"
                           Content="Enable Halftone"
                           Style="{StaticResource ToggleSwitchCheckBox}"
                           Margin="0,8,0,0"/>
 
                 <TextBlock x:Name="ErrorText"
-                           Grid.Row="7"
+                           Grid.Row="5"
                            Foreground="{StaticResource AccentDanger}"
                            Margin="0,8,0,0"
                            TextWrapping="Wrap"/>

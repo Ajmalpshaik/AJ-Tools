@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
-// Purpose      : Provides Revit graphics option data for the override settings UI.
+// Tool Name    : Apply Graphics
+// Purpose      : Provides Revit graphics option data for the Apply Graphics UI.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Active Revit document.
 // Output       : Line pattern, fill pattern, line weight, and transparency options.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
+// Changelog    : v1.4.2 - Supports unified Apply Graphics UI data binding.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
