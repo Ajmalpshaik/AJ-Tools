@@ -3,7 +3,7 @@
 // Purpose      : Provides Revit graphics option data for the Apply Graphics UI.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.2
+// Version      : 1.4.3
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Active Revit document.
 // Output       : Line pattern, fill pattern, line weight, and transparency options.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.2 - Supports unified Apply Graphics UI data binding.
+// Changelog    : v1.4.3 - Builds category options only from the selected-element source.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -118,8 +118,7 @@ namespace AJTools.Services.GraphicsTools
         }
 
         public static IList<GraphicsCategoryOption> GetCategoryOptions(
-            Document doc,
-            View view,
+            IEnumerable<Category> categories,
             ICollection<ElementId> preselectedCategoryIds)
         {
             var selectedIds = new HashSet<int>();
@@ -134,7 +133,14 @@ namespace AJTools.Services.GraphicsTools
                 }
             }
 
-            return GraphicsCategoryService.GetAvailableCategories(doc, view, includeAnnotationCategories: false)
+            if (categories == null)
+            {
+                return new List<GraphicsCategoryOption>();
+            }
+
+            return categories
+                .Where(category => category != null && category.Id != null && category.Id != ElementId.InvalidElementId)
+                .OrderBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
                 .Select(category => new GraphicsCategoryOption(
                     category.Id,
                     category.Name,

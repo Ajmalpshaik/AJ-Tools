@@ -27,7 +27,7 @@
 - Unhide All clears Temporary Hide/Isolate and permanently hidden elements in the active view.
 - View Crop supports plan, section, elevation, area plan, engineering plan, and detail/callout views.
 - View Crop skips views controlled by scope boxes or view templates that lock crop settings.
-- Apply Graphics can target either selected elements or selected categories from one shared window, with direct editable Projection / Surface and Cut color controls.
+- Apply Graphics uses one selected-element source for both modes, then applies either element overrides directly or category overrides from the categories found in those selected elements.
 - Graphics tools apply, match, or reset active-view override graphics only.
 - HVAC Schematic creates a new drafting view from selected supported HVAC elements only.
 - Ceiling Magnet snaps point-based elements after one ceiling-grid anchor pick.

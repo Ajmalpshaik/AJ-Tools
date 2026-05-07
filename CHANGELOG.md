@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.3] - 2026-05-07
+
+- Restored preset color buttons in `Apply Graphics`, but scoped each preset row to its own color field so preset clicks never spill into other targets.
+- Changed `Apply as Category Graphics` to use the same selected-element source as `Apply as Element Graphics`, then derive selectable categories only from those selected elements.
+- Kept direct Projection / Surface and Cut editing, and preserved linked-cut behavior when `Use Projection / Surface settings for Cut` is enabled.
+
 ## [1.4.2] - 2026-05-07
 
 - Removed the unused `Preset Target` UI and quick-preset dependency from `Apply Graphics`.

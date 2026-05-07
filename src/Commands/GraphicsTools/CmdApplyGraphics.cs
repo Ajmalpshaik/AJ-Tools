@@ -3,17 +3,17 @@
 // Purpose      : Applies graphics overrides to selected elements or selected categories from one combined tool.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.2
+// Version      : 1.4.3
 // Created      : 2026-05-07
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
-// Input        : Active view, selected graphics settings, and either selected elements or selected categories.
+// Input        : Active view, selected graphics settings, and selected source elements.
 // Output       : Element or category graphics overrides applied in the active view.
-// Notes        : Normal success is silent; the UI drives one shared Apply Graphics workflow for both modes.
-// Changelog    : v1.4.2 - Removed preset-target dependency and kept one direct-edit UI for element and category graphics.
+// Notes        : Normal success is silent; both apply modes use one selected-element source.
+// Changelog    : v1.4.3 - Uses one selected-element source for both modes and restores per-field color presets.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -50,19 +50,32 @@ namespace AJTools.Commands.GraphicsTools
                     return contextResult;
                 }
 
-                IList<ElementId> preselectedElementIds = GraphicsSelectionService.GetValidPreselectedElementIds(
+                SelectionCaptureResult sourceSelection = GraphicsSelectionService.GetPreselectedOrPromptElementIds(
                     context.UIDocument,
-                    selectionFilter: null);
+                    selectionFilter: null,
+                    prompt: "Select elements to use for Apply Graphics.");
+                if (sourceSelection.WasCancelled)
+                {
+                    return Result.Cancelled;
+                }
+
+                if (sourceSelection.ElementIds.Count == 0)
+                {
+                    DialogHelper.ShowError(DialogTitle, "Select at least one element.");
+                    return Result.Cancelled;
+                }
+
                 IList<Category> preselectedCategories = GraphicsCategoryService.GetUniqueCategoriesFromElements(
                     context.Document,
                     context.ActiveView,
-                    preselectedElementIds,
+                    sourceSelection.ElementIds,
                     includeAnnotationCategories: false);
 
                 var settingsWindow = new GraphicsOverrideWindow(
                     context.Document,
                     context.ActiveView,
                     "Apply Graphics Settings",
+                    preselectedCategories,
                     preselectedCategories.Select(category => category.Id).ToList());
                 if (settingsWindow.ShowDialog() != true)
                 {
@@ -82,10 +95,7 @@ namespace AJTools.Commands.GraphicsTools
 
                     HashSet<int> selectedCategoryKeys = new HashSet<int>(
                         settingsWindow.SelectedCategoryIds.Select(categoryId => categoryId.IntegerValue));
-                    IList<Category> categories = GraphicsCategoryService.GetAvailableCategories(
-                            context.Document,
-                            context.ActiveView,
-                            includeAnnotationCategories: false)
+                    IList<Category> categories = preselectedCategories
                         .Where(category => selectedCategoryKeys.Contains(category.Id.IntegerValue))
                         .ToList();
 
@@ -100,29 +110,13 @@ namespace AJTools.Commands.GraphicsTools
                 }
                 else
                 {
-                    SelectionCaptureResult selection = GraphicsSelectionService.GetPreselectedOrPromptElementIds(
-                        context.UIDocument,
-                        selectionFilter: null,
-                        prompt: "Select elements to apply graphics in the active view.");
-
-                    if (selection.WasCancelled)
-                    {
-                        return Result.Cancelled;
-                    }
-
-                    if (selection.ElementIds.Count == 0)
-                    {
-                        DialogHelper.ShowError(DialogTitle, "Select at least one element.");
-                        return Result.Cancelled;
-                    }
-
                     summary = GraphicsCommandService.ExecuteSummaryTransaction(
                         context.Document,
                         "AJ Tools - Apply Graphics (Elements)",
                         () => GraphicsElementService.ApplyOverrides(
                             context.Document,
                             context.ActiveView,
-                            selection.ElementIds,
+                            sourceSelection.ElementIds,
                             settings));
                 }
 
