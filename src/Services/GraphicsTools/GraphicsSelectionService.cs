@@ -3,9 +3,9 @@
 // Purpose      : Captures graphics tool selections and shared command execution context.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Active Revit UI document and user selections.
 // Output       : Validated command context and selected element ids.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -138,6 +138,24 @@ namespace AJTools.Services.GraphicsTools
     /// </summary>
     internal static class GraphicsSelectionService
     {
+        public static IList<ElementId> GetValidPreselectedElementIds(
+            UIDocument uidoc,
+            ISelectionFilter selectionFilter,
+            ICollection<ElementId> excludedElementIds = null)
+        {
+            if (uidoc == null || uidoc.Document == null)
+            {
+                return new List<ElementId>();
+            }
+
+            ICollection<ElementId> preselected = uidoc.Selection.GetElementIds();
+            return FilterDistinctElementIds(
+                uidoc.Document,
+                preselected,
+                selectionFilter,
+                BuildExcludedSet(excludedElementIds));
+        }
+
         public static SelectionCaptureResult GetPreselectedOrPromptElementIds(
             UIDocument uidoc,
             ISelectionFilter selectionFilter,
@@ -151,8 +169,11 @@ namespace AJTools.Services.GraphicsTools
 
             var excluded = BuildExcludedSet(excludedElementIds);
 
-            ICollection<ElementId> preselected = uidoc.Selection.GetElementIds();
-            IList<ElementId> validPreselection = FilterDistinctElementIds(uidoc.Document, preselected, selectionFilter, excluded);
+            IList<ElementId> validPreselection = FilterDistinctElementIds(
+                uidoc.Document,
+                uidoc.Selection.GetElementIds(),
+                selectionFilter,
+                excluded);
             if (validPreselection.Count > 0)
             {
                 return new SelectionCaptureResult(validPreselection, false);

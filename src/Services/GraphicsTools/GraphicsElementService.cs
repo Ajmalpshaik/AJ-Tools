@@ -3,9 +3,9 @@
 // Purpose      : Applies and clears element-level graphics overrides.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Revit view, element ids, and override settings.
 // Output       : Element graphics operation summary.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -61,7 +61,7 @@ namespace AJTools.Services.GraphicsTools
                 summary.Attempted++;
 
                 Element element = doc.GetElement(elementId);
-                if (element == null)
+                if (element == null || element is RevitLinkInstance)
                 {
                     summary.Skipped++;
                     continue;

@@ -3,9 +3,9 @@
 // Purpose      : Builds Revit OverrideGraphicSettings from graphics input values.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.2.0
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-07
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Graphics override input model.
 // Output       : Revit OverrideGraphicSettings object.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -33,6 +33,28 @@ namespace AJTools.Services.GraphicsTools
             var safeInput = input ?? new GraphicsOverrideInput();
             var settings = new OverrideGraphicSettings();
 
+            GraphicsColorValue cutLineColor = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.ProjectionLineColor
+                : safeInput.CutLineColor;
+            ElementId cutLinePatternId = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.ProjectionLinePatternId
+                : safeInput.CutLinePatternId;
+            int cutLineWeight = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.ProjectionLineWeight
+                : safeInput.CutLineWeight;
+            ElementId cutForegroundPatternId = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.SurfaceForegroundPatternId
+                : safeInput.CutForegroundPatternId;
+            GraphicsColorValue cutForegroundColor = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.SurfaceForegroundPatternColor
+                : safeInput.CutForegroundPatternColor;
+            ElementId cutBackgroundPatternId = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.SurfaceBackgroundPatternId
+                : safeInput.CutBackgroundPatternId;
+            GraphicsColorValue cutBackgroundColor = safeInput.UseProjectionSurfaceSettingsForCut
+                ? safeInput.SurfaceBackgroundPatternColor
+                : safeInput.CutBackgroundPatternColor;
+
             settings.SetProjectionLineColor(ToColorOrInvalid(safeInput.ProjectionLineColor));
             settings.SetProjectionLinePatternId(ToIdOrInvalid(safeInput.ProjectionLinePatternId));
             settings.SetProjectionLineWeight(NormalizeLineWeight(safeInput.ProjectionLineWeight));
@@ -49,19 +71,19 @@ namespace AJTools.Services.GraphicsTools
 
             settings.SetSurfaceTransparency(ClampTransparency(safeInput.Transparency));
 
-            settings.SetCutLineColor(ToColorOrInvalid(safeInput.CutLineColor));
-            settings.SetCutLinePatternId(ToIdOrInvalid(safeInput.CutLinePatternId));
-            settings.SetCutLineWeight(NormalizeLineWeight(safeInput.CutLineWeight));
+            settings.SetCutLineColor(ToColorOrInvalid(cutLineColor));
+            settings.SetCutLinePatternId(ToIdOrInvalid(cutLinePatternId));
+            settings.SetCutLineWeight(NormalizeLineWeight(cutLineWeight));
 
-            ElementId cutForegroundPatternId = ToIdOrInvalid(safeInput.CutForegroundPatternId);
-            settings.SetCutForegroundPatternId(cutForegroundPatternId);
-            settings.SetCutForegroundPatternVisible(IsValidId(cutForegroundPatternId));
-            settings.SetCutForegroundPatternColor(ToColorOrInvalid(safeInput.CutForegroundPatternColor));
+            ElementId resolvedCutForegroundPatternId = ToIdOrInvalid(cutForegroundPatternId);
+            settings.SetCutForegroundPatternId(resolvedCutForegroundPatternId);
+            settings.SetCutForegroundPatternVisible(IsValidId(resolvedCutForegroundPatternId));
+            settings.SetCutForegroundPatternColor(ToColorOrInvalid(cutForegroundColor));
 
-            ElementId cutBackgroundPatternId = ToIdOrInvalid(safeInput.CutBackgroundPatternId);
-            settings.SetCutBackgroundPatternId(cutBackgroundPatternId);
-            settings.SetCutBackgroundPatternVisible(IsValidId(cutBackgroundPatternId));
-            settings.SetCutBackgroundPatternColor(ToColorOrInvalid(safeInput.CutBackgroundPatternColor));
+            ElementId resolvedCutBackgroundPatternId = ToIdOrInvalid(cutBackgroundPatternId);
+            settings.SetCutBackgroundPatternId(resolvedCutBackgroundPatternId);
+            settings.SetCutBackgroundPatternVisible(IsValidId(resolvedCutBackgroundPatternId));
+            settings.SetCutBackgroundPatternColor(ToColorOrInvalid(cutBackgroundColor));
 
             settings.SetHalftone(safeInput.Halftone);
 

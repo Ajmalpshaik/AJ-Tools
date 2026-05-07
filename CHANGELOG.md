@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.1] - 2026-05-07
+
+- Combined Element Graphics and Category Graphics into one `Apply Graphics` tool with a shared UI mode switch.
+- Added category selection inside the Apply Graphics window and removed the separate element/category apply commands from the ribbon.
+- Fixed the `Use Projection / Surface settings for Cut` behavior so linked cut settings mirror line, pattern, weight, and fill settings correctly and unlink cleanly for manual editing.
+
 ## [1.4.0] - 2026-05-07
 
 - Added the HVAC Schematic tool to create drafting-view schematics from selected ducts, air terminals, and mechanical equipment.

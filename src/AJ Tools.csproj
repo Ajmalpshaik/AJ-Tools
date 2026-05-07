@@ -105,11 +105,10 @@
     <Compile Include="Commands\CmdSmartMepTag.cs" />
     <Compile Include="Commands\CmdSmartMepTagSettings.cs" />
     <Compile Include="Commands\ViewCrop\CmdViewCrop3DExtents.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdCategoryGraphics.cs" />
+    <Compile Include="Commands\GraphicsTools\CmdApplyGraphics.cs" />
     <Compile Include="Commands\GraphicsTools\CmdMatchCategoryGraphics.cs" />
     <Compile Include="Commands\GraphicsTools\CmdResetCategoryGraphics.cs" />
     <Compile Include="Commands\GraphicsTools\CmdResetCategoryGraphicsAllElements.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdElementGraphics.cs" />
     <Compile Include="Commands\GraphicsTools\CmdMatchElementGraphics.cs" />
     <Compile Include="Commands\GraphicsTools\CmdClearSelectedElementGraphics.cs" />
     <Compile Include="Models\ApplyViewItem.cs" />
@@ -144,6 +143,7 @@
     <Compile Include="Models\GraphicsTools\GraphicsIdOption.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsLineWeightOption.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsColorValue.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsCategoryOption.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsOverrideInput.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsOperationSummary.cs" />
     <Compile Include="Models\ViewCrop\ViewCropBatchResult.cs" />
