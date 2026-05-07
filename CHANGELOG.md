@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.0] - 2026-05-07
+
+- Added the HVAC Schematic tool to create drafting-view schematics from selected ducts, air terminals, and mechanical equipment.
+- Refined Ceiling Magnet selection and transaction flow for ceiling-grid snapping, including linked-ceiling support handling.
+- Reorganized the AJ Tools ribbon layout and standardized metadata headers for the HVAC schematic and related touched files.
+
 ## [1.3.9] - 2026-05-06
 
 - Cleaned the Graphics Tools command group: Apply Graphics, Match Graphics, and Reset Graphics.

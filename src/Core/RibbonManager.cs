@@ -1,10 +1,22 @@
-// Tool Name: Ribbon Manager
-// Description: Builds the AJ Tools ribbon UI and registers push buttons and split buttons.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.UI, System.Reflection, System.Windows.Media.Imaging, AJTools.Commands, AJTools.Utils
+// ==================================================
+// Tool Name    : Ribbon Manager
+// Purpose      : Builds the AJ Tools ribbon tab, panels, and tool registration.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2025-12-10
+// Last Updated : 2026-05-07
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Revit startup application context and AJ Tools command registrations.
+// Output       : AJ Tools ribbon layout with registered buttons, split buttons, and pulldowns.
+// Notes        : Keeps Revit 2020 ribbon registration centralized and aligned with packaged icon resources.
+// Changelog    : v1.1.0 - Reorganized ribbon panels, added HVAC schematic registration, and standardized metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
@@ -22,14 +34,19 @@ namespace AJTools.App
     {
         private enum PanelKey
         {
+            View,
             Graphics,
-            Links,
+            Datums,
             Dimensions,
-            Family,
+            Annotation,
+            Tags,
+            Modify,
             Mep,
-            DataStandards,
-            Annotations,
-            Info
+            Coordination,
+            Data,
+            Manage,
+            Family,
+            About
         }
 
         private readonly struct ToolPlacement
@@ -64,40 +81,55 @@ namespace AJTools.App
 
             _panelNames = new Dictionary<PanelKey, string>
             {
+                [PanelKey.View] = "View",
                 [PanelKey.Graphics] = "Graphics",
-                [PanelKey.Links] = "Links",
+                [PanelKey.Datums] = "Datums",
                 [PanelKey.Dimensions] = "Dimensions",
+                [PanelKey.Annotation] = "Annotation",
+                [PanelKey.Tags] = "Tags",
                 [PanelKey.Family] = "Family",
+                [PanelKey.Modify] = "Modify",
                 [PanelKey.Mep] = "MEP",
-                [PanelKey.DataStandards] = "Data & Standards",
-                [PanelKey.Annotations] = "Annotations",
-                [PanelKey.Info] = "Info"
+                [PanelKey.Coordination] = "Coordination",
+                [PanelKey.Data] = "Data",
+                [PanelKey.Manage] = "Manage",
+                [PanelKey.About] = "Aj tool"
             };
 
             _panelOrder = new List<PanelKey>
             {
+                PanelKey.View,
                 PanelKey.Graphics,
-                PanelKey.Links,
+                PanelKey.Datums,
                 PanelKey.Dimensions,
-                PanelKey.Family,
+                PanelKey.Annotation,
+                PanelKey.Tags,
+                PanelKey.Modify,
                 PanelKey.Mep,
-                PanelKey.DataStandards,
-                PanelKey.Annotations,
-                PanelKey.Info
+                PanelKey.Coordination,
+                PanelKey.Data,
+                PanelKey.Manage,
+                PanelKey.Family,
+                PanelKey.About
             };
 
             // To rename a panel, update _panelNames.
             // To move a tool group to another panel, change the PanelKey used here.
             _toolLayout = new List<ToolPlacement>
             {
+                new ToolPlacement(PanelKey.View, BuildViewPanel),
                 new ToolPlacement(PanelKey.Graphics, BuildGraphicsPanel),
-                new ToolPlacement(PanelKey.Links, BuildLinksPanel),
+                new ToolPlacement(PanelKey.Datums, BuildDatumsPanel),
                 new ToolPlacement(PanelKey.Dimensions, BuildDimensionsPanel),
-                new ToolPlacement(PanelKey.Family, BuildFamilyPanel),
+                new ToolPlacement(PanelKey.Annotation, BuildAnnotationPanel),
+                new ToolPlacement(PanelKey.Tags, BuildTagsPanel),
+                new ToolPlacement(PanelKey.Modify, BuildModifyPanel),
                 new ToolPlacement(PanelKey.Mep, BuildMepPanel),
-                new ToolPlacement(PanelKey.DataStandards, BuildDataStandardsPanel),
-                new ToolPlacement(PanelKey.Annotations, BuildAnnotationsPanel),
-                new ToolPlacement(PanelKey.Info, BuildInfoPanel)
+                new ToolPlacement(PanelKey.Coordination, BuildCoordinationPanel),
+                new ToolPlacement(PanelKey.Data, BuildDataPanel),
+                new ToolPlacement(PanelKey.Manage, BuildManagePanel),
+                new ToolPlacement(PanelKey.Family, BuildFamilyPanel),
+                new ToolPlacement(PanelKey.About, BuildAboutPanel)
             };
         }
 
@@ -176,53 +208,69 @@ namespace AJTools.App
             }
         }
 
-        private void BuildGraphicsPanel(RibbonPanel panel)
+        private void BuildViewPanel(RibbonPanel panel)
         {
-            AddStackedTools(panel, AddToggleLinksTool(), AddUnhideAllTool(), AddPinElementsTool());
-            AddStackedTools(panel, AddApplyGraphicsTools(), AddMatchGraphicsTools(), AddResetGraphicsTools());
-            AddTopLevelTool(panel, Add3DViewsTools());
+            AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
             AddTopLevelTool(panel, AddFilterProTool());
-            AddTopLevelTool(panel, AddTransferViewTemplatesTool());
         }
 
-        private void BuildLinksPanel(RibbonPanel panel)
+        private void BuildGraphicsPanel(RibbonPanel panel)
         {
-            AddStackedTools(panel, AddElementIdTools(), AddSetLinkWorksetTool());
+            AddStackedTools(panel, AddApplyGraphicsTools(), AddMatchGraphicsTools(), AddResetGraphicsTools());
+        }
+
+        private void BuildDatumsPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddResetDatumsTools(), AddLevelExtentsTools(), AddFlipDatumBubblesTool());
         }
 
         private void BuildDimensionsPanel(RibbonPanel panel)
         {
-            AddStackedTools(panel, AddAutoDimensionsTools(), AddDimensionByLineTools());
-            AddTopLevelTool(panel, AddCopyDimensionTextTool());
+            AddStackedTools(panel, AddAutoDimensionsTools(), AddDimensionByLineTools(), AddCopyDimensionTextTool());
         }
 
-        private void BuildFamilyPanel(RibbonPanel panel)
+        private void BuildAnnotationPanel(RibbonPanel panel)
         {
-            AddTopLevelTool(panel, AddSharedToFamilyTool());
+            AddStackedTools(panel, AddDuctFlowTools(), AddRevisionCloudsTool(), AddTextTools());
+        }
+
+        private void BuildTagsPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddSmartMepTagTools(), AddArrangeTagsTools(), AddLShapeLeadersTool());
+        }
+
+        private void BuildModifyPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddMatchElevationTool(), AddReassignLevelTool(), AddPinElementsTool());
         }
 
         private void BuildMepPanel(RibbonPanel panel)
         {
-            AddStackedTools(panel, AddMatchElevationTool(), AddReassignLevelTool());
-            AddStackedTools(panel, AddSmartConnectTool(), AddCeilingMagnetTool());
+            AddStackedTools(panel, AddSmartConnectTool(), AddCeilingMagnetTool(), AddHvacSchematicTool());
         }
 
-        private void BuildDataStandardsPanel(RibbonPanel panel)
+        private void BuildCoordinationPanel(RibbonPanel panel)
         {
-            AddStackedTools(panel, AddLocationDataTool(), AddDuctStandardsTool(), AddPurgeTools());
+            AddStackedTools(panel, AddFindElementTools(), AddWorkset3DViewsTool(), AddSetLinkWorksetTool());
         }
 
-        private void BuildAnnotationsPanel(RibbonPanel panel)
+        private void BuildDataPanel(RibbonPanel panel)
         {
-            AddStackedTools(panel, AddSmartMepTagTools(), AddDuctFlowTools(), AddRevisionCloudByElementsTool());
-            AddTopLevelTool(panel, AddResetTextTool());
-            AddStackedTools(panel, AddResetDatumsTools(), AddExtendLevelsTool());
-            AddTopLevelTool(panel, AddFlipGridBubbleTool());
-            AddTopLevelTool(panel, AddLShapeLeaderTool());
-            AddStackedTools(panel, AddViewCrop3DExtentsTools(), AddArrangeTagsTools(), AddCopySwapTextTools());
+            AddStackedTools(panel, AddLocationDataTool(), AddDuctStandardsTool());
         }
 
-        private void BuildInfoPanel(RibbonPanel panel)
+        private void BuildManagePanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddTransferViewTemplatesTool());
+            AddTopLevelTool(panel, AddPurgeFamilyParametersTool());
+        }
+
+        private void BuildFamilyPanel(RibbonPanel panel)
+        {
+            AddStackedTools(panel, AddConvertSharedParametersTool(), AddCenterAnnotationsTool());
+        }
+
+        private void BuildAboutPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAboutTool());
         }
@@ -230,7 +278,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddToggleLinksTool()
         {
             return CreatePushToolSpec(
-                "Toggle\nLinks",
+                "Toggle\nLink",
                 "Toggle visibility of all Revit Links in the active view.",
                 typeof(CmdToggleRevitLinks),
                 "Toggle Links.png",
@@ -250,7 +298,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddPinElementsTool()
         {
             return CreatePushToolSpec(
-                "Pin",
+                "Pin / Unpin\nElements",
                 "Pin/unpin separated Sheet groups (Title Blocks, Placed Views, Legends, Schedules) with Active Sheet Only or All Sheets mode, and Model groups (Duct, Pipe, Cable Tray, Generic Models, Mechanical Equipment, Plumbing Fixtures, Electrical Equipment).",
                 typeof(CmdPinElements),
                 "apply.png",
@@ -270,19 +318,19 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddApplyGraphicsTools()
         {
-            return CreateSplitToolSpec(
+            return CreatePulldownToolSpec(
                 "Apply\nGraphics",
                 "Apply category or element graphics overrides in the active view.",
                 "apply.png",
                 "apply.png",
                 CreateSplitChildTool(
-                    "Category\nGraphics",
+                    "Apply Category Graphics",
                     "Apply graphics overrides to unique model categories from selected elements in the active view.",
                     typeof(CmdCategoryGraphics),
                     "apply.png",
                     "apply.png"),
                 CreateSplitChildTool(
-                    "Element\nGraphics",
+                    "Apply Element Graphics",
                     "Apply element-level graphics overrides to selected elements in the active view.",
                     typeof(CmdElementGraphics),
                     "apply.png",
@@ -291,19 +339,19 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddMatchGraphicsTools()
         {
-            return CreateSplitToolSpec(
+            return CreatePulldownToolSpec(
                 "Match\nGraphics",
                 "Match category or element graphics from a picked source.",
                 "copy.png",
                 "copy.png",
                 CreateSplitChildTool(
-                    "Match Category\nGraphics",
+                    "Match Category Graphics",
                     "Copy category graphics from one source category and apply them to selected target categories.",
                     typeof(CmdMatchCategoryGraphics),
                     "copy.png",
                     "copy.png"),
                 CreateSplitChildTool(
-                    "Match Element\nGraphics",
+                    "Match Element Graphics",
                     "Copy element-level graphics from one source element to selected target elements.",
                     typeof(CmdMatchElementGraphics),
                     "copy.png",
@@ -312,46 +360,46 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddResetGraphicsTools()
         {
-            return CreateSplitToolSpec(
+            return CreatePulldownToolSpec(
                 "Reset\nGraphics",
                 "Reset category and element graphics overrides in the active view.",
                 "Reset Overrides.png",
                 "Reset Overrides.png",
                 CreateSplitChildTool(
-                    "Reset Category\nBy Selection",
+                    "Reset Category Graphics by Selection",
                     "Reset category graphics overrides using selected model elements in the active view.",
                     typeof(CmdResetCategoryGraphics),
                     "Reset Overrides.png",
                     "Reset Overrides.png"),
                 CreateSplitChildTool(
-                    "Reset Category\nAll Elements",
+                    "Reset Category Graphics in View",
                     "Reset category graphics overrides for model categories found from all elements in the active view.",
                     typeof(CmdResetCategoryGraphicsAllElements),
                     "Reset Overrides.png",
                     "Reset Overrides.png"),
                 CreateSplitChildTool(
-                    "Reset Element\nBy Selection",
+                    "Reset Element Graphics by Selection",
                     "Reset element-level graphics overrides for selected elements in the active view.",
                     typeof(CmdClearSelectedElementGraphics),
                     "Reset Overrides.png",
                     "Reset Overrides.png"),
                 CreateSplitChildTool(
-                    "Reset Element\nAll Elements",
+                    "Reset Element Graphics in View",
                     "Reset all element-level graphics overrides in the active view.",
                     typeof(CmdResetOverrides),
                     "Reset Overrides.png",
                     "Reset Overrides.png"));
         }
 
-        private TopLevelToolSpec Add3DViewsTools()
+        private TopLevelToolSpec AddWorkset3DViewsTool()
         {
-            return CreateSplitToolSpec(
+            return CreatePulldownToolSpec(
                 "3D\nViews",
-                "3D view tools.",
+                "3D view creation tools.",
                 "3D Views.png",
                 "3D Views.png",
                 CreateSplitChildTool(
-                    "Create 3D View As Per Workset",
+                    "Create 3D Views\nby Workset",
                     "Create one 3D view per user workset and isolate each workset in its matching view.",
                     typeof(Cmd3DViewsAsPerWorkset),
                     "3D Views.png",
@@ -360,29 +408,34 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddTransferViewTemplatesTool()
         {
-            return CreatePushToolSpec(
-                "Transfer\nTemplates",
-                "Transfer selected view templates between open project documents, with optional override.",
-                typeof(CmdTransferViewTemplates),
+            return CreatePulldownToolSpec(
+                "Transfer",
+                "Transfer tools.",
                 "Transfer View Template.png",
-                "Transfer View Template.png");
+                "Transfer View Template.png",
+                CreateSplitChildTool(
+                    "Transfer View Templates",
+                    "Transfer selected view templates between open project documents, with optional override.",
+                    typeof(CmdTransferViewTemplates),
+                    "Transfer View Template.png",
+                    "Transfer View Template.png"));
         }
 
-        private TopLevelToolSpec AddElementIdTools()
+        private TopLevelToolSpec AddFindElementTools()
         {
-            return CreateSplitToolSpec(
+            return CreatePulldownToolSpec(
                 "Element\nID",
                 "Element ID tools for current and linked models.",
                 "linkedID.png",
                 "linkedID.png",
                 CreateSplitChildTool(
-                    "Linked ID of\nSelection",
+                    "Get Element ID\nfrom Selection",
                     "Pick any element (model or linked) and view its Element ID with source info.",
                     typeof(CmdLinkedElementIdViewer),
                     "Linked ID of Selection.png",
                     "Linked ID of Selection.png"),
                 CreateSplitChildTool(
-                    "View by\nLinked ID",
+                    "Find Element\nby Element ID",
                     "Search by Element ID in current or linked models and zoom to it.",
                     typeof(CmdLinkedElementSearch),
                     "View by Linked ID.png",
@@ -392,7 +445,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddSetLinkWorksetTool()
         {
             return CreatePushToolSpec(
-                "Set Link\nWorkset",
+                "Link\nWorkset",
                 "Assign selected Revit links and CAD imports to a workset.",
                 typeof(CmdSetLinkWorkset),
                 "Set Link Workset.png",
@@ -401,25 +454,25 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddAutoDimensionsTools()
         {
-            return CreateSplitToolSpec(
-                "Auto\nDims",
+            return CreatePulldownToolSpec(
+                "Automatic\nDimension",
                 "Dimension grids and levels automatically.",
                 "Dimensions.png",
                 "Dimensions.png",
                 CreateSplitChildTool(
-                    "Grids Only",
+                    "Automatic Grid\nDimensions",
                     "Create horizontal/vertical grid dimension strings in plan views.",
                     typeof(CmdAutoDimensionsGrids),
                     "Dimensions.png",
                     "Dimensions.png"),
                 CreateSplitChildTool(
-                    "Levels Only",
+                    "Automatic Level\nDimensions",
                     "Create level dimension strings in section or elevation views.",
                     typeof(CmdAutoDimensionsLevels),
                     "Dimensions.png",
                     "Dimensions.png"),
                 CreateSplitChildTool(
-                    "Grids + Levels",
+                    "Automatic Grid /\nLevel Dimensions",
                     "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.",
                     typeof(CmdAutoDimensions),
                     "Dimensions.png",
@@ -428,31 +481,31 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddDimensionByLineTools()
         {
-            return CreateSplitToolSpec(
-                "Dim By\nLine",
-                "Pick two points to place grid or level dimensions along a custom line.",
+            return CreatePulldownToolSpec(
+                "Quick\nDimension",
+                "Quick parallel dimensions and grid/level dimensions along a picked line.",
                 "Dimensions by Line.png",
                 "Dimensions by Line.png",
                 CreateSplitChildTool(
-                    "Quick\nCenter Line",
+                    "Quick Parallel Dimension\nby Centerline",
                     "Quickly create a dimension string for selected parallel elements using center line references.",
                     typeof(CmdQuickParallelCenterLineDimension),
                     "Dimensions by Line.png",
                     "Dimensions by Line.png"),
                 CreateSplitChildTool(
-                    "Quick\nFace/Edge",
+                    "Quick Parallel Dimension\nby Face / Edge",
                     "Quickly create dimensions using both side faces/edges for each selected parallel element (for ducts/pipes this captures both sides).",
                     typeof(CmdQuickParallelFaceEdgeDimension),
                     "Dimensions by Line.png",
                     "Dimensions by Line.png"),
                 CreateSplitChildTool(
-                    "Dim By Line\nGrid Only",
+                    "Create Grid Dimensions\nby Picked Line",
                     "Create a dimension string across intersecting grids using a picked line (plan, section, or elevation).",
                     typeof(CmdDimensionGridsByLine),
                     "Dimensions by Line.png",
                     "Dimensions by Line.png"),
                 CreateSplitChildTool(
-                    "Dim By Line\nLevel Only",
+                    "Create Level Dimensions\nby Picked Line",
                     "Create a dimension string across levels within the picked vertical range.",
                     typeof(CmdDimensionLevelsByLine),
                     "Dimensions by Line.png",
@@ -462,7 +515,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddCopyDimensionTextTool()
         {
             return CreatePushToolSpec(
-                "Copy Dim\nText",
+                "Copy Dimension\nText",
                 "Copy Above/Below/Prefix/Suffix text from one dimension to others.",
                 typeof(CmdCopyDimensionText),
                 "Copy Dim Text.png",
@@ -472,66 +525,66 @@ namespace AJTools.App
         private TopLevelToolSpec AddResetDatumsTools()
         {
             return CreateSplitToolSpec(
-                "Reset to\n3D Extents",
+                "Reset Grid / Level\nExtents to 3D",
                 "Reset grid or level datum extents back to 3D.",
                 "Resetto3DExtents.png",
                 "Resetto3DExtents.png",
                 CreateSplitChildTool(
-                    "Grids Only",
+                    "Reset Grid\nExtents to 3D",
                     "Reset all visible grids to 3D extents in this view.",
                     typeof(CmdResetDatumsGrids),
                     "Resetto3DExtents.png",
                     "Resetto3DExtents.png"),
                 CreateSplitChildTool(
-                    "Levels Only",
+                    "Reset Level\nExtents to 3D",
                     "Reset all visible levels to 3D extents in this view.",
                     typeof(CmdResetDatumsLevels),
                     "Resetto3DExtents.png",
                     "Resetto3DExtents.png"),
                 CreateSplitChildTool(
-                    "Grids + Levels",
+                    "Reset Grid / Level\nExtents to 3D",
                     "Reset both grids and levels visible in this view.",
                     typeof(CmdResetDatums),
                     "Resetto3DExtents.png",
                     "Resetto3DExtents.png"));
         }
 
-        private TopLevelToolSpec AddExtendLevelsTool()
+        private TopLevelToolSpec AddLevelExtentsTools()
         {
             return CreateSplitToolSpec(
-                "Level\nExtents",
+                "Modify Level\nExtents",
                 "Match or maximize level 3D extents.",
                 "Level Extents.png",
                 "Level Extents.png",
                 CreateSplitChildTool(
-                    "Match Level Extents",
+                    "Match Level\nExtents",
                     "Select one source level, then pick target levels one-by-one to match extents (Esc to finish).",
                     typeof(CmdExtendLevelsBySelected),
                     "Level Extents.png",
                     "Level Extents.png"),
                 CreateSplitChildTool(
-                    "Maximize by Section Box",
+                    "Maximize Level Extents\nto Section Box",
                     "Maximize all level 3D extents to the active 3D view's section box.",
                     typeof(CmdMaximizeLevelsBySectionBox),
                     "Level Extents.png",
                     "Level Extents.png"));
         }
 
-        private TopLevelToolSpec AddViewCrop3DExtentsTools()
+        private TopLevelToolSpec AddViewCropTools()
         {
-            return CreateSplitToolSpec(
-                "View Crop\n3D Extents",
-                "Resize view crop by projected model extents.",
+            return CreatePulldownToolSpec(
+                "View\nCrop",
+                "View crop and annotation crop tools.",
                 "view crop 3d extents.png",
                 "view crop 3d extents.png",
                 CreateSplitChildTool(
-                    "View Crop by Active View Elements",
+                    "Crop View by\nVisible Elements",
                     "Fit crop per target view using only elements currently visible in that view.",
                     typeof(CmdViewCropByActiveViewElements),
                     "view crop 3d extents.png",
                     "view crop 3d extents.png"),
                 CreateSplitChildTool(
-                    "View Crop by All Model Elements",
+                    "Crop View by\nAll Model Elements",
                     "Fit crop per target view using project-wide model extents projected to that view.",
                     typeof(CmdViewCropByAllModelElements),
                     "view crop 3d extents.png",
@@ -544,52 +597,52 @@ namespace AJTools.App
                     "view crop 3d extents.png"));
         }
 
-        private TopLevelToolSpec AddFlipGridBubbleTool()
+        private TopLevelToolSpec AddFlipDatumBubblesTool()
         {
             return CreatePushToolSpec(
-                "Flip Grid\nBubble",
-                "Toggle which grid end shows the bubble, one grid at a time.",
+                "Flip Grid /\nLevel Bubbles",
+                "Toggle which datum end shows the bubble for grids or levels, one item at a time.",
                 typeof(CmdFlipGridBubble),
                 "GridbubbleFlip.png",
                 "GridbubbleFlip.png");
         }
 
-        private TopLevelToolSpec AddSharedToFamilyTool()
+        private TopLevelToolSpec AddConvertSharedParametersTool()
         {
             return CreatePushToolSpec(
-                "Shared\nTo Family",
+                "Shared to\nFamily",
                 "Convert selected shared parameters in the active family into normal family parameters.",
                 typeof(SharedParamToFamilyParamCommand),
                 "Share To Family.png",
                 "Share To Family.png");
         }
 
-        private TopLevelToolSpec AddRevisionCloudByElementsTool()
+        private TopLevelToolSpec AddRevisionCloudsTool()
         {
-            return CreateSplitToolSpec(
-                "Cloud By\nElements",
+            return CreatePulldownToolSpec(
+                "Revision\nClouds",
                 "Create orthogonal stepped revision cloud boundaries and configure settings.",
                 "Cloud By Elements.png",
                 "Cloud By Elements.png",
                 CreateSplitChildTool(
-                    "Place",
+                    "Revision Clouds\nby Elements",
                     "Create orthogonal stepped revision cloud boundaries aligned to dominant selected-element angle. Keeps running until Esc.",
                     typeof(CmdRevisionCloudByElements),
                     "Cloud By Elements.png",
                     "Cloud By Elements.png"),
                 CreateSplitChildTool(
-                    "Settings",
+                    "Revision Cloud\nSettings",
                     "Configure offset distance for Cloud By Elements.",
                     typeof(CmdRevisionCloudByElementsSettings),
                     "settings.png",
                     "settings.png"));
         }
 
-        private TopLevelToolSpec AddResetTextTool()
+        private TopLevelToolSpec AddCenterAnnotationsTool()
         {
             return CreatePushToolSpec(
-                "Reset\nText",
-                "Reset selected text notes/tags back to their default text offset.",
+                "Center\nAnnotation",
+                "Center selected annotations in the active annotation family view.",
                 typeof(CmdResetTextPosition),
                 "Reset Position.png",
                 "Reset Position.png");
@@ -598,24 +651,24 @@ namespace AJTools.App
         private TopLevelToolSpec AddMatchElevationTool()
         {
             return CreateSplitToolSpec(
-                "Match\nElevation",
+                "Match MEP Element\nElevation",
                 "Match center, top, or bottom elevation from a source MEP element to others.",
                 "Match Elevation.png",
                 "Match Elevation.png",
                 CreateSplitChildTool(
-                    "By\nCenter",
+                    "Match Center\nElevation",
                     "Match center elevation from a source MEP element to selected targets.",
                     typeof(CmdMatchElevation),
                     "Match Elevation.png",
                     "Match Elevation.png"),
                 CreateSplitChildTool(
-                    "By\nTop",
+                    "Match Top\nElevation",
                     "Match top elevation from a source MEP element to selected targets.",
                     typeof(CmdMatchElevationTop),
                     "Match Elevation.png",
                     "Match Elevation.png"),
                 CreateSplitChildTool(
-                    "By\nBottom",
+                    "Match Bottom\nElevation",
                     "Match bottom elevation from a source MEP element to selected targets.",
                     typeof(CmdMatchElevationBottom),
                     "Match Elevation.png",
@@ -625,7 +678,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddReassignLevelTool()
         {
             return CreatePushToolSpec(
-                "Reassign\nLevel",
+                "Reassign\nReference Level",
                 "Reassign supported MEP elements from one level to another without moving them physically.",
                 typeof(CmdReassignLevel),
                 "Reassign Level.png",
@@ -635,7 +688,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddLocationDataTool()
         {
             return CreatePushToolSpec(
-                "Location\nData",
+                "Assign\nLocation",
                 "Assign Room, Level, Coordinates, Altitude, and HVAC Zone data to selected categories.",
                 typeof(CmdLocationDataAssigner),
                 "Location Data.png",
@@ -645,7 +698,7 @@ namespace AJTools.App
         private TopLevelToolSpec AddSmartConnectTool()
         {
             return CreatePushToolSpec(
-                "Smart\nConnect",
+                "Connect MEP\nElements",
                 "Connect two same-category MEP elements (Pipe, Duct, Cable Tray) with routing and angle settings.",
                 typeof(SmartConnectCommand),
                 "SmartConnect.png",
@@ -655,28 +708,38 @@ namespace AJTools.App
         private TopLevelToolSpec AddCeilingMagnetTool()
         {
             return CreatePushToolSpec(
-                "Ceiling\nMagnet",
+                "Elements to\nCeiling Grid",
                 "Pick ceiling, pick grid intersection, then snap point-based elements to nearest tile centers.",
                 typeof(CmdCeilingMagnet),
                 "cursor.png",
                 "cursor.png");
         }
 
+        private TopLevelToolSpec AddHvacSchematicTool()
+        {
+            return CreatePushToolSpec(
+                "HVAC\nSchematic",
+                "Convert selected ducts, air terminals, and mechanical equipment into a connector-based HVAC schematic inside a new Drafting View.",
+                typeof(HvacSchematicCommand),
+                "Flowdirectioncreate.png",
+                "Flowdirectioncreate.png");
+        }
+
         private TopLevelToolSpec AddDuctFlowTools()
         {
-            return CreateSplitToolSpec(
-                "Duct\nFlow",
+            return CreatePulldownToolSpec(
+                "Duct Flow\nAnnotations",
                 "Duct flow annotation tools.",
                 "Flowdirectioncreate.png",
                 "Flowdirectioncreate.png",
                 CreateSplitChildTool(
-                    "Place",
+                    "Duct Flow\nAnnotations",
                     "Place duct flow annotations along horizontal ducts.",
                     typeof(CmdFlowDirectionAnnotations),
                     "Flowdirectioncreate.png",
                     "Flowdirectioncreate.png"),
                 CreateSplitChildTool(
-                    "Settings",
+                    "Duct Flow Annotation\nSettings",
                     "Choose the annotation family and spacing used for duct flow placement.",
                     typeof(CmdFlowDirectionSettings),
                     "settings.png",
@@ -686,51 +749,50 @@ namespace AJTools.App
         private TopLevelToolSpec AddDuctStandardsTool()
         {
             return CreatePushToolSpec(
-                "Duct\nStandards",
+                "Duct\nStandard",
                 "Calculate and write duct sheet thickness, gauge, weight, and area based on SMACNA-style rules.",
                 typeof(CmdDuctStandardsManager),
                 "Duct Standards.png",
                 "Duct Standards.png");
         }
 
-        private TopLevelToolSpec AddPurgeTools()
+        private TopLevelToolSpec AddPurgeFamilyParametersTool()
         {
-            return CreateSplitToolSpec(
+            return CreatePulldownToolSpec(
                 "Purge",
-                "Project cleanup and purge tools.",
+                "Purge tools.",
                 "Remove.png",
                 "Remove.png",
                 CreateSplitChildTool(
-                    "Purge Unused\nFamily Parameters",
+                    "Purge Family Parameters",
                     "Scan family parameters, classify unused candidates safely, and remove selected parameters in the active family document.",
                     typeof(CmdPurgeUnusedFamilyParameters),
                     "Remove.png",
-                    "Remove.png",
-                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnusedFamilyParametersAvailability).FullName));
+                    "Remove.png"));
         }
 
         private TopLevelToolSpec AddSmartMepTagTools()
         {
-            return CreateSplitToolSpec(
-                "Smart MEP\nTag",
+            return CreatePulldownToolSpec(
+                "Smart MEP\nTags",
                 "Smart MEP tagging tools.",
                 "Smart MEP TAG.png",
                 "Smart MEP TAG.png",
                 CreateSplitChildTool(
-                    "Place",
+                    "Smart MEP\nTags",
                     "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.",
                     typeof(CmdSmartMepTag),
                     "Smart MEP TAG.png",
                     "Smart MEP TAG.png"),
                 CreateSplitChildTool(
-                    "Settings",
+                    "Smart MEP Tagging\nSettings",
                     "Configure category-wise enable/disable for Smart MEP Tag.",
                     typeof(CmdSmartMepTagSettings),
                     "settings.png",
                     "settings.png"));
         }
 
-        private TopLevelToolSpec AddLShapeLeaderTool()
+        private TopLevelToolSpec AddLShapeLeadersTool()
         {
             return CreatePushToolSpec(
                 "L-Shape\nLeader",
@@ -742,40 +804,40 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddArrangeTagsTools()
         {
-            return CreateSplitToolSpec(
-                "Arrange\nTags",
+            return CreatePulldownToolSpec(
+                "Rearrange\nTags",
                 "Arrange tag tools.",
                 "Arrange Tag.png",
                 "Arrange Tag.png",
                 CreateSplitChildTool(
-                    "Place",
+                    "Rearrange\nTags",
                     "Rearrange selected tags into a clean vertical stack. The nearest T1-to-L1 tag position is placed first, then remaining tags stack above or below based on T1 relative to L1.",
                     typeof(CmdIntelligentTagArranger),
                     "Arrange Tag.png",
                     "Arrange Tag.png"),
                 CreateSplitChildTool(
-                    "Settings",
+                    "Arrange Tag\nSettings",
                     "Set default vertical spacing for Arrange Tags (tag_spacing_mm).",
                     typeof(CmdIntelligentTagArrangerSettings),
                     "settings.png",
                     "settings.png"));
         }
 
-        private TopLevelToolSpec AddCopySwapTextTools()
+        private TopLevelToolSpec AddTextTools()
         {
             return CreateSplitToolSpec(
-                "Copy Swap\nText",
+                "Copy / Swap\nText Notes",
                 "Copy or swap text values between text notes.",
                 "copyswaptext.png",
                 "copyswaptext.png",
                 CreateSplitChildTool(
-                    "Copy Text",
+                    "Copy Text\nNotes",
                     "Copy the text value from one text note to others (click targets until ESC).",
                     typeof(CmdCopyText),
                     "copyswaptext.png",
                     "copyswaptext.png"),
                 CreateSplitChildTool(
-                    "Swap Text",
+                    "Swap Text\nNotes",
                     "Swap the text values between two picked text notes (one-time).",
                     typeof(CmdSwapText),
                     "copyswaptext.png",
@@ -785,11 +847,11 @@ namespace AJTools.App
         private TopLevelToolSpec AddAboutTool()
         {
             return CreatePushToolSpec(
-                "About\nAJ Tools",
+                "About",
                 "Open the AJ Tools About window.",
                 typeof(AboutCommand),
-                "information.png",
-                "information.png",
+                "About.png",
+                "About.png",
                 pushButton =>
                 {
                     pushButton.LongDescription = "Shows AJ Tools version, platform details, developer information, update notes, and repository links.";
@@ -904,6 +966,41 @@ namespace AJTools.App
                 });
         }
 
+        private TopLevelToolSpec CreatePulldownToolSpec(
+            string text,
+            string tooltip,
+            string largeIconFileName,
+            string smallIconFileName,
+            params SplitChildToolSpec[] childTools)
+        {
+            return new TopLevelToolSpec(
+                CreatePulldownButtonData(text, tooltip, largeIconFileName, smallIconFileName),
+                item =>
+                {
+                    var pulldownButton = item as PulldownButton;
+                    if (pulldownButton == null || childTools == null)
+                    {
+                        return;
+                    }
+
+                    foreach (var childTool in childTools)
+                    {
+                        var childButton = CreatePushButton(
+                            pulldownButton,
+                            childTool.Text,
+                            childTool.Tooltip,
+                            childTool.Command,
+                            childTool.LargeIconFileName,
+                            childTool.SmallIconFileName);
+
+                        if (childButton != null)
+                        {
+                            childTool.AfterCreate?.Invoke(childButton);
+                        }
+                    }
+                });
+        }
+
         private static SplitChildToolSpec CreateSplitChildTool(
             string text,
             string tooltip,
@@ -956,6 +1053,31 @@ namespace AJTools.App
             }
 
             return splitButton.AddPushButton(
+                CreatePushButtonData(
+                    text,
+                    command,
+                    tooltip,
+                    largeIconFileName,
+                    smallIconFileName));
+        }
+
+        /// <summary>
+        /// Adds a push button to a pulldown button menu.
+        /// </summary>
+        private PushButton CreatePushButton(
+            PulldownButton pulldownButton,
+            string text,
+            string tooltip,
+            Type command,
+            string largeIconFileName,
+            string smallIconFileName)
+        {
+            if (pulldownButton == null)
+            {
+                return null;
+            }
+
+            return pulldownButton.AddPushButton(
                 CreatePushButtonData(
                     text,
                     command,
@@ -1023,12 +1145,49 @@ namespace AJTools.App
             return splitButtonData;
         }
 
+        /// <summary>
+        /// Creates pulldown button data with tooltip and icons.
+        /// </summary>
+        private PulldownButtonData CreatePulldownButtonData(
+            string text,
+            string tooltip,
+            string largeIconFileName,
+            string smallIconFileName)
+        {
+            var pulldownButtonData = new PulldownButtonData(CreatePulldownButtonName(text), text)
+            {
+                ToolTip = tooltip
+            };
+
+            var largeIcon = _iconLoader.LoadLarge(largeIconFileName);
+            if (largeIcon != null)
+            {
+                pulldownButtonData.LargeImage = largeIcon;
+            }
+
+            var smallIcon = _iconLoader.LoadSmall(smallIconFileName);
+            if (smallIcon != null)
+            {
+                pulldownButtonData.Image = smallIcon;
+            }
+
+            return pulldownButtonData;
+        }
+
         private static string CreateSplitButtonName(string text)
         {
             var normalizedText = (text ?? string.Empty)
                 .Replace("\n", string.Empty)
                 .Replace(" ", string.Empty);
             return $"split_{normalizedText}";
+        }
+
+        private static string CreatePulldownButtonName(string text)
+        {
+            var normalizedText = (text ?? string.Empty)
+                .Replace("\n", string.Empty)
+                .Replace(" ", string.Empty);
+            return $"pulldown_{normalizedText}";
         }
     }
 }

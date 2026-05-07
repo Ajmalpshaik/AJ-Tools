@@ -1,11 +1,22 @@
-// Tool Name: Ceiling Magnet
-// Description: Pick a ceiling, pick one grid intersection on it as the anchor, then continuously pick elements one-by-one to snap each to the nearest tile center. Press Esc to finish.
-// Author: Ajmal P.S.
-// Version: 4.1.0
-// Last Updated: 2026-04-12
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
-
+// ==================================================
+// Tool Name    : Ceiling Magnet
+// Purpose      : Snaps point-based elements to the nearest ceiling grid tile centers.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.1.0
+// Created      : 2026-04-12
+// Last Updated : 2026-05-07
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Selected ceiling, one anchor grid intersection, and point-based elements.
+// Output       : Selected elements aligned to the nearest ceiling grid tile centers.
+// Notes        : Supports current-model and linked-model ceilings; reports skipped elements and keeps Revit 2020 behavior.
+// Changelog    : v1.1.0 - Refined ceiling selection, grid resolution, transaction flow, and standardized metadata.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
@@ -25,6 +36,9 @@ namespace AJTools.Commands
         private const string ToolTitle = "Ceiling Magnet";
         private const double FallbackTileMm = 600.0;
         private const double MoveTolerance = 1e-9;
+        private const string TransactionGroupName = "Ceiling Magnet";
+        private const string SnapPreselectedTransactionName = "Snap Preselected";
+        private const string SnapElementTransactionName = "Snap Element";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -38,133 +52,26 @@ namespace AJTools.Commands
 
             try
             {
-                // 1) Pick ceiling
-                Reference ceilingRef = uidoc.Selection.PickObject(
-                    ObjectType.Element,
-                    new CeilingSelectionFilter(),
-                    "Select ceiling");
-                Ceiling ceiling = doc.GetElement(ceilingRef.ElementId) as Ceiling;
-                if (ceiling == null)
-                {
-                    DialogHelper.ShowError(ToolTitle, "Please select a valid ceiling.");
-                    return Result.Cancelled;
-                }
-
-                // 1b) Read the real tile size + rotation from the ceiling's surface pattern.
-                double tileU, tileV, gridAngle;
-                bool usedFallback = !TryGetCeilingTilePattern(doc, ceiling, out tileU, out tileV, out gridAngle);
-                if (usedFallback)
-                {
-                    tileU = tileV = UnitUtils.ConvertToInternalUnits(FallbackTileMm, DisplayUnitType.DUT_MILLIMETERS);
-                    gridAngle = 0.0;
-                }
-                if (tileU <= 0 || tileV <= 0)
-                {
-                    DialogHelper.ShowError(ToolTitle, "Could not determine a valid tile size from the ceiling surface pattern.");
-                    return Result.Cancelled;
-                }
-
-                // 2) Pick ONE real grid intersection on the ceiling as the anchor. This is the
-                // only reliable way to know where the surface pattern is anchored in world space —
-                // there is no Revit 2020 API that exposes the rendered pattern's world origin.
-                // After this single click, the loop below picks elements continuously without
-                // asking for the anchor again.
-                XYZ originPoint;
-                try
-                {
-                    originPoint = uidoc.Selection.PickPoint("Pick one ceiling grid intersection (anchor)");
-                }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                CeilingSelection ceilingSelection;
+                if (!TryPickCeilingSelection(uidoc, doc, out ceilingSelection))
                 {
                     return Result.Cancelled;
                 }
 
+                CeilingGridDefinition grid;
+                if (!TryCreateGridDefinition(ceilingSelection, out grid))
+                {
+                    return Result.Cancelled;
+                }
+
+                XYZ originPoint = PickAnchorPoint(uidoc);
                 if (originPoint == null)
                 {
                     return Result.Cancelled;
                 }
 
-                // Build the rotated grid frame in world XY using the pattern angle.
-                // axisU = spacing direction for grid 0 (perpendicular to grid-0 lines)
-                // axisV = spacing direction for grid 1 (parallel to grid-0 lines)
-                double cosA = Math.Cos(gridAngle);
-                double sinA = Math.Sin(gridAngle);
-                XYZ axisU = new XYZ(-sinA, cosA, 0);
-                XYZ axisV = new XYZ(cosA, sinA, 0);
-
-                int moved = 0;
-                int aligned = 0;
-                int skipped = 0;
-
-                // 3) Snap any preselected elements first (one transaction), then enter the
-                // continuous pick loop until the user presses Esc.
-                using (TransactionGroup group = new TransactionGroup(doc, "Ceiling Magnet"))
-                {
-                    group.Start();
-
-                    IList<Element> preselected = GetPreselectedPointElements(uidoc, doc);
-                    if (preselected.Count > 0)
-                    {
-                        using (Transaction tx = new Transaction(doc, "Snap Preselected"))
-                        {
-                            tx.Start();
-                            foreach (Element element in preselected)
-                            {
-                                SnapElement(doc, element, originPoint, axisU, axisV, tileU, tileV, ref moved, ref aligned, ref skipped);
-                            }
-                            tx.Commit();
-                        }
-                    }
-
-                    // 4) Continuous one-by-one picking loop. Esc / right-click cancels and ends the loop.
-                    while (true)
-                    {
-                        Reference pickedRef;
-                        try
-                        {
-                            pickedRef = uidoc.Selection.PickObject(
-                                ObjectType.Element,
-                                new PointElementSelectionFilter(),
-                                "Pick element to snap (Esc to finish)");
-                        }
-                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                        {
-                            break;
-                        }
-
-                        if (pickedRef == null)
-                        {
-                            break;
-                        }
-
-                        Element element = doc.GetElement(pickedRef.ElementId);
-                        if (!IsPointBasedElement(element))
-                        {
-                            skipped++;
-                            continue;
-                        }
-
-                        using (Transaction tx = new Transaction(doc, "Snap Element"))
-                        {
-                            tx.Start();
-                            SnapElement(doc, element, originPoint, axisU, axisV, tileU, tileV, ref moved, ref aligned, ref skipped);
-                            tx.Commit();
-                        }
-                    }
-
-                    group.Assimilate();
-                }
-
-                double tileUmm = UnitUtils.ConvertFromInternalUnits(tileU, DisplayUnitType.DUT_MILLIMETERS);
-                double tileVmm = UnitUtils.ConvertFromInternalUnits(tileV, DisplayUnitType.DUT_MILLIMETERS);
-                double angleDeg = gridAngle * 180.0 / Math.PI;
-                string source = usedFallback
-                    ? "fallback 600x600 (no model pattern on ceiling)"
-                    : $"ceiling pattern {tileUmm:0.#} x {tileVmm:0.#} mm @ {angleDeg:0.##}°";
-
-                DialogHelper.ShowInfo(
-                    ToolTitle,
-                    $"Grid: {source}\nMoved: {moved}\nAlready aligned: {aligned}\nSkipped: {skipped}");
+                SnapSummary summary = SnapElementsToGrid(uidoc, doc, originPoint, grid);
+                ShowSummary(grid, summary);
 
                 return Result.Succeeded;
             }
@@ -179,9 +86,277 @@ namespace AJTools.Commands
             }
         }
 
+        private static bool TryPickCeilingSelection(UIDocument uidoc, Document hostDoc, out CeilingSelection selection)
+        {
+            selection = null;
+
+            Reference ceilingReference = PickCeilingReference(uidoc);
+            string skippedReason;
+            if (TryResolveCeilingSelection(hostDoc, ceilingReference, out selection, out skippedReason))
+            {
+                return true;
+            }
+
+            if (CanPickLinkedElementFromReference(hostDoc, ceilingReference))
+            {
+                Reference linkedReference = PickLinkedCeilingReference(uidoc);
+                if (TryResolveCeilingSelection(hostDoc, linkedReference, out selection, out skippedReason))
+                {
+                    return true;
+                }
+            }
+
+            DialogHelper.ShowError(ToolTitle, skippedReason);
+            return false;
+        }
+
+        private static bool TryCreateGridDefinition(CeilingSelection ceilingSelection, out CeilingGridDefinition grid)
+        {
+            grid = null;
+
+            double tileU;
+            double tileV;
+            double gridAngle;
+            bool usedFallback = !TryGetCeilingTilePattern(
+                ceilingSelection.Document,
+                ceilingSelection.Ceiling,
+                out tileU,
+                out tileV,
+                out gridAngle);
+
+            if (usedFallback)
+            {
+                tileU = UnitUtils.ConvertToInternalUnits(FallbackTileMm, DisplayUnitType.DUT_MILLIMETERS);
+                tileV = tileU;
+                gridAngle = 0.0;
+            }
+
+            if (tileU <= 0 || tileV <= 0)
+            {
+                DialogHelper.ShowError(ToolTitle, "Could not determine a valid tile size from the ceiling surface pattern.");
+                return false;
+            }
+
+            XYZ axisU;
+            XYZ axisV;
+            if (!TryBuildHostGridAxes(gridAngle, ceilingSelection.TransformToHost, out axisU, out axisV))
+            {
+                DialogHelper.ShowError(ToolTitle, "Could not convert the selected ceiling grid direction to host coordinates.");
+                return false;
+            }
+
+            grid = new CeilingGridDefinition(tileU, tileV, axisU, axisV, usedFallback);
+            return true;
+        }
+
+        private static XYZ PickAnchorPoint(UIDocument uidoc)
+        {
+            // Revit 2020 does not expose the rendered model pattern origin, so the anchor
+            // still has to come from one manual click on a visible grid intersection.
+            return uidoc.Selection.PickPoint("Pick one ceiling grid intersection (anchor)");
+        }
+
+        private static SnapSummary SnapElementsToGrid(UIDocument uidoc, Document doc, XYZ originPoint, CeilingGridDefinition grid)
+        {
+            SnapSummary summary = new SnapSummary();
+
+            using (TransactionGroup group = new TransactionGroup(doc, TransactionGroupName))
+            {
+                group.Start();
+
+                IList<Element> preselected = GetPreselectedPointElements(uidoc, doc);
+                if (preselected.Count > 0)
+                {
+                    using (Transaction tx = new Transaction(doc, SnapPreselectedTransactionName))
+                    {
+                        tx.Start();
+                        foreach (Element element in preselected)
+                        {
+                            SnapElement(doc, element, originPoint, grid, summary);
+                        }
+
+                        tx.Commit();
+                    }
+                }
+
+                while (true)
+                {
+                    Reference pickedReference;
+                    try
+                    {
+                        pickedReference = uidoc.Selection.PickObject(
+                            ObjectType.Element,
+                            new PointElementSelectionFilter(),
+                            "Pick element to snap (Esc to finish)");
+                    }
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    Element element = doc.GetElement(pickedReference.ElementId);
+                    using (Transaction tx = new Transaction(doc, SnapElementTransactionName))
+                    {
+                        tx.Start();
+                        SnapElement(doc, element, originPoint, grid, summary);
+                        tx.Commit();
+                    }
+                }
+
+                group.Assimilate();
+            }
+
+            return summary;
+        }
+
+        private static void ShowSummary(CeilingGridDefinition grid, SnapSummary summary)
+        {
+            double tileUmm = UnitUtils.ConvertFromInternalUnits(grid.TileU, DisplayUnitType.DUT_MILLIMETERS);
+            double tileVmm = UnitUtils.ConvertFromInternalUnits(grid.TileV, DisplayUnitType.DUT_MILLIMETERS);
+            double angleDeg = Math.Atan2(grid.AxisV.Y, grid.AxisV.X) * 180.0 / Math.PI;
+            string source = grid.UsedFallback
+                ? "fallback 600x600 (no model pattern on ceiling)"
+                : string.Format("ceiling pattern {0:0.#} x {1:0.#} mm @ {2:0.##} deg", tileUmm, tileVmm, angleDeg);
+
+            DialogHelper.ShowInfo(
+                ToolTitle,
+                string.Format(
+                    "Grid: {0}\nMoved: {1}\nAlready aligned: {2}\nSkipped: {3}",
+                    source,
+                    summary.Moved,
+                    summary.Aligned,
+                    summary.Skipped));
+        }
+
+        private static Reference PickCeilingReference(UIDocument uidoc)
+        {
+            return uidoc.Selection.PickObject(
+                ObjectType.PointOnElement,
+                "Select ceiling from current model or linked model");
+        }
+
+        private static Reference PickLinkedCeilingReference(UIDocument uidoc)
+        {
+            return uidoc.Selection.PickObject(
+                ObjectType.LinkedElement,
+                "Select ceiling inside the linked model");
+        }
+
+        private static bool TryResolveCeilingSelection(
+            Document hostDoc,
+            Reference reference,
+            out CeilingSelection selection,
+            out string skippedReason)
+        {
+            selection = null;
+            skippedReason = string.Empty;
+
+            if (hostDoc == null || reference == null)
+            {
+                skippedReason = "No ceiling was selected.";
+                return false;
+            }
+
+            if (reference.LinkedElementId != ElementId.InvalidElementId)
+            {
+                RevitLinkInstance linkInstance = hostDoc.GetElement(reference.ElementId) as RevitLinkInstance;
+                if (linkInstance == null)
+                {
+                    skippedReason = "The selected linked ceiling reference is not associated with a valid Revit link instance.";
+                    return false;
+                }
+
+                Document linkDoc = linkInstance.GetLinkDocument();
+                if (linkDoc == null)
+                {
+                    skippedReason = "The selected linked model is unloaded. Load the link and try again.";
+                    return false;
+                }
+
+                Ceiling linkedCeiling = linkDoc.GetElement(reference.LinkedElementId) as Ceiling;
+                if (linkedCeiling == null)
+                {
+                    skippedReason = "Skipped: the selected linked element is not a ceiling.";
+                    return false;
+                }
+
+                selection = new CeilingSelection(linkDoc, linkedCeiling, linkInstance.GetTotalTransform());
+                return true;
+            }
+
+            Element hostElement = hostDoc.GetElement(reference.ElementId);
+            Ceiling hostCeiling = hostElement as Ceiling;
+            if (hostCeiling == null)
+            {
+                RevitLinkInstance linkInstance = hostElement as RevitLinkInstance;
+                if (linkInstance != null && linkInstance.GetLinkDocument() == null)
+                {
+                    skippedReason = "The selected linked model is unloaded. Load the link and try again.";
+                }
+                else
+                {
+                    skippedReason = linkInstance != null
+                        ? "Select the ceiling inside the linked model, not only the link instance."
+                        : "Skipped: the selected host element is not a ceiling.";
+                }
+
+                return false;
+            }
+
+            selection = new CeilingSelection(hostDoc, hostCeiling, Transform.Identity);
+            return true;
+        }
+
+        private static bool CanPickLinkedElementFromReference(Document doc, Reference reference)
+        {
+            if (doc == null || reference == null || reference.ElementId == ElementId.InvalidElementId)
+            {
+                return false;
+            }
+
+            RevitLinkInstance linkInstance = doc.GetElement(reference.ElementId) as RevitLinkInstance;
+            return linkInstance != null && linkInstance.GetLinkDocument() != null;
+        }
+
+        private static bool TryBuildHostGridAxes(
+            double gridAngle,
+            Transform transformToHost,
+            out XYZ axisU,
+            out XYZ axisV)
+        {
+            double cosA = Math.Cos(gridAngle);
+            double sinA = Math.Sin(gridAngle);
+            XYZ localAxisU = new XYZ(-sinA, cosA, 0);
+            XYZ localAxisV = new XYZ(cosA, sinA, 0);
+            Transform transform = transformToHost ?? Transform.Identity;
+
+            bool hasAxisU = TryProjectAndNormalize(transform.OfVector(localAxisU), out axisU);
+            bool hasAxisV = TryProjectAndNormalize(transform.OfVector(localAxisV), out axisV);
+            return hasAxisU && hasAxisV;
+        }
+
+        private static bool TryProjectAndNormalize(XYZ vector, out XYZ normalized)
+        {
+            normalized = null;
+            if (vector == null)
+            {
+                return false;
+            }
+
+            XYZ projected = new XYZ(vector.X, vector.Y, 0);
+            double length = projected.GetLength();
+            if (length <= MoveTolerance)
+            {
+                return false;
+            }
+
+            normalized = new XYZ(projected.X / length, projected.Y / length, 0);
+            return true;
+        }
+
         private static IList<Element> GetPreselectedPointElements(UIDocument uidoc, Document doc)
         {
-            var result = new List<Element>();
+            List<Element> result = new List<Element>();
             ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
             if (selectedIds == null || selectedIds.Count == 0)
             {
@@ -205,60 +380,47 @@ namespace AJTools.Commands
             return element?.Location is LocationPoint;
         }
 
-        // Snaps a single point-based element to the nearest tile center, in the rotated grid frame.
-        // Updates moved/aligned/skipped counters in place. Caller is responsible for the transaction.
         private static void SnapElement(
             Document doc,
             Element element,
             XYZ originPoint,
-            XYZ axisU,
-            XYZ axisV,
-            double tileU,
-            double tileV,
-            ref int moved,
-            ref int aligned,
-            ref int skipped)
+            CeilingGridDefinition grid,
+            SnapSummary summary)
         {
             LocationPoint location = element?.Location as LocationPoint;
             if (location == null || element.Pinned)
             {
-                skipped++;
+                summary.Skipped++;
                 return;
             }
 
             XYZ current = location.Point;
             XYZ rel = current - originPoint;
-            double u = rel.DotProduct(axisU);
-            double v = rel.DotProduct(axisV);
-            double uSnap = NearestTileCenter1D(u, tileU);
-            double vSnap = NearestTileCenter1D(v, tileV);
-            XYZ delta = axisU.Multiply(uSnap).Add(axisV.Multiply(vSnap));
-            // Keep the element's existing Z; only snap in the ceiling's local plane.
+            double u = rel.DotProduct(grid.AxisU);
+            double v = rel.DotProduct(grid.AxisV);
+            double uSnap = NearestTileCenter1D(u, grid.TileU);
+            double vSnap = NearestTileCenter1D(v, grid.TileV);
+            XYZ delta = grid.AxisU.Multiply(uSnap).Add(grid.AxisV.Multiply(vSnap));
             XYZ target = new XYZ(originPoint.X + delta.X, originPoint.Y + delta.Y, current.Z);
             XYZ move = target - current;
 
             if (move.GetLength() > MoveTolerance)
             {
                 ElementTransformUtils.MoveElement(doc, element.Id, move);
-                moved++;
+                summary.Moved++;
             }
             else
             {
-                aligned++;
+                summary.Aligned++;
             }
         }
 
-        // Snap a 1-D coordinate (already expressed relative to the picked origin) to the
-        // nearest tile center. Tile centers sit at step/2 + n*step from the origin.
         private static double NearestTileCenter1D(double value, double step)
         {
             double n = Math.Round((value - (step * 0.5)) / step);
             return (step * 0.5) + (n * step);
         }
 
-        // Reads the actual tile size (tileU, tileV in feet) and rotation angle (radians)
-        // from the first model surface pattern found on the ceiling type's compound structure.
-        // tileU = spacing perpendicular to grid-0 lines, tileV = spacing perpendicular to grid-1 lines.
         private static bool TryGetCeilingTilePattern(Document doc, Ceiling ceiling, out double tileU, out double tileV, out double angle)
         {
             tileU = 0;
@@ -313,20 +475,6 @@ namespace AJTools.Commands
             return false;
         }
 
-        private sealed class CeilingSelectionFilter : ISelectionFilter
-        {
-            public bool AllowElement(Element elem)
-            {
-                return elem?.Category != null &&
-                       elem.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Ceilings;
-            }
-
-            public bool AllowReference(Reference reference, XYZ position)
-            {
-                return true;
-            }
-        }
-
         private sealed class PointElementSelectionFilter : ISelectionFilter
         {
             public bool AllowElement(Element elem)
@@ -338,6 +486,53 @@ namespace AJTools.Commands
             {
                 return true;
             }
+        }
+
+        private sealed class CeilingSelection
+        {
+            public CeilingSelection(Document document, Ceiling ceiling, Transform transformToHost)
+            {
+                Document = document;
+                Ceiling = ceiling;
+                TransformToHost = transformToHost ?? Transform.Identity;
+            }
+
+            public Document Document { get; }
+
+            public Ceiling Ceiling { get; }
+
+            public Transform TransformToHost { get; }
+        }
+
+        private sealed class CeilingGridDefinition
+        {
+            public CeilingGridDefinition(double tileU, double tileV, XYZ axisU, XYZ axisV, bool usedFallback)
+            {
+                TileU = tileU;
+                TileV = tileV;
+                AxisU = axisU;
+                AxisV = axisV;
+                UsedFallback = usedFallback;
+            }
+
+            public double TileU { get; }
+
+            public double TileV { get; }
+
+            public XYZ AxisU { get; }
+
+            public XYZ AxisV { get; }
+
+            public bool UsedFallback { get; }
+        }
+
+        private sealed class SnapSummary
+        {
+            public int Moved { get; set; }
+
+            public int Aligned { get; set; }
+
+            public int Skipped { get; set; }
         }
     }
 }
