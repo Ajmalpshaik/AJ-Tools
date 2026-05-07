@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
-// Purpose      : Captures graphics tool selections and shared command execution context.
+// Tool Name    : Apply Graphics
+// Purpose      : Captures Apply Graphics selections and shared command execution context.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Active Revit UI document and user selections.
 // Output       : Validated command context and selected element ids.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.2.0 - Combined Apply Graphics workflow and corrected cut-link UI behavior.
+// Changelog    : v1.4.2 - Supports the unified Apply Graphics selection workflow.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

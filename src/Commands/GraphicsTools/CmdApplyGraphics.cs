@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
+// Tool Name    : Apply Graphics
 // Purpose      : Applies graphics overrides to selected elements or selected categories from one combined tool.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-05-07
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Active view, selected graphics settings, and either selected elements or selected categories.
 // Output       : Element or category graphics overrides applied in the active view.
 // Notes        : Normal success is silent; the UI drives one shared Apply Graphics workflow for both modes.
-// Changelog    : v1.2.0 - Combined element and category apply commands into one production-ready tool.
+// Changelog    : v1.4.2 - Removed preset-target dependency and kept one direct-edit UI for element and category graphics.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

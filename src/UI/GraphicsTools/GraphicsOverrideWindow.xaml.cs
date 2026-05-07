@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
-// Purpose      : Handles the combined Apply Graphics window behavior and input conversion.
+// Tool Name    : Apply Graphics
+// Purpose      : Handles the Apply Graphics window behavior and input conversion.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-03-30
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : User graphics settings selections, apply mode choice, and category selections.
 // Output       : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
 // Notes        : Keeps cut-link state explicit so linked cut settings match projection/surface settings exactly.
-// Changelog    : v1.2.0 - Combined apply workflow and fixed cut-link UI state logic.
+// Changelog    : v1.4.2 - Removed preset-target logic and clarified direct color editing behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -35,7 +35,7 @@ using MediaColor = System.Windows.Media.Color;
 namespace AJTools.UI.GraphicsTools
 {
     /// <summary>
-    /// Graphics settings dialog used by the combined Apply Graphics command.
+    /// Graphics settings dialog used by the Apply Graphics command.
     /// </summary>
     public partial class GraphicsOverrideWindow : Window
     {
@@ -381,85 +381,6 @@ namespace AJTools.UI.GraphicsTools
             _colorValues[key] = GraphicsColorValue.ByView();
             UpdateColorVisual(key);
             HandleProjectionSurfaceDependencies(key);
-        }
-
-        private void OnQuickColorPreset(object sender, RoutedEventArgs e)
-        {
-            Button button = sender as Button;
-            string presetTag = button?.Tag as string;
-            if (string.IsNullOrWhiteSpace(presetTag))
-            {
-                return;
-            }
-
-            GraphicsColorValue presetColor;
-            if (string.Equals(presetTag, "ByView", StringComparison.OrdinalIgnoreCase))
-            {
-                presetColor = GraphicsColorValue.ByView();
-            }
-            else
-            {
-                if (!TryParseRgb(presetTag, out byte red, out byte green, out byte blue))
-                {
-                    return;
-                }
-
-                presetColor = GraphicsColorValue.FromRgb(red, green, blue);
-            }
-
-            string targetKey = ResolveQuickColorTargetKey();
-            if (string.IsNullOrWhiteSpace(targetKey))
-            {
-                return;
-            }
-
-            string effectiveTargetKey = ResolveEffectiveTargetKey(targetKey);
-            _colorValues[effectiveTargetKey] = presetColor;
-            UpdateColorVisual(effectiveTargetKey);
-            HandleProjectionSurfaceDependencies(effectiveTargetKey);
-        }
-
-        private string ResolveQuickColorTargetKey()
-        {
-            ComboBoxItem selectedItem = QuickColorTargetCombo.SelectedItem as ComboBoxItem;
-            return selectedItem?.Tag as string;
-        }
-
-        private string ResolveEffectiveTargetKey(string requestedTargetKey)
-        {
-            if (UseProjectionSurfaceColorsForCutCheckBox.IsChecked != true)
-            {
-                return requestedTargetKey;
-            }
-
-            switch (requestedTargetKey)
-            {
-                case CutLineColorKey:
-                    return ProjectionLineColorKey;
-                case CutForegroundColorKey:
-                    return SurfaceForegroundColorKey;
-                case CutBackgroundColorKey:
-                    return SurfaceBackgroundColorKey;
-                default:
-                    return requestedTargetKey;
-            }
-        }
-
-        private static bool TryParseRgb(string value, out byte red, out byte green, out byte blue)
-        {
-            red = 0;
-            green = 0;
-            blue = 0;
-
-            string[] segments = value.Split(',');
-            if (segments.Length != 3)
-            {
-                return false;
-            }
-
-            return byte.TryParse(segments[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out red) &&
-                   byte.TryParse(segments[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out green) &&
-                   byte.TryParse(segments[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out blue);
         }
 
         private void OnProjectionSurfaceSettingChanged(object sender, SelectionChangedEventArgs e)

@@ -1,9 +1,9 @@
 // ==================================================
-// Tool Name    : Graphics Tools
+// Tool Name    : Apply Graphics
 // Purpose      : Represents a selectable category option for the Apply Graphics UI.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.2.0
+// Version      : 1.4.2
 // Created      : 2026-05-07
 // Last Updated : 2026-05-07
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Revit category identity and display name.
 // Output       : A selectable category item for graphics override workflows.
 // Notes        : Used only for active-view categories that support Revit graphics overrides.
-// Changelog    : v1.2.0 - Added combined Apply Graphics category-selection support.
+// Changelog    : v1.4.2 - Supports the unified element/category Apply Graphics workflow.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

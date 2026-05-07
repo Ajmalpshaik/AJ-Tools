@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.2] - 2026-05-07
+
+- Removed the unused `Preset Target` UI and quick-preset dependency from `Apply Graphics`.
+- Renamed the combined Apply Graphics modes to `Apply as Element Graphics` and `Apply as Category Graphics`, and fixed apply-mode label visibility in the dark theme.
+- Kept direct editable projection/surface and cut color controls, while preserving linked-cut behavior when `Use Projection / Surface settings for Cut` is enabled.
+
 ## [1.4.1] - 2026-05-07
 
 - Combined Element Graphics and Category Graphics into one `Apply Graphics` tool with a shared UI mode switch.
