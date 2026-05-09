@@ -3,27 +3,30 @@
 // Purpose      : Handles the Apply Graphics window behavior and input conversion.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.3
+// Version      : 1.4.4
 // Created      : 2026-03-30
-// Last Updated : 2026-05-07
+// Last Updated : 2026-05-09
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : User graphics settings selections, apply mode choice, selected source categories, and category selections.
 // Output       : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
-// Notes        : Keeps cut-link state explicit so linked cut settings match projection/surface settings exactly.
-// Changelog    : v1.4.3 - Restored per-field preset colors and aligned category mode to the selected-element source.
+// Notes        : Keeps Revit override construction outside the WPF UI layer.
+// Changelog    : v1.4.4 - Wired the reference-style UI, category search, color presets, transparency slider, and split apply actions.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using AJTools.Models.GraphicsTools;
@@ -56,6 +59,43 @@ namespace AJTools.UI.GraphicsTools
             public ElementId CutBackgroundPatternId { get; set; }
         }
 
+        private sealed class ColorPreset
+        {
+            public ColorPreset(string name, byte red, byte green, byte blue)
+            {
+                Name = name;
+                Red = red;
+                Green = green;
+                Blue = blue;
+
+                Brush = new SolidColorBrush(MediaColor.FromRgb(red, green, blue));
+                Brush.Freeze();
+            }
+
+            public string Name { get; }
+
+            public byte Red { get; }
+
+            public byte Green { get; }
+
+            public byte Blue { get; }
+
+            public Brush Brush { get; }
+
+            public string TagValue
+            {
+                get
+                {
+                    return string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0},{1},{2}",
+                        Red,
+                        Green,
+                        Blue);
+                }
+            }
+        }
+
         private const string ProjectionLineColorKey = "ProjectionLineColor";
         private const string SurfaceForegroundColorKey = "SurfaceForegroundColor";
         private const string SurfaceBackgroundColorKey = "SurfaceBackgroundColor";
@@ -63,9 +103,25 @@ namespace AJTools.UI.GraphicsTools
         private const string CutForegroundColorKey = "CutForegroundColor";
         private const string CutBackgroundColorKey = "CutBackgroundColor";
 
-        private static readonly Brush ByViewBrush = new SolidColorBrush(MediaColor.FromRgb(17, 26, 46));
-        private static readonly Brush PreviewTextOnDarkBrush = Brushes.White;
-        private static readonly Brush PreviewTextOnLightBrush = new SolidColorBrush(MediaColor.FromRgb(17, 17, 17));
+        private static readonly Brush FieldBrush = CreateFrozenBrush(37, 37, 38);
+
+        private static readonly IList<ColorPreset> ColorPresets = new List<ColorPreset>
+        {
+            new ColorPreset("Red", 255, 0, 0),
+            new ColorPreset("Blue", 0, 0, 255),
+            new ColorPreset("Green", 0, 255, 0),
+            new ColorPreset("Cyan", 0, 255, 255),
+            new ColorPreset("Magenta", 255, 0, 255),
+            new ColorPreset("Yellow", 255, 255, 0),
+            new ColorPreset("Orange", 255, 165, 0),
+            new ColorPreset("Dark Red", 139, 0, 0),
+            new ColorPreset("Dark Blue", 0, 0, 139),
+            new ColorPreset("Dark Green", 0, 100, 0),
+            new ColorPreset("Purple", 128, 0, 128),
+            new ColorPreset("Brown", 165, 42, 42),
+            new ColorPreset("Black", 0, 0, 0),
+            new ColorPreset("Silver", 192, 192, 192)
+        };
 
         private readonly Dictionary<string, GraphicsColorValue> _colorValues =
             new Dictionary<string, GraphicsColorValue>(StringComparer.Ordinal)
@@ -79,6 +135,8 @@ namespace AJTools.UI.GraphicsTools
             };
 
         private readonly IList<GraphicsCategoryOption> _categoryOptions;
+        private readonly ISet<int> _initialSelectedCategoryKeys;
+        private ICollectionView _categoryOptionsView;
         private bool _isCutSettingsLinked;
         private CutOverrideState _manualCutState;
 
@@ -103,10 +161,32 @@ namespace AJTools.UI.GraphicsTools
             }
 
             _categoryOptions = GraphicsDataProvider.GetCategoryOptions(availableCategories, preselectedCategoryIds);
+            _initialSelectedCategoryKeys = new HashSet<int>(
+                _categoryOptions
+                    .Where(option => option.IsSelected)
+                    .Select(option => option.CategoryId.IntegerValue));
+
             BindDropdownData(doc);
+            PopulateColorPresetPanels();
             BindCategoryData();
-            InitializeApplyMode();
-            ApplySettings(initialSettings ?? new OverrideGraphicSettings());
+
+            GraphicsOverrideMemoryState memoryState = initialSettings == null
+                ? GraphicsOverrideMemoryService.Load()
+                : null;
+            if (initialSettings != null)
+            {
+                ApplySettings(initialSettings, inferCutLink: true);
+            }
+            else if (memoryState != null)
+            {
+                ApplyMemorySettings(memoryState);
+            }
+            else
+            {
+                ApplySettings(new OverrideGraphicSettings(), inferCutLink: true);
+            }
+
+            UpdateCategorySearchPlaceholder();
         }
 
         public OverrideGraphicSettings SelectedOverrideSettings { get; private set; }
@@ -124,12 +204,18 @@ namespace AJTools.UI.GraphicsTools
             }
         }
 
+        private static Brush CreateFrozenBrush(byte red, byte green, byte blue)
+        {
+            var brush = new SolidColorBrush(MediaColor.FromRgb(red, green, blue));
+            brush.Freeze();
+            return brush;
+        }
+
         private void BindDropdownData(Document doc)
         {
             IList<GraphicsIdOption> linePatternOptions = GraphicsDataProvider.GetLinePatternOptions(doc);
             IList<GraphicsIdOption> fillPatternOptions = GraphicsDataProvider.GetFillPatternOptions(doc);
             IList<GraphicsLineWeightOption> lineWeightOptions = GraphicsDataProvider.GetLineWeightOptions();
-            IList<int> transparencyOptions = GraphicsDataProvider.GetTransparencyOptions();
 
             BindIdOptionCombo(ProjectionLinePatternCombo, linePatternOptions);
             BindIdOptionCombo(CutLinePatternCombo, linePatternOptions);
@@ -141,23 +227,94 @@ namespace AJTools.UI.GraphicsTools
             BindLineWeightCombo(ProjectionLineWeightCombo, lineWeightOptions);
             BindLineWeightCombo(CutLineWeightCombo, lineWeightOptions);
 
-            TransparencyCombo.ItemsSource = transparencyOptions;
-            TransparencyCombo.SelectedItem = 0;
+            TransparencySlider.Value = 0;
+            UpdateTransparencyText();
         }
 
         private void BindCategoryData()
         {
-            CategoryListBox.ItemsSource = _categoryOptions;
-            CategoryModeHintText.Text = _categoryOptions.Count == 0
-                ? "No supported categories were found from the selected elements."
-                : "Choose categories from the selected elements only, then apply active-view category overrides.";
+            _categoryOptionsView = CollectionViewSource.GetDefaultView(_categoryOptions);
+            if (_categoryOptionsView != null)
+            {
+                _categoryOptionsView.Filter = FilterCategoryOption;
+            }
+
+            if (_categoryOptionsView != null)
+            {
+                CategoryListBox.ItemsSource = _categoryOptionsView;
+            }
+            else
+            {
+                CategoryListBox.ItemsSource = _categoryOptions;
+            }
         }
 
-        private void InitializeApplyMode()
+        private void PopulateColorPresetPanels()
         {
-            ApplyModeElementsRadioButton.IsChecked = true;
-            SelectedApplyMode = GraphicsApplyMode.SelectedElements;
-            ApplyApplyModeState();
+            PopulateColorPresetPanel(ProjectionLineColorPresetPanel, ProjectionLineColorKey);
+            PopulateColorPresetPanel(SurfaceForegroundColorPresetPanel, SurfaceForegroundColorKey);
+            PopulateColorPresetPanel(SurfaceBackgroundColorPresetPanel, SurfaceBackgroundColorKey);
+            PopulateColorPresetPanel(CutLineColorPresetPanel, CutLineColorKey);
+            PopulateColorPresetPanel(CutForegroundColorPresetPanel, CutForegroundColorKey);
+            PopulateColorPresetPanel(CutBackgroundColorPresetPanel, CutBackgroundColorKey);
+        }
+
+        private void PopulateColorPresetPanel(System.Windows.Controls.Panel panel, string colorKey)
+        {
+            if (panel == null || string.IsNullOrWhiteSpace(colorKey))
+            {
+                return;
+            }
+
+            panel.Children.Clear();
+            Style swatchStyle = TryFindResource("ColorSwatchButtonStyle") as Style;
+            Style byViewStyle = TryFindResource("SmallSecondaryButtonStyle") as Style;
+
+            foreach (ColorPreset preset in ColorPresets)
+            {
+                var button = new Button
+                {
+                    Style = swatchStyle,
+                    Background = preset.Brush,
+                    ToolTip = preset.Name,
+                    Tag = string.Format(CultureInfo.InvariantCulture, "{0}|{1}", colorKey, preset.TagValue)
+                };
+                button.Click += OnColorPreset;
+                panel.Children.Add(button);
+            }
+
+            var byViewButton = new Button
+            {
+                Content = "BY VIEW",
+                Style = byViewStyle,
+                Tag = colorKey + "|ByView",
+                Height = 18,
+                MinHeight = 18,
+                MinWidth = 64,
+                Padding = new Thickness(7, 0, 7, 0),
+                Margin = new Thickness(2, 0, 0, 0),
+                FontSize = 8,
+                ToolTip = "By View"
+            };
+            byViewButton.Click += OnColorPreset;
+            panel.Children.Add(byViewButton);
+        }
+
+        private bool FilterCategoryOption(object item)
+        {
+            GraphicsCategoryOption option = item as GraphicsCategoryOption;
+            if (option == null)
+            {
+                return false;
+            }
+
+            string searchText = CategorySearchBox == null ? string.Empty : CategorySearchBox.Text;
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return true;
+            }
+
+            return option.DisplayName.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) >= 0;
         }
 
         private static void BindIdOptionCombo(ComboBox comboBox, IList<GraphicsIdOption> options)
@@ -174,33 +331,89 @@ namespace AJTools.UI.GraphicsTools
             comboBox.SelectedIndex = 0;
         }
 
-        private void ApplySettings(OverrideGraphicSettings settings)
+        private void ApplySettings(OverrideGraphicSettings settings, bool inferCutLink)
         {
-            _colorValues[ProjectionLineColorKey] = GraphicsColorValue.FromRevitColor(settings.ProjectionLineColor);
-            _colorValues[SurfaceForegroundColorKey] = GraphicsColorValue.FromRevitColor(settings.SurfaceForegroundPatternColor);
-            _colorValues[SurfaceBackgroundColorKey] = GraphicsColorValue.FromRevitColor(settings.SurfaceBackgroundPatternColor);
-            _colorValues[CutLineColorKey] = GraphicsColorValue.FromRevitColor(settings.CutLineColor);
-            _colorValues[CutForegroundColorKey] = GraphicsColorValue.FromRevitColor(settings.CutForegroundPatternColor);
-            _colorValues[CutBackgroundColorKey] = GraphicsColorValue.FromRevitColor(settings.CutBackgroundPatternColor);
+            var safeSettings = settings ?? new OverrideGraphicSettings();
 
-            SelectIdOption(ProjectionLinePatternCombo, settings.ProjectionLinePatternId);
-            SelectIdOption(SurfaceForegroundPatternCombo, settings.SurfaceForegroundPatternId);
-            SelectIdOption(SurfaceBackgroundPatternCombo, settings.SurfaceBackgroundPatternId);
-            SelectIdOption(CutLinePatternCombo, settings.CutLinePatternId);
-            SelectIdOption(CutForegroundPatternCombo, settings.CutForegroundPatternId);
-            SelectIdOption(CutBackgroundPatternCombo, settings.CutBackgroundPatternId);
+            _colorValues[ProjectionLineColorKey] = GraphicsColorValue.FromRevitColor(safeSettings.ProjectionLineColor);
+            _colorValues[SurfaceForegroundColorKey] = GraphicsColorValue.FromRevitColor(safeSettings.SurfaceForegroundPatternColor);
+            _colorValues[SurfaceBackgroundColorKey] = GraphicsColorValue.FromRevitColor(safeSettings.SurfaceBackgroundPatternColor);
+            _colorValues[CutLineColorKey] = GraphicsColorValue.FromRevitColor(safeSettings.CutLineColor);
+            _colorValues[CutForegroundColorKey] = GraphicsColorValue.FromRevitColor(safeSettings.CutForegroundPatternColor);
+            _colorValues[CutBackgroundColorKey] = GraphicsColorValue.FromRevitColor(safeSettings.CutBackgroundPatternColor);
 
-            SelectLineWeightOption(ProjectionLineWeightCombo, settings.ProjectionLineWeight);
-            SelectLineWeightOption(CutLineWeightCombo, settings.CutLineWeight);
+            SelectIdOption(ProjectionLinePatternCombo, safeSettings.ProjectionLinePatternId);
+            SelectIdOption(SurfaceForegroundPatternCombo, safeSettings.SurfaceForegroundPatternId);
+            SelectIdOption(SurfaceBackgroundPatternCombo, safeSettings.SurfaceBackgroundPatternId);
+            SelectIdOption(CutLinePatternCombo, safeSettings.CutLinePatternId);
+            SelectIdOption(CutForegroundPatternCombo, safeSettings.CutForegroundPatternId);
+            SelectIdOption(CutBackgroundPatternCombo, safeSettings.CutBackgroundPatternId);
 
-            int transparency = settings.Transparency;
-            TransparencyCombo.SelectedItem = transparency >= 0 && transparency <= 100 ? transparency : 0;
+            SelectLineWeightOption(ProjectionLineWeightCombo, safeSettings.ProjectionLineWeight);
+            SelectLineWeightOption(CutLineWeightCombo, safeSettings.CutLineWeight);
 
-            HalftoneCheckBox.IsChecked = settings.Halftone;
+            int transparency = safeSettings.Transparency;
+            TransparencySlider.Value = transparency >= 0 && transparency <= 100 ? transparency : 0;
+            UpdateTransparencyText();
+
+            HalftoneCheckBox.IsChecked = safeSettings.Halftone;
             _manualCutState = CaptureCurrentCutState();
-            UseProjectionSurfaceColorsForCutCheckBox.IsChecked = IsCutLinkedToProjectionSurface(settings);
+            UseProjectionSurfaceColorsForCutCheckBox.IsChecked = inferCutLink && IsCutLinkedToProjectionSurface(safeSettings);
             RefreshAllColorVisuals();
             ApplyCutColorLinkState(preserveManualState: false);
+            SetDefaultApplyMode(GraphicsApplyMode.SelectedElements);
+        }
+
+        private void ApplyMemorySettings(GraphicsOverrideMemoryState state)
+        {
+            if (state == null)
+            {
+                ApplySettings(new OverrideGraphicSettings(), inferCutLink: false);
+                return;
+            }
+
+            _colorValues[ProjectionLineColorKey] = ToGraphicsColor(state.ProjectionLineColor);
+            _colorValues[SurfaceForegroundColorKey] = ToGraphicsColor(state.SurfaceForegroundColor);
+            _colorValues[SurfaceBackgroundColorKey] = ToGraphicsColor(state.SurfaceBackgroundColor);
+            _colorValues[CutLineColorKey] = ToGraphicsColor(state.CutLineColor);
+            _colorValues[CutForegroundColorKey] = ToGraphicsColor(state.CutForegroundColor);
+            _colorValues[CutBackgroundColorKey] = ToGraphicsColor(state.CutBackgroundColor);
+
+            SelectIdOption(ProjectionLinePatternCombo, state.ProjectionLinePattern);
+            SelectIdOption(SurfaceForegroundPatternCombo, state.SurfaceForegroundPattern);
+            SelectIdOption(SurfaceBackgroundPatternCombo, state.SurfaceBackgroundPattern);
+            SelectIdOption(CutLinePatternCombo, state.CutLinePattern);
+            SelectIdOption(CutForegroundPatternCombo, state.CutForegroundPattern);
+            SelectIdOption(CutBackgroundPatternCombo, state.CutBackgroundPattern);
+
+            SelectLineWeightOption(ProjectionLineWeightCombo, state.ProjectionLineWeight);
+            SelectLineWeightOption(CutLineWeightCombo, state.CutLineWeight);
+
+            TransparencySlider.Value = ClampTransparency(state.Transparency);
+            UpdateTransparencyText();
+
+            HalftoneCheckBox.IsChecked = state.Halftone;
+            RestoreMemoryCategorySelection(state);
+
+            _manualCutState = CaptureCurrentCutState();
+            UseProjectionSurfaceColorsForCutCheckBox.IsChecked = state.UseProjectionSurfaceSettingsForCut;
+            RefreshAllColorVisuals();
+            ApplyCutColorLinkState(preserveManualState: false);
+            SetDefaultApplyMode(state.LastApplyMode);
+        }
+
+        private void SetDefaultApplyMode(GraphicsApplyMode applyMode)
+        {
+            bool categoryMode = applyMode == GraphicsApplyMode.Categories;
+            ApplyElementsButton.IsDefault = !categoryMode;
+            ApplyCategoriesButton.IsDefault = categoryMode;
+        }
+
+        private static GraphicsColorValue ToGraphicsColor(GraphicsColorMemoryValue memoryValue)
+        {
+            return memoryValue == null
+                ? GraphicsColorValue.ByView()
+                : memoryValue.ToGraphicsColor();
         }
 
         private static void SelectIdOption(ComboBox comboBox, ElementId id)
@@ -214,6 +427,40 @@ namespace AJTools.UI.GraphicsTools
             int targetId = (id ?? ElementId.InvalidElementId).IntegerValue;
             GraphicsIdOption match = options.FirstOrDefault(option => option.Id.IntegerValue == targetId);
             comboBox.SelectedItem = match ?? options.FirstOrDefault();
+        }
+
+        private static void SelectIdOption(ComboBox comboBox, GraphicsIdMemoryValue memoryValue)
+        {
+            IEnumerable<GraphicsIdOption> options = comboBox.ItemsSource as IEnumerable<GraphicsIdOption>;
+            if (options == null)
+            {
+                return;
+            }
+
+            IList<GraphicsIdOption> optionList = options.ToList();
+            if (optionList.Count == 0)
+            {
+                return;
+            }
+
+            GraphicsIdOption match = null;
+            if (memoryValue != null)
+            {
+                match = optionList.FirstOrDefault(option =>
+                    option.Id != null &&
+                    option.Id.IntegerValue == memoryValue.IntegerValue);
+
+                if (match == null && !string.IsNullOrWhiteSpace(memoryValue.DisplayName))
+                {
+                    match = optionList.FirstOrDefault(option =>
+                        string.Equals(
+                            option.DisplayName,
+                            memoryValue.DisplayName,
+                            StringComparison.CurrentCultureIgnoreCase));
+                }
+            }
+
+            comboBox.SelectedItem = match ?? optionList.FirstOrDefault();
         }
 
         private static void SelectLineWeightOption(ComboBox comboBox, int lineWeight)
@@ -240,7 +487,7 @@ namespace AJTools.UI.GraphicsTools
 
         private void UpdateColorVisual(string key)
         {
-            if (!TryGetColorControls(key, out Border preview, out TextBlock textBlock))
+            if (!TryGetColorPreview(key, out Border preview))
             {
                 return;
             }
@@ -249,58 +496,60 @@ namespace AJTools.UI.GraphicsTools
 
             if (value.IsByView)
             {
-                preview.Background = ByViewBrush;
-                textBlock.Text = "By View";
-                textBlock.Foreground = PreviewTextOnDarkBrush;
+                preview.Background = FieldBrush;
+                preview.ToolTip = "By View";
                 return;
             }
 
             MediaColor mediaColor = MediaColor.FromRgb(value.Red, value.Green, value.Blue);
             preview.Background = new SolidColorBrush(mediaColor);
-            textBlock.Text = string.Format(CultureInfo.InvariantCulture, "{0}, {1}, {2}", value.Red, value.Green, value.Blue);
-            textBlock.Foreground = ResolvePreviewTextBrush(mediaColor);
+            preview.ToolTip = ResolveColorDisplayName(value);
         }
 
-        private static Brush ResolvePreviewTextBrush(MediaColor background)
+        private static string ResolveColorDisplayName(GraphicsColorValue value)
         {
-            double luminance = ((0.299 * background.R) + (0.587 * background.G) + (0.114 * background.B)) / 255.0;
-            return luminance >= 0.65 ? PreviewTextOnLightBrush : PreviewTextOnDarkBrush;
+            if (value == null || value.IsByView)
+            {
+                return "By View";
+            }
+
+            ColorPreset match = ColorPresets.FirstOrDefault(
+                preset => preset.Red == value.Red &&
+                          preset.Green == value.Green &&
+                          preset.Blue == value.Blue);
+
+            return match != null
+                ? match.Name
+                : string.Format(CultureInfo.InvariantCulture, "{0}, {1}, {2}", value.Red, value.Green, value.Blue);
         }
 
-        private bool TryGetColorControls(string key, out Border preview, out TextBlock textBlock)
+        private bool TryGetColorPreview(string key, out Border preview)
         {
             preview = null;
-            textBlock = null;
 
             switch (key)
             {
                 case ProjectionLineColorKey:
                     preview = ProjectionLineColorPreview;
-                    textBlock = ProjectionLineColorText;
                     break;
                 case SurfaceForegroundColorKey:
                     preview = SurfaceForegroundColorPreview;
-                    textBlock = SurfaceForegroundColorText;
                     break;
                 case SurfaceBackgroundColorKey:
                     preview = SurfaceBackgroundColorPreview;
-                    textBlock = SurfaceBackgroundColorText;
                     break;
                 case CutLineColorKey:
                     preview = CutLineColorPreview;
-                    textBlock = CutLineColorText;
                     break;
                 case CutForegroundColorKey:
                     preview = CutForegroundColorPreview;
-                    textBlock = CutForegroundColorText;
                     break;
                 case CutBackgroundColorKey:
                     preview = CutBackgroundColorPreview;
-                    textBlock = CutBackgroundColorText;
                     break;
             }
 
-            return preview != null && textBlock != null;
+            return preview != null;
         }
 
         private GraphicsColorValue GetColorValue(string key)
@@ -310,21 +559,6 @@ namespace AJTools.UI.GraphicsTools
                 : GraphicsColorValue.ByView();
         }
 
-        private void OnApplyModeChanged(object sender, RoutedEventArgs e)
-        {
-            SelectedApplyMode = ApplyModeCategoriesRadioButton.IsChecked == true
-                ? GraphicsApplyMode.Categories
-                : GraphicsApplyMode.SelectedElements;
-            ApplyApplyModeState();
-        }
-
-        private void ApplyApplyModeState()
-        {
-            bool isCategoryMode = SelectedApplyMode == GraphicsApplyMode.Categories;
-            CategorySelectionPanel.Visibility = isCategoryMode ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            ElementModeHintText.Visibility = isCategoryMode ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
-        }
-
         private void OnSelectAllCategories(object sender, RoutedEventArgs e)
         {
             for (int i = 0; i < _categoryOptions.Count; i++)
@@ -332,7 +566,7 @@ namespace AJTools.UI.GraphicsTools
                 _categoryOptions[i].IsSelected = true;
             }
 
-            CategoryListBox.Items.Refresh();
+            RefreshCategoryList();
         }
 
         private void OnClearCategories(object sender, RoutedEventArgs e)
@@ -342,7 +576,103 @@ namespace AJTools.UI.GraphicsTools
                 _categoryOptions[i].IsSelected = false;
             }
 
+            RefreshCategoryList();
+        }
+
+        private void OnCategorySearchChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_categoryOptionsView != null)
+            {
+                _categoryOptionsView.Refresh();
+            }
+
+            UpdateCategorySearchPlaceholder();
+        }
+
+        private void OnCategorySearchFocusChanged(object sender, RoutedEventArgs e)
+        {
+            UpdateCategorySearchPlaceholder();
+        }
+
+        private void UpdateCategorySearchPlaceholder()
+        {
+            if (CategorySearchPlaceholderText == null || CategorySearchBox == null)
+            {
+                return;
+            }
+
+            bool showPlaceholder = string.IsNullOrEmpty(CategorySearchBox.Text) &&
+                                   !CategorySearchBox.IsKeyboardFocusWithin;
+            CategorySearchPlaceholderText.Visibility = showPlaceholder
+                ? System.Windows.Visibility.Visible
+                : System.Windows.Visibility.Collapsed;
+        }
+
+        private void RefreshCategoryList()
+        {
+            if (_categoryOptionsView != null)
+            {
+                _categoryOptionsView.Refresh();
+                return;
+            }
+
             CategoryListBox.Items.Refresh();
+        }
+
+        private void RestoreInitialCategorySelection()
+        {
+            for (int i = 0; i < _categoryOptions.Count; i++)
+            {
+                GraphicsCategoryOption option = _categoryOptions[i];
+                option.IsSelected = _initialSelectedCategoryKeys.Contains(option.CategoryId.IntegerValue);
+            }
+
+            RefreshCategoryList();
+        }
+
+        private void RestoreMemoryCategorySelection(GraphicsOverrideMemoryState state)
+        {
+            if (state == null || !state.HasCategorySelection)
+            {
+                return;
+            }
+
+            var selectedIds = new HashSet<int>(state.SelectedCategoryIntegerIds ?? new List<int>());
+            var selectedNames = new HashSet<string>(
+                (state.SelectedCategoryNames ?? new List<string>())
+                    .Where(name => !string.IsNullOrWhiteSpace(name)),
+                StringComparer.CurrentCultureIgnoreCase);
+
+            if (selectedIds.Count == 0 && selectedNames.Count == 0)
+            {
+                for (int i = 0; i < _categoryOptions.Count; i++)
+                {
+                    _categoryOptions[i].IsSelected = false;
+                }
+
+                RefreshCategoryList();
+                return;
+            }
+
+            bool matchedAnyCategory = false;
+            for (int i = 0; i < _categoryOptions.Count; i++)
+            {
+                GraphicsCategoryOption option = _categoryOptions[i];
+                bool isSelected =
+                    selectedIds.Contains(option.CategoryId.IntegerValue) ||
+                    selectedNames.Contains(option.DisplayName);
+
+                option.IsSelected = isSelected;
+                matchedAnyCategory = matchedAnyCategory || isSelected;
+            }
+
+            if (!matchedAnyCategory)
+            {
+                RestoreInitialCategorySelection();
+                return;
+            }
+
+            RefreshCategoryList();
         }
 
         private void OnPickColor(object sender, RoutedEventArgs e)
@@ -445,6 +775,21 @@ namespace AJTools.UI.GraphicsTools
             HandleProjectionSurfaceDependencies(null);
         }
 
+        private void OnTransparencyChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateTransparencyText();
+        }
+
+        private void UpdateTransparencyText()
+        {
+            if (TransparencyValueText == null || TransparencySlider == null)
+            {
+                return;
+            }
+
+            TransparencyValueText.Text = string.Format(CultureInfo.InvariantCulture, "{0}%", ResolveTransparency());
+        }
+
         private void OnUseProjectionSurfaceColorsForCutChanged(object sender, RoutedEventArgs e)
         {
             ApplyCutColorLinkState(preserveManualState: true);
@@ -474,8 +819,12 @@ namespace AJTools.UI.GraphicsTools
                 _isCutSettingsLinked = false;
             }
 
-            CutSettingsPanel.IsEnabled = !useProjectionSurfaceSettings;
-            CutLinkNoticeText.Visibility = useProjectionSurfaceSettings ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            CutSettingsPanel.Visibility = useProjectionSurfaceSettings
+                ? System.Windows.Visibility.Collapsed
+                : System.Windows.Visibility.Visible;
+            CutLinkNoticeText.Visibility = useProjectionSurfaceSettings
+                ? System.Windows.Visibility.Visible
+                : System.Windows.Visibility.Collapsed;
         }
 
         private void ApplyLinkedCutStateFromProjectionSurface()
@@ -590,24 +939,28 @@ namespace AJTools.UI.GraphicsTools
         private void OnReset(object sender, RoutedEventArgs e)
         {
             ErrorText.Text = string.Empty;
-            ApplySettings(new OverrideGraphicSettings());
-            ApplyModeElementsRadioButton.IsChecked = true;
-            SelectedApplyMode = GraphicsApplyMode.SelectedElements;
-            ApplyApplyModeState();
-
-            for (int i = 0; i < _categoryOptions.Count; i++)
-            {
-                _categoryOptions[i].IsSelected = false;
-            }
-
-            CategoryListBox.Items.Refresh();
+            CategorySearchBox.Text = string.Empty;
+            GraphicsTabControl.SelectedIndex = 0;
+            ApplySettings(new OverrideGraphicSettings(), inferCutLink: true);
+            RestoreInitialCategorySelection();
+            UpdateCategorySearchPlaceholder();
         }
 
-        private void OnOk(object sender, RoutedEventArgs e)
+        private void OnApplyElements(object sender, RoutedEventArgs e)
+        {
+            ApplyAndClose(GraphicsApplyMode.SelectedElements);
+        }
+
+        private void OnApplyCategories(object sender, RoutedEventArgs e)
+        {
+            ApplyAndClose(GraphicsApplyMode.Categories);
+        }
+
+        private void ApplyAndClose(GraphicsApplyMode applyMode)
         {
             ErrorText.Text = string.Empty;
 
-            if (!TryBuildInput(out GraphicsOverrideInput input, out string errorMessage))
+            if (!TryBuildInput(applyMode, out GraphicsOverrideInput input, out string errorMessage))
             {
                 ErrorText.Text = errorMessage;
                 return;
@@ -615,18 +968,19 @@ namespace AJTools.UI.GraphicsTools
 
             SelectedApplyMode = input.ApplyMode;
             SelectedOverrideSettings = GraphicsOverrideBuilder.Build(input);
-            DialogResult = true;
-            Close();
+            GraphicsOverrideMemoryService.Save(CreateMemoryState(input));
+            CloseDialog(true);
         }
 
-        private bool TryBuildInput(out GraphicsOverrideInput input, out string errorMessage)
+        private bool TryBuildInput(GraphicsApplyMode applyMode, out GraphicsOverrideInput input, out string errorMessage)
         {
             input = new GraphicsOverrideInput();
             errorMessage = string.Empty;
 
-            if (ApplyModeCategoriesRadioButton.IsChecked == true && SelectedCategoryIds.Count == 0)
+            if (applyMode == GraphicsApplyMode.Categories && SelectedCategoryIds.Count == 0)
             {
-                errorMessage = "Select at least one category for Category mode.";
+                errorMessage = "Select at least one category before applying category graphics.";
+                GraphicsTabControl.SelectedIndex = 2;
                 return false;
             }
 
@@ -637,9 +991,7 @@ namespace AJTools.UI.GraphicsTools
                 return false;
             }
 
-            input.ApplyMode = ApplyModeCategoriesRadioButton.IsChecked == true
-                ? GraphicsApplyMode.Categories
-                : GraphicsApplyMode.SelectedElements;
+            input.ApplyMode = applyMode;
             input.UseProjectionSurfaceSettingsForCut = UseProjectionSurfaceColorsForCutCheckBox.IsChecked == true;
 
             input.ProjectionLineColor = GetColorValue(ProjectionLineColorKey);
@@ -665,19 +1017,66 @@ namespace AJTools.UI.GraphicsTools
             return true;
         }
 
+        private GraphicsOverrideMemoryState CreateMemoryState(GraphicsOverrideInput input)
+        {
+            var state = new GraphicsOverrideMemoryState
+            {
+                LastApplyMode = input.ApplyMode,
+                UseProjectionSurfaceSettingsForCut = input.UseProjectionSurfaceSettingsForCut,
+                Halftone = input.Halftone,
+                Transparency = input.Transparency,
+
+                ProjectionLineColor = GraphicsColorMemoryValue.FromGraphicsColor(input.ProjectionLineColor),
+                ProjectionLinePattern = GetSelectedIdMemory(ProjectionLinePatternCombo),
+                ProjectionLineWeight = input.ProjectionLineWeight,
+
+                SurfaceForegroundPattern = GetSelectedIdMemory(SurfaceForegroundPatternCombo),
+                SurfaceForegroundColor = GraphicsColorMemoryValue.FromGraphicsColor(input.SurfaceForegroundPatternColor),
+                SurfaceBackgroundPattern = GetSelectedIdMemory(SurfaceBackgroundPatternCombo),
+                SurfaceBackgroundColor = GraphicsColorMemoryValue.FromGraphicsColor(input.SurfaceBackgroundPatternColor),
+
+                CutLineColor = GraphicsColorMemoryValue.FromGraphicsColor(input.CutLineColor),
+                CutLinePattern = GetSelectedIdMemory(CutLinePatternCombo),
+                CutLineWeight = input.CutLineWeight,
+
+                CutForegroundPattern = GetSelectedIdMemory(CutForegroundPatternCombo),
+                CutForegroundColor = GraphicsColorMemoryValue.FromGraphicsColor(input.CutForegroundPatternColor),
+                CutBackgroundPattern = GetSelectedIdMemory(CutBackgroundPatternCombo),
+                CutBackgroundColor = GraphicsColorMemoryValue.FromGraphicsColor(input.CutBackgroundPatternColor),
+
+                HasCategorySelection = true,
+                SelectedCategoryIntegerIds = _categoryOptions
+                    .Where(option => option.IsSelected)
+                    .Select(option => option.CategoryId.IntegerValue)
+                    .ToList(),
+                SelectedCategoryNames = _categoryOptions
+                    .Where(option => option.IsSelected)
+                    .Select(option => option.DisplayName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .ToList()
+            };
+
+            return state;
+        }
+
         private int ResolveTransparency()
         {
-            if (TransparencyCombo.SelectedItem is int intValue)
+            return (int)Math.Round(TransparencySlider.Value, MidpointRounding.AwayFromZero);
+        }
+
+        private static int ClampTransparency(int transparency)
+        {
+            if (transparency < 0)
             {
-                return intValue;
+                return 0;
             }
 
-            if (int.TryParse(TransparencyCombo.Text, NumberStyles.Integer, CultureInfo.CurrentCulture, out int parsedValue))
+            if (transparency > 100)
             {
-                return parsedValue;
+                return 100;
             }
 
-            return -1;
+            return transparency;
         }
 
         private static ElementId GetSelectedId(ComboBox comboBox)
@@ -686,16 +1085,59 @@ namespace AJTools.UI.GraphicsTools
             return selected?.Id ?? ElementId.InvalidElementId;
         }
 
+        private static GraphicsIdMemoryValue GetSelectedIdMemory(ComboBox comboBox)
+        {
+            GraphicsIdOption selected = comboBox.SelectedItem as GraphicsIdOption;
+            if (selected == null)
+            {
+                return GraphicsIdMemoryValue.ByView();
+            }
+
+            return new GraphicsIdMemoryValue
+            {
+                IntegerValue = (selected.Id ?? ElementId.InvalidElementId).IntegerValue,
+                DisplayName = selected.DisplayName
+            };
+        }
+
         private static int GetSelectedLineWeight(ComboBox comboBox)
         {
             GraphicsLineWeightOption selected = comboBox.SelectedItem as GraphicsLineWeightOption;
             return selected?.Weight ?? OverrideGraphicSettings.InvalidPenNumber;
         }
 
+        private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ButtonState != MouseButtonState.Pressed)
+            {
+                return;
+            }
+
+            try
+            {
+                DragMove();
+            }
+            catch (InvalidOperationException)
+            {
+                // DragMove can throw if the mouse state changes during a rapid click.
+            }
+        }
+
         private void OnCancel(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
-            Close();
+            CloseDialog(false);
+        }
+
+        private void CloseDialog(bool result)
+        {
+            try
+            {
+                DialogResult = result;
+            }
+            catch (InvalidOperationException)
+            {
+                Close();
+            }
         }
     }
 }
