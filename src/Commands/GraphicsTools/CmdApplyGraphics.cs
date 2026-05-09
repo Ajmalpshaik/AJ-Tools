@@ -3,9 +3,9 @@
 // Purpose      : Applies graphics overrides to selected elements or selected categories from one combined tool.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.3
+// Version      : 1.4.4
 // Created      : 2026-05-07
-// Last Updated : 2026-05-07
+// Last Updated : 2026-05-09
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Active view, selected graphics settings, and selected source elements.
 // Output       : Element or category graphics overrides applied in the active view.
 // Notes        : Normal success is silent; both apply modes use one selected-element source.
-// Changelog    : v1.4.3 - Uses one selected-element source for both modes and restores per-field color presets.
+// Changelog    : v1.4.4 - Uses the reference-style split apply buttons and prevents duplicate settings windows.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -35,6 +35,7 @@ namespace AJTools.Commands.GraphicsTools
     public class CmdApplyGraphics : IExternalCommand
     {
         private const string DialogTitle = "Apply Graphics";
+        private static bool _isSettingsWindowOpen;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -71,13 +72,32 @@ namespace AJTools.Commands.GraphicsTools
                     sourceSelection.ElementIds,
                     includeAnnotationCategories: false);
 
-                var settingsWindow = new GraphicsOverrideWindow(
-                    context.Document,
-                    context.ActiveView,
-                    "Apply Graphics Settings",
-                    preselectedCategories,
-                    preselectedCategories.Select(category => category.Id).ToList());
-                if (settingsWindow.ShowDialog() != true)
+                if (_isSettingsWindowOpen)
+                {
+                    DialogHelper.ShowError(DialogTitle, "The Apply Graphics settings window is already open.");
+                    return Result.Cancelled;
+                }
+
+                GraphicsOverrideWindow settingsWindow = null;
+                bool? settingsAccepted;
+
+                try
+                {
+                    _isSettingsWindowOpen = true;
+                    settingsWindow = new GraphicsOverrideWindow(
+                        context.Document,
+                        context.ActiveView,
+                        "Apply Graphics Settings",
+                        preselectedCategories,
+                        preselectedCategories.Select(category => category.Id).ToList());
+                    settingsAccepted = settingsWindow.ShowDialog();
+                }
+                finally
+                {
+                    _isSettingsWindowOpen = false;
+                }
+
+                if (settingsAccepted != true)
                 {
                     return Result.Cancelled;
                 }

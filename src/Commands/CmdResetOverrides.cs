@@ -1,15 +1,30 @@
-// Tool Name: Reset Overrides
-// Description: Clears per-element graphic overrides in the active view.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+// ==================================================
+// Tool Name    : Graphics Tools
+// Purpose      : Clears element-level graphics overrides for all elements in the active view.
+// Author       : Ajmal P.S.
+// Company      : AJ Tools
+// Version      : 1.4.4
+// Created      : 2025-12-10
+// Last Updated : 2026-05-09
+// Target       : Revit 2020
+// Framework    : .NET Framework 4.7.2
+// Platform     : C# Revit Add-in
+// Dependencies : Autodesk Revit API
+// Input        : Active Revit view with visible elements.
+// Output       : Active-view element overrides reset to By View graphics.
+// Notes        : Normal success is silent; validation and critical errors are reported to the user.
+// Changelog    : v1.4.4 - Aligned Reset Element Graphics in View with shared Graphics command validation and transactions.
+// License      : All Rights Reserved
+// Repo         : AJ-Tools
+// ==================================================
 
 using System;
 using System.Collections.Generic;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Models.GraphicsTools;
+using AJTools.Services.GraphicsTools;
 using AJTools.Utils;
 
 namespace AJTools.Commands
@@ -17,8 +32,7 @@ namespace AJTools.Commands
     /// <summary>
     /// Clears per-element graphic overrides in the active view.
     /// </summary>
-    [Autodesk.Revit.Attributes.Transaction(
-        Autodesk.Revit.Attributes.TransactionMode.Manual)]
+    [Transaction(TransactionMode.Manual)]
     public class CmdResetOverrides : IExternalCommand
     {
         /// <summary>
@@ -29,55 +43,43 @@ namespace AJTools.Commands
             ref string message,
             ElementSet elements)
         {
+            const string dialogTitle = "Reset Element Graphics in View";
+
             try
             {
-                UIDocument uidoc = commandData.Application.ActiveUIDocument;
-
-                if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
+                Result contextResult = GraphicsCommandService.TryCreateContext(
+                    commandData,
+                    dialogTitle,
+                    ref message,
+                    out GraphicsCommandContext context);
+                if (contextResult != Result.Succeeded)
                 {
-                    TaskDialog.Show("Reset Overrides", message);
-                    return Result.Failed;
+                    return contextResult;
                 }
 
-                Document doc = uidoc.Document;
-                View view = doc.ActiveView;
-
-                ICollection<ElementId> elementIds = new FilteredElementCollector(doc, view.Id)
+                ICollection<ElementId> elementIds = new FilteredElementCollector(context.Document, context.ActiveView.Id)
                     .WhereElementIsNotElementType()
                     .ToElementIds();
 
                 if (elementIds.Count == 0)
                 {
-                    return Result.Succeeded;
+                    return Result.Cancelled;
                 }
 
-                // Reset per-element overrides for all elements in the active view.
-                OverrideGraphicSettings resetSettings = new OverrideGraphicSettings();
+                GraphicsOperationSummary summary = GraphicsCommandService.ExecuteSummaryTransaction(
+                    context.Document,
+                    "AJ Tools - Reset Element Graphics in View",
+                    () => GraphicsElementService.ClearOverrides(
+                        context.Document,
+                        context.ActiveView,
+                        elementIds));
 
-                using (Transaction t = new Transaction(doc, "AJ Tools - Reset Overrides"))
-                {
-                    t.Start();
-
-                    foreach (ElementId id in elementIds)
-                    {
-                        try
-                        {
-                            view.SetElementOverrides(id, resetSettings);
-                        }
-                        catch
-                        {
-                            // Ignore elements that cannot accept overrides.
-                        }
-                    }
-
-                    t.Commit();
-                }
-
-                return Result.Succeeded;
+                return summary.HasChanges ? Result.Succeeded : Result.Cancelled;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Reset Overrides - Error", ex.Message);
+                message = ex.Message;
+                DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }
         }

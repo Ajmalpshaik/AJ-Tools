@@ -4,9 +4,9 @@ Tool Name    : Apply Graphics
 Purpose      : Defines the WPF Apply Graphics settings window layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.4.3
+Version      : 1.4.4
 Created      : 2026-03-30
-Last Updated : 2026-05-07
+Last Updated : 2026-05-09
 Target       : Revit 2020
 Framework    : .NET Framework 4.7.2
 Platform     : C# Revit Add-in
@@ -14,7 +14,7 @@ Dependencies : Autodesk Revit API, WPF
 Input        : User graphics settings selections, apply mode choice, and selected categories.
 Output       : Structured settings window for the combined Apply Graphics workflow.
 Notes        : Normal success is silent; validation and critical errors are reported to the user.
-Changelog    : v1.4.3 - Restored per-field preset colors and aligned category mode to the selected-element source.
+Changelog    : v1.4.4 - Rebuilt the UI to match the dark reference layout with separate element and category apply actions.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -23,463 +23,1290 @@ Repo         : AJ-Tools
 <Window x:Class="AJTools.UI.GraphicsTools.GraphicsOverrideWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Apply Graphics Settings"
+        Title="Graphics Settings Manager"
         Width="660"
-        Height="760"
+        Height="940"
         MinWidth="620"
-        MinHeight="700"
+        MinHeight="760"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}"
-        Foreground="{DynamicResource TextPrimary}">
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="#FF1E1E1E"
+        Foreground="#FFFFFFFF"
+        FontFamily="Segoe UI"
+        FontSize="12"
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
     <Window.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="../ModernStyles.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="ColorSwatchButton" TargetType="Button">
-                <Setter Property="Width" Value="18"/>
-                <Setter Property="Height" Value="18"/>
-                <Setter Property="Margin" Value="0,0,4,0"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="SwatchRoot"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="3"/>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="SwatchRoot" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="SwatchRoot" Property="Opacity" Value="0.82"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-        </ResourceDictionary>
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FF1E1E1E"/>
+        <SolidColorBrush x:Key="ShellBrush" Color="#FF2D2D30"/>
+        <SolidColorBrush x:Key="TitleBarBrush" Color="#FF3E3E42"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#FF252526"/>
+        <SolidColorBrush x:Key="FieldBrush" Color="#FF252526"/>
+        <SolidColorBrush x:Key="InnerPanelBrush" Color="#FF1E1E1E"/>
+        <SolidColorBrush x:Key="BorderBrushSoft" Color="#FF3E3E42"/>
+        <SolidColorBrush x:Key="BorderBrushStrong" Color="#FF454545"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF007ACC"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF1C97EA"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#FFD0D0D0"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#FF8D8D8D"/>
+        <SolidColorBrush x:Key="TextDisabledBrush" Color="#FF686868"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#FF5B1C1C"/>
+        <SolidColorBrush x:Key="DangerBorderBrush" Color="#FF7A2828"/>
+        <SolidColorBrush x:Key="DangerHoverBrush" Color="#FF8B2B2B"/>
+
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderTextStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <Style x:Key="RowLabelTextStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="WindowCloseButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#FFB8B8B8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource DangerHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.82"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ButtonBaseStyle" TargetType="{x:Type Button}">
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.96"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.82"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SmallSecondaryButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Setter Property="MinWidth" Value="44"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Background" Value="{StaticResource TitleBarBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushStrong}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BorderBrushStrong}"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SmallPrimaryButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Setter Property="MinWidth" Value="48"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentHoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FooterPrimaryButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Setter Property="MinWidth" Value="116"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentHoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FooterSecondaryButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Background" Value="{StaticResource TitleBarBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushStrong}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BorderBrushStrong}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FooterDangerButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Setter Property="MinWidth" Value="104"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Background" Value="{StaticResource DangerBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource DangerBorderBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DangerHoverBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource DangerHoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ColorSwatchButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushStrong}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource TextPrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.80"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Background" Value="{StaticResource FieldBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Padding" Value="28,4,8,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <ControlTemplate x:Key="ComboToggleTemplate" TargetType="{x:Type ToggleButton}">
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="3">
+                <Path x:Name="Arrow"
+                      Data="M 0 0 L 5 5 L 10 0 Z"
+                      Fill="{StaticResource TextSecondaryBrush}"
+                      Width="10"
+                      Height="5"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center"
+                      Margin="0,0,9,0"
+                      Stretch="Uniform"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                    <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource AccentBrush}"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Background" Value="{StaticResource FieldBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid SnapsToDevicePixels="True">
+                            <ToggleButton x:Name="ToggleButton"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          Template="{StaticResource ComboToggleTemplate}"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding Path=IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"/>
+                            <ContentPresenter x:Name="ContentSite"
+                                              Margin="9,0,28,0"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              IsHitTestVisible="False"/>
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Margin="9,0,28,0"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Foreground="{TemplateBinding Foreground}"
+                                     CaretBrush="{StaticResource AccentBrush}"
+                                     Visibility="Hidden"
+                                     Focusable="True"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                            <Popup x:Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border x:Name="PopupBorder"
+                                        Background="{StaticResource FieldBrush}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="1"
+                                        MinWidth="{TemplateBinding ActualWidth}">
+                                    <ScrollViewer Margin="2"
+                                                  SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource TitleBarBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CategoryListBoxStyle" TargetType="{x:Type ListBox}">
+            <Setter Property="Background" Value="{StaticResource FieldBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="3"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        </Style>
+
+        <Style x:Key="CategoryListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="3">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource TitleBarBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CategoryCheckBoxStyle" TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Box"
+                                    Width="14"
+                                    Height="14"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Background="Transparent"
+                                    BorderBrush="#FF707070"
+                                    BorderThickness="1"
+                                    CornerRadius="2">
+                                <Path x:Name="CheckMark"
+                                      Data="M 2 7 L 5 10 L 11 3"
+                                      Stroke="{StaticResource TextPrimaryBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Square"
+                                      StrokeEndLineCap="Square"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="4,0,0,0"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CutLinkCheckBoxStyle" TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="25"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Box"
+                                    Width="16"
+                                    Height="16"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#FF707070"
+                                    BorderThickness="1"
+                                    Background="Transparent"
+                                    CornerRadius="2">
+                                <Path x:Name="CheckMark"
+                                      Data="M 3 8 L 7 12 L 13 4"
+                                      Stroke="{StaticResource TextPrimaryBrush}"
+                                      StrokeThickness="2"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ToggleSwitchStyle" TargetType="{x:Type CheckBox}">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid Width="40" Height="20">
+                            <Border x:Name="Track"
+                                    Background="#FF666666"
+                                    CornerRadius="10"/>
+                            <Ellipse x:Name="Thumb"
+                                     Width="12"
+                                     Height="12"
+                                     Fill="{StaticResource TextPrimaryBrush}"
+                                     HorizontalAlignment="Left"
+                                     Margin="4,0,0,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type TabControl}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabControl}">
+                        <Grid KeyboardNavigation.TabNavigation="Local">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0"
+                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                    BorderThickness="0,0,0,1">
+                                <TabPanel x:Name="HeaderPanel"
+                                          IsItemsHost="True"
+                                          KeyboardNavigation.TabIndex="1"
+                                          Background="Transparent"/>
+                            </Border>
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              Grid.Row="1"
+                                              ContentSource="SelectedContent"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type TabItem}">
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="24,10"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0,0,0,2"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="Content"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              ContentSource="Header"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource ShellBrush}"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Border Background="{StaticResource ShellBrush}"
+            BorderBrush="{StaticResource BorderBrushSoft}"
+            BorderThickness="1"
+            CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource PanelCard}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0"
-                           Text="Apply Graphics"
-                           FontSize="14"
-                           FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimary}"/>
-
-                <StackPanel Grid.Row="1" Margin="0,8,0,0">
-                    <TextBlock Text="Apply Mode"
-                               Foreground="{StaticResource TextSecondary}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <RadioButton x:Name="ApplyModeElementsRadioButton"
-                                     Content="Apply as Element Graphics"
-                                     GroupName="ApplyMode"
-                                     Margin="0,0,20,0"
-                                     Foreground="{StaticResource TextPrimary}"
-                                     Checked="OnApplyModeChanged"/>
-                        <RadioButton x:Name="ApplyModeCategoriesRadioButton"
-                                     Content="Apply as Category Graphics"
-                                     GroupName="ApplyMode"
-                                     Foreground="{StaticResource TextPrimary}"
-                                     Checked="OnApplyModeChanged"/>
+            <Border x:Name="TitleBar"
+                    Grid.Row="0"
+                    Background="{StaticResource TitleBarBrush}"
+                    BorderBrush="{StaticResource WindowBackgroundBrush}"
+                    BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+                <Grid Margin="14,0,8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="14"
+                                Height="14"
+                                Background="{StaticResource AccentBrush}"
+                                CornerRadius="3"
+                                Margin="0,0,8,0"/>
+                        <TextBlock Text="GRAPHICS SETTINGS MANAGER"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock x:Name="ElementModeHintText"
-                               Margin="0,4,0,0"
-                               Foreground="{StaticResource TextSecondary}"
-                               Text="Applies overrides to the selected elements only."
-                               TextWrapping="Wrap"/>
-                </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="X"
+                            Style="{StaticResource WindowCloseButtonStyle}"
+                            Click="OnCancel"/>
+                </Grid>
+            </Border>
 
-                <Border x:Name="CategorySelectionPanel"
-                        Grid.Row="2"
-                        Margin="0,10,0,0"
-                        Padding="10"
-                        CornerRadius="6"
-                        BorderBrush="{StaticResource BorderSoft}"
+            <ScrollViewer Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Background="{StaticResource WindowBackgroundBrush}">
+                <Border Margin="16"
+                        Padding="20"
+                        Background="{StaticResource PanelBrush}"
+                        BorderBrush="{StaticResource BorderBrushSoft}"
                         BorderThickness="1"
-                        Background="{StaticResource CardBackground}"
-                        Visibility="Collapsed">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <Grid Grid.Row="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Categories"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimary}"/>
-                            <Button Grid.Column="1"
-                                    Content="Select All"
-                                    MinWidth="90"
-                                    Margin="0,0,6,0"
-                                    Style="{StaticResource CompactSecondaryButton}"
-                                    Click="OnSelectAllCategories"/>
-                            <Button Grid.Column="2"
-                                    Content="Clear"
-                                    MinWidth="90"
-                                    Style="{StaticResource CompactSecondaryButton}"
-                                    Click="OnClearCategories"/>
-                        </Grid>
-                        <TextBlock x:Name="CategoryModeHintText"
-                                   Grid.Row="1"
-                                   Margin="0,6,0,0"
-                                   Foreground="{StaticResource TextSecondary}"
-                                   Text="Choose categories from the selected elements only, then apply active-view category overrides."
-                                   TextWrapping="Wrap"/>
-                        <ListBox x:Name="CategoryListBox"
-                                 Grid.Row="2"
-                                 Margin="0,8,0,0"
-                                 Height="140"
-                                 BorderThickness="1"
-                                 BorderBrush="{StaticResource BorderSoft}"
-                                 Background="{StaticResource BackgroundDark}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox Content="{Binding DisplayName}"
-                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                              Style="{StaticResource ModernCheckBox}"
-                                              Margin="0,1,0,1"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
-                </Border>
+                        CornerRadius="4">
+                    <StackPanel>
+                        <TabControl x:Name="GraphicsTabControl" Margin="0,2,0,0">
+                            <TabItem Header="PROJECTION / SURFACE">
+                                <StackPanel Margin="2,18,2,0" MinHeight="482">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                        <Border Width="2"
+                                                Height="16"
+                                                Background="{StaticResource AccentBrush}"
+                                                Margin="0,0,8,0"/>
+                                        <TextBlock Text="LINES" Style="{StaticResource SectionHeaderTextStyle}"/>
+                                    </StackPanel>
 
-                <TabControl Grid.Row="3" Margin="0,10,0,0">
-                    <TabItem Header="Projection / Surface">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Margin="8">
-                                <TextBlock Text="Lines" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="56"/>
-                                        <ColumnDefinition Width="56"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Projection Line Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="ProjectionLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                        <TextBlock x:Name="ProjectionLineColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                    </Border>
-                                    <Button Grid.Column="2" Content="Pick" Tag="ProjectionLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                    <Button Grid.Column="3" Content="By" Tag="ProjectionLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                </Grid>
-                                <WrapPanel Margin="185,4,0,0">
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="ProjectionLineColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="ProjectionLineColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="ProjectionLineColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="ProjectionLineColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="ProjectionLineColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="ProjectionLineColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
-                                    <Button MinWidth="64" Height="22" Content="By View" Tag="ProjectionLineColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                                </WrapPanel>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Projection Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="ProjectionLinePatternCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
-                                </Grid>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Projection Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="ProjectionLineWeightCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
-                                </Grid>
-
-                                <Separator Margin="0,8,0,8"/>
-                                <TextBlock Text="Patterns" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Surface Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="SurfaceForegroundPatternCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
-                                </Grid>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="56"/>
-                                        <ColumnDefinition Width="56"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Surface Foreground Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="SurfaceForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                        <TextBlock x:Name="SurfaceForegroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                    </Border>
-                                    <Button Grid.Column="2" Content="Pick" Tag="SurfaceForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                    <Button Grid.Column="3" Content="By" Tag="SurfaceForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                </Grid>
-                                <WrapPanel Margin="185,4,0,0">
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="SurfaceForegroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="SurfaceForegroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="SurfaceForegroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="SurfaceForegroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="SurfaceForegroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="SurfaceForegroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
-                                    <Button MinWidth="64" Height="22" Content="By View" Tag="SurfaceForegroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                                </WrapPanel>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Surface Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="SurfaceBackgroundPatternCombo" Grid.Column="1" Height="24" SelectionChanged="OnProjectionSurfaceSettingChanged"/>
-                                </Grid>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="56"/>
-                                        <ColumnDefinition Width="56"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Surface Background Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <Border x:Name="SurfaceBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                        <TextBlock x:Name="SurfaceBackgroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                    </Border>
-                                    <Button Grid.Column="2" Content="Pick" Tag="SurfaceBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                    <Button Grid.Column="3" Content="By" Tag="SurfaceBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                </Grid>
-                                <WrapPanel Margin="185,4,0,0">
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="SurfaceBackgroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="SurfaceBackgroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="SurfaceBackgroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="SurfaceBackgroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="SurfaceBackgroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
-                                    <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="SurfaceBackgroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
-                                    <Button MinWidth="64" Height="22" Content="By View" Tag="SurfaceBackgroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                                </WrapPanel>
-
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="185"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Transparency (0-100)" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                    <ComboBox x:Name="TransparencyCombo" Grid.Column="1" Height="24"/>
-                                </Grid>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <TabItem Header="Cut">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Margin="8">
-                                <CheckBox x:Name="UseProjectionSurfaceColorsForCutCheckBox"
-                                          Content="Use Projection / Surface settings for Cut"
-                                          Style="{StaticResource ModernCheckBox}"
-                                          Margin="0,0,0,4"
-                                          Checked="OnUseProjectionSurfaceColorsForCutChanged"
-                                          Unchecked="OnUseProjectionSurfaceColorsForCutChanged"/>
-
-                                <TextBlock x:Name="CutLinkNoticeText"
-                                           Margin="0,0,0,8"
-                                           Foreground="{StaticResource TextSecondary}"
-                                           Text="Cut line, pattern, weight, and fill settings are linked to the Projection / Surface tab."
-                                           TextWrapping="Wrap"
-                                           Visibility="Collapsed"/>
-
-                                <StackPanel x:Name="CutSettingsPanel">
-                                    <TextBlock Text="Lines" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-
-                                    <Grid Margin="0,4,0,0">
+                                    <Grid Margin="0,0,0,18">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="160"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="56"/>
-                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="50"/>
+                                            <ColumnDefinition Width="42"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Line Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <Border x:Name="CutLineColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                            <TextBlock x:Name="CutLineColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                        </Border>
-                                        <Button x:Name="CutLineColorPickButton" Grid.Column="2" Content="Pick" Tag="CutLineColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                        <Button x:Name="CutLineColorClearButton" Grid.Column="3" Content="By" Tag="CutLineColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                    </Grid>
-                                    <WrapPanel Margin="185,4,0,0">
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="CutLineColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="CutLineColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="CutLineColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="CutLineColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="CutLineColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="CutLineColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
-                                        <Button MinWidth="64" Height="22" Content="By View" Tag="CutLineColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                                    </WrapPanel>
-
-                                    <Grid Margin="0,4,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Line Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <ComboBox x:Name="CutLinePatternCombo" Grid.Column="1" Height="24"/>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="0"
+                                                   Text="LINE COLOR"
+                                                   Style="{StaticResource RowLabelTextStyle}"/>
+                                        <Border x:Name="ProjectionLineColorPreview"
+                                                Grid.Row="0"
+                                                Grid.Column="1"
+                                                Height="28"
+                                                Background="{StaticResource FieldBrush}"
+                                                BorderBrush="{StaticResource BorderBrushSoft}"
+                                                BorderThickness="1"
+                                                CornerRadius="3"
+                                                Margin="0,0,8,0"
+                                                ToolTip="By View"/>
+                                        <Button Grid.Row="0"
+                                                Grid.Column="2"
+                                                Content="PICK"
+                                                Tag="ProjectionLineColor"
+                                                Style="{StaticResource SmallPrimaryButtonStyle}"
+                                                Margin="0,0,6,0"
+                                                Click="OnPickColor"/>
+                                        <Button Grid.Row="0"
+                                                Grid.Column="3"
+                                                Content="BY"
+                                                Tag="ProjectionLineColor"
+                                                Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                Click="OnClearColor"/>
+                                        <WrapPanel x:Name="ProjectionLineColorPresetPanel"
+                                                   Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Grid.ColumnSpan="3"
+                                                   Margin="0,8,0,0"/>
                                     </Grid>
 
-                                    <Grid Margin="0,4,0,0">
+                                    <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="160"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Line Weight" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <ComboBox x:Name="CutLineWeightCombo" Grid.Column="1" Height="24"/>
+                                        <TextBlock Grid.Column="0" Text="LINE PATTERN" Style="{StaticResource RowLabelTextStyle}"/>
+                                        <ComboBox x:Name="ProjectionLinePatternCombo"
+                                                  Grid.Column="1"
+                                                  SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                     </Grid>
 
-                                    <Separator Margin="0,8,0,8"/>
-                                    <TextBlock Text="Patterns" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-
-                                    <Grid Margin="0,4,0,0">
+                                    <Grid Margin="0,0,0,20">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="160"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Foreground Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <ComboBox x:Name="CutForegroundPatternCombo" Grid.Column="1" Height="24"/>
+                                        <TextBlock Grid.Column="0" Text="LINE WEIGHT" Style="{StaticResource RowLabelTextStyle}"/>
+                                        <ComboBox x:Name="ProjectionLineWeightCombo"
+                                                  Grid.Column="1"
+                                                  SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                     </Grid>
 
-                                    <Grid Margin="0,4,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="56"/>
-                                            <ColumnDefinition Width="56"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Foreground Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <Border x:Name="CutForegroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                            <TextBlock x:Name="CutForegroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                        </Border>
-                                        <Button x:Name="CutForegroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutForegroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                        <Button x:Name="CutForegroundColorClearButton" Grid.Column="3" Content="By" Tag="CutForegroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
-                                    </Grid>
-                                    <WrapPanel Margin="185,4,0,0">
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="CutForegroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="CutForegroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="CutForegroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="CutForegroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="CutForegroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="CutForegroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
-                                        <Button MinWidth="64" Height="22" Content="By View" Tag="CutForegroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                                    </WrapPanel>
+                                    <Border Height="1"
+                                            Background="{StaticResource BorderBrushSoft}"
+                                            Margin="0,0,0,18"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                        <Border Width="2"
+                                                Height="16"
+                                                Background="{StaticResource AccentBrush}"
+                                                Margin="0,0,8,0"/>
+                                        <TextBlock Text="PATTERNS" Style="{StaticResource SectionHeaderTextStyle}"/>
+                                    </StackPanel>
 
-                                    <Grid Margin="0,4,0,0">
+                                    <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="160"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Background Pattern" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <ComboBox x:Name="CutBackgroundPatternCombo" Grid.Column="1" Height="24"/>
+                                        <TextBlock Grid.Column="0" Text="FOREGROUND PATTERN" Style="{StaticResource RowLabelTextStyle}"/>
+                                        <ComboBox x:Name="SurfaceForegroundPatternCombo"
+                                                  Grid.Column="1"
+                                                  SelectionChanged="OnProjectionSurfaceSettingChanged"/>
                                     </Grid>
 
-                                    <Grid Margin="0,4,0,0">
+                                    <Grid Margin="0,0,0,18">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="185"/>
+                                            <ColumnDefinition Width="160"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="56"/>
-                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="50"/>
+                                            <ColumnDefinition Width="42"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cut Background Color" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"/>
-                                        <Border x:Name="CutBackgroundColorPreview" Grid.Column="1" Height="22" CornerRadius="3" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Background="{StaticResource CardBackground}" Margin="0,0,6,0">
-                                            <TextBlock x:Name="CutBackgroundColorText" Text="By View" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
-                                        </Border>
-                                        <Button x:Name="CutBackgroundColorPickButton" Grid.Column="2" Content="Pick" Tag="CutBackgroundColor" Style="{StaticResource CompactPrimaryButton}" Margin="0,0,4,0" Click="OnPickColor"/>
-                                        <Button x:Name="CutBackgroundColorClearButton" Grid.Column="3" Content="By" Tag="CutBackgroundColor" Style="{StaticResource CompactSecondaryButton}" Click="OnClearColor"/>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="0"
+                                                   Text="FOREGROUND COLOR"
+                                                   Style="{StaticResource RowLabelTextStyle}"/>
+                                        <Border x:Name="SurfaceForegroundColorPreview"
+                                                Grid.Row="0"
+                                                Grid.Column="1"
+                                                Height="28"
+                                                Background="{StaticResource FieldBrush}"
+                                                BorderBrush="{StaticResource BorderBrushSoft}"
+                                                BorderThickness="1"
+                                                CornerRadius="3"
+                                                Margin="0,0,8,0"
+                                                ToolTip="By View"/>
+                                        <Button Grid.Row="0"
+                                                Grid.Column="2"
+                                                Content="PICK"
+                                                Tag="SurfaceForegroundColor"
+                                                Style="{StaticResource SmallPrimaryButtonStyle}"
+                                                Margin="0,0,6,0"
+                                                Click="OnPickColor"/>
+                                        <Button Grid.Row="0"
+                                                Grid.Column="3"
+                                                Content="BY"
+                                                Tag="SurfaceForegroundColor"
+                                                Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                Click="OnClearColor"/>
+                                        <WrapPanel x:Name="SurfaceForegroundColorPresetPanel"
+                                                   Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Grid.ColumnSpan="3"
+                                                   Margin="0,8,0,0"/>
                                     </Grid>
-                                    <WrapPanel Margin="185,4,0,0">
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Black" Tag="CutBackgroundColor|0,0,0" Click="OnColorPreset" Background="#FF000000"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Red" Tag="CutBackgroundColor|255,0,0" Click="OnColorPreset" Background="#FFFF0000"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Green" Tag="CutBackgroundColor|0,255,0" Click="OnColorPreset" Background="#FF00FF00"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Blue" Tag="CutBackgroundColor|0,0,255" Click="OnColorPreset" Background="#FF0000FF"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Yellow" Tag="CutBackgroundColor|255,255,0" Click="OnColorPreset" Background="#FFFFFF00"/>
-                                        <Button Style="{StaticResource ColorSwatchButton}" ToolTip="Gray" Tag="CutBackgroundColor|128,128,128" Click="OnColorPreset" Background="#FF808080"/>
-                                        <Button MinWidth="64" Height="22" Content="By View" Tag="CutBackgroundColor|ByView" Click="OnColorPreset" Style="{StaticResource CompactSecondaryButton}"/>
-                                    </WrapPanel>
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="160"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="BACKGROUND PATTERN" Style="{StaticResource RowLabelTextStyle}"/>
+                                        <ComboBox x:Name="SurfaceBackgroundPatternCombo"
+                                                  Grid.Column="1"
+                                                  SelectionChanged="OnProjectionSurfaceSettingChanged"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,18">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="160"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                            <ColumnDefinition Width="42"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.Column="0"
+                                                   Text="BACKGROUND COLOR"
+                                                   Style="{StaticResource RowLabelTextStyle}"/>
+                                        <Border x:Name="SurfaceBackgroundColorPreview"
+                                                Grid.Row="0"
+                                                Grid.Column="1"
+                                                Height="28"
+                                                Background="{StaticResource FieldBrush}"
+                                                BorderBrush="{StaticResource BorderBrushSoft}"
+                                                BorderThickness="1"
+                                                CornerRadius="3"
+                                                Margin="0,0,8,0"
+                                                ToolTip="By View"/>
+                                        <Button Grid.Row="0"
+                                                Grid.Column="2"
+                                                Content="PICK"
+                                                Tag="SurfaceBackgroundColor"
+                                                Style="{StaticResource SmallPrimaryButtonStyle}"
+                                                Margin="0,0,6,0"
+                                                Click="OnPickColor"/>
+                                        <Button Grid.Row="0"
+                                                Grid.Column="3"
+                                                Content="BY"
+                                                Tag="SurfaceBackgroundColor"
+                                                Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                Click="OnClearColor"/>
+                                        <WrapPanel x:Name="SurfaceBackgroundColorPresetPanel"
+                                                   Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Grid.ColumnSpan="3"
+                                                   Margin="0,8,0,0"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,2,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="160"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="54"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="TRANSPARENCY"
+                                                   Style="{StaticResource RowLabelTextStyle}"/>
+                                        <Slider x:Name="TransparencySlider"
+                                                Grid.Column="1"
+                                                Minimum="0"
+                                                Maximum="100"
+                                                TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                VerticalAlignment="Center"
+                                                ValueChanged="OnTransparencyChanged"/>
+                                        <TextBlock x:Name="TransparencyValueText"
+                                                   Grid.Column="2"
+                                                   Text="0%"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
                                 </StackPanel>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-                </TabControl>
+                            </TabItem>
 
-                <CheckBox x:Name="HalftoneCheckBox"
-                          Grid.Row="4"
-                          Content="Enable Halftone"
-                          Style="{StaticResource ToggleSwitchCheckBox}"
-                          Margin="0,8,0,0"/>
+                            <TabItem Header="CUT">
+                                <StackPanel Margin="2,18,2,0" MinHeight="482">
+                                    <Border Background="{StaticResource InnerPanelBrush}"
+                                            BorderBrush="{StaticResource BorderBrushSoft}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="12"
+                                            Margin="0,0,0,18">
+                                        <CheckBox x:Name="UseProjectionSurfaceColorsForCutCheckBox"
+                                                  Content="USE PROJECTION SETTINGS FOR CUT"
+                                                  Style="{StaticResource CutLinkCheckBoxStyle}"
+                                                  Checked="OnUseProjectionSurfaceColorsForCutChanged"
+                                                  Unchecked="OnUseProjectionSurfaceColorsForCutChanged"/>
+                                    </Border>
 
-                <TextBlock x:Name="ErrorText"
-                           Grid.Row="5"
-                           Foreground="{StaticResource AccentDanger}"
-                           Margin="0,8,0,0"
-                           TextWrapping="Wrap"/>
-            </Grid>
-        </Border>
+                                    <TextBlock x:Name="CutLinkNoticeText"
+                                               Text="CUT SETTINGS ARE CURRENTLY LINKED TO THE PROJECTION TAB."
+                                               Foreground="{StaticResource TextDisabledBrush}"
+                                               FontSize="11"
+                                               FontStyle="Italic"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,72,0,0"
+                                               Visibility="Collapsed"/>
 
-        <Grid Grid.Row="1" Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+                                    <StackPanel x:Name="CutSettingsPanel">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <Border Width="2"
+                                                    Height="16"
+                                                    Background="{StaticResource AccentBrush}"
+                                                    Margin="0,0,8,0"/>
+                                            <TextBlock Text="LINES" Style="{StaticResource SectionHeaderTextStyle}"/>
+                                        </StackPanel>
 
-            <Button Grid.Column="1"
-                    Content="Reset"
-                    Style="{StaticResource SecondaryButton}"
-                    MinWidth="110"
-                    Margin="0,0,6,0"
-                    Click="OnReset"/>
-            <Button Grid.Column="2"
-                    Content="Apply"
-                    Style="{StaticResource ModernButton}"
-                    IsDefault="True"
-                    MinWidth="110"
-                    Margin="0,0,6,0"
-                    Click="OnOk"/>
-            <Button Grid.Column="3"
-                    Content="Cancel"
-                    Style="{StaticResource SecondaryButton}"
-                    IsCancel="True"
-                    MinWidth="110"
-                    Click="OnCancel"/>
+                                        <Grid Margin="0,0,0,18">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="50"/>
+                                                <ColumnDefinition Width="42"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="0"
+                                                       Text="CUT COLOR"
+                                                       Style="{StaticResource RowLabelTextStyle}"/>
+                                            <Border x:Name="CutLineColorPreview"
+                                                    Grid.Row="0"
+                                                    Grid.Column="1"
+                                                    Height="28"
+                                                    Background="{StaticResource FieldBrush}"
+                                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="3"
+                                                    Margin="0,0,8,0"
+                                                    ToolTip="By View"/>
+                                            <Button Grid.Row="0"
+                                                    Grid.Column="2"
+                                                    Content="PICK"
+                                                    Tag="CutLineColor"
+                                                    Style="{StaticResource SmallPrimaryButtonStyle}"
+                                                    Margin="0,0,6,0"
+                                                    Click="OnPickColor"/>
+                                            <Button Grid.Row="0"
+                                                    Grid.Column="3"
+                                                    Content="BY"
+                                                    Tag="CutLineColor"
+                                                    Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                    Click="OnClearColor"/>
+                                            <WrapPanel x:Name="CutLineColorPresetPanel"
+                                                       Grid.Row="1"
+                                                       Grid.Column="1"
+                                                       Grid.ColumnSpan="3"
+                                                       Margin="0,8,0,0"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="CUT PATTERN" Style="{StaticResource RowLabelTextStyle}"/>
+                                            <ComboBox x:Name="CutLinePatternCombo" Grid.Column="1"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,20">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="CUT WEIGHT" Style="{StaticResource RowLabelTextStyle}"/>
+                                            <ComboBox x:Name="CutLineWeightCombo" Grid.Column="1"/>
+                                        </Grid>
+
+                                        <Border Height="1"
+                                                Background="{StaticResource BorderBrushSoft}"
+                                                Margin="0,0,0,18"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <Border Width="2"
+                                                    Height="16"
+                                                    Background="{StaticResource AccentBrush}"
+                                                    Margin="0,0,8,0"/>
+                                            <TextBlock Text="PATTERNS" Style="{StaticResource SectionHeaderTextStyle}"/>
+                                        </StackPanel>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="FOREGROUND PATTERN" Style="{StaticResource RowLabelTextStyle}"/>
+                                            <ComboBox x:Name="CutForegroundPatternCombo" Grid.Column="1"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,18">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="50"/>
+                                                <ColumnDefinition Width="42"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="0"
+                                                       Text="FOREGROUND COLOR"
+                                                       Style="{StaticResource RowLabelTextStyle}"/>
+                                            <Border x:Name="CutForegroundColorPreview"
+                                                    Grid.Row="0"
+                                                    Grid.Column="1"
+                                                    Height="28"
+                                                    Background="{StaticResource FieldBrush}"
+                                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="3"
+                                                    Margin="0,0,8,0"
+                                                    ToolTip="By View"/>
+                                            <Button Grid.Row="0"
+                                                    Grid.Column="2"
+                                                    Content="PICK"
+                                                    Tag="CutForegroundColor"
+                                                    Style="{StaticResource SmallPrimaryButtonStyle}"
+                                                    Margin="0,0,6,0"
+                                                    Click="OnPickColor"/>
+                                            <Button Grid.Row="0"
+                                                    Grid.Column="3"
+                                                    Content="BY"
+                                                    Tag="CutForegroundColor"
+                                                    Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                    Click="OnClearColor"/>
+                                            <WrapPanel x:Name="CutForegroundColorPresetPanel"
+                                                       Grid.Row="1"
+                                                       Grid.Column="1"
+                                                       Grid.ColumnSpan="3"
+                                                       Margin="0,8,0,0"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="BACKGROUND PATTERN" Style="{StaticResource RowLabelTextStyle}"/>
+                                            <ComboBox x:Name="CutBackgroundPatternCombo" Grid.Column="1"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,18">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="50"/>
+                                                <ColumnDefinition Width="42"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="0"
+                                                       Text="BACKGROUND COLOR"
+                                                       Style="{StaticResource RowLabelTextStyle}"/>
+                                            <Border x:Name="CutBackgroundColorPreview"
+                                                    Grid.Row="0"
+                                                    Grid.Column="1"
+                                                    Height="28"
+                                                    Background="{StaticResource FieldBrush}"
+                                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="3"
+                                                    Margin="0,0,8,0"
+                                                    ToolTip="By View"/>
+                                            <Button Grid.Row="0"
+                                                    Grid.Column="2"
+                                                    Content="PICK"
+                                                    Tag="CutBackgroundColor"
+                                                    Style="{StaticResource SmallPrimaryButtonStyle}"
+                                                    Margin="0,0,6,0"
+                                                    Click="OnPickColor"/>
+                                            <Button Grid.Row="0"
+                                                    Grid.Column="3"
+                                                    Content="BY"
+                                                    Tag="CutBackgroundColor"
+                                                    Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                    Click="OnClearColor"/>
+                                            <WrapPanel x:Name="CutBackgroundColorPresetPanel"
+                                                       Grid.Row="1"
+                                                       Grid.Column="1"
+                                                       Grid.ColumnSpan="3"
+                                                       Margin="0,8,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </TabItem>
+
+                            <TabItem Header="CATEGORIES">
+                                <StackPanel Margin="2,18,2,0" MinHeight="482">
+                                    <TextBlock Text="CATEGORY SELECTION SOURCE"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Margin="0,0,0,14"/>
+
+                                    <Border Background="{StaticResource InnerPanelBrush}"
+                                            BorderBrush="{StaticResource BorderBrushSoft}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="14"
+                                            Margin="0,0,0,12">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Grid.Row="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <Grid Margin="0,0,12,0">
+                                                    <TextBox x:Name="CategorySearchBox"
+                                                             TextChanged="OnCategorySearchChanged"
+                                                             GotKeyboardFocus="OnCategorySearchFocusChanged"
+                                                             LostKeyboardFocus="OnCategorySearchFocusChanged"/>
+                                                    <Grid Width="12"
+                                                          Height="12"
+                                                          HorizontalAlignment="Left"
+                                                          VerticalAlignment="Center"
+                                                          Margin="10,0,0,0"
+                                                          IsHitTestVisible="False">
+                                                        <Ellipse Width="8"
+                                                                 Height="8"
+                                                                 HorizontalAlignment="Left"
+                                                                 VerticalAlignment="Top"
+                                                                 Stroke="{StaticResource TextDisabledBrush}"
+                                                                 StrokeThickness="1.4"/>
+                                                        <Line X1="7"
+                                                              Y1="7"
+                                                              X2="12"
+                                                              Y2="12"
+                                                              Stroke="{StaticResource TextDisabledBrush}"
+                                                              StrokeThickness="1.4"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"/>
+                                                    </Grid>
+                                                    <TextBlock x:Name="CategorySearchPlaceholderText"
+                                                               Text="Search Categories..."
+                                                               Foreground="{StaticResource TextDisabledBrush}"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"
+                                                               Margin="29,0,0,0"
+                                                               IsHitTestVisible="False"/>
+                                                </Grid>
+
+                                                <Button Grid.Column="1"
+                                                        Content="ALL"
+                                                        Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                        Margin="0,0,8,0"
+                                                        Click="OnSelectAllCategories"/>
+                                                <Button Grid.Column="2"
+                                                        Content="NONE"
+                                                        Style="{StaticResource SmallSecondaryButtonStyle}"
+                                                        Click="OnClearCategories"/>
+                                            </Grid>
+
+                                            <ListBox x:Name="CategoryListBox"
+                                                     Grid.Row="1"
+                                                     Height="260"
+                                                     Margin="0,12,0,0"
+                                                     Style="{StaticResource CategoryListBoxStyle}"
+                                                     ItemContainerStyle="{StaticResource CategoryListBoxItemStyle}">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                  Content="{Binding DisplayName}"
+                                                                  Style="{StaticResource CategoryCheckBoxStyle}"/>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </TabItem>
+                        </TabControl>
+
+                        <Border BorderBrush="{StaticResource BorderBrushSoft}"
+                                BorderThickness="0,1,0,0"
+                                Margin="0,18,0,0"
+                                Padding="0,14,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="ENABLE HALFTONE OVERRIDE"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"/>
+                                <CheckBox x:Name="HalftoneCheckBox"
+                                          Grid.Column="1"
+                                          Style="{StaticResource ToggleSwitchStyle}"/>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="ErrorText"
+                                   Foreground="#FFFF7C7C"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+
+            <Border Grid.Row="2"
+                    Background="{StaticResource ShellBrush}"
+                    BorderBrush="{StaticResource BorderBrushSoft}"
+                    BorderThickness="0,1,0,0"
+                    Padding="20,16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="RESET"
+                                Style="{StaticResource FooterSecondaryButtonStyle}"
+                                Click="OnReset"/>
+                        <StackPanel Grid.Column="2"
+                                    Orientation="Horizontal">
+                            <Button x:Name="ApplyElementsButton"
+                                    Content="ELEMENTS"
+                                    Style="{StaticResource FooterPrimaryButtonStyle}"
+                                    IsDefault="True"
+                                    Margin="0,0,10,0"
+                                    Click="OnApplyElements"/>
+                            <Button x:Name="ApplyCategoriesButton"
+                                    Content="CATEGORIES"
+                                    Style="{StaticResource FooterPrimaryButtonStyle}"
+                                    Margin="0,0,10,0"
+                                    Click="OnApplyCategories"/>
+                            <Button Content="CANCEL"
+                                    Style="{StaticResource FooterDangerButtonStyle}"
+                                    IsCancel="True"
+                                    Click="OnCancel"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            Height="1"
+                            Background="#12FFFFFF"
+                            Margin="0,14,0,8"/>
+                    <TextBlock Grid.Row="1"
+                               Text="ALL RIGHTS RESERVED | COPYRIGHT (C) 2026 AJMAL P.S."
+                               Foreground="{StaticResource TextDisabledBrush}"
+                               FontSize="9"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Margin="0,22,0,0"/>
+                </Grid>
+            </Border>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

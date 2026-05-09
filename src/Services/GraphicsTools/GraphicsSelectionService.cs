@@ -3,9 +3,9 @@
 // Purpose      : Captures Apply Graphics selections and shared command execution context.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.2
+// Version      : 1.4.4
 // Created      : 2026-03-30
-// Last Updated : 2026-05-07
+// Last Updated : 2026-05-09
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Active Revit UI document and user selections.
 // Output       : Validated command context and selected element ids.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.2 - Supports the unified Apply Graphics selection workflow.
+// Changelog    : v1.4.4 - Added active-view graphics override validation for all Graphics commands.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -68,7 +68,15 @@ namespace AJTools.Services.GraphicsTools
                 return Result.Cancelled;
             }
 
-            context = new GraphicsCommandContext(uidoc, doc, doc.ActiveView);
+            View activeView = doc.ActiveView;
+            if (!activeView.AreGraphicsOverridesAllowed())
+            {
+                message = "Graphics overrides are disabled for this view.";
+                DialogHelper.ShowError(title, message);
+                return Result.Cancelled;
+            }
+
+            context = new GraphicsCommandContext(uidoc, doc, activeView);
             return Result.Succeeded;
         }
 

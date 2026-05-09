@@ -3,9 +3,9 @@
 // Purpose      : Collects and applies category-level graphics overrides for active views.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.2
+// Version      : 1.4.4
 // Created      : 2026-03-30
-// Last Updated : 2026-05-07
+// Last Updated : 2026-05-09
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Revit view, categories, elements, and override settings.
 // Output       : Category graphics operation summary.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.2 - Supports the unified Apply Graphics category workflow.
+// Changelog    : v1.4.4 - Reviewed category collection and override application for release.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

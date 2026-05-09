@@ -144,6 +144,7 @@
     <Compile Include="Models\GraphicsTools\GraphicsLineWeightOption.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsColorValue.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsCategoryOption.cs" />
+    <Compile Include="Models\GraphicsTools\GraphicsOverrideMemoryState.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsOverrideInput.cs" />
     <Compile Include="Models\GraphicsTools\GraphicsOperationSummary.cs" />
     <Compile Include="Models\ViewCrop\ViewCropBatchResult.cs" />
@@ -198,6 +199,7 @@
     <Compile Include="Services\GraphicsTools\GraphicsSelectionFilters.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsSelectionService.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsDataProvider.cs" />
+    <Compile Include="Services\GraphicsTools\GraphicsOverrideMemoryService.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsOverrideBuilder.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsCategoryService.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsElementService.cs" />

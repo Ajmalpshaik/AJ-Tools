@@ -3,9 +3,9 @@
 // Purpose      : Copies category override settings from a source category to target categories.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.4.4
 // Created      : 2026-03-30
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-09
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : One source model element and one or more target model elements.
 // Output       : Target category graphics overrides matched in the active view.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.1.0 - Cleaned Graphics Tools command flow, shared validation/transaction handling, and metadata.
+// Changelog    : v1.4.4 - Reviewed Match Category Graphics flow, shared validation, and metadata for release.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

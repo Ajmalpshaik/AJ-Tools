@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.4] - 2026-05-09
+
+- Rebuilt `Apply Graphics` around a dark, compact settings manager with separate apply actions for element and category overrides.
+- Added best-effort last-used settings memory for colors, patterns, line weights, transparency, halftone, cut-link state, and selected categories.
+- Added active-view graphics override validation across Graphics commands and aligned `Reset Element Graphics in View` with the shared Graphics transaction flow.
+
 ## [1.4.3] - 2026-05-07
 
 - Restored preset color buttons in `Apply Graphics`, but scoped each preset row to its own color field so preset clicks never spill into other targets.

@@ -3,17 +3,17 @@
 // Purpose      : Provides Revit graphics option data for the Apply Graphics UI.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.3
+// Version      : 1.4.4
 // Created      : 2026-03-30
-// Last Updated : 2026-05-07
+// Last Updated : 2026-05-09
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Active Revit document.
-// Output       : Line pattern, fill pattern, line weight, and transparency options.
+// Output       : Line pattern, fill pattern, line weight, and category options.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.3 - Builds category options only from the selected-element source.
+// Changelog    : v1.4.4 - Removed dead transparency dropdown options after moving the UI to a slider.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -101,17 +101,6 @@ namespace AJTools.Services.GraphicsTools
             for (int weight = 1; weight <= 16; weight++)
             {
                 options.Add(new GraphicsLineWeightOption(weight, weight.ToString()));
-            }
-
-            return options;
-        }
-
-        public static IList<int> GetTransparencyOptions()
-        {
-            var options = new List<int>(101);
-            for (int value = 0; value <= 100; value++)
-            {
-                options.Add(value);
             }
 
             return options;
