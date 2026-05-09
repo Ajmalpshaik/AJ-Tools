@@ -2,7 +2,7 @@
 
 ## Our Standard
 
-This repository is used for developing and maintaining the AJ Tools Revit add-in.
+This repository is the development source for the AJ Tools add-in for Autodesk Revit.
 
 Participation in this repository is expected to remain respectful, technical, and relevant to the project. Contributors, users, and maintainers should:
 
@@ -43,4 +43,4 @@ If you encounter behavior that violates this Code of Conduct, open a private rep
 
 ## Enforcement
 
-Reports will be reviewed and handled case by case. The response will be based on project safety, impact, and the need to keep this repository useful for development and support work.
+Reports will be reviewed and handled case by case. The response will be based on project safety, impact, and the need to keep this repository useful for development and collaboration.

@@ -1,26 +1,32 @@
 # Security Policy
 
-## Supported Builds
+## Supported Versions
 
-Only the latest packaged AJ Tools release for Revit 2020 should be treated as supported.
+Security and reliability fixes are applied to the latest released version of the AJ Tools add-in.
 
-## Reporting
+When reporting a problem, assume that only the most recent GitHub release is actively supported unless stated otherwise.
 
-Do not post security issues, leaked secrets, or customer data in public issue threads or screenshots.
+## Reporting A Vulnerability
 
-Report security concerns privately to:
+Do not open public GitHub issues for security-sensitive findings.
 
-- `ajmalnattika@gmail.com`
+Report vulnerabilities privately by emailing `ajmalnattika@gmail.com` with:
 
-Include:
+- a short description of the issue
+- affected version
+- affected Revit and Windows versions if known
+- reproduction details or proof of concept
+- any suggested mitigation
 
-- affected AJ Tools version
-- Revit version
-- reproduction steps
-- sanitized logs or screenshots
+## What Happens Next
 
-## Repository Hygiene
+Submitted reports will be reviewed privately. If the issue is confirmed, the fix will be prepared and released through the normal GitHub release process for this repository.
 
-- Never commit tokens, keys, passwords, or private configuration files.
-- Never commit customer models, project data, or internal company assets.
-- Remove user names, file-system paths, and project identifiers from logs before sharing them.
+## Out Of Scope
+
+The following are generally out of scope unless they produce a real security or integrity impact in the released add-in:
+
+- local environment misconfiguration
+- unsupported custom modifications of the add-in
+- issues only present in unreleased development work
+- third-party software vulnerabilities unrelated to AJ Tools code
