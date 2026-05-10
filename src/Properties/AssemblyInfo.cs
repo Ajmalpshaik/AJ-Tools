@@ -3,7 +3,7 @@
 // Purpose      : Defines assembly-level metadata and version information for the AJ Tools add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.5
+// Version      : 1.4.6
 // Created      : 2025-12-10
 // Last Updated : 2026-05-10
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : Assembly build metadata.
 // Output       : Versioned AJ Tools assembly attributes.
 // Notes        : Keep this version aligned with release tags and installer package versions.
-// Changelog    : v1.4.5 - Reduced Apply Graphics startup window size and restored native close/resize behavior.
+// Changelog    : v1.4.6 - Released compact Apply Graphics window layout and close-button refinement.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -47,5 +47,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.4.5.0")]
-[assembly: AssemblyFileVersion("1.4.5.0")]
+[assembly: AssemblyVersion("1.4.6.0")]
+[assembly: AssemblyFileVersion("1.4.6.0")]
