@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.5] - 2026-05-10
+
+- Reduced the `Apply Graphics` default window size for smaller screens while keeping the settings area scrollable.
+- Restored native Windows close and resize behavior so the standard title-bar close button remains visible.
+- Clamped the startup window size to the available screen work area before showing the dialog.
+
 ## [1.4.4] - 2026-05-09
 
 - Rebuilt `Apply Graphics` around a dark, compact settings manager with separate apply actions for element and category overrides.
