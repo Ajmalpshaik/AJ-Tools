@@ -3,7 +3,7 @@
 // Purpose      : Handles the Apply Graphics window behavior and input conversion.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.5
+// Version      : 1.4.6
 // Created      : 2026-03-30
 // Last Updated : 2026-05-10
 // Target       : Revit 2020
@@ -13,7 +13,7 @@
 // Input        : User graphics settings selections, apply mode choice, selected source categories, and category selections.
 // Output       : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
 // Notes        : Keeps Revit override construction outside the WPF UI layer.
-// Changelog    : v1.4.5 - Clamped startup size to the screen work area and kept native close/resize behavior.
+// Changelog    : v1.4.6 - Added compact tabbed UI sizing and custom title-bar close handling.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -26,6 +26,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using AJTools.Models.GraphicsTools;
@@ -108,19 +109,26 @@ namespace AJTools.UI.GraphicsTools
         private static readonly IList<ColorPreset> ColorPresets = new List<ColorPreset>
         {
             new ColorPreset("Red", 255, 0, 0),
-            new ColorPreset("Blue", 0, 0, 255),
+            new ColorPreset("Yellow", 255, 255, 0),
             new ColorPreset("Green", 0, 255, 0),
             new ColorPreset("Cyan", 0, 255, 255),
+            new ColorPreset("Blue", 0, 0, 255),
             new ColorPreset("Magenta", 255, 0, 255),
-            new ColorPreset("Yellow", 255, 255, 0),
-            new ColorPreset("Orange", 255, 165, 0),
-            new ColorPreset("Dark Red", 139, 0, 0),
-            new ColorPreset("Dark Blue", 0, 0, 139),
-            new ColorPreset("Dark Green", 0, 100, 0),
-            new ColorPreset("Purple", 128, 0, 128),
-            new ColorPreset("Brown", 165, 42, 42),
+            new ColorPreset("White", 255, 255, 255),
+            new ColorPreset("Light Gray", 180, 180, 180),
+            new ColorPreset("Gray", 128, 128, 128),
             new ColorPreset("Black", 0, 0, 0),
-            new ColorPreset("Silver", 192, 192, 192)
+            new ColorPreset("Pastel Pink", 255, 179, 186),
+            new ColorPreset("Pastel Peach", 255, 223, 186),
+            new ColorPreset("Pastel Green", 186, 255, 201),
+            new ColorPreset("Pastel Blue", 186, 225, 255),
+            new ColorPreset("Pastel Violet", 220, 208, 255),
+            new ColorPreset("Chartreuse", 204, 255, 0),
+            new ColorPreset("Deep Pink", 255, 20, 147),
+            new ColorPreset("Orange Red", 255, 69, 0),
+            new ColorPreset("Dark Violet", 148, 0, 211),
+            new ColorPreset("Gold", 255, 215, 0),
+            new ColorPreset("Medium Spring Green", 0, 250, 154)
         };
 
         private readonly Dictionary<string, GraphicsColorValue> _colorValues =
@@ -217,15 +225,68 @@ namespace AJTools.UI.GraphicsTools
             Rect workArea = SystemParameters.WorkArea;
             if (workArea.Width > WorkAreaMargin)
             {
-                MaxWidth = Math.Max(MinWidth, workArea.Width - WorkAreaMargin);
-                Width = Math.Min(Width, MaxWidth);
+                MaxWidth = Math.Max(MinWidth, workArea.Width);
+                double availableWidth = Math.Max(MinWidth, workArea.Width - WorkAreaMargin);
+                Width = Math.Min(Width, availableWidth);
             }
 
             if (workArea.Height > WorkAreaMargin)
             {
-                MaxHeight = Math.Max(MinHeight, workArea.Height - WorkAreaMargin);
-                Height = Math.Min(Height, MaxHeight);
+                MaxHeight = Math.Max(MinHeight, workArea.Height);
+                double availableHeight = Math.Max(MinHeight, workArea.Height - WorkAreaMargin);
+                Height = Math.Min(Height, availableHeight);
             }
+        }
+
+        private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                ToggleWindowState();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.ButtonState != MouseButtonState.Pressed)
+            {
+                return;
+            }
+
+            try
+            {
+                DragMove();
+            }
+            catch (InvalidOperationException)
+            {
+                // DragMove can throw if WPF has already released mouse capture.
+            }
+        }
+
+        private void OnMinimizeWindow(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void OnMaximizeRestoreWindow(object sender, RoutedEventArgs e)
+        {
+            ToggleWindowState();
+        }
+
+        private void OnCloseWindow(object sender, RoutedEventArgs e)
+        {
+            CloseDialog(false);
+        }
+
+        private void ToggleWindowState()
+        {
+            if (ResizeMode == ResizeMode.NoResize || ResizeMode == ResizeMode.CanMinimize)
+            {
+                return;
+            }
+
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
         }
 
         private void BindDropdownData(Document doc)
@@ -285,7 +346,6 @@ namespace AJTools.UI.GraphicsTools
 
             panel.Children.Clear();
             Style swatchStyle = TryFindResource("ColorSwatchButtonStyle") as Style;
-            Style byViewStyle = TryFindResource("SmallSecondaryButtonStyle") as Style;
 
             foreach (ColorPreset preset in ColorPresets)
             {
@@ -299,22 +359,6 @@ namespace AJTools.UI.GraphicsTools
                 button.Click += OnColorPreset;
                 panel.Children.Add(button);
             }
-
-            var byViewButton = new Button
-            {
-                Content = "BY VIEW",
-                Style = byViewStyle,
-                Tag = colorKey + "|ByView",
-                Height = 18,
-                MinHeight = 18,
-                MinWidth = 64,
-                Padding = new Thickness(7, 0, 7, 0),
-                Margin = new Thickness(2, 0, 0, 0),
-                FontSize = 8,
-                ToolTip = "By View"
-            };
-            byViewButton.Click += OnColorPreset;
-            panel.Children.Add(byViewButton);
         }
 
         private bool FilterCategoryOption(object item)
@@ -957,6 +1001,7 @@ namespace AJTools.UI.GraphicsTools
         {
             ErrorText.Text = string.Empty;
             CategorySearchBox.Text = string.Empty;
+            MainTabControl.SelectedIndex = 0;
             GraphicsTabControl.SelectedIndex = 0;
             ApplySettings(new OverrideGraphicSettings(), inferCutLink: true);
             RestoreInitialCategorySelection();
@@ -997,6 +1042,7 @@ namespace AJTools.UI.GraphicsTools
             if (applyMode == GraphicsApplyMode.Categories && SelectedCategoryIds.Count == 0)
             {
                 errorMessage = "Select at least one category before applying category graphics.";
+                MainTabControl.SelectedIndex = 1;
                 CategorySearchBox.Focus();
                 return false;
             }

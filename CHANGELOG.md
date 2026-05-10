@@ -3,6 +3,12 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [1.4.6] - 2026-05-10
+
+- Reduced the `Apply Graphics` startup window size again for smaller screens.
+- Added a compact tabbed layout so graphics settings and category selection are separated without increasing the default window height.
+- Kept a visible custom title-bar close button, cancel behavior, and resize support for the WPF settings window.
+
 ## [1.4.5] - 2026-05-10
 
 - Reduced the `Apply Graphics` default window size for smaller screens while keeping the settings area scrollable.
