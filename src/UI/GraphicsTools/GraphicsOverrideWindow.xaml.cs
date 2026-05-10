@@ -3,9 +3,9 @@
 // Purpose      : Handles the Apply Graphics window behavior and input conversion.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.4
+// Version      : 1.4.5
 // Created      : 2026-03-30
-// Last Updated : 2026-05-09
+// Last Updated : 2026-05-10
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : User graphics settings selections, apply mode choice, selected source categories, and category selections.
 // Output       : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
 // Notes        : Keeps Revit override construction outside the WPF UI layer.
-// Changelog    : v1.4.4 - Wired the reference-style UI, category search, color presets, transparency slider, and split apply actions.
+// Changelog    : v1.4.5 - Clamped startup size to the screen work area and kept native close/resize behavior.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -26,7 +26,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using AJTools.Models.GraphicsTools;
@@ -102,6 +101,7 @@ namespace AJTools.UI.GraphicsTools
         private const string CutLineColorKey = "CutLineColor";
         private const string CutForegroundColorKey = "CutForegroundColor";
         private const string CutBackgroundColorKey = "CutBackgroundColor";
+        private const double WorkAreaMargin = 48.0;
 
         private static readonly Brush FieldBrush = CreateFrozenBrush(37, 37, 38);
 
@@ -154,6 +154,7 @@ namespace AJTools.UI.GraphicsTools
             OverrideGraphicSettings initialSettings = null)
         {
             InitializeComponent();
+            ApplyInitialWindowBounds();
 
             if (!string.IsNullOrWhiteSpace(windowTitle))
             {
@@ -209,6 +210,22 @@ namespace AJTools.UI.GraphicsTools
             var brush = new SolidColorBrush(MediaColor.FromRgb(red, green, blue));
             brush.Freeze();
             return brush;
+        }
+
+        private void ApplyInitialWindowBounds()
+        {
+            Rect workArea = SystemParameters.WorkArea;
+            if (workArea.Width > WorkAreaMargin)
+            {
+                MaxWidth = Math.Max(MinWidth, workArea.Width - WorkAreaMargin);
+                Width = Math.Min(Width, MaxWidth);
+            }
+
+            if (workArea.Height > WorkAreaMargin)
+            {
+                MaxHeight = Math.Max(MinHeight, workArea.Height - WorkAreaMargin);
+                Height = Math.Min(Height, MaxHeight);
+            }
         }
 
         private void BindDropdownData(Document doc)
@@ -980,7 +997,7 @@ namespace AJTools.UI.GraphicsTools
             if (applyMode == GraphicsApplyMode.Categories && SelectedCategoryIds.Count == 0)
             {
                 errorMessage = "Select at least one category before applying category graphics.";
-                GraphicsTabControl.SelectedIndex = 2;
+                CategorySearchBox.Focus();
                 return false;
             }
 
@@ -1104,23 +1121,6 @@ namespace AJTools.UI.GraphicsTools
         {
             GraphicsLineWeightOption selected = comboBox.SelectedItem as GraphicsLineWeightOption;
             return selected?.Weight ?? OverrideGraphicSettings.InvalidPenNumber;
-        }
-
-        private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ButtonState != MouseButtonState.Pressed)
-            {
-                return;
-            }
-
-            try
-            {
-                DragMove();
-            }
-            catch (InvalidOperationException)
-            {
-                // DragMove can throw if the mouse state changes during a rapid click.
-            }
         }
 
         private void OnCancel(object sender, RoutedEventArgs e)
