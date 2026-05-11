@@ -1,5 +1,5 @@
 // ==================================================
-// Tool Name    : Purge Unplaced 3D Views and Sections
+// Tool Name    : Purge Unplaced Views
 // Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
@@ -18,34 +18,36 @@
 // Repo         : AJ-Tools
 // ==================================================
 
-using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Models.Purge;
 using AJTools.UI.Purge;
 
 namespace AJTools.Commands
 {
-    [Transaction(TransactionMode.Manual)]
-    public class CmdPurgeUnplacedViews : IExternalCommand
+    internal static class UnplacedViewPurgeCommandRunner
     {
-        private const string ToolTitle = "Purge Unplaced 3D Views and Sections";
         private const string ProjectOnlyMessage = "This tool works only in an opened Revit project file.";
 
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public static Result Execute(
+            ExternalCommandData commandData,
+            ref string message,
+            UnplacedViewPurgeMode mode)
         {
+            string toolTitle = mode.GetToolTitle();
             try
             {
                 UIDocument uiDoc = commandData?.Application?.ActiveUIDocument;
                 if (uiDoc == null || uiDoc.Document == null)
                 {
-                    TaskDialog.Show(ToolTitle, ProjectOnlyMessage);
+                    TaskDialog.Show(toolTitle, ProjectOnlyMessage);
                     return Result.Cancelled;
                 }
 
                 Document doc = uiDoc.Document;
                 if (doc.IsFamilyDocument)
                 {
-                    TaskDialog.Show(ToolTitle, ProjectOnlyMessage);
+                    TaskDialog.Show(toolTitle, ProjectOnlyMessage);
                     return Result.Cancelled;
                 }
 
@@ -53,7 +55,7 @@ namespace AJTools.Commands
                     ? uiDoc.ActiveView.Id
                     : ElementId.InvalidElementId;
 
-                var window = new PurgeUnplacedViewsWindow(doc, activeViewId);
+                var window = new PurgeUnplacedViewsWindow(doc, activeViewId, mode);
                 window.ShowDialog();
 
                 return window.OperationWasRun ? Result.Succeeded : Result.Cancelled;
@@ -61,7 +63,7 @@ namespace AJTools.Commands
             catch (System.Exception ex)
             {
                 message = ex.Message;
-                TaskDialog.Show(ToolTitle, "Tool failed:\n" + ex.Message);
+                TaskDialog.Show(toolTitle, "Tool failed:\n" + ex.Message);
                 return Result.Failed;
             }
         }

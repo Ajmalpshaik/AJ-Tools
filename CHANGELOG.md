@@ -5,7 +5,7 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-- Added `Purge Unplaced 3D Views and Sections` under the AJ Tools Purge menu with preview, selection, confirmation, delete probing, transaction rollback, and final purge reporting.
+- Added separate `Purge Unplaced 3D Views` and `Purge Unplaced Sections` tools under the AJ Tools Purge menu with preview, selection, confirmation, delete probing, transaction rollback, and final purge reporting.
 
 ## [1.4.6] - 2026-05-10
 

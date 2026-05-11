@@ -263,6 +263,8 @@
     <Compile Include="Commands\CmdRevisionCloudByElements.cs" />
     <Compile Include="Commands\CmdRevisionCloudByElementsSettings.cs" />
     <Compile Include="Commands\CmdDuctStandardsManager.cs" />
+    <Compile Include="Commands\CmdPurgeUnplaced3DViews.cs" />
+    <Compile Include="Commands\CmdPurgeUnplacedSections.cs" />
     <Compile Include="Commands\CmdPurgeUnplacedViews.cs" />
     <Compile Include="Commands\CmdPurgeUnplacedViewsAvailability.cs" />
     <Compile Include="Commands\CmdPurgeUnusedFamilyParameters.cs" />
@@ -281,6 +283,7 @@
     <Compile Include="Models\Purge\FamilyParameterPurgeScanResult.cs" />
     <Compile Include="Models\Purge\FamilyParameterPurgeDeleteResult.cs" />
     <Compile Include="Models\Purge\UnplacedViewPurgeItem.cs" />
+    <Compile Include="Models\Purge\UnplacedViewPurgeMode.cs" />
     <Compile Include="Models\Purge\UnplacedViewPurgeResult.cs" />
     <Compile Include="Models\Purge\UnplacedViewPurgeStatus.cs" />
     <Compile Include="Services\RevisionCloud\GeometryProjectionService.cs" />
