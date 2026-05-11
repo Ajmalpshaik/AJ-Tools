@@ -3,6 +3,10 @@
 This changelog tracks tagged AJ Tools source milestones. Public installer downloads are published separately in `AJ-Tools-Installer`.
 Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in repository history.
 
+## [Unreleased]
+
+- Added `Purge Unplaced 3D Views and Sections` under the AJ Tools Purge menu with preview, selection, confirmation, delete probing, transaction rollback, and final purge reporting.
+
 ## [1.4.6] - 2026-05-10
 
 - Reduced the `Apply Graphics` startup window size again for smaller screens.
