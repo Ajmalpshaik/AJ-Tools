@@ -263,6 +263,8 @@
     <Compile Include="Commands\CmdRevisionCloudByElements.cs" />
     <Compile Include="Commands\CmdRevisionCloudByElementsSettings.cs" />
     <Compile Include="Commands\CmdDuctStandardsManager.cs" />
+    <Compile Include="Commands\CmdPurgeUnplacedViews.cs" />
+    <Compile Include="Commands\CmdPurgeUnplacedViewsAvailability.cs" />
     <Compile Include="Commands\CmdPurgeUnusedFamilyParameters.cs" />
     <Compile Include="Commands\CmdPurgeUnusedFamilyParametersAvailability.cs" />
     <Compile Include="Models\RevisionCloud\RevisionCloudSettings.cs" />
@@ -278,6 +280,9 @@
     <Compile Include="Models\Purge\FamilyParameterPurgeItem.cs" />
     <Compile Include="Models\Purge\FamilyParameterPurgeScanResult.cs" />
     <Compile Include="Models\Purge\FamilyParameterPurgeDeleteResult.cs" />
+    <Compile Include="Models\Purge\UnplacedViewPurgeItem.cs" />
+    <Compile Include="Models\Purge\UnplacedViewPurgeResult.cs" />
+    <Compile Include="Models\Purge\UnplacedViewPurgeStatus.cs" />
     <Compile Include="Services\RevisionCloud\GeometryProjectionService.cs" />
     <Compile Include="Services\RevisionCloud\OrthogonalOutlineBuilder.cs" />
     <Compile Include="Services\RevisionCloud\RevisionCloudCreator.cs" />
@@ -292,6 +297,8 @@
     <Compile Include="Services\Purge\FamilyParameterUsageEvaluator.cs" />
     <Compile Include="Services\Purge\FamilyParameterScanService.cs" />
     <Compile Include="Services\Purge\FamilyParameterDeleteService.cs" />
+    <Compile Include="Services\Purge\UnplacedViewCollector.cs" />
+    <Compile Include="Services\Purge\UnplacedViewPurgeService.cs" />
     <Compile Include="UI\RevisionCloud\RevisionCloudSettingsWindow.xaml.cs">
       <DependentUpon>RevisionCloudSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -300,6 +307,9 @@
     </Compile>
     <Compile Include="UI\Purge\PurgeUnusedFamilyParametersWindow.xaml.cs">
       <DependentUpon>PurgeUnusedFamilyParametersWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Purge\PurgeUnplacedViewsWindow.xaml.cs">
+      <DependentUpon>PurgeUnplacedViewsWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -376,6 +386,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Purge\PurgeUnusedFamilyParametersWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Purge\PurgeUnplacedViewsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -757,6 +757,13 @@ namespace AJTools.App
                 "Remove.png",
                 "Remove.png",
                 CreateSplitChildTool(
+                    "Purge Unplaced\n3D + Sections",
+                    "Preview and delete selected unplaced 3D and section views in the active project.",
+                    typeof(CmdPurgeUnplacedViews),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
                     "Purge Family Parameters",
                     "Scan family parameters, classify unused candidates safely, and remove selected parameters in the active family document.",
                     typeof(CmdPurgeUnusedFamilyParameters),

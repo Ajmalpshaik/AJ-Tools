@@ -27,6 +27,7 @@
 - Unhide All clears Temporary Hide/Isolate and permanently hidden elements in the active view.
 - View Crop supports plan, section, elevation, area plan, engineering plan, and detail/callout views.
 - View Crop skips views controlled by scope boxes or view templates that lock crop settings.
+- Purge Unplaced 3D Views and Sections previews non-template unplaced views, skips the active view and default `{3D}` view, and reports purged, skipped, and failed counts.
 - Apply Graphics uses one selected-element source for both modes, remembers the last-used settings, and applies either element overrides directly or category overrides from the categories found in those selected elements.
 - Graphics tools apply, match, or reset active-view override graphics only.
 - HVAC Schematic creates a new drafting view from selected supported HVAC elements only.
