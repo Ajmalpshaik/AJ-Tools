@@ -62,7 +62,6 @@ If your changes affect release packaging or versioning:
 
 - update the assembly version in `Properties/AssemblyInfo.cs`
 - update `CHANGELOG.md` with clear entries
-- update `RELEASE_NOTES.md` for major releases
 
 ## Support Routing
 

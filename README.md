@@ -41,7 +41,7 @@ AJ Tools provides commands for:
 ## Installation
 
 - End users: download the published installer from [AJ-Tools-Installer Releases](https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases)
-- Developers and testers: use [INSTALL.md](INSTALL.md) or the detailed guide in [docs/INSTALLATION.md](docs/INSTALLATION.md)
+- Developers and testers: use [INSTALL.md](INSTALL.md)
 
 ## Build From Source
 
@@ -73,7 +73,6 @@ Expected output:
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [SUPPORT.md](SUPPORT.md)
 - [SECURITY.md](SECURITY.md)
-- [docs/FOLDER_STRUCTURE.md](docs/FOLDER_STRUCTURE.md)
 - [docs/USAGE.md](docs/USAGE.md)
 
 ## Support
