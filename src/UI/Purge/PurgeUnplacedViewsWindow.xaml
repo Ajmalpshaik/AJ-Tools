@@ -29,6 +29,67 @@
                 <Setter Property="TextWrapping" Value="Wrap"/>
                 <Setter Property="Margin" Value="0,2,0,2"/>
             </Style>
+
+            <Style x:Key="PurgeGridTextElement" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="PurgeGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="8,6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style x:Key="PurgeGridRowStyle" TargetType="DataGridRow">
+                <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="TextElement.Foreground" Value="{StaticResource TextPrimary}"/>
+                <Style.Triggers>
+                    <Trigger Property="AlternationIndex" Value="1">
+                        <Setter Property="Background" Value="{StaticResource BackgroundMedium}"/>
+                    </Trigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        <Setter Property="TextElement.Foreground" Value="{StaticResource TextPrimary}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="PurgeGridCellStyle" TargetType="DataGridCell">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="TextElement.Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridCell">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter Margin="8,2" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        <Setter Property="TextElement.Foreground" Value="{StaticResource TextPrimary}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -146,7 +207,13 @@
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       GridLinesVisibility="Horizontal"
-                      HeadersVisibility="Column">
+                      HeadersVisibility="Column"
+                      AlternationCount="2"
+                      RowBackground="{StaticResource CardBackground}"
+                      AlternatingRowBackground="{StaticResource BackgroundMedium}"
+                      ColumnHeaderStyle="{StaticResource PurgeGridColumnHeaderStyle}"
+                      RowStyle="{StaticResource PurgeGridRowStyle}"
+                      CellStyle="{StaticResource PurgeGridCellStyle}">
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="Pick" Width="48">
                         <DataGridTemplateColumn.CellTemplate>
@@ -160,11 +227,11 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="View Name" Binding="{Binding ViewName}" Width="260"/>
-                    <DataGridTextColumn Header="Type" Binding="{Binding ViewKind}" Width="92"/>
-                    <DataGridTextColumn Header="Element Id" Binding="{Binding ViewIdValue}" Width="86"/>
-                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="116"/>
-                    <DataGridTextColumn Header="Reason" Binding="{Binding StatusReason}" Width="*"/>
+                    <DataGridTextColumn Header="View Name" Binding="{Binding ViewName}" Width="260" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Type" Binding="{Binding ViewKind}" Width="92" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Element Id" Binding="{Binding ViewIdValue}" Width="86" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="116" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Reason" Binding="{Binding StatusReason}" Width="*" ElementStyle="{StaticResource PurgeGridTextElement}"/>
                 </DataGrid.Columns>
 
                 <DataGrid.RowDetailsTemplate>
