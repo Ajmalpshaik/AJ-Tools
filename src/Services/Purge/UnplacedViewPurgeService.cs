@@ -1,5 +1,5 @@
 // ==================================================
-// Tool Name    : Purge Unplaced 3D Views and Sections
+// Tool Name    : Purge Unplaced Views
 // Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
@@ -30,13 +30,18 @@ namespace AJTools.Services.Purge
     {
         private readonly Document _doc;
         private readonly ElementId _activeViewId;
+        private readonly UnplacedViewPurgeMode _mode;
         private readonly UnplacedViewCollector _collector;
 
-        public UnplacedViewPurgeService(Document doc, ElementId activeViewId)
+        public UnplacedViewPurgeService(
+            Document doc,
+            ElementId activeViewId,
+            UnplacedViewPurgeMode mode)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _activeViewId = activeViewId ?? ElementId.InvalidElementId;
-            _collector = new UnplacedViewCollector(_doc, _activeViewId);
+            _mode = mode;
+            _collector = new UnplacedViewCollector(_doc, _activeViewId, mode);
         }
 
         public IList<UnplacedViewPurgeItem> Scan()
@@ -80,7 +85,7 @@ namespace AJTools.Services.Purge
                 return result;
             }
 
-            using (var group = new TransactionGroup(_doc, "Purge Unplaced 3D Views and Sections"))
+            using (var group = new TransactionGroup(_doc, _mode.GetTransactionName()))
             {
                 group.Start();
                 bool hasCommit = false;

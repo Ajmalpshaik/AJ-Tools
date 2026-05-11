@@ -1,5 +1,5 @@
 // ==================================================
-// Tool Name    : Purge Unplaced 3D Views and Sections
+// Tool Name    : Purge Unplaced Views
 // Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
@@ -36,20 +36,26 @@ namespace AJTools.UI.Purge
 {
     public partial class PurgeUnplacedViewsWindow : Window
     {
-        private const string DialogTitle = "Purge Unplaced 3D Views and Sections";
-
         private readonly Document _doc;
         private readonly ElementId _activeViewId;
+        private readonly UnplacedViewPurgeMode _mode;
+        private readonly string _dialogTitle;
         private readonly ObservableCollection<UnplacedViewPurgeItem> _rows;
         private readonly ICollectionView _rowsView;
 
-        public PurgeUnplacedViewsWindow(Document doc, ElementId activeViewId)
+        public PurgeUnplacedViewsWindow(
+            Document doc,
+            ElementId activeViewId,
+            UnplacedViewPurgeMode mode)
         {
             _doc = doc;
             _activeViewId = activeViewId ?? ElementId.InvalidElementId;
+            _mode = mode;
+            _dialogTitle = mode.GetToolTitle();
             _rows = new ObservableCollection<UnplacedViewPurgeItem>();
 
             InitializeComponent();
+            ConfigureForMode();
 
             _rowsView = CollectionViewSource.GetDefaultView(_rows);
             _rowsView.Filter = FilterRows;
@@ -81,9 +87,7 @@ namespace AJTools.UI.Purge
                 return false;
             }
 
-            string kind = GetSelectedTag(cmbKindFilter);
-            if (!string.Equals(kind, "All", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(row.ViewKind, kind, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(row.ViewKind, _mode.GetViewKind(), StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -126,7 +130,7 @@ namespace AJTools.UI.Purge
             {
                 ClearRows();
 
-                var service = new UnplacedViewPurgeService(_doc, _activeViewId);
+                var service = new UnplacedViewPurgeService(_doc, _activeViewId, _mode);
                 IList<UnplacedViewPurgeItem> scanResult = service.Scan();
 
                 foreach (UnplacedViewPurgeItem row in scanResult)
@@ -143,7 +147,7 @@ namespace AJTools.UI.Purge
                 MessageBox.Show(
                     this,
                     "Scan failed:\n\n" + ex.Message,
-                    DialogTitle,
+                    _dialogTitle,
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
@@ -174,8 +178,7 @@ namespace AJTools.UI.Purge
         private void UpdateSummary()
         {
             txtFoundCount.Text = _rows.Count.ToString();
-            txt3DCount.Text = _rows.Count(r => string.Equals(r.ViewKind, "3D View", StringComparison.OrdinalIgnoreCase)).ToString();
-            txtSectionCount.Text = _rows.Count(r => string.Equals(r.ViewKind, "Section", StringComparison.OrdinalIgnoreCase)).ToString();
+            txtTargetKindCount.Text = _rows.Count(r => string.Equals(r.ViewKind, _mode.GetViewKind(), StringComparison.OrdinalIgnoreCase)).ToString();
             txtSafeCount.Text = _rows.Count(r => r.Status == UnplacedViewPurgeStatus.SafeToPurge).ToString();
             txtBlockedCount.Text = _rows.Count(r => r.Status != UnplacedViewPurgeStatus.SafeToPurge).ToString();
             txtSelectedCount.Text = _rows.Count(r => r.IsSelected && r.CanSelectForDeletion).ToString();
@@ -197,12 +200,18 @@ namespace AJTools.UI.Purge
 
         private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
-            _rowsView.Refresh();
+            if (_rowsView != null)
+            {
+                _rowsView.Refresh();
+            }
         }
 
         private void OnFilterChanged(object sender, SelectionChangedEventArgs e)
         {
-            _rowsView.Refresh();
+            if (_rowsView != null)
+            {
+                _rowsView.Refresh();
+            }
         }
 
         private void OnSelectSafeOnlyClick(object sender, RoutedEventArgs e)
@@ -231,8 +240,8 @@ namespace AJTools.UI.Purge
             {
                 MessageBox.Show(
                     this,
-                    "No safe unplaced views are selected.",
-                    DialogTitle,
+                    "No safe unplaced " + _mode.GetViewKindPlural().ToLowerInvariant() + " are selected.",
+                    _dialogTitle,
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
                 return;
@@ -240,8 +249,8 @@ namespace AJTools.UI.Purge
 
             MessageBoxResult confirmation = MessageBox.Show(
                 this,
-                BuildConfirmationMessage(selected),
-                DialogTitle,
+                BuildConfirmationMessage(selected, _mode),
+                _dialogTitle,
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
 
@@ -254,7 +263,7 @@ namespace AJTools.UI.Purge
             SetBusy(true);
             try
             {
-                var service = new UnplacedViewPurgeService(_doc, _activeViewId);
+                var service = new UnplacedViewPurgeService(_doc, _activeViewId, _mode);
                 deleteResult = service.DeleteSelected(selected, _rows.Count);
                 OperationWasRun = true;
             }
@@ -264,7 +273,7 @@ namespace AJTools.UI.Purge
                 MessageBox.Show(
                     this,
                     "Delete failed:\n\n" + ex.Message,
-                    DialogTitle,
+                    _dialogTitle,
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 return;
@@ -278,15 +287,12 @@ namespace AJTools.UI.Purge
             ScanViews();
         }
 
-        private static string BuildConfirmationMessage(ICollection<UnplacedViewPurgeItem> selected)
+        private static string BuildConfirmationMessage(
+            ICollection<UnplacedViewPurgeItem> selected,
+            UnplacedViewPurgeMode mode)
         {
-            int threeDCount = selected.Count(r => string.Equals(r.ViewKind, "3D View", StringComparison.OrdinalIgnoreCase));
-            int sectionCount = selected.Count(r => string.Equals(r.ViewKind, "Section", StringComparison.OrdinalIgnoreCase));
-
             return
-                "Selected views: " + selected.Count + Environment.NewLine +
-                "3D views: " + threeDCount + Environment.NewLine +
-                "Sections: " + sectionCount + Environment.NewLine + Environment.NewLine +
+                "Selected " + mode.GetViewKindPlural().ToLowerInvariant() + ": " + selected.Count + Environment.NewLine + Environment.NewLine +
                 "This permanently deletes the selected views and any Revit-owned dependent view markers." + Environment.NewLine +
                 "Linked model data and views placed on sheets are not included." + Environment.NewLine + Environment.NewLine +
                 "Continue?";
@@ -314,7 +320,7 @@ namespace AJTools.UI.Purge
             MessageBox.Show(
                 this,
                 sb.ToString(),
-                "AJ Tools Purge Report",
+                _dialogTitle + " Report",
                 MessageBoxButton.OK,
                 result.FailedCount == 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
@@ -343,6 +349,16 @@ namespace AJTools.UI.Purge
         private void OnCloseClick(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void ConfigureForMode()
+        {
+            Title = _dialogTitle + " - AJ Tools";
+            txtWindowTitle.Text = _dialogTitle;
+            txtWindowDescription.Text = _mode.GetDescription();
+            txtTargetKindLabel.Text = _mode.GetViewKindPlural();
+            lblKindFilter.Visibility = System.Windows.Visibility.Collapsed;
+            cmbKindFilter.Visibility = System.Windows.Visibility.Collapsed;
         }
     }
 }

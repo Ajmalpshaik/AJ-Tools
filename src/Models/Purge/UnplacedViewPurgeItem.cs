@@ -1,5 +1,5 @@
 // ==================================================
-// Tool Name    : Purge Unplaced 3D Views and Sections
+// Tool Name    : Purge Unplaced Views
 // Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
