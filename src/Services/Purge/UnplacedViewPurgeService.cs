@@ -106,9 +106,10 @@ namespace AJTools.Services.Purge
                     {
                         try
                         {
+                            ElementId viewIdToDelete = currentView.Id;
                             transaction.Start();
-                            ICollection<ElementId> deletedIds = _doc.Delete(currentView.Id);
-                            if (!ContainsId(deletedIds, currentView.Id))
+                            ICollection<ElementId> deletedIds = _doc.Delete(viewIdToDelete);
+                            if (!ContainsId(deletedIds, viewIdToDelete))
                             {
                                 RollBackIfStarted(transaction);
                                 result.AddFailure(
@@ -166,11 +167,12 @@ namespace AJTools.Services.Purge
             {
                 try
                 {
+                    ElementId viewIdToProbe = currentView.Id;
                     transaction.Start();
-                    ICollection<ElementId> deletedIds = _doc.Delete(currentView.Id);
+                    ICollection<ElementId> deletedIds = _doc.Delete(viewIdToProbe);
                     transaction.RollBack();
 
-                    if (ContainsId(deletedIds, currentView.Id))
+                    if (ContainsId(deletedIds, viewIdToProbe))
                     {
                         item.MarkSafe(
                             "Unplaced, non-template view passed Revit delete probe.",
