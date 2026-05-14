@@ -1,6 +1,9 @@
 # Usage Guide
 
 ## Ribbon Groups
+
+### AJ Tools
+
 - View: View Crop, Unhide All, Toggle Links, Filter Pro
 - Graphics: Apply Graphics, Match Graphics, Reset Graphics
 - Datums: Reset Datums, Level Extents, Flip Grid Bubble
@@ -14,6 +17,10 @@
 - Manage: Transfer View Templates, Purge
 - Family: Shared Parameters to Family, Center Annotations
 - About: About
+
+### AJ Annotation
+
+- Dimension: Duct Reference Dimension, Active View Duct Dimensions
 
 ## Typical Workflow
 1. Open a Revit 2020 project (non-template view).
@@ -29,7 +36,10 @@
 - View Crop skips views controlled by scope boxes or view templates that lock crop settings.
 - Purge Unplaced 3D Views and Purge Unplaced Sections preview non-template unplaced views separately, skip the active view and default `{3D}` view where applicable, and report purged, skipped, and failed counts.
 - Apply Graphics uses one selected-element source for both modes, remembers the last-used settings, and applies either element overrides directly or category overrides from the categories found in those selected elements.
-- Graphics tools apply, match, or reset active-view override graphics only.
+- Reset Category Graphics in View clears all overridable active-view categories, including annotation categories.
+- Reset Element Graphics in View clears document element overrides in the active view.
+- Duct Reference Dimension tools work in floor, ceiling, and engineering plan views.
+- Active View Duct Dimensions skips vertical ducts, ducts shorter than 1000 mm, and ducts already covered by existing dimensions.
 - HVAC Schematic creates a new drafting view from selected supported HVAC elements only.
 - Ceiling Magnet snaps point-based elements after one ceiling-grid anchor pick.
 - Auto Dims requires Crop View enabled and plan/section/elevation context.

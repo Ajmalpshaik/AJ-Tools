@@ -61,7 +61,7 @@ namespace AJTools.Services.GraphicsTools
                 summary.Attempted++;
 
                 Element element = doc.GetElement(elementId);
-                if (element == null || element is RevitLinkInstance)
+                if (element == null)
                 {
                     summary.Skipped++;
                     continue;

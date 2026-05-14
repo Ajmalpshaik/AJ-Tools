@@ -10,6 +10,8 @@ This repository owns the source code, build and packaging scripts, internal rele
 - .NET Framework 4.7.2
 - Windows x64
 
+The add-in is built against the Revit 2020 API. Later Revit versions require Revit-side validation before publishing a separate compatible installer.
+
 ## Technology Stack
 
 - C#
@@ -26,6 +28,7 @@ AJ Tools provides commands for:
 - linked model lookup and workset utilities
 - dimension and datum workflows
 - annotation and tagging helpers
+- AJ Annotation duct reference dimension tools
 - MEP coordination and duct utilities
 - family parameter cleanup and conversion
 - standards and data management tools
@@ -37,6 +40,11 @@ AJ Tools provides commands for:
 - [Addin/](Addin/): add-in manifest template
 - [docs/](docs/): supporting product and repository documentation
 - `AJ Tools.sln`: Visual Studio solution
+
+## Revit Ribbon Tabs
+
+- `AJ Tools`: main tool tab for view, graphics, dimensions, annotation, MEP, data, purge, and family utilities
+- `AJ Annotation`: separate annotation tab for duct reference dimension workflows
 
 ## Installation
 

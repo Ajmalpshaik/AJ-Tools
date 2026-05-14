@@ -25,13 +25,13 @@ Repo         : AJ-Tools
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Graphics Settings Manager"
-        Width="600"
-        Height="660"
-        MinWidth="560"
-        MinHeight="520"
+        Width="900"
+        Height="720"
+        MinWidth="900"
+        MinHeight="720"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
-        ResizeMode="CanResizeWithGrip"
+        ResizeMode="CanResize"
         Background="#FF1E1E1E"
         Foreground="#FFFFFFFF"
         FontFamily="Segoe UI"
@@ -40,7 +40,7 @@ Repo         : AJ-Tools
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome ResizeBorderThickness="6"
+        <shell:WindowChrome ResizeBorderThickness="0"
                             CaptionHeight="0"
                             CornerRadius="0"
                             GlassFrameThickness="0"/>
@@ -1399,6 +1399,12 @@ Repo         : AJ-Tools
                             Content="RESET"
                             Style="{StaticResource FooterSecondaryButtonStyle}"
                             Click="OnReset"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Copyright © 2026 Ajmal P.S. All Rights Reserved."
+                               Foreground="{StaticResource TextDisabledBrush}"
+                               FontSize="10"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"/>
                     <StackPanel Grid.Column="2"
                                 Orientation="Horizontal">
                         <Button x:Name="ApplyElementsButton"

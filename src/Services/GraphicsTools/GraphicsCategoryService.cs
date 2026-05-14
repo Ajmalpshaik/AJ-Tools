@@ -75,27 +75,24 @@ namespace AJTools.Services.GraphicsTools
             View view,
             bool includeAnnotationCategories)
         {
-            var result = new List<Category>();
+            var result = new Dictionary<int, Category>();
             if (doc == null || view == null)
             {
-                return result;
+                return new List<Category>();
             }
 
             Categories categories = doc.Settings?.Categories;
             if (categories == null)
             {
-                return result;
+                return new List<Category>();
             }
 
             foreach (Category category in categories)
             {
-                if (IsCategoryValidForOverride(category, view, includeAnnotationCategories))
-                {
-                    result.Add(category);
-                }
+                AddCategoryIfValid(category, view, includeAnnotationCategories, result);
             }
 
-            return result
+            return result.Values
                 .OrderBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
         }
@@ -159,6 +156,38 @@ namespace AJTools.Services.GraphicsTools
             return summary;
         }
 
+        private static void AddCategoryIfValid(
+            Category category,
+            View view,
+            bool includeAnnotationCategories,
+            IDictionary<int, Category> result)
+        {
+            if (category == null || result == null)
+            {
+                return;
+            }
+
+            if (IsCategoryValidForOverride(category, view, includeAnnotationCategories))
+            {
+                int key = category.Id.IntegerValue;
+                if (!result.ContainsKey(key))
+                {
+                    result.Add(key, category);
+                }
+            }
+
+            CategoryNameMap subCategories = category.SubCategories;
+            if (subCategories == null)
+            {
+                return;
+            }
+
+            foreach (Category subCategory in subCategories)
+            {
+                AddCategoryIfValid(subCategory, view, includeAnnotationCategories, result);
+            }
+        }
+
         private static bool IsCategoryValidForOverride(Category category, View view, bool includeAnnotationCategories)
         {
             if (category == null || view == null)
@@ -178,7 +207,7 @@ namespace AJTools.Services.GraphicsTools
 
             try
             {
-                return category.get_AllowsVisibilityControl(view);
+                return view.IsCategoryOverridable(category.Id);
             }
             catch
             {

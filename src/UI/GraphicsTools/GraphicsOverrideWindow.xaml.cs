@@ -775,7 +775,33 @@ namespace AJTools.UI.GraphicsTools
 
             _colorValues[key] = GraphicsColorValue.ByView();
             UpdateColorVisual(key);
+            ClearRelatedPatternOverride(key);
             HandleProjectionSurfaceDependencies(key);
+        }
+
+        private void ClearRelatedPatternOverride(string colorKey)
+        {
+            switch (colorKey)
+            {
+                case ProjectionLineColorKey:
+                    SelectIdOption(ProjectionLinePatternCombo, ElementId.InvalidElementId);
+                    break;
+                case SurfaceForegroundColorKey:
+                    SelectIdOption(SurfaceForegroundPatternCombo, ElementId.InvalidElementId);
+                    break;
+                case SurfaceBackgroundColorKey:
+                    SelectIdOption(SurfaceBackgroundPatternCombo, ElementId.InvalidElementId);
+                    break;
+                case CutLineColorKey:
+                    SelectIdOption(CutLinePatternCombo, ElementId.InvalidElementId);
+                    break;
+                case CutForegroundColorKey:
+                    SelectIdOption(CutForegroundPatternCombo, ElementId.InvalidElementId);
+                    break;
+                case CutBackgroundColorKey:
+                    SelectIdOption(CutBackgroundPatternCombo, ElementId.InvalidElementId);
+                    break;
+            }
         }
 
         private void OnColorPreset(object sender, RoutedEventArgs e)
