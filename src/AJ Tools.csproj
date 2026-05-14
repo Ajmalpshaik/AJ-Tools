@@ -66,8 +66,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\App.cs" />
+    <Compile Include="Core\AnnotationRibbonManager.cs" />
     <Compile Include="Core\RibbonManager.cs" />
     <Compile Include="Commands\AboutCommand.cs" />
+    <Compile Include="Commands\Annotation\DuctReferenceDimensionCommand.cs" />
     <Compile Include="Commands\Cmd3DViewsAsPerWorkset.cs" />
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
@@ -162,6 +164,12 @@
     <Compile Include="Services\SmartTag\SmartTagTelemetryTracker.cs" />
     <Compile Include="Services\AutoDimension\AutoDimensionService.cs" />
     <Compile Include="Services\DimensionByLine\DimensionByLineService.cs" />
+    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionCollector.cs" />
+    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionGeometry.cs" />
+    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionModels.cs" />
+    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionReport.cs" />
+    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionService.cs" />
+    <Compile Include="Services\DuctReferenceDimension\DuctSelectionFilter.cs" />
     <Compile Include="Services\FilterPro\FilterApplier.cs" />
     <Compile Include="Services\FilterPro\FilterCreator.cs" />
     <Compile Include="Services\FilterPro\FilterProDataProvider.cs" />
@@ -436,7 +444,5 @@
     <WriteLinesToFile File="%(DeployDirs.FullPath)AJ Tools.addin" Lines="$(AddinTemplate)" Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
   </Target>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.WinFX.targets" Condition="Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets')" />
-  <Import Project="$(MSBuildSDKsPath)\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets" Condition="!Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets') and Exists('$(MSBuildSDKsPath)\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets')" />
 
 </Project>

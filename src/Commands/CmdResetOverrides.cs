@@ -1,6 +1,6 @@
 // ==================================================
 // Tool Name    : Graphics Tools
-// Purpose      : Clears element-level graphics overrides for all elements in the active view.
+// Purpose      : Clears element-level graphics overrides from document elements in the active view.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
 // Version      : 1.4.4
@@ -10,7 +10,7 @@
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
-// Input        : Active Revit view with visible elements.
+// Input        : Active Revit view.
 // Output       : Active-view element overrides reset to By View graphics.
 // Notes        : Normal success is silent; validation and critical errors are reported to the user.
 // Changelog    : v1.4.4 - Aligned Reset Element Graphics in View with shared Graphics command validation and transactions.
@@ -57,7 +57,7 @@ namespace AJTools.Commands
                     return contextResult;
                 }
 
-                ICollection<ElementId> elementIds = new FilteredElementCollector(context.Document, context.ActiveView.Id)
+                ICollection<ElementId> elementIds = new FilteredElementCollector(context.Document)
                     .WhereElementIsNotElementType()
                     .ToElementIds();
 

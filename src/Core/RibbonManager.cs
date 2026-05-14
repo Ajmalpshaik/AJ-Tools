@@ -366,7 +366,7 @@ namespace AJTools.App
                     "Reset Overrides.png"),
                 CreateSplitChildTool(
                     "Reset Category Graphics in View",
-                    "Reset category graphics overrides for model categories found from all elements in the active view.",
+                    "Reset category graphics overrides for all overridable categories in the active view.",
                     typeof(CmdResetCategoryGraphicsAllElements),
                     "Reset Overrides.png",
                     "Reset Overrides.png"),

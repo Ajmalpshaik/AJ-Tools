@@ -5,7 +5,15 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+- No unreleased changes.
+
+## [1.4.7] - 2026-05-14
+
 - Added separate `Purge Unplaced 3D Views` and `Purge Unplaced Sections` tools under the AJ Tools Purge menu with preview, selection, confirmation, delete probing, transaction rollback, and final purge reporting.
+- Added the separate `AJ Annotation` ribbon tab with `Duct Reference Dimension` and `Active View Duct Dimensions` tools.
+- Updated Reset Graphics behavior so category reset uses all overridable active-view categories and element reset scans document elements safely.
+- Cleaned startup logging so AJ Tools writes a temp log only when ribbon startup fails.
+- Fixed generated `.addin` XML in the shared build target.
 
 ## [1.4.6] - 2026-05-10
 
