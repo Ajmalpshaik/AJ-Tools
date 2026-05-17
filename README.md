@@ -4,6 +4,13 @@ AJ Tools is the main development repository for the AJ Tools add-in for Autodesk
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
+## Repository Type
+
+- C# Revit add-in source repository
+- WPF/XAML user interfaces
+- Revit 2020 API target
+- No pyRevit `.extension`, `.tab`, `.panel`, or `.pushbutton` structure is present in this repository
+
 ## Compatibility
 
 - Autodesk Revit 2020
@@ -40,6 +47,8 @@ AJ Tools provides commands for:
 - [Addin/](Addin/): add-in manifest template
 - [docs/](docs/): supporting product and repository documentation
 - `AJ Tools.sln`: Visual Studio solution
+
+Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged DLLs, and release zip files are intentionally ignored and should not be committed.
 
 ## Revit Ribbon Tabs
 

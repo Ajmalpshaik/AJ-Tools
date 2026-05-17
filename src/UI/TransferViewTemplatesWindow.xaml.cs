@@ -283,6 +283,11 @@ namespace AJTools.UI
 
             public Document Document { get; }
             public string DisplayName { get; }
+
+            public override string ToString()
+            {
+                return DisplayName;
+            }
         }
 
         private sealed class ViewTemplateItem : INotifyPropertyChanged

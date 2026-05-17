@@ -7,6 +7,12 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.4.8] - 2026-05-17
+
+- Fixed `Transfer View Templates` so the `Copy From` and `Copy To` document dropdowns show readable Revit document names instead of the internal `DocumentOption` type name.
+- Verified the repository as a C# Revit add-in source repo with no pyRevit extension structure present.
+- Cleaned local generated build outputs and confirmed the Release build succeeds with Revit 2020 API references and .NET Framework 4.7.2.
+
 ## [1.4.7] - 2026-05-14
 
 - Added separate `Purge Unplaced 3D Views` and `Purge Unplaced Sections` tools under the AJ Tools Purge menu with preview, selection, confirmation, delete probing, transaction rollback, and final purge reporting.
