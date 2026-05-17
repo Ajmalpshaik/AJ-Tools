@@ -6,6 +6,8 @@ https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases
 
 This document is for building, packaging, and testing from source.
 
+AJ Tools is a C# Revit add-in. It is not a pyRevit extension and does not install through pyRevit.
+
 ## Prerequisites
 
 - Windows x64

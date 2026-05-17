@@ -2,6 +2,7 @@
 [Bb]in/
 [Oo]bj/
 obj*/
+src/bin/
 src/obj*/
 artifacts/
 TestResults/
