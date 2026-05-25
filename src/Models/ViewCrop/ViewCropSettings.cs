@@ -3,9 +3,9 @@
 // Purpose      : Stores crop margin and element inclusion options for View Crop.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.1
+// Version      : 1.0.2
 // Created      : 2026-04-08
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-24
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Active Revit document, active or selected target views, and View Crop settings.
 // Output       : Updated view crop or annotation crop settings for supported target views.
 // Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
+// Changelog    : v1.0.2 - Premium settings memory and coordination models tracking.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -38,6 +38,14 @@ namespace AJTools.Models.ViewCrop
 
         internal bool IncludeDatums { get; set; } = false;
 
+        internal bool ApplyAnnotationCrop { get; set; } = false;
+
+        internal double AnnotationOffsetMm { get; set; } = 100.0;
+
+        internal bool ShowDiagnostics { get; set; } = false;
+
+        internal bool IncludeCoordinationModels { get; set; } = false;
+
         internal double MarginInternal => MarginMm * Constants.MM_TO_FEET;
 
         internal ViewCropSettings Clone()
@@ -48,7 +56,11 @@ namespace AJTools.Models.ViewCrop
                 IncludeRevitLinks = IncludeRevitLinks,
                 IgnoreHiddenCategories = IgnoreHiddenCategories,
                 RectangularCropOnly = RectangularCropOnly,
-                IncludeDatums = IncludeDatums
+                IncludeDatums = IncludeDatums,
+                ApplyAnnotationCrop = ApplyAnnotationCrop,
+                AnnotationOffsetMm = AnnotationOffsetMm,
+                ShowDiagnostics = ShowDiagnostics,
+                IncludeCoordinationModels = IncludeCoordinationModels
             };
         }
     }

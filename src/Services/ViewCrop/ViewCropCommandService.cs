@@ -3,9 +3,9 @@
 // Purpose      : Coordinates View Crop command UI, target view selection, execution, and reporting.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.1
+// Version      : 1.0.2
 // Created      : 2026-04-08
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-24
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Active Revit document, active or selected target views, and View Crop settings.
 // Output       : Updated view crop or annotation crop settings for supported target views.
 // Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
+// Changelog    : v1.0.2 - Premium UI redesign with presets and integrated annotation crop.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -98,6 +98,41 @@ namespace AJTools.Services.ViewCrop
                 var service = new ViewCropExtentsService(doc, settings, source);
                 var batch = service.Process(targetViews, $"AJ Tools - {commandTitle}");
 
+                // Integrated Annotation Crop trigger
+                if (settings.ApplyAnnotationCrop && batch.UpdatedCount > 0)
+                {
+                    try
+                    {
+                        var successfullyCropped = new List<View>();
+                        foreach (var result in batch.Items)
+                        {
+                            if (result.State == ViewCropResultState.Updated)
+                            {
+                                View v = doc.GetElement(result.ViewId) as View;
+                                if (v != null)
+                                    successfullyCropped.Add(v);
+                            }
+                        }
+
+                        if (successfullyCropped.Count > 0)
+                        {
+                            var annotationSettings = new ViewCropAnnotationSettings
+                            {
+                                OffsetMm = settings.AnnotationOffsetMm
+                            };
+                            var annotationService = new ViewCropAnnotationService(doc, annotationSettings);
+                            annotationService.Process(successfullyCropped, "AJ Tools - Integrated Annotation Crop");
+                        }
+                    }
+                    catch (Exception annotationEx)
+                    {
+                        string annotationLog = TryWriteErrorLog(commandTitle + " (Annotation Fallback)", source, annotationEx);
+                        DialogHelper.ShowError(
+                            commandTitle,
+                            $"View cropping succeeded, but integrated annotation cropping failed.\n{annotationEx.Message}\n\nLog: {annotationLog}");
+                    }
+                }
+
                 try
                 {
                     ShowBatchSummaryIfNeeded(commandTitle, batch);
@@ -108,6 +143,46 @@ namespace AJTools.Services.ViewCrop
                     DialogHelper.ShowError(
                         commandTitle,
                         $"Processing finished, but summary dialog failed.\n{summaryEx.Message}\n\nLog: {summaryLog}");
+                }
+
+                // Show Diagnostic Boundary Report if enabled
+                if (settings.ShowDiagnostics && batch.UpdatedCount > 0)
+                {
+                    var sbDiag = new System.Text.StringBuilder();
+                    foreach (var item in batch.Items)
+                    {
+                        if (item.State == ViewCropResultState.Updated && !string.IsNullOrWhiteSpace(item.DiagnosticReport))
+                        {
+                            sbDiag.AppendLine($"### VIEW: {item.ViewName} ({item.ViewTypeName}) ###");
+                            sbDiag.AppendLine(item.DiagnosticReport);
+                            sbDiag.AppendLine();
+                            sbDiag.AppendLine();
+                        }
+                    }
+
+                    string diagReport = sbDiag.ToString().Trim();
+                    if (!string.IsNullOrWhiteSpace(diagReport))
+                    {
+                        try
+                        {
+                            var diagWindow = new ViewCropDiagnosticsWindow(diagReport);
+                            new System.Windows.Interop.WindowInteropHelper(diagWindow)
+                            {
+                                Owner = commandData.Application.MainWindowHandle
+                            };
+                            diagWindow.ShowDialog();
+                        }
+                        catch
+                        {
+                            // Fallback to clipboard copy if WPF window throws an exception
+                            try
+                            {
+                                System.Windows.Clipboard.SetText(diagReport);
+                                DialogHelper.ShowInfo(commandTitle + " - Diagnostics", "Diagnostics successfully copied directly to Clipboard!");
+                            }
+                            catch { }
+                        }
+                    }
                 }
 
                 return ToCommandResult(batch);

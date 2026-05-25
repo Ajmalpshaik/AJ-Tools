@@ -39,15 +39,166 @@ namespace AJTools.Services.ViewCrop
 
         private sealed class GlobalExtentCandidate
         {
-            internal GlobalExtentCandidate(int categoryId, XYZ[] corners)
+            internal GlobalExtentCandidate(
+                int categoryId, 
+                XYZ[] corners, 
+                WorksetId worksetId, 
+                ElementId designOptionId,
+                ElementId elementId,
+                string elementName,
+                string categoryName,
+                string linkName)
             {
                 CategoryId = categoryId;
                 Corners = corners;
+                WorksetId = worksetId;
+                DesignOptionId = designOptionId;
+                ElementId = elementId;
+                ElementName = elementName ?? string.Empty;
+                CategoryName = categoryName ?? string.Empty;
+                LinkName = linkName ?? string.Empty;
             }
 
             internal int CategoryId { get; }
-
             internal XYZ[] Corners { get; }
+            internal WorksetId WorksetId { get; }
+            internal ElementId DesignOptionId { get; }
+            internal ElementId ElementId { get; }
+            internal string ElementName { get; }
+            internal string CategoryName { get; }
+            internal string LinkName { get; }
+        }
+
+        internal sealed class OutermostElementInfo
+        {
+            internal string Id { get; set; } = "(none)";
+            internal string Name { get; set; } = "(none)";
+            internal string Category { get; set; } = "(none)";
+            internal string LinkName { get; set; } = null;
+            internal double ValueFeet { get; set; }
+            internal double ValueMm => ValueFeet * 304.8; // Convert feet to mm
+        }
+
+        private sealed class BoundTracker
+        {
+            internal OutermostElementInfo Left { get; } = new OutermostElementInfo { ValueFeet = double.MaxValue };
+            internal OutermostElementInfo Right { get; } = new OutermostElementInfo { ValueFeet = double.MinValue };
+            internal OutermostElementInfo Bottom { get; } = new OutermostElementInfo { ValueFeet = double.MaxValue };
+            internal OutermostElementInfo Top { get; } = new OutermostElementInfo { ValueFeet = double.MinValue };
+
+            internal void Update(Element element, string linkName, double minX, double maxX, double minY, double maxY)
+            {
+                if (minX < Left.ValueFeet)
+                {
+                    Left.ValueFeet = minX;
+                    Left.Id = element.Id.IntegerValue.ToString();
+                    Left.Name = element.Name;
+                    Left.Category = element.Category?.Name ?? "Unknown";
+                    Left.LinkName = linkName;
+                }
+                if (maxX > Right.ValueFeet)
+                {
+                    Right.ValueFeet = maxX;
+                    Right.Id = element.Id.IntegerValue.ToString();
+                    Right.Name = element.Name;
+                    Right.Category = element.Category?.Name ?? "Unknown";
+                    Right.LinkName = linkName;
+                }
+                if (minY < Bottom.ValueFeet)
+                {
+                    Bottom.ValueFeet = minY;
+                    Bottom.Id = element.Id.IntegerValue.ToString();
+                    Bottom.Name = element.Name;
+                    Bottom.Category = element.Category?.Name ?? "Unknown";
+                    Bottom.LinkName = linkName;
+                }
+                if (maxY > Top.ValueFeet)
+                {
+                    Top.ValueFeet = maxY;
+                    Top.Id = element.Id.IntegerValue.ToString();
+                    Top.Name = element.Name;
+                    Top.Category = element.Category?.Name ?? "Unknown";
+                    Top.LinkName = linkName;
+                }
+            }
+
+            internal void UpdateFromCandidate(GlobalExtentCandidate candidate, double minX, double maxX, double minY, double maxY)
+            {
+                if (minX < Left.ValueFeet)
+                {
+                    Left.ValueFeet = minX;
+                    Left.Id = candidate.ElementId.IntegerValue.ToString();
+                    Left.Name = candidate.ElementName;
+                    Left.Category = candidate.CategoryName;
+                    Left.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                }
+                if (maxX > Right.ValueFeet)
+                {
+                    Right.ValueFeet = maxX;
+                    Right.Id = candidate.ElementId.IntegerValue.ToString();
+                    Right.Name = candidate.ElementName;
+                    Right.Category = candidate.CategoryName;
+                    Right.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                }
+                if (minY < Bottom.ValueFeet)
+                {
+                    Bottom.ValueFeet = minY;
+                    Bottom.Id = candidate.ElementId.IntegerValue.ToString();
+                    Bottom.Name = candidate.ElementName;
+                    Bottom.Category = candidate.CategoryName;
+                    Bottom.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                }
+                if (maxY > Top.ValueFeet)
+                {
+                    Top.ValueFeet = maxY;
+                    Top.Id = candidate.ElementId.IntegerValue.ToString();
+                    Top.Name = candidate.ElementName;
+                    Top.Category = candidate.CategoryName;
+                    Top.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                }
+            }
+
+            internal string GenerateReport(double finalMarginMm)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("=== CROP BOUNDARY DIAGNOSTICS ===");
+                sb.AppendLine($"Applied Crop Margin: {finalMarginMm} mm");
+                sb.AppendLine();
+                
+                sb.AppendLine("--- OUTERMOST LEFT ELEMENT (Min X) ---");
+                sb.AppendLine($"Element ID : {Left.Id}");
+                sb.AppendLine($"Name       : {Left.Name}");
+                sb.AppendLine($"Category   : {Left.Category}");
+                if (Left.LinkName != null) sb.AppendLine($"Revit Link : {Left.LinkName}");
+                sb.AppendLine($"Coord (X)  : {Left.ValueMm:0.##} mm");
+                sb.AppendLine();
+
+                sb.AppendLine("--- OUTERMOST RIGHT ELEMENT (Max X) ---");
+                sb.AppendLine($"Element ID : {Right.Id}");
+                sb.AppendLine($"Name       : {Right.Name}");
+                sb.AppendLine($"Category   : {Right.Category}");
+                if (Right.LinkName != null) sb.AppendLine($"Revit Link : {Right.LinkName}");
+                sb.AppendLine($"Coord (X)  : {Right.ValueMm:0.##} mm");
+                sb.AppendLine();
+
+                sb.AppendLine("--- OUTERMOST BOTTOM ELEMENT (Min Y) ---");
+                sb.AppendLine($"Element ID : {Bottom.Id}");
+                sb.AppendLine($"Name       : {Bottom.Name}");
+                sb.AppendLine($"Category   : {Bottom.Category}");
+                if (Bottom.LinkName != null) sb.AppendLine($"Revit Link : {Bottom.LinkName}");
+                sb.AppendLine($"Coord (Y)  : {Bottom.ValueMm:0.##} mm");
+                sb.AppendLine();
+
+                sb.AppendLine("--- OUTERMOST TOP ELEMENT (Max Y) ---");
+                sb.AppendLine($"Element ID : {Top.Id}");
+                sb.AppendLine($"Name       : {Top.Name}");
+                sb.AppendLine($"Category   : {Top.Category}");
+                if (Top.LinkName != null) sb.AppendLine($"Revit Link : {Top.LinkName}");
+                sb.AppendLine($"Coord (Y)  : {Top.ValueMm:0.##} mm");
+                sb.AppendLine("=================================");
+
+                return sb.ToString();
+            }
         }
 
         internal ViewCropExtentsService(Document doc, ViewCropSettings settings, ViewCropExtentSource source)
@@ -92,20 +243,15 @@ namespace AJTools.Services.ViewCrop
                         {
                             tx.Start();
 
-                            ViewCropResultState state = ProcessSingleView(view, out string reason);
+                            ViewCropResultState state = ProcessSingleView(view, item);
 
                             if (state == ViewCropResultState.Updated)
                             {
                                 tx.Commit();
-                                item.MarkUpdated(reason);
                             }
                             else
                             {
                                 tx.RollBack();
-                                if (state == ViewCropResultState.Skipped)
-                                    item.MarkSkipped(reason);
-                                else
-                                    item.MarkFailed(reason);
                             }
                         }
                     }
@@ -124,31 +270,42 @@ namespace AJTools.Services.ViewCrop
             return batch;
         }
 
-        private ViewCropResultState ProcessSingleView(View view, out string reason)
+        private ViewCropResultState ProcessSingleView(View view, ViewCropViewResult item)
         {
-            reason = string.Empty;
-
+            string reason;
             if (!TryEnsureEditableCrop(view, out reason))
+            {
+                item.MarkSkipped(reason);
                 return ViewCropResultState.Skipped;
+            }
 
+            var tracker = new BoundTracker();
             ViewCropGeometryProjectionHelper.PlaneBounds bounds = _source == ViewCropExtentSource.ActiveViewElements
-                ? CollectBoundsFromActiveViewElements(view)
-                : CollectBoundsFromAllModelElements(view);
+                ? CollectBoundsFromActiveViewElements(view, tracker)
+                : CollectBoundsFromAllModelElements(view, tracker);
 
             if (bounds == null || !bounds.HasData)
             {
                 reason = _source == ViewCropExtentSource.ActiveViewElements
                     ? "No valid visible model elements found in this view."
                     : "No valid model elements found for this view orientation.";
+                item.MarkSkipped(reason);
                 return ViewCropResultState.Skipped;
             }
+
+            // Save the diagnostic report inside the processed view item
+            item.DiagnosticReport = tracker.GenerateReport(_settings.MarginMm);
 
             bounds.Inflate(Math.Max(0, _settings.MarginInternal));
             bounds.EnsureMinimumSpan(5.0 * Constants.MM_TO_FEET);
 
             if (!TryApplyCrop(view, bounds, out reason))
+            {
+                item.MarkFailed(reason);
                 return ViewCropResultState.Failed;
+            }
 
+            item.MarkUpdated("Updated crop successfully.");
             return ViewCropResultState.Updated;
         }
 
@@ -203,7 +360,7 @@ namespace AJTools.Services.ViewCrop
             return true;
         }
 
-        private ViewCropGeometryProjectionHelper.PlaneBounds CollectBoundsFromActiveViewElements(View view)
+        private ViewCropGeometryProjectionHelper.PlaneBounds CollectBoundsFromActiveViewElements(View view, BoundTracker tracker)
         {
             Transform modelToView = ViewCropGeometryProjectionHelper.GetModelToViewTransform(view);
             var bounds = new ViewCropGeometryProjectionHelper.PlaneBounds();
@@ -219,6 +376,15 @@ namespace AJTools.Services.ViewCrop
 
             foreach (Element element in elements)
             {
+                if (element is RevitLinkInstance linkInstance)
+                {
+                    if (!_settings.IncludeRevitLinks)
+                        continue;
+
+                    CollectBoundsFromRevitLink(linkInstance, view, modelToView, bounds, ref hasData, hiddenCategoryCache, tracker);
+                    continue;
+                }
+
                 if (!ShouldUseElement(element, view, hiddenCategoryCache))
                     continue;
 
@@ -235,14 +401,143 @@ namespace AJTools.Services.ViewCrop
                 if (!IsValidBoundingBox(bbox))
                     continue;
 
-                if (ViewCropGeometryProjectionHelper.TryIncludeBoundingBox(bbox, modelToView, bounds))
+                XYZ[] corners = ViewCropGeometryProjectionHelper.GetBoundingBoxCorners(bbox);
+                double elMinX = double.MaxValue;
+                double elMaxX = double.MinValue;
+                double elMinY = double.MaxValue;
+                double elMaxY = double.MinValue;
+                bool elHasData = false;
+
+                for (int i = 0; i < corners.Length; i++)
+                {
+                    XYZ local = modelToView.OfPoint(corners[i]);
+                    if (!IsFinite(local))
+                        continue;
+
+                    if (local.X < elMinX) elMinX = local.X;
+                    if (local.X > elMaxX) elMaxX = local.X;
+                    if (local.Y < elMinY) elMinY = local.Y;
+                    if (local.Y > elMaxY) elMaxY = local.Y;
+                    elHasData = true;
+                }
+
+                if (elHasData)
+                {
+                    bounds.Include(elMinX, elMinY);
+                    bounds.Include(elMaxX, elMaxY);
+                    tracker.Update(element, null, elMinX, elMaxX, elMinY, elMaxY);
                     hasData = true;
+                }
             }
 
             return hasData ? bounds : null;
         }
 
-        private ViewCropGeometryProjectionHelper.PlaneBounds CollectBoundsFromAllModelElements(View view)
+        private void CollectBoundsFromRevitLink(
+            RevitLinkInstance linkInstance,
+            View view,
+            Transform modelToView,
+            ViewCropGeometryProjectionHelper.PlaneBounds bounds,
+            ref bool hasData,
+            Dictionary<int, bool> hiddenCategoryCache,
+            BoundTracker tracker)
+        {
+            Document linkDoc = linkInstance.GetLinkDocument();
+            if (linkDoc == null)
+                return;
+
+            Transform linkTransform = linkInstance.GetTransform();
+            Transform linkToView = modelToView.Multiply(linkTransform);
+
+            IEnumerable<Element> elements = new FilteredElementCollector(linkDoc)
+                .WhereElementIsNotElementType()
+                .ToElements();
+
+            foreach (Element element in elements)
+            {
+                if (element.ViewSpecific)
+                    continue;
+
+                Category category = element.Category;
+                if (category == null || category.Id == null)
+                    continue;
+
+                if (category.CategoryType != CategoryType.Model)
+                    continue;
+
+                int categoryId = category.Id.IntegerValue;
+                if (categoryId == (int)BuiltInCategory.OST_Coordination_Model)
+                    continue;
+
+                if (IsExcludedCategory(categoryId))
+                    continue;
+
+                if (!_settings.IncludeDatums && IsDatumCategory(categoryId))
+                    continue;
+
+                if (_settings.IgnoreHiddenCategories && IsCategoryHidden(view, categoryId, hiddenCategoryCache))
+                    continue;
+
+                DesignOption designOption = element.DesignOption;
+                if (designOption != null)
+                {
+                    ElementId activeOptId = DesignOption.GetActiveDesignOptionId(linkDoc);
+                    if (activeOptId != ElementId.InvalidElementId)
+                    {
+                        if (designOption.Id != activeOptId)
+                            continue;
+                    }
+                    else
+                    {
+                        if (!designOption.IsPrimary)
+                            continue;
+                    }
+                }
+
+                BoundingBoxXYZ bbox = null;
+                try
+                {
+                    bbox = element.get_BoundingBox(null);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!IsValidBoundingBox(bbox))
+                    continue;
+
+                XYZ[] corners = ViewCropGeometryProjectionHelper.GetBoundingBoxCorners(bbox);
+                double elMinX = double.MaxValue;
+                double elMaxX = double.MinValue;
+                double elMinY = double.MaxValue;
+                double elMaxY = double.MinValue;
+                bool elHasData = false;
+
+                for (int i = 0; i < corners.Length; i++)
+                {
+                    XYZ local = linkToView.OfPoint(corners[i]);
+                    if (!IsFinite(local))
+                        continue;
+
+                    if (local.X < elMinX) elMinX = local.X;
+                    if (local.X > elMaxX) elMaxX = local.X;
+                    if (local.Y < elMinY) elMinY = local.Y;
+                    if (local.Y > elMaxY) elMaxY = local.Y;
+                    elHasData = true;
+                }
+
+                if (elHasData)
+                {
+                    bounds.Include(elMinX, elMinY);
+                    bounds.Include(elMaxX, elMaxY);
+                    tracker.Update(element, linkInstance.Name, elMinX, elMaxX, elMinY, elMaxY);
+                    hasData = true;
+                }
+            }
+        }
+
+        private ViewCropGeometryProjectionHelper.PlaneBounds CollectBoundsFromAllModelElements(View view, BoundTracker tracker)
         {
             if (_globalCandidates.Count == 0)
                 return null;
@@ -263,7 +558,34 @@ namespace AJTools.Services.ViewCrop
                     continue;
                 }
 
+                if (candidate.WorksetId != WorksetId.InvalidWorksetId && !view.IsWorksetVisible(candidate.WorksetId))
+                {
+                    continue;
+                }
+
+                if (candidate.DesignOptionId != ElementId.InvalidElementId)
+                {
+                    ElementId activeOptId = DesignOption.GetActiveDesignOptionId(_doc);
+                    if (activeOptId != ElementId.InvalidElementId)
+                    {
+                        if (candidate.DesignOptionId != activeOptId)
+                            continue;
+                    }
+                    else
+                    {
+                        var opt = _doc.GetElement(candidate.DesignOptionId) as DesignOption;
+                        if (opt == null || !opt.IsPrimary)
+                            continue;
+                    }
+                }
+
                 XYZ[] corners = candidate.Corners;
+                double elMinX = double.MaxValue;
+                double elMaxX = double.MinValue;
+                double elMinY = double.MaxValue;
+                double elMaxY = double.MinValue;
+                bool elHasData = false;
+
                 for (int i = 0; i < corners.Length; i++)
                 {
                     XYZ local;
@@ -279,7 +601,18 @@ namespace AJTools.Services.ViewCrop
                     if (!IsFinite(local))
                         continue;
 
-                    bounds.Include(local.X, local.Y);
+                    if (local.X < elMinX) elMinX = local.X;
+                    if (local.X > elMaxX) elMaxX = local.X;
+                    if (local.Y < elMinY) elMinY = local.Y;
+                    if (local.Y > elMaxY) elMaxY = local.Y;
+                    elHasData = true;
+                }
+
+                if (elHasData)
+                {
+                    bounds.Include(elMinX, elMinY);
+                    bounds.Include(elMaxX, elMaxY);
+                    tracker.UpdateFromCandidate(candidate, elMinX, elMaxX, elMinY, elMaxY);
                     hasData = true;
                 }
             }
@@ -298,6 +631,97 @@ namespace AJTools.Services.ViewCrop
 
             foreach (Element element in elements)
             {
+                if (element is RevitLinkInstance linkInstance)
+                {
+                    if (!_settings.IncludeRevitLinks)
+                        continue;
+
+                    Document linkDoc = linkInstance.GetLinkDocument();
+                    if (linkDoc == null)
+                        continue;
+
+                    Transform linkTransform = linkInstance.GetTransform();
+
+                    IEnumerable<Element> linkedElements = new FilteredElementCollector(linkDoc)
+                        .WhereElementIsNotElementType()
+                        .ToElements();
+
+                    foreach (Element linkedElement in linkedElements)
+                    {
+                        if (linkedElement.ViewSpecific)
+                            continue;
+
+                        Category category = linkedElement.Category;
+                        if (category == null || category.Id == null)
+                            continue;
+
+                        if (category.CategoryType != CategoryType.Model)
+                            continue;
+
+                        int categoryId = category.Id.IntegerValue;
+                        if (categoryId == (int)BuiltInCategory.OST_Coordination_Model)
+                            continue;
+
+                        if (IsExcludedCategory(categoryId))
+                            continue;
+
+                        if (!_settings.IncludeDatums && IsDatumCategory(categoryId))
+                            continue;
+
+                        // Filter linked element design options
+                        DesignOption designOption = linkedElement.DesignOption;
+                        if (designOption != null)
+                        {
+                            ElementId activeOptId = DesignOption.GetActiveDesignOptionId(linkDoc);
+                            if (activeOptId != ElementId.InvalidElementId)
+                            {
+                                if (designOption.Id != activeOptId)
+                                    continue;
+                            }
+                            else
+                            {
+                                if (!designOption.IsPrimary)
+                                    continue;
+                            }
+                        }
+
+                        BoundingBoxXYZ linkedBbox = null;
+                        try
+                        {
+                            linkedBbox = linkedElement.get_BoundingBox(null);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+
+                        if (!IsValidBoundingBox(linkedBbox))
+                            continue;
+
+                        XYZ[] localCorners = ViewCropGeometryProjectionHelper.GetBoundingBoxCorners(linkedBbox);
+                        if (localCorners.Length == 0)
+                            continue;
+
+                        XYZ[] worldCorners = new XYZ[localCorners.Length];
+                        for (int i = 0; i < localCorners.Length; i++)
+                        {
+                            worldCorners[i] = linkTransform.OfPoint(localCorners[i]);
+                        }
+
+                        candidates.Add(new GlobalExtentCandidate(
+                            categoryId,
+                            worldCorners,
+                            linkInstance.WorksetId,
+                            ElementId.InvalidElementId,
+                            linkedElement.Id,
+                            linkedElement.Name,
+                            category.Name,
+                            linkInstance.Name));
+                    }
+
+                    continue;
+                }
+
                 if (!ShouldUseElement(element, null, null))
                     continue;
 
@@ -318,12 +742,20 @@ namespace AJTools.Services.ViewCrop
                 if (corners.Length == 0)
                     continue;
 
-                Category category = element.Category;
-                if (category == null || category.Id == null)
+                Category cat = element.Category;
+                if (cat == null || cat.Id == null)
                     continue;
 
-                int categoryId = category.Id.IntegerValue;
-                candidates.Add(new GlobalExtentCandidate(categoryId, corners));
+                int catId = cat.Id.IntegerValue;
+                candidates.Add(new GlobalExtentCandidate(
+                    catId,
+                    corners,
+                    element.WorksetId,
+                    element.DesignOption != null ? element.DesignOption.Id : ElementId.InvalidElementId,
+                    element.Id,
+                    element.Name,
+                    cat.Name,
+                    null));
             }
 
             return candidates;
@@ -358,6 +790,15 @@ namespace AJTools.Services.ViewCrop
             }
 
             int categoryId = category.Id.IntegerValue;
+            if (categoryId == (int)BuiltInCategory.OST_Coordination_Model)
+            {
+                if (!_settings.IncludeCoordinationModels)
+                    return false;
+            }
+
+            if (IsExcludedCategory(categoryId))
+                return false;
+
             if (!_settings.IncludeDatums && IsDatumCategory(categoryId))
                 return false;
 
@@ -521,6 +962,14 @@ namespace AJTools.Services.ViewCrop
             return categoryId == (int)BuiltInCategory.OST_Levels
                 || categoryId == (int)BuiltInCategory.OST_Grids
                 || categoryId == (int)BuiltInCategory.OST_CLines;
+        }
+
+        private static bool IsExcludedCategory(int categoryId)
+        {
+            return categoryId == (int)BuiltInCategory.OST_Cameras
+                || categoryId == (int)BuiltInCategory.OST_Sheets
+                || categoryId == (int)BuiltInCategory.OST_TitleBlocks
+                || categoryId == (int)BuiltInCategory.OST_Views;
         }
 
         private static bool IsValidBoundingBox(BoundingBoxXYZ bbox)

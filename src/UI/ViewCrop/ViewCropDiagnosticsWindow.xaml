@@ -1,0 +1,123 @@
+<!--
+==================================================
+Tool Name    : View Crop - Diagnostics Window
+Purpose      : Displays scrollable, copyable crop boundary diagnostics report.
+Author       : Ajmal P.S.
+Company      : AJ Tools
+Version      : 1.0.0
+Created      : 2026-05-24
+Target       : Revit 2020
+Framework    : .NET Framework 4.7.2
+Platform     : C# Revit Add-in
+==================================================
+-->
+<Window x:Class="AJTools.UI.ViewCrop.ViewCropDiagnosticsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AJ Tools - View Crop Boundary Diagnostics"
+        Width="540"
+        Height="620"
+        MinWidth="450"
+        MinHeight="500"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Header Card -->
+        <Border Grid.Row="0"
+                Background="{StaticResource CardBackground}"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Crop Boundary Diagnostics"
+                           Foreground="{StaticResource TextPrimary}"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           Margin="0,0,0,4"/>
+                <TextBlock Text="These are the outermost elements defining the crop boundary. Copy this log and share it to diagnose stray, huge, or far-away elements."
+                           Foreground="{StaticResource TextSecondary}"
+                           FontSize="11"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Diagnostics Text Box Scrollable -->
+        <Border Grid.Row="1"
+                Background="{StaticResource CardBackground}"
+                CornerRadius="8"
+                Padding="8"
+                Margin="0,0,0,10">
+            <TextBox x:Name="DiagnosticsTextBox"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     Background="Transparent"
+                     Foreground="{StaticResource TextPrimary}"
+                     BorderThickness="0"
+                     FontFamily="Consolas"
+                     FontSize="11.5"
+                     Padding="4"/>
+        </Border>
+
+        <!-- Copy to Clipboard Success Message -->
+        <TextBlock x:Name="NotificationText"
+                   Grid.Row="2"
+                   Foreground="{StaticResource TextSuccess}"
+                   FontWeight="SemiBold"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,8"
+                   Visibility="Collapsed"/>
+
+        <!-- Action Buttons -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1"
+                    Content="Copy Debug Report"
+                    Style="{StaticResource ModernButton}"
+                    MinWidth="160"
+                    Margin="0,0,8,0"
+                    Click="OnCopyReport"/>
+
+            <Button Grid.Column="2"
+                    Content="Close"
+                    Style="{StaticResource SecondaryButton}"
+                    IsCancel="True"
+                    MinWidth="100"
+                    Click="OnClose"/>
+        </Grid>
+
+        <!-- Footer -->
+        <TextBlock Grid.Row="4"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="10"
+                   HorizontalAlignment="Center"
+                   Margin="0,8,0,0"
+                   FontStyle="Italic"/>
+    </Grid>
+</Window>

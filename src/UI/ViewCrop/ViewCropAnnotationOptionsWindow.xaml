@@ -4,9 +4,9 @@ Tool Name    : View Crop
 Purpose      : Defines the annotation crop settings and run scope dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.0.1
+Version      : 1.0.2
 Created      : 2026-04-11
-Last Updated : 2026-05-06
+Last Updated : 2026-05-24
 Target       : Revit 2020
 Framework    : .NET Framework 4.7.2
 Platform     : C# Revit Add-in
@@ -14,7 +14,7 @@ Dependencies : Autodesk Revit API, WPF
 Input        : Active Revit document, active or selected target views, and View Crop settings.
 Output       : Updated view crop or annotation crop settings for supported target views.
 Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-Changelog    : v1.0.1 - Standardized metadata after production cleanup.
+Changelog    : v1.0.2 - Added copyright footer to layout.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -24,9 +24,9 @@ Repo         : AJ-Tools
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Annotation Crop Settings"
         Width="500"
-        Height="320"
+        Height="360"
         MinWidth="420"
-        MinHeight="300"
+        MinHeight="340"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterScreen"
@@ -43,6 +43,7 @@ Repo         : AJ-Tools
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -141,7 +142,14 @@ Repo         : AJ-Tools
                     MinWidth="110"
                     Click="OnCancel"/>
         </Grid>
+
+        <!-- Footer -->
+        <TextBlock Grid.Row="3"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="10"
+                   HorizontalAlignment="Center"
+                   Margin="0,8,0,0"
+                   FontStyle="Italic"/>
     </Grid>
 </Window>
-
-
