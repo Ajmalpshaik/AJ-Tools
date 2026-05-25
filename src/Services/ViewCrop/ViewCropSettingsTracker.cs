@@ -1,11 +1,11 @@
 // ==================================================
 // Tool Name    : View Crop
-// Purpose      : Stores last-used View Crop settings for the current Revit session.
+// Purpose      : Stores last-used View Crop settings for the current Revit session and persists on disk.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.1
+// Version      : 1.0.2
 // Created      : 2026-04-08
-// Last Updated : 2026-05-06
+// Last Updated : 2026-05-24
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,18 +13,19 @@
 // Input        : Active Revit document, active or selected target views, and View Crop settings.
 // Output       : Updated view crop or annotation crop settings for supported target views.
 // Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
+// Changelog    : v1.0.2 - Premium disk-based settings persistence.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
 using System;
 using Autodesk.Revit.DB;
 using AJTools.Models.ViewCrop;
+using AJTools.Utils;
 
 namespace AJTools.Services.ViewCrop
 {
     /// <summary>
-    /// Stores user settings in-memory for the active document during the session.
+    /// Stores user settings in-memory during the active document session and persists permanently on disk.
     /// </summary>
     internal sealed class ViewCropSettingsTracker
     {
@@ -40,11 +41,21 @@ namespace AJTools.Services.ViewCrop
             if (!string.Equals(_lastDocKey, key, StringComparison.OrdinalIgnoreCase))
             {
                 _lastDocKey = key;
-                _lastSettings = null;
+                _lastSettings = null; // Clear local session override to reload from disk config
             }
         }
 
-        internal ViewCropSettings LastSettings => (_lastSettings ?? new ViewCropSettings()).Clone();
+        internal ViewCropSettings LastSettings
+        {
+            get
+            {
+                if (_lastSettings == null)
+                {
+                    _lastSettings = ViewCropConfigStore.Load();
+                }
+                return _lastSettings.Clone();
+            }
+        }
 
         internal void Save(ViewCropSettings settings)
         {
@@ -52,6 +63,7 @@ namespace AJTools.Services.ViewCrop
                 return;
 
             _lastSettings = settings.Clone();
+            ViewCropConfigStore.Save(_lastSettings);
         }
 
         private static string BuildDocKey(Document doc)

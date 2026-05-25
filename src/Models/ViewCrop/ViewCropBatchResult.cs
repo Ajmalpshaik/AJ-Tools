@@ -47,6 +47,8 @@ namespace AJTools.Models.ViewCrop
         internal ViewCropResultState State { get; private set; }
 
         internal string Reason { get; private set; }
+ 
+        internal string DiagnosticReport { get; set; } = string.Empty;
 
         internal void MarkUpdated(string reason = null)
         {

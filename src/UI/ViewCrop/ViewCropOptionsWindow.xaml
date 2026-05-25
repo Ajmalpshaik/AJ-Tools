@@ -4,9 +4,9 @@ Tool Name    : View Crop
 Purpose      : Defines the View Crop settings and run scope dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.0.1
+Version      : 1.0.2
 Created      : 2026-04-08
-Last Updated : 2026-05-06
+Last Updated : 2026-05-24
 Target       : Revit 2020
 Framework    : .NET Framework 4.7.2
 Platform     : C# Revit Add-in
@@ -14,7 +14,7 @@ Dependencies : Autodesk Revit API, WPF
 Input        : Active Revit document, active or selected target views, and View Crop settings.
 Output       : Updated view crop or annotation crop settings for supported target views.
 Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-Changelog    : v1.0.1 - Standardized metadata after production cleanup.
+Changelog    : v1.0.2 - Premium UI redesign with presets and integrated annotation crop.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -23,10 +23,10 @@ Repo         : AJ-Tools
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="View Crop Settings"
-        Width="540"
-        Height="390"
-        MinWidth="430"
-        MinHeight="320"
+        Width="560"
+        Height="810"
+        MinWidth="500"
+        MinHeight="760"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterScreen"
@@ -45,12 +45,15 @@ Repo         : AJ-Tools
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <ScrollViewer Grid.Row="0"
                       VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
+                      HorizontalScrollBarVisibility="Disabled"
+                      Margin="0,0,0,8">
             <StackPanel>
+                <!-- Card 1: Run Scope -->
                 <Border Background="{StaticResource CardBackground}"
                         CornerRadius="8"
                         Padding="12"
@@ -74,11 +77,16 @@ Repo         : AJ-Tools
                     </StackPanel>
                 </Border>
 
+                <!-- Card 2: View Crop Settings -->
                 <Border Background="{StaticResource CardBackground}"
                         CornerRadius="8"
-                        Padding="12">
+                        Padding="12"
+                        Margin="0,0,0,10">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -92,51 +100,157 @@ Repo         : AJ-Tools
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                                   Text="Settings"
+                                   Text="View Crop Settings"
                                    Foreground="{StaticResource TextPrimary}"
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,8"/>
 
+                        <!-- Margin Preset -->
                         <TextBlock Grid.Row="1" Grid.Column="0"
-                                   Text="Crop margin (mm):"
+                                   Text="Margin Preset:"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,6"/>
+
+                        <ComboBox x:Name="PresetComboBox"
+                                  Grid.Row="1"
+                                  Grid.Column="1"
+                                  Margin="0,0,0,6"
+                                  SelectionChanged="OnPresetChanged"/>
+
+                        <!-- Custom Margin -->
+                        <TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="Margin size (mm):"
                                    Foreground="{StaticResource TextPrimary}"
                                    VerticalAlignment="Center"
                                    Margin="0,0,10,6"/>
 
                         <TextBox x:Name="MarginTextBox"
-                                 Grid.Row="1"
+                                 Grid.Row="2"
                                  Grid.Column="1"
                                  Style="{StaticResource ModernTextBox}"
                                  Margin="0,0,0,6"
-                                 MinWidth="140"/>
+                                 MinWidth="140"
+                                 TextChanged="OnMarginTextChanged"/>
 
-                        <CheckBox x:Name="IncludeLinksCheckBox"
-                                  Grid.Row="2"
-                                  Grid.ColumnSpan="2"
-                                  Content="Include Revit links"
-                                  Style="{StaticResource ModernCheckBox}"
-                                  IsChecked="True"/>
+                        <!-- Include Revit links checkbox & subtitle -->
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                            <CheckBox x:Name="IncludeLinksCheckBox"
+                                      Content="Include Revit links"
+                                      Style="{StaticResource ModernCheckBox}"/>
+                            <TextBlock Text="Fits crop tightly around elements inside linked models (highly accurate)"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
 
-                        <CheckBox x:Name="IgnoreHiddenCheckBox"
-                                  Grid.Row="3"
-                                  Grid.ColumnSpan="2"
-                                  Content="Respect hidden categories"
-                                  Style="{StaticResource ModernCheckBox}"
-                                  IsChecked="True"/>
+                        <!-- Respect hidden categories checkbox & subtitle -->
+                        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                            <CheckBox x:Name="IgnoreHiddenCheckBox"
+                                      Content="Respect hidden categories"
+                                      Style="{StaticResource ModernCheckBox}"/>
+                            <TextBlock Text="Ignores model elements whose categories are hidden in your view"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
 
-                        <CheckBox x:Name="RectangularOnlyCheckBox"
-                                  Grid.Row="4"
-                                  Grid.ColumnSpan="2"
-                                  Content="Use rectangular crop region"
-                                  Style="{StaticResource ModernCheckBox}"
-                                  IsChecked="True"/>
+                        <!-- Force rectangular crop checkbox & subtitle -->
+                        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                            <CheckBox x:Name="RectangularOnlyCheckBox"
+                                      Content="Use rectangular crop region"
+                                      Style="{StaticResource ModernCheckBox}"/>
+                            <TextBlock Text="Creates a clean rectangular crop border instead of a complex shape"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
 
-                        <CheckBox x:Name="IncludeDatumsCheckBox"
-                                  Grid.Row="5"
-                                  Grid.ColumnSpan="2"
-                                  Content="Include datums (levels/grids/reference planes)"
-                                  Style="{StaticResource ModernCheckBox}"
-                                  IsChecked="False"/>
+                        <!-- Include datums checkbox & subtitle -->
+                        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Margin="0,0,0,4">
+                            <CheckBox x:Name="IncludeDatumsCheckBox"
+                                      Content="Include datums"
+                                      Style="{StaticResource ModernCheckBox}"/>
+                            <TextBlock Text="Includes level lines, grid lines, and reference planes in the crop calculations"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
+
+                        <!-- Include coordination models checkbox & subtitle -->
+                        <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Margin="0,0,0,4">
+                            <CheckBox x:Name="IncludeCoordinationModelsCheckBox"
+                                      Content="Include coordination models"
+                                      Style="{StaticResource ModernCheckBox}"/>
+                            <TextBlock Text="Includes Navisworks coordination models in the active project (ignores linked model ones)"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
+
+                        <!-- Diagnostics checkbox & subtitle -->
+                        <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Margin="0,0,0,4">
+                            <CheckBox x:Name="ShowDiagnosticsCheckBox"
+                                      Content="Show boundary diagnostics report"
+                                      Style="{StaticResource ModernCheckBox}"/>
+                            <TextBlock Text="Pops up a copyable report listing which elements set the outermost crop limits"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Card 3: Unified Annotation Crop Settings -->
+                <Border Background="{StaticResource CardBackground}"
+                        CornerRadius="8"
+                        Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                   Text="Annotation Crop Integration (Optional)"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
+
+                        <!-- Toggle integrated annotation crop -->
+                        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                            <CheckBox x:Name="ApplyAnnotationCheckBox"
+                                      Content="Enable annotation crop automatically"
+                                      Style="{StaticResource ModernCheckBox}"
+                                      Checked="OnApplyAnnotationToggled"
+                                      Unchecked="OnApplyAnnotationToggled"/>
+                            <TextBlock Text="Triggers the annotation crop tool in a single click after cropping"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="10"
+                                       Margin="20,0,0,0"/>
+                        </StackPanel>
+
+                        <!-- Annotation offset -->
+                        <TextBlock x:Name="AnnotationOffsetLabel"
+                                   Grid.Row="2" Grid.Column="0"
+                                   Text="Annotation offset (mm):"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0"
+                                   IsEnabled="False"/>
+
+                        <TextBox x:Name="AnnotationOffsetTextBox"
+                                 Grid.Row="2"
+                                 Grid.Column="1"
+                                 Style="{StaticResource ModernTextBox}"
+                                 Text="100"
+                                 MinWidth="140"
+                                 IsEnabled="False"/>
                     </Grid>
                 </Border>
             </StackPanel>
@@ -170,7 +284,14 @@ Repo         : AJ-Tools
                     MinWidth="110"
                     Click="OnCancel"/>
         </Grid>
+
+        <!-- Footer -->
+        <TextBlock Grid.Row="3"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="10"
+                   HorizontalAlignment="Center"
+                   Margin="0,8,0,0"
+                   FontStyle="Italic"/>
     </Grid>
 </Window>
-
-

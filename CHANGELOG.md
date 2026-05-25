@@ -7,6 +7,13 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.4.9] - 2026-05-25
+
+- Added new **Section Mark Visibility** tool to automatically manage section visibility in plan views based on Sheet Number filters or placement status.
+- Upgraded **View Crop** tool with persistent settings memory, custom diagnostics windows, support for coordination models, and integrated annotation crop configuration.
+- Standardized namespaces, project files, and references for a zero-warnings compile on Revit 2020.
+
+
 ## [1.4.8] - 2026-05-17
 
 - Fixed `Transfer View Templates` so the `Copy From` and `Copy To` document dropdowns show readable Revit document names instead of the internal `DocumentOption` type name.

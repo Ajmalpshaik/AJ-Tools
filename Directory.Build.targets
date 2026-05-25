@@ -56,6 +56,9 @@
 
     <MakeDir Directories="$(RevitAddinsPath);@(AddinFiles->'$(RevitAddinsPath)%(RecursiveDir)')" />
 
+    <!-- Rename locked DLL/PDB files in destination to allow copying while Revit is open -->
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$dll = '$(RevitAddinsPath)AJ Tools.dll'; $pdb = '$(RevitAddinsPath)AJ Tools.pdb'; if (Test-Path $dll) { $oldDll = [System.IO.Path]::ChangeExtension($dll, 'dll.' + [System.DateTime]::Now.Ticks + '.old'); try { Get-ChildItem '$(RevitAddinsPath)' -Filter '*.old' | Remove-Item -Force -ErrorAction SilentlyContinue; Rename-Item -Path $dll -NewName ([System.IO.Path]::GetFileName($oldDll)) -Force; Write-Host 'SUCCESS: Renamed locked DLL to allow compilation while Revit is open.'; } catch { } }; if (Test-Path $pdb) { $oldPdb = [System.IO.Path]::ChangeExtension($pdb, 'pdb.' + [System.DateTime]::Now.Ticks + '.old'); try { Rename-Item -Path $pdb -NewName ([System.IO.Path]::GetFileName($oldPdb)) -Force; } catch { } }&quot;" IgnoreExitCode="true" />
+
     <Copy SourceFiles="@(AddinFiles)"
           DestinationFiles="@(AddinFiles->'$(RevitAddinsPath)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"

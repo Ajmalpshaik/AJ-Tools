@@ -1,25 +1,18 @@
 <!--
 ==================================================
-Tool Name    : View Crop
+Tool Name    : Section Mark Visibility
 Purpose      : Defines the selectable target view list dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.0.1
-Created      : 2026-04-08
-Last Updated : 2026-05-06
+Version      : 1.0.0
+Created      : 2026-05-24
 Target       : Revit 2020
 Framework    : .NET Framework 4.7.2
 Platform     : C# Revit Add-in
 Dependencies : Autodesk Revit API, WPF
-Input        : Active Revit document, active or selected target views, and View Crop settings.
-Output       : Updated view crop or annotation crop settings for supported target views.
-Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-License      : All Rights Reserved
-Repo         : AJ-Tools
 ==================================================
 -->
-<Window x:Class="AJTools.UI.ViewCrop.ViewCropTargetViewsWindow"
+<Window x:Class="AJTools.UI.SectionMarkVisibility.SectionMarkVisibilityViewsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Select Views"
@@ -27,7 +20,6 @@ Repo         : AJ-Tools
         Height="620"
         MinWidth="760"
         MinHeight="480"
-        ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundDark}"
         Foreground="{DynamicResource TextPrimary}">
@@ -51,7 +43,7 @@ Repo         : AJ-Tools
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0"
-                   Text="Select target views"
+                   Text="Select target plan views to filter Sections"
                    Foreground="{StaticResource TextPrimary}"
                    FontSize="16"
                    FontWeight="SemiBold"
@@ -72,17 +64,17 @@ Repo         : AJ-Tools
                      TextChanged="OnSearchChanged"/>
 
             <Button Grid.Column="1"
-                    Content="Select All"
-                    Style="{StaticResource ModernButton}"
-                    MinWidth="110"
-                    Margin="0,0,8,0"
-                    Click="OnSelectAll"/>
+                     Content="Select All"
+                     Style="{StaticResource ModernButton}"
+                     MinWidth="110"
+                     Margin="0,0,8,0"
+                     Click="OnSelectAll"/>
 
             <Button Grid.Column="2"
-                    Content="Clear All"
-                    Style="{StaticResource SecondaryButton}"
-                    MinWidth="110"
-                    Click="OnClearAll"/>
+                     Content="Clear All"
+                     Style="{StaticResource SecondaryButton}"
+                     MinWidth="110"
+                     Click="OnClearAll"/>
         </Grid>
 
         <Grid Grid.Row="2" Margin="0,0,0,4">
@@ -104,14 +96,14 @@ Repo         : AJ-Tools
         </Grid>
 
         <ListBox x:Name="ViewsListBox"
-                 Grid.Row="3"
-                 Style="{StaticResource ModernListBox}"
-                 ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                 BorderBrush="{StaticResource AccentBlue}"
-                 BorderThickness="1"
-                 VirtualizingPanel.IsVirtualizing="True"
-                 VirtualizingPanel.VirtualizationMode="Recycling"
-                 ScrollViewer.CanContentScroll="True">
+                  Grid.Row="3"
+                  Style="{StaticResource ModernListBox}"
+                  ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                  BorderBrush="{StaticResource AccentBlue}"
+                  BorderThickness="1"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  ScrollViewer.CanContentScroll="True">
             <ListBox.GroupStyle>
                 <GroupStyle>
                     <GroupStyle.HeaderTemplate>
@@ -211,12 +203,12 @@ Repo         : AJ-Tools
                        VerticalAlignment="Center"/>
 
             <Button Grid.Column="1"
-                    Content="Run"
+                    Content="Select"
                     Style="{StaticResource ModernButton}"
                     IsDefault="True"
                     MinWidth="110"
                     Margin="0,0,8,0"
-                    Click="OnRun"/>
+                    Click="OnSelect"/>
 
             <Button Grid.Column="2"
                     Content="Cancel"

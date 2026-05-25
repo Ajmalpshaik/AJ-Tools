@@ -212,6 +212,7 @@ namespace AJTools.App
         {
             AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
             AddTopLevelTool(panel, AddFilterProTool());
+            AddTopLevelTool(panel, AddSectionMarkVisibilityTool());
         }
 
         private void BuildGraphicsPanel(RibbonPanel panel)
@@ -314,6 +315,16 @@ namespace AJTools.App
                 "FilterPro.png",
                 "FilterPro.png",
                 pushButton => pushButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName);
+        }
+
+        private TopLevelToolSpec AddSectionMarkVisibilityTool()
+        {
+            return CreatePushToolSpec(
+                "Section Mark\nVisibility",
+                "Automatically manage section visibility based on Sheet Number filters or sheet placement status.",
+                typeof(CmdSectionMarkVisibility),
+                "SectionMarkVisibility.png",
+                "SectionMarkVisibility.png");
         }
 
         private TopLevelToolSpec AddApplyGraphicsTools()

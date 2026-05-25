@@ -31,10 +31,7 @@ namespace AJTools.Services.ViewCrop
             return viewType == ViewType.FloorPlan
                 || viewType == ViewType.CeilingPlan
                 || viewType == ViewType.EngineeringPlan
-                || viewType == ViewType.AreaPlan
-                || viewType == ViewType.Section
-                || viewType == ViewType.Elevation
-                || viewType == ViewType.Detail;
+                || viewType == ViewType.AreaPlan;
         }
 
         internal static bool TryValidateType(View view, out string reason)
