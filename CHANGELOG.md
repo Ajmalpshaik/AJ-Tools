@@ -7,6 +7,13 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.5.0] - 2026-05-30
+
+- Added Search and Sort functionality for Categories and Parameters in the Filter Pro tool.
+- Modernized ListBox and ListBoxItem styling in the shared UI components.
+- Removed `CaseSensitive` checkbox logic from `FilterProWindow` in favor of more robust search/sort.
+- Various minor stability fixes in `AutoDimensionService`, `LeaderLogicService`, and `SectionMarkVisibilityService`.
+
 ## [1.4.9] - 2026-05-25
 
 - Added new **Section Mark Visibility** tool to automatically manage section visibility in plan views based on Sheet Number filters or placement status.

@@ -11,6 +11,12 @@ using Autodesk.Revit.DB;
 
 namespace AJTools.Services.LeaderLogic
 {
+    public enum LeaderToggleState
+    {
+        Side,
+        TopBottom
+    }
+
     /// <summary>
     /// Reusable service for computing L-shaped leader geometry (elbow points)
     /// in view space. Uses view direction vectors (RightDirection / UpDirection)
@@ -225,6 +231,85 @@ namespace AJTools.Services.LeaderLogic
             return modelPoint
                 .Add(_viewRight.Multiply(deltaXView))
                 .Add(_viewUp.Multiply(deltaYView));
+        }
+
+        /// <summary>
+        /// Determines if the current elbow is placed in a Side attachment or Top/Bottom attachment configuration.
+        /// Defaults to Side if no elbow exists or if indeterminate.
+        /// </summary>
+        public LeaderToggleState DetermineToggleState(XYZ headModel, XYZ elbowModel)
+        {
+            if (headModel == null || elbowModel == null)
+                return LeaderToggleState.Side;
+
+            XYZ delta = elbowModel - headModel;
+            double dxView = Math.Abs(ProjectX(delta));
+            double dyView = Math.Abs(ProjectY(delta));
+
+            // If the vertical distance to the elbow is greater than the horizontal, it's a Top/Bottom attachment
+            if (dyView > dxView)
+                return LeaderToggleState.TopBottom;
+
+            return LeaderToggleState.Side;
+        }
+
+        /// <summary>
+        /// Calculates the elbow point for a Side attachment.
+        /// The leader approaches the tag text horizontally.
+        /// </summary>
+        public XYZ ComputeSideElbow(XYZ headModel, XYZ leaderEndModel)
+        {
+            if (headModel == null || leaderEndModel == null)
+                return null;
+
+            XYZ delta = leaderEndModel - headModel;
+            double dxView = ProjectX(delta);
+            double dyView = ProjectY(delta);
+            
+            double horizontalDist = Math.Abs(dxView);
+            double verticalDist   = Math.Abs(dyView);
+
+            if (verticalDist < _minVerticalStub)
+                return null;
+
+            if (horizontalDist < _minHorizontalStub)
+            {
+                double pushDirection = (dxView < 0) ? 1.0 : -1.0;
+                return headModel.Add(_viewRight.Multiply(pushDirection * _minHorizontalStub));
+            }
+
+            return leaderEndModel.Add(_viewUp.Multiply(dyView));
+        }
+
+        /// <summary>
+        /// Calculates the elbow point for a Top/Bottom attachment.
+        /// The leader approaches the tag text vertically.
+        /// </summary>
+        public XYZ ComputeTopBottomElbow(XYZ headModel, XYZ leaderEndModel)
+        {
+            if (headModel == null || leaderEndModel == null)
+                return null;
+
+            XYZ delta = leaderEndModel - headModel;
+            double dxView = ProjectX(delta);
+            double dyView = ProjectY(delta);
+
+            double horizontalDist = Math.Abs(dxView);
+            double verticalDist   = Math.Abs(dyView);
+
+            // If horizontally aligned, no elbow needed
+            if (horizontalDist < _minHorizontalStub)
+                return null;
+
+            // Guard: If vertically aligned, create a vertical stub
+            if (verticalDist < _minVerticalStub)
+            {
+                double pushDirection = (dyView < 0) ? 1.0 : -1.0;
+                return headModel.Add(_viewUp.Multiply(pushDirection * _minVerticalStub));
+            }
+
+            // Top/Bottom elbow: aligned with TagHead in X, LeaderEnd in Y.
+            return leaderEndModel.Add(_viewRight.Multiply(-dxView));
         }
     }
 }

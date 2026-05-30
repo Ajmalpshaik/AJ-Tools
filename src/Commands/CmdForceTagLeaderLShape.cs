@@ -205,27 +205,29 @@ namespace AJTools.Commands
             if (!HasWritableProperty(tag, "LeaderElbow"))
                 return false;
 
-            bool hasInitialCondition = TryGetLeaderEndCondition(tag, out object initialCondition);
+            // Determine if horizontal or vertical
+            bool isHorizontal = true; // default
+            if (TryGetProperty(tag, "TagOrientation", out object orientationObj) && orientationObj != null)
+            {
+                if (string.Equals(orientationObj.ToString(), "Vertical", StringComparison.OrdinalIgnoreCase))
+                {
+                    isHorizontal = false;
+                }
+            }
 
             // First attempt: preserve the current leader end condition.
-            if (TryApplyComputedElbow(tag, activeView, leaderLogic))
+            if (TryApplyComputedElbow(tag, activeView, leaderLogic, isHorizontal))
                 return true;
 
             // Fallback: switch to Free only when the current condition blocks edit.
+            // Notice: We do NOT restore it back to Attached, because that destroys the elbow in Revit.
             if (!TrySetLeaderEndCondition(tag, "Free"))
                 return false;
 
-            if (!TryApplyComputedElbow(tag, activeView, leaderLogic))
-                return false;
-
-            // Restore the original leader condition after fallback.
-            // If restore fails, caller rolls back this tag's subtransaction.
-            if (hasInitialCondition && !TrySetLeaderEndConditionValue(tag, initialCondition))
-                return false;
-
-            return true;
+            return TryApplyComputedElbow(tag, activeView, leaderLogic, isHorizontal);
         }
-        private static bool TryApplyComputedElbow(Element tag, View activeView, LeaderLogicService leaderLogic)
+
+        private static bool TryApplyComputedElbow(Element tag, View activeView, LeaderLogicService leaderLogic, bool isHorizontal)
         {
             if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
@@ -233,23 +235,59 @@ namespace AJTools.Commands
             if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
                 return false;
 
-            // Use LeaderLogicService to compute the elbow in view space.
-            // L1 = leader end (on the element), T1 = tag head position.
-            XYZ elbow = leaderLogic.ComputeElbow(head, end);
+            XYZ elbow = null;
 
-            // Guard 2 (same Y): no elbow needed - Revit draws a straight line.
+            if (isHorizontal)
+            {
+                // Horizontal tag rule: Side attachment only
+                elbow = leaderLogic.ComputeSideElbow(head, end);
+                if (elbow != null)
+                {
+                    elbow = AdjustElbowSide(tag, activeView, leaderLogic, elbow, head, end);
+                }
+            }
+            else
+            {
+                // Vertical tag rule: Toggle behavior between Side and Top/Bottom
+                XYZ currentElbow = null;
+                TryGetXYZProperty(tag, "LeaderElbow", out currentElbow);
+
+                LeaderToggleState currentState = leaderLogic.DetermineToggleState(head, currentElbow);
+
+                if (currentState == LeaderToggleState.Side)
+                {
+                    // Currently side, so toggle to Top/Bottom
+                    elbow = leaderLogic.ComputeTopBottomElbow(head, end);
+                    if (elbow != null)
+                    {
+                        elbow = AdjustElbowTopBottom(tag, activeView, leaderLogic, elbow, head, end);
+                    }
+                }
+                else
+                {
+                    // Currently top/bottom or no elbow, toggle to Side
+                    elbow = leaderLogic.ComputeSideElbow(head, end);
+                    if (elbow != null)
+                    {
+                        elbow = AdjustElbowSide(tag, activeView, leaderLogic, elbow, head, end);
+                    }
+                }
+            }
+
+            // No elbow needed (e.g., already perfectly straight horizontal/vertical)
             if (elbow == null)
                 return true;
 
-            elbow = AdjustElbowOutsideTextBoundsRight(tag, activeView, leaderLogic, elbow);
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
-        private static XYZ AdjustElbowOutsideTextBoundsRight(
+        private static XYZ AdjustElbowSide(
             Element tag,
             View activeView,
             LeaderLogicService leaderLogic,
-            XYZ elbow)
+            XYZ elbow,
+            XYZ head,
+            XYZ leaderEnd)
         {
             if (tag == null || leaderLogic == null || elbow == null)
                 return elbow;
@@ -261,10 +299,62 @@ namespace AJTools.Commands
             if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
                 return elbow;
 
-            double rightMarginFeet = GetScaledElbowOutsideMarginFeet(activeView);
-            double targetX = maxX + rightMarginFeet;
+            double marginFeet = GetScaledElbowOutsideMarginFeet(activeView);
+            UV headUv = leaderLogic.ProjectToView(head);
+            UV endUv = leaderLogic.ProjectToView(leaderEnd);
+
+            double targetX;
+            if (endUv.U < headUv.U)
+            {
+                // Element is to the left, push elbow to the left
+                targetX = minX - marginFeet;
+            }
+            else
+            {
+                // Element is to the right, push elbow to the right
+                targetX = maxX + marginFeet;
+            }
+
             double deltaX = targetX - elbowUv.U;
             return leaderLogic.OffsetInView(elbow, deltaX, 0);
+        }
+
+        private static XYZ AdjustElbowTopBottom(
+            Element tag,
+            View activeView,
+            LeaderLogicService leaderLogic,
+            XYZ elbow,
+            XYZ head,
+            XYZ leaderEnd)
+        {
+            if (tag == null || leaderLogic == null || elbow == null)
+                return elbow;
+
+            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
+                return elbow;
+
+            UV elbowUv = leaderLogic.ProjectToView(elbow);
+            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
+                return elbow;
+
+            double marginFeet = GetScaledElbowOutsideMarginFeet(activeView);
+            UV headUv = leaderLogic.ProjectToView(head);
+            UV endUv = leaderLogic.ProjectToView(leaderEnd);
+
+            double targetY;
+            if (endUv.V < headUv.V)
+            {
+                // Element is below, push elbow to the bottom
+                targetY = minY - marginFeet;
+            }
+            else
+            {
+                // Element is above, push elbow to the top
+                targetY = maxY + marginFeet;
+            }
+
+            double deltaY = targetY - elbowUv.V;
+            return leaderLogic.OffsetInView(elbow, 0, deltaY);
         }
 
         private static double GetScaledElbowOutsideMarginFeet(View activeView)
@@ -421,10 +511,10 @@ namespace AJTools.Commands
             return TrySetBoolProperty(tag, "HasLeader", true);
         }
 
-        private static bool TryGetLeaderEndCondition(Element tag, out object value)
+        private static bool TryGetProperty(Element tag, string propertyName, out object value)
         {
             value = null;
-            PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
+            PropertyInfo prop = GetProperty(tag, propertyName);
             if (prop == null)
                 return false;
             try
@@ -437,6 +527,7 @@ namespace AJTools.Commands
                 return false;
             }
         }
+
         private static bool TrySetLeaderEndCondition(Element tag, string targetConditionName)
         {
             if (string.IsNullOrWhiteSpace(targetConditionName))
@@ -485,48 +576,6 @@ namespace AJTools.Commands
             }
         }
 
-        private static bool TrySetLeaderEndConditionValue(Element tag, object value)
-        {
-            if (value == null)
-                return false;
-
-            PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
-            if (prop == null || !prop.CanWrite)
-                return false;
-
-            try
-            {
-                object targetValue;
-
-                if (prop.PropertyType.IsInstanceOfType(value))
-                {
-                    targetValue = value;
-                }
-                else if (prop.PropertyType.IsEnum)
-                {
-                    if (value is string name)
-                    {
-                        targetValue = Enum.Parse(prop.PropertyType, name, true);
-                    }
-                    else
-                    {
-                        object numeric = Convert.ChangeType(value, Enum.GetUnderlyingType(prop.PropertyType));
-                        targetValue = Enum.ToObject(prop.PropertyType, numeric);
-                    }
-                }
-                else
-                {
-                    targetValue = Convert.ChangeType(value, prop.PropertyType);
-                }
-
-                prop.SetValue(tag, targetValue, null);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
         private static bool IsCondition(object value, string conditionName)
         {
             if (value == null || string.IsNullOrWhiteSpace(conditionName))

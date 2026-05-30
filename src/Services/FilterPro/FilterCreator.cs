@@ -1,14 +1,14 @@
 // Tool Name: Filter Pro - Filter Creator
 // Description: Creates and updates parameter filters with naming, ordering, and graphics.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
+// Version: 1.1.0
+// Last Updated: 2026-05-25
+// Revit Version: 2020+
 // Dependencies: Autodesk.Revit.DB, System.Linq
 using System;
 using System.Collections.Generic;
-using Autodesk.Revit.DB;
 using System.Linq;
+using Autodesk.Revit.DB;
 using AJTools.Models;
 
 namespace AJTools.Services.FilterPro
@@ -54,6 +54,20 @@ namespace AJTools.Services.FilterPro
                 return result;
             }
 
+            // Pre-collect all existing filter names ONCE to avoid repeated DB queries in the loop.
+            // This reduces EnsureUniqueFilterName from O(n^2) DB queries to O(1) dictionary lookups.
+            var existingFilterNames = new Dictionary<string, ParameterFilterElement>(StringComparer.OrdinalIgnoreCase);
+            foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement))
+                .Cast<ParameterFilterElement>())
+            {
+                if (!existingFilterNames.ContainsKey(pfe.Name))
+                    existingFilterNames[pfe.Name] = pfe;
+            }
+
+            // Track processed filter IDs using a HashSet for O(1) dedup lookups.
+            var processedIds = new HashSet<int>();
+
             foreach (FilterValueItem value in selection.Values)
             {
                 if (value == null)
@@ -79,9 +93,9 @@ namespace AJTools.Services.FilterPro
                     }
 
                     string filterName = ComposeFilterName(selection, value, doc);
-                    filterName = EnsureUniqueFilterName(doc, filterName, selection.OverrideExisting);
+                    filterName = EnsureUniqueFilterName(filterName, existingFilterNames, selection.OverrideExisting);
 
-                    ParameterFilterElement existing = FindFilterByName(doc, filterName);
+                    existingFilterNames.TryGetValue(filterName, out ParameterFilterElement existing);
                     ElementParameterFilter elementFilter = new ElementParameterFilter(rules);
                     ParameterFilterElement filter = existing;
 
@@ -99,6 +113,8 @@ namespace AJTools.Services.FilterPro
                         }
 
                         filter = ParameterFilterElement.Create(doc, filterName, validCategoryIds, elementFilter);
+                        // Register the newly created filter in the in-memory name map to keep it consistent.
+                        existingFilterNames[filter.Name] = filter;
                         createdNew = true;
                         result.Created++;
                     }
@@ -113,8 +129,8 @@ namespace AJTools.Services.FilterPro
 
                     if (createdNew || modifiedExisting)
                     {
-                        // Track once per run, preserving touch order
-                        if (!result.ProcessedFilterIds.Any(x => x.IntegerValue == filter.Id.IntegerValue))
+                        // O(1) dedup using HashSet — avoids O(n) linear scan from previous version.
+                        if (processedIds.Add(filter.Id.IntegerValue))
                             result.ProcessedFilterIds.Add(filter.Id);
                     }
                 }
@@ -140,6 +156,8 @@ namespace AJTools.Services.FilterPro
 
             if (value.RawValue is Tuple<string, string> familyAndType)
             {
+                // Family + Type is a combined virtual parameter requiring two rules joined as AND.
+                // caseSensitive is always false in current workflow (Revit filter UI matches this).
                 return new List<FilterRule>
                 {
                     ParameterFilterRuleFactory.CreateEqualsRule(
@@ -443,9 +461,13 @@ namespace AJTools.Services.FilterPro
             return name;
         }
 
+        /// <summary>
+        /// Ensures the filter name is unique using a pre-collected in-memory name map.
+        /// Avoids O(n^2) repeated Revit database queries from the previous implementation.
+        /// </summary>
         private static string EnsureUniqueFilterName(
-            Document doc,
             string name,
+            Dictionary<string, ParameterFilterElement> existingNames,
             bool overrideExisting)
         {
             if (overrideExisting)
@@ -455,7 +477,7 @@ namespace AJTools.Services.FilterPro
                 ? name.Substring(0, MaxFilterNameLength)
                 : name;
 
-            if (FindFilterByName(doc, baseName) == null)
+            if (!existingNames.ContainsKey(baseName))
                 return baseName;
 
             int suffix = 2;
@@ -470,11 +492,15 @@ namespace AJTools.Services.FilterPro
 
                 string candidate = trimmedBase + suffixText;
 
-                if (FindFilterByName(doc, candidate) == null)
+                if (!existingNames.ContainsKey(candidate))
                     return candidate;
             }
         }
 
+        /// <summary>
+        /// Finds a parameter filter by name (case-insensitive).
+        /// Kept as a fallback for single-lookup scenarios outside bulk creation.
+        /// </summary>
         private static ParameterFilterElement FindFilterByName(Document doc, string name)
         {
             return new FilteredElementCollector(doc)

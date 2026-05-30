@@ -99,6 +99,11 @@ namespace AJTools.Services.SectionMarkVisibility
                         // B. Unhide ALL section markers in the target view first (reset state)
                         UnhideAllSectionsInView(view, sectionByName, sectionById);
 
+                        // CRITICAL: We must regenerate the document here. 
+                        // Otherwise, the view-specific FilteredElementCollector in HideNonMatchingSectionsInView
+                        // will not 'see' the newly unhidden section markers in the same transaction!
+                        _doc.Regenerate();
+
                         // C. If UnhideAllSections mode, stop here (no filtering needed)
                         //    Otherwise, hide sections that do not match the sheet criteria
                         if (!_settings.UnhideAllSections)

@@ -450,16 +450,26 @@ namespace AJTools.Services.AutoDimension
             if (sortedLevels.Count < 2)
                 return false;
 
+            Transform transform = crop.Transform;
+            Transform inverse = transform.Inverse;
+
             double dimLineX = crop.Min.X - offset;
-            double dimLineY = (crop.Min.Y + crop.Max.Y) / 2.0;
+            double viewDepth = crop.Min.Z;
 
             // Individual chain
             ReferenceArray refAll = new ReferenceArray();
             foreach (Level level in sortedLevels)
                 refAll.Append(new Reference(level));
 
-            XYZ p1 = new XYZ(dimLineX, dimLineY, sortedLevels.First().Elevation);
-            XYZ p2 = new XYZ(dimLineX, dimLineY, sortedLevels.Last().Elevation);
+            double firstLevelY = inverse.OfPoint(new XYZ(0, 0, sortedLevels.First().Elevation)).Y;
+            double lastLevelY = inverse.OfPoint(new XYZ(0, 0, sortedLevels.Last().Elevation)).Y;
+
+            XYZ startLocal = new XYZ(dimLineX, firstLevelY, viewDepth);
+            XYZ endLocal = new XYZ(dimLineX, lastLevelY, viewDepth);
+
+            XYZ p1 = transform.OfPoint(startLocal);
+            XYZ p2 = transform.OfPoint(endLocal);
+            
             doc.Create.NewDimension(view, Line.CreateBound(p1, p2), refAll);
 
             // Overall
@@ -468,8 +478,13 @@ namespace AJTools.Services.AutoDimension
             refOverall.Append(new Reference(sortedLevels.Last()));
 
             double dimLineXOverall = dimLineX - overallOffset;
-            XYZ p1o = new XYZ(dimLineXOverall, dimLineY, sortedLevels.First().Elevation);
-            XYZ p2o = new XYZ(dimLineXOverall, dimLineY, sortedLevels.Last().Elevation);
+            
+            XYZ startOverallLocal = new XYZ(dimLineXOverall, firstLevelY, viewDepth);
+            XYZ endOverallLocal = new XYZ(dimLineXOverall, lastLevelY, viewDepth);
+
+            XYZ p1o = transform.OfPoint(startOverallLocal);
+            XYZ p2o = transform.OfPoint(endOverallLocal);
+            
             doc.Create.NewDimension(view, Line.CreateBound(p1o, p2o), refOverall);
 
             return true;

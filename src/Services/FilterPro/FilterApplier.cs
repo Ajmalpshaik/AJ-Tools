@@ -47,7 +47,18 @@ namespace AJTools.Services.FilterPro
             try
             {
                 var current = view.GetFilters() ?? new List<ElementId>();
-                if (!current.Contains(filterId))
+                // Must compare by IntegerValue — Revit may return new ElementId wrapper objects
+                // that are not reference-equal even when they represent the same filter.
+                bool alreadyAdded = false;
+                foreach (var existingId in current)
+                {
+                    if (existingId != null && existingId.IntegerValue == filterId.IntegerValue)
+                    {
+                        alreadyAdded = true;
+                        break;
+                    }
+                }
+                if (!alreadyAdded)
                     view.AddFilter(filterId);
             }
             catch (Exception ex)

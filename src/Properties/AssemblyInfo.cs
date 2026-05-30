@@ -3,9 +3,9 @@
 // Purpose      : Defines assembly-level metadata and version information for the AJ Tools add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.4.9
+// Version      : 1.5.0
 // Created      : 2025-12-10
-// Last Updated : 2026-05-25
+// Last Updated : 2026-05-30
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,7 @@
 // Input        : Assembly build metadata.
 // Output       : Versioned AJ Tools assembly attributes.
 // Notes        : Keep this version aligned with release tags and installer package versions.
-// Changelog    : v1.4.9 - Added Section Mark Visibility and View Crop upgrades.
+// Changelog    : v1.5.0 - Added Filter Pro Search and Sort capabilities.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -48,5 +48,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.4.9.0")]
-[assembly: AssemblyFileVersion("1.4.9.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
