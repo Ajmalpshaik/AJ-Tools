@@ -51,7 +51,7 @@
                                FontSize="26" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimary}"/>
-                    <TextBlock Text="by Ajmal PS"
+                    <TextBlock Text="Created &amp; All Rights Reserved @ Ajmal P.S."
                                FontSize="12"
                                Foreground="{StaticResource TextSecondary}"
                                Margin="0,2,0,0"/>
@@ -111,6 +111,7 @@
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -120,8 +121,28 @@
                                            Foreground="{StaticResource TextSecondary}"
                                            Margin="0,0,0,5"/>
 
+                                <Grid Grid.Row="1" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="140"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBox x:Name="category_search_textbox"
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 ToolTip="Filter the category list"/>
+                                    </Grid>
+
+                                    <ComboBox x:Name="category_sort_combobox"
+                                              Grid.Column="1"
+                                              SelectedIndex="0">
+                                        <ComboBoxItem Content="A to Z" Tag="az"/>
+                                        <ComboBoxItem Content="Z to A" Tag="za"/>
+                                    </ComboBox>
+                                </Grid>
+
                                 <ListBox x:Name="categories_listbox" 
-                                         Grid.Row="1"
+                                         Grid.Row="2"
                                          Style="{StaticResource ModernListBox}"
                                          ItemContainerStyle="{StaticResource ModernListBoxItem}"
                                          SelectionMode="Extended" />
@@ -136,6 +157,7 @@
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -145,8 +167,28 @@
                                            Foreground="{StaticResource TextSecondary}"
                                            Margin="0,0,0,5"/>
 
+                                <Grid Grid.Row="1" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="140"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBox x:Name="parameter_search_textbox"
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 ToolTip="Filter the parameter list"/>
+                                    </Grid>
+
+                                    <ComboBox x:Name="parameter_sort_combobox"
+                                              Grid.Column="1"
+                                              SelectedIndex="0">
+                                        <ComboBoxItem Content="A to Z" Tag="az"/>
+                                        <ComboBoxItem Content="Z to A" Tag="za"/>
+                                    </ComboBox>
+                                </Grid>
+
                                 <ListBox x:Name="parameters_listbox" 
-                                         Grid.Row="1"
+                                         Grid.Row="2"
                                          Style="{StaticResource ModernListBox}"
                                          ItemContainerStyle="{StaticResource ModernListBoxItem}"
                                          SelectionMode="Single" />
@@ -273,10 +315,6 @@
                                                  Tag="has_no_value"/>
                                         </StackPanel>
                                     </Grid>
-                                    <CheckBox x:Name="case_sensitive_checkbox" 
-                                              Content="Case Sensitive" 
-                                              Style="{StaticResource ModernCheckBox}"
-                                              Margin="10,5,10,5"/>
                                 </StackPanel>
                             </GroupBox>
 

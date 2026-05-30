@@ -1,4 +1,4 @@
-﻿// Tool Name: Filter Pro - Color Palette
+// Tool Name: Filter Pro - Color Palette
 // Description: Provides a highly distinct vivid color palette for filter graphics and utilities.
 // Author: Ajmal P.S.
 // Version: 1.1.0
@@ -52,10 +52,11 @@ namespace AJTools.Models
         /// </summary>
         public static Color GetColorFor(ElementId id)
         {
-            if (id == null || id.IntegerValue == 0)
+            if (id == null || id == ElementId.InvalidElementId || id.IntegerValue == 0)
                 return Palette[0];
 
-            int index = Math.Abs(id.IntegerValue);
+            // Use unchecked to prevent OverflowException when IntegerValue is int.MinValue.
+            int index = unchecked(Math.Abs(id.IntegerValue)) & 0x7FFFFFFF;
             return Palette[index % Palette.Length];
         }
 

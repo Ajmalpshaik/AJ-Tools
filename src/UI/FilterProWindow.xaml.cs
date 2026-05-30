@@ -29,6 +29,8 @@ namespace AJTools.UI
         private readonly FilterProStateTracker _stateTracker;
 
         private readonly List<FilterValueItem> _currentValues = new List<FilterValueItem>();
+        private readonly List<FilterCategoryItem> _allCategories = new List<FilterCategoryItem>();
+        private readonly List<FilterParameterItem> _allParameters = new List<FilterParameterItem>();
         private bool _restoringState;
         private bool _isLoadingParameters;
         private bool _isLoadingValues;
@@ -63,7 +65,6 @@ namespace AJTools.UI
             {
                 // Preserve dialog result so Revit keeps changes when the command ends.
                 DialogResult = _madeChanges;
-                Close();
             };
             create_button.Click += CreateButton_Click;
             apply_view_button.Click += ApplyViewButton_Click;
@@ -122,6 +123,14 @@ namespace AJTools.UI
             // Value filtering and sorting
             value_search_textbox.TextChanged += (s, e) => ApplyValueFilters();
             value_sort_combobox.SelectionChanged += (s, e) => ApplyValueFilters();
+
+            // Category filtering and sorting
+            category_search_textbox.TextChanged += (s, e) => ApplyCategoryFilters();
+            category_sort_combobox.SelectionChanged += (s, e) => ApplyCategoryFilters();
+
+            // Parameter filtering and sorting
+            parameter_search_textbox.TextChanged += (s, e) => ApplyParameterFilters();
+            parameter_sort_combobox.SelectionChanged += (s, e) => ApplyParameterFilters();
         }
 
         private void ApplyValueFilters()
@@ -149,6 +158,60 @@ namespace AJTools.UI
             }
 
             values_listbox.ItemsSource = source.ToList();
+        }
+
+        private void ApplyCategoryFilters()
+        {
+            if (_allCategories == null) return;
+
+            var source = _allCategories.AsEnumerable();
+
+            // Filter by search text
+            string term = category_search_textbox.Text;
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                source = source.Where(c =>
+                    c.Name != null && c.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            // Sort
+            if (category_sort_combobox.SelectedItem is ComboBoxItem selectedSort &&
+                selectedSort.Tag is string sortTag)
+            {
+                if (sortTag == "za")
+                    source = source.OrderByDescending(c => c.Name);
+                else
+                    source = source.OrderBy(c => c.Name);
+            }
+
+            categories_listbox.ItemsSource = source.ToList();
+        }
+
+        private void ApplyParameterFilters()
+        {
+            if (_allParameters == null) return;
+
+            var source = _allParameters.AsEnumerable();
+
+            // Filter by search text
+            string term = parameter_search_textbox.Text;
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                source = source.Where(p =>
+                    p.Name != null && p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            // Sort
+            if (parameter_sort_combobox.SelectedItem is ComboBoxItem selectedSort &&
+                selectedSort.Tag is string sortTag)
+            {
+                if (sortTag == "za")
+                    source = source.OrderByDescending(p => p.Name);
+                else
+                    source = source.OrderBy(p => p.Name);
+            }
+
+            parameters_listbox.ItemsSource = source.ToList();
         }
 
         private void SetActiveViewName()
@@ -269,7 +332,7 @@ namespace AJTools.UI
                 IncludeCategory = include_cat_checkbox.IsChecked == true,
                 IncludeParameter = include_param_checkbox.IsChecked == true,
                 Separator = separator,
-                CaseSensitive = case_sensitive_checkbox.IsChecked == true
+                CaseSensitive = false
             };
 
             var previewValue = new FilterValueItem(valueText, valueText, StorageType.String);
@@ -457,7 +520,6 @@ namespace AJTools.UI
             prefix_textbox.Text = lastState.Prefix ?? string.Empty;
             suffix_textbox.Text = lastState.Suffix ?? string.Empty;
             separator_textbox.Text = string.IsNullOrEmpty(lastState.Separator) ? "_" : lastState.Separator;
-            case_sensitive_checkbox.IsChecked = lastState.CaseSensitive;
             include_cat_checkbox.IsChecked = lastState.IncludeCategory;
             include_param_checkbox.IsChecked = lastState.IncludeParameter;
             override_existing_checkbox.IsChecked = lastState.OverrideExisting;
@@ -533,7 +595,7 @@ namespace AJTools.UI
                 separator_textbox.Text,
                 apply_active_radio.IsChecked == true,
                 GetSelectedViewIds(),
-                case_sensitive_checkbox.IsChecked == true);
+                false);
         }
 
         private string BuildResultStatus(string actionText, int created, IList<string> skipped)
@@ -628,7 +690,7 @@ namespace AJTools.UI
                 TargetViewIds = targetViews.Select(v => v.Id).ToList(),
                 ApplyToActiveView = apply_active_radio.IsChecked == true,
                 Separator = separator,
-                CaseSensitive = case_sensitive_checkbox.IsChecked == true
+                CaseSensitive = false
             };
         }
 
@@ -683,8 +745,12 @@ namespace AJTools.UI
         {
             try
             {
-                categories_listbox.ItemsSource = _dataProvider.GetFilterableCategories();
+                var cats = _dataProvider.GetFilterableCategories();
+                _allCategories.Clear();
+                _allCategories.AddRange(cats);
+
                 categories_listbox.DisplayMemberPath = "Name";
+                ApplyCategoryFilters();
             }
             catch (Exception ex)
             {
@@ -707,6 +773,7 @@ namespace AJTools.UI
 
                 if (!selectedCategories.Any())
                 {
+                    _allParameters.Clear();
                     parameters_listbox.ItemsSource = null;
                     values_listbox.ItemsSource = null;
                     UpdateStatus("Select one or more categories.");
@@ -718,8 +785,12 @@ namespace AJTools.UI
                 var catIds = selectedCategories.Select(c => c.Id).ToList();
                 var parameters = _dataProvider.GetParametersForCategories(catIds);
 
-                parameters_listbox.ItemsSource = parameters;
+                _allParameters.Clear();
+                _allParameters.AddRange(parameters);
+
                 parameters_listbox.DisplayMemberPath = "Name";
+                ApplyParameterFilters();
+
                 UpdateStatus("Select a parameter to load its values.");
                 await LoadValues();
             }
