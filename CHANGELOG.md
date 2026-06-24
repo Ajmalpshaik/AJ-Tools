@@ -5,7 +5,8 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-- No unreleased changes.
+- Integrated the AJ AI (Gemini Shell) tool into the main AJ Tools ribbon under a new "AI Assistant" panel, fixing visibility issues caused by an empty standalone tab.
+- Fixed MSBuild compilation errors related to legacy PackageReference restores in the zero-warnings 2020 project configuration.
 
 ## [1.5.0] - 2026-05-30
 

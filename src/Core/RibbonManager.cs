@@ -46,6 +46,7 @@ namespace AJTools.App
             Data,
             Manage,
             Family,
+            Ai,
             About
         }
 
@@ -93,6 +94,7 @@ namespace AJTools.App
                 [PanelKey.Coordination] = "Coordination",
                 [PanelKey.Data] = "Data",
                 [PanelKey.Manage] = "Manage",
+                [PanelKey.Ai] = "AI Assistant",
                 [PanelKey.About] = "Aj tool"
             };
 
@@ -110,6 +112,7 @@ namespace AJTools.App
                 PanelKey.Data,
                 PanelKey.Manage,
                 PanelKey.Family,
+                PanelKey.Ai,
                 PanelKey.About
             };
 
@@ -129,6 +132,7 @@ namespace AJTools.App
                 new ToolPlacement(PanelKey.Data, BuildDataPanel),
                 new ToolPlacement(PanelKey.Manage, BuildManagePanel),
                 new ToolPlacement(PanelKey.Family, BuildFamilyPanel),
+                new ToolPlacement(PanelKey.Ai, BuildAiPanel),
                 new ToolPlacement(PanelKey.About, BuildAboutPanel)
             };
         }
@@ -271,9 +275,24 @@ namespace AJTools.App
             AddStackedTools(panel, AddConvertSharedParametersTool(), AddCenterAnnotationsTool());
         }
 
+        private void BuildAiPanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddAiTool());
+        }
+
         private void BuildAboutPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAboutTool());
+        }
+
+        private TopLevelToolSpec AddAiTool()
+        {
+            return CreatePushToolSpec(
+                "AJ AI",
+                "Open the AI-powered Gemini C# Shell for Revit.",
+                typeof(AJTools.GeminiShell.Commands.ShowGeminiShellCommand),
+                "AJ_AI.png",
+                "AJ_AI.png");
         }
 
         private TopLevelToolSpec AddToggleLinksTool()

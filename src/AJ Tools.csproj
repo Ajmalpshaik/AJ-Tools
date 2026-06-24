@@ -53,6 +53,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -64,6 +65,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\App.cs" />
@@ -216,6 +220,28 @@
     <Compile Include="Services\GraphicsTools\GraphicsOverrideBuilder.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsCategoryService.cs" />
     <Compile Include="Services\GraphicsTools\GraphicsElementService.cs" />
+    <Compile Include="GeminiShell\Commands\ShowGeminiShellCommand.cs" />
+    <Compile Include="GeminiShell\Configuration\GeminiShellConfig.cs" />
+    <Compile Include="GeminiShell\DockablePane\GeminiShellPaneProvider.cs" />
+    <Compile Include="GeminiShell\Helpers\CodeExtractionHelper.cs" />
+    <Compile Include="GeminiShell\Helpers\Converters.cs" />
+    <Compile Include="GeminiShell\Helpers\LoopProtectionRewriter.cs" />
+    <Compile Include="GeminiShell\Helpers\TextMarkerService.cs" />
+    <Compile Include="GeminiShell\Models\CodeExecutionResult.cs" />
+    <Compile Include="GeminiShell\Models\GeminiMessage.cs" />
+    <Compile Include="GeminiShell\Models\HistoryItem.cs" />
+    <Compile Include="GeminiShell\Models\RevitScriptGlobals.cs" />
+    <Compile Include="GeminiShell\Services\ErrorCorrectionService.cs" />
+    <Compile Include="GeminiShell\Services\GeminiApiService.cs" />
+    <Compile Include="GeminiShell\Services\IAiProviderService.cs" />
+    <Compile Include="GeminiShell\Services\OpenAiApiService.cs" />
+    <Compile Include="GeminiShell\Services\RevitContextExtractionService.cs" />
+    <Compile Include="GeminiShell\Services\RevitExecutionService.cs" />
+    <Compile Include="GeminiShell\Services\RoslynService.cs" />
+    <Compile Include="GeminiShell\ViewModels\GeminiShellViewModel.cs" />
+    <Compile Include="GeminiShell\Views\GeminiShellView.xaml.cs">
+      <DependentUpon>GeminiShellView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
@@ -431,6 +457,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Purge\PurgeUnplacedViewsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="GeminiShell\Views\GeminiShellView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
