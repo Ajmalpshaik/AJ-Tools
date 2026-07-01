@@ -1,10 +1,38 @@
-// Tool Name: Filter Pro Command
-// Description: Launches the Filter Pro UI to create and apply parameter filters with graphics.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : CmdFilterPro.cs
+ * Purpose       : Entry point command — validates context and launches the Filter Pro window.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-29
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active View (must be a filter-capable view type)
+ * Output        : Opens Filter Pro UI; returns Succeeded if the user created or applied filters
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - Verify the newest Revit version's required .NET target before building.
+ * - Production-ready implementation.
+ * - Safe transaction handling.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;
@@ -14,10 +42,8 @@ using AJTools.UI;
 
 namespace AJTools.Commands
 {
-    /// <summary>
-    /// Launches the Filter Pro UI to build and apply parameter filters.
-    /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CmdFilterPro : IExternalCommand
     {
         /// <summary>

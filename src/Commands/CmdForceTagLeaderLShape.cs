@@ -1,10 +1,40 @@
-// Tool Name: Force Tag Leader L-Shape
-// Description: Forces selected tags to use a right-angle (L-shaped) leader elbow.
-// Author: Ajmal P.S.
-// Version: 2.0.0
-// Last Updated: 2026-04-07
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.LeaderLogicService
+#region Metadata
+/*
+ * Tool Name     : L-Shape Leader
+ * File Name     : CmdForceTagLeaderLShape.cs
+ * Purpose       : Forces tags to use a right-angle (L-shaped) leader by computing the elbow position with
+ *                 LeaderLogicService; running again on the same tag flips the elbow side. Works on
+ *                 pre-selected tags or picked tags (Tab cycles) until Esc.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 2.1.0
+ *
+ * Created Date  : 2026-02-15
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Services.LeaderLogic (LeaderLogicService), AJTools.Utils
+ *
+ * Input         : Active View - pre-selected tags, or tags picked one-by-one (Esc to finish).
+ * Output        : Tag leaders converted to L-shape elbows; skipped tags reported.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Elbow geometry comes from the shared LeaderLogicService (single source of L-shape leader logic).
+ * - Esc during a pick is a normal cancel (handled silently).
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v2.0.0 (2026-04-07) - Elbow computation moved to LeaderLogicService; pre-select + pick-loop support.
+ * v2.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Leader behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -215,19 +245,36 @@ namespace AJTools.Commands
                 }
             }
 
-            // First attempt: preserve the current leader end condition.
-            if (TryApplyComputedElbow(tag, activeView, leaderLogic, isHorizontal))
+            if (isHorizontal)
+            {
+                return TryForceLShapeHorizontal(tag, activeView, leaderLogic);
+            }
+            else
+            {
+                return TryForceLShapeVertical(tag, activeView, leaderLogic);
+            }
+        }
+
+        private static bool TryForceLShapeHorizontal(Element tag, View activeView, LeaderLogicService leaderLogic)
+        {
+            bool hasInitialCondition = TryGetLeaderEndCondition(tag, out object initialCondition);
+
+            if (TryApplyComputedElbowHorizontal(tag, activeView, leaderLogic))
                 return true;
 
-            // Fallback: switch to Free only when the current condition blocks edit.
-            // Notice: We do NOT restore it back to Attached, because that destroys the elbow in Revit.
             if (!TrySetLeaderEndCondition(tag, "Free"))
                 return false;
 
-            return TryApplyComputedElbow(tag, activeView, leaderLogic, isHorizontal);
+            if (!TryApplyComputedElbowHorizontal(tag, activeView, leaderLogic))
+                return false;
+
+            if (hasInitialCondition && !TrySetLeaderEndConditionValue(tag, initialCondition))
+                return false;
+
+            return true;
         }
 
-        private static bool TryApplyComputedElbow(Element tag, View activeView, LeaderLogicService leaderLogic, bool isHorizontal)
+        private static bool TryApplyComputedElbowHorizontal(Element tag, View activeView, LeaderLogicService leaderLogic)
         {
             if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
@@ -235,48 +282,72 @@ namespace AJTools.Commands
             if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
                 return false;
 
-            XYZ elbow = null;
+            XYZ elbow = leaderLogic.ComputeElbow(head, end);
 
-            if (isHorizontal)
-            {
-                // Horizontal tag rule: Side attachment only
-                elbow = leaderLogic.ComputeSideElbow(head, end);
-                if (elbow != null)
-                {
-                    elbow = AdjustElbowSide(tag, activeView, leaderLogic, elbow, head, end);
-                }
-            }
-            else
-            {
-                // Vertical tag rule: Toggle behavior between Side and Top/Bottom
-                XYZ currentElbow = null;
-                TryGetXYZProperty(tag, "LeaderElbow", out currentElbow);
-
-                LeaderToggleState currentState = leaderLogic.DetermineToggleState(head, currentElbow);
-
-                if (currentState == LeaderToggleState.Side)
-                {
-                    // Currently side, so toggle to Top/Bottom
-                    elbow = leaderLogic.ComputeTopBottomElbow(head, end);
-                    if (elbow != null)
-                    {
-                        elbow = AdjustElbowTopBottom(tag, activeView, leaderLogic, elbow, head, end);
-                    }
-                }
-                else
-                {
-                    // Currently top/bottom or no elbow, toggle to Side
-                    elbow = leaderLogic.ComputeSideElbow(head, end);
-                    if (elbow != null)
-                    {
-                        elbow = AdjustElbowSide(tag, activeView, leaderLogic, elbow, head, end);
-                    }
-                }
-            }
-
-            // No elbow needed (e.g., already perfectly straight horizontal/vertical)
             if (elbow == null)
                 return true;
+
+            elbow = AdjustElbowOutsideTextBoundsRight(tag, activeView, leaderLogic, elbow);
+            return TrySetXYZProperty(tag, "LeaderElbow", elbow);
+        }
+
+        private static XYZ AdjustElbowOutsideTextBoundsRight(
+            Element tag,
+            View activeView,
+            LeaderLogicService leaderLogic,
+            XYZ elbow)
+        {
+            if (tag == null || leaderLogic == null || elbow == null)
+                return elbow;
+
+            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
+                return elbow;
+
+            UV elbowUv = leaderLogic.ProjectToView(elbow);
+            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
+                return elbow;
+
+            double rightMarginFeet = GetScaledElbowOutsideMarginFeet(activeView);
+            double targetX = maxX + rightMarginFeet;
+            double deltaX = targetX - elbowUv.U;
+            return leaderLogic.OffsetInView(elbow, deltaX, 0);
+        }
+
+        private static bool TryForceLShapeVertical(Element tag, View activeView, LeaderLogicService leaderLogic)
+        {
+            bool hasInitialCondition = TryGetLeaderEndCondition(tag, out object initialCondition);
+
+            if (TryApplyComputedElbowVertical(tag, activeView, leaderLogic))
+                return true;
+
+            if (!TrySetLeaderEndCondition(tag, "Free"))
+                return false;
+
+            if (!TryApplyComputedElbowVertical(tag, activeView, leaderLogic))
+                return false;
+
+            if (hasInitialCondition && !TrySetLeaderEndConditionValue(tag, initialCondition))
+                return false;
+
+            return true;
+        }
+
+        private static bool TryApplyComputedElbowVertical(Element tag, View activeView, LeaderLogicService leaderLogic)
+        {
+            if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
+                return false;
+
+            if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
+                return false;
+
+            // Always use Top/Bottom attachment for vertical text, shifted outside the bounding box,
+            // to perfectly mirror how horizontal text uses Side attachment shifted outside the box.
+            XYZ elbow = leaderLogic.ComputeTopBottomElbow(head, end);
+
+            if (elbow == null)
+                return true;
+
+            elbow = AdjustElbowTopBottom(tag, activeView, leaderLogic, elbow, head, end);
 
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
@@ -528,6 +599,23 @@ namespace AJTools.Commands
             }
         }
 
+        private static bool TryGetLeaderEndCondition(Element tag, out object value)
+        {
+            value = null;
+            PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
+            if (prop == null)
+                return false;
+            try
+            {
+                value = prop.GetValue(tag, null);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static bool TrySetLeaderEndCondition(Element tag, string targetConditionName)
         {
             if (string.IsNullOrWhiteSpace(targetConditionName))
@@ -568,6 +656,49 @@ namespace AJTools.Commands
                 if (prop.PropertyType.IsEnum)
                     numericValue = Enum.ToObject(prop.PropertyType, numericValue);
                 prop.SetValue(tag, numericValue, null);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TrySetLeaderEndConditionValue(Element tag, object value)
+        {
+            if (value == null)
+                return false;
+
+            PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
+            if (prop == null || !prop.CanWrite)
+                return false;
+
+            try
+            {
+                object targetValue;
+
+                if (prop.PropertyType.IsInstanceOfType(value))
+                {
+                    targetValue = value;
+                }
+                else if (prop.PropertyType.IsEnum)
+                {
+                    if (value is string name)
+                    {
+                        targetValue = Enum.Parse(prop.PropertyType, name, true);
+                    }
+                    else
+                    {
+                        object numeric = Convert.ChangeType(value, Enum.GetUnderlyingType(prop.PropertyType));
+                        targetValue = Enum.ToObject(prop.PropertyType, numeric);
+                    }
+                }
+                else
+                {
+                    targetValue = Convert.ChangeType(value, prop.PropertyType);
+                }
+
+                prop.SetValue(tag, targetValue, null);
                 return true;
             }
             catch

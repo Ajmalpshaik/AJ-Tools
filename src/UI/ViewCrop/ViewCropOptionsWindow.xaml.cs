@@ -1,27 +1,44 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Code-behind for View Crop settings and run scope dialog.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.2
-// Created      : 2026-04-08
-// Last Updated : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.2 - Integrated presets logic and toggle annotation offsets.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropOptionsWindow.xaml.cs
+ * Purpose       : Code-behind for the View Crop settings and run-scope dialog.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-28
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : WPF
+ *
+ * Input         : Initial ViewCropSettings, tool title.
+ * Output        : Edited ViewCropSettings via SelectedSettings property; ApplyToActiveViewOnly flag.
+ *
+ * Notes         :
+ * - Modal dialog - no Revit API calls in code-behind (skill rule).
+ * - Annotation offset controls enable/disable based on the ApplyAnnotationCrop checkbox.
+ *
+ * Changelog     :
+ * v1.2.0 (2026-06-28) - Added Crop Mode radio buttons (visible/all-model); wired to ViewCropSettings.ExtentSource.
+ * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
+ * v1.0.2 (2026-05-24) - Integrated presets logic and toggle annotation offsets.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using AJTools.Models.ViewCrop;
+using AJTools.Utils;
 
 namespace AJTools.UI.ViewCrop
 {
@@ -53,12 +70,13 @@ namespace AJTools.UI.ViewCrop
             // Select matching preset if available
             SelectMatchingPreset(settings.MarginMm);
 
+            ModeAllModelRadio.IsChecked = settings.ExtentSource == ViewCropExtentSource.AllModelElements;
+            ModeVisibleRadio.IsChecked = settings.ExtentSource == ViewCropExtentSource.ActiveViewElements;
+
             IncludeLinksCheckBox.IsChecked = settings.IncludeRevitLinks;
-            IgnoreHiddenCheckBox.IsChecked = settings.IgnoreHiddenCategories;
-            RectangularOnlyCheckBox.IsChecked = settings.RectangularCropOnly;
-            IncludeDatumsCheckBox.IsChecked = settings.IncludeDatums;
-            ShowDiagnosticsCheckBox.IsChecked = settings.ShowDiagnostics;
             IncludeCoordinationModelsCheckBox.IsChecked = settings.IncludeCoordinationModels;
+            IncludeDatumsCheckBox.IsChecked = settings.IncludeDatums;
+            IgnoreHiddenCheckBox.IsChecked = settings.IgnoreHiddenCategories;
 
             // Annotation Integration
             ApplyAnnotationCheckBox.IsChecked = settings.ApplyAnnotationCrop;
@@ -152,21 +170,24 @@ namespace AJTools.UI.ViewCrop
             AnnotationOffsetTextBox.IsEnabled = enable;
         }
 
-        private void OnRun(object sender, RoutedEventArgs e)
+        private bool ValidateAndBuildSettings(bool showDiagnostics)
         {
             ErrorText.Text = string.Empty;
+            ErrorText.Visibility = Visibility.Collapsed;
 
             string marginText = (MarginTextBox.Text ?? string.Empty).Trim();
             if (!double.TryParse(marginText, NumberStyles.Float, CultureInfo.CurrentCulture, out double marginMm))
             {
                 ErrorText.Text = "Margin must be a valid number.";
-                return;
+                ErrorText.Visibility = Visibility.Visible;
+                return false;
             }
 
             if (marginMm < 0)
             {
                 ErrorText.Text = "Margin cannot be negative.";
-                return;
+                ErrorText.Visibility = Visibility.Visible;
+                return false;
             }
 
             double annotationOffset = 100.0;
@@ -176,13 +197,15 @@ namespace AJTools.UI.ViewCrop
                 if (!double.TryParse(offsetText, NumberStyles.Float, CultureInfo.CurrentCulture, out annotationOffset))
                 {
                     ErrorText.Text = "Annotation offset must be a valid number.";
-                    return;
+                    ErrorText.Visibility = Visibility.Visible;
+                    return false;
                 }
 
                 if (annotationOffset < 0)
                 {
                     ErrorText.Text = "Annotation offset cannot be negative.";
-                    return;
+                    ErrorText.Visibility = Visibility.Visible;
+                    return false;
                 }
             }
 
@@ -191,16 +214,36 @@ namespace AJTools.UI.ViewCrop
                 MarginMm = marginMm,
                 IncludeRevitLinks = IncludeLinksCheckBox.IsChecked == true,
                 IgnoreHiddenCategories = IgnoreHiddenCheckBox.IsChecked == true,
-                RectangularCropOnly = RectangularOnlyCheckBox.IsChecked == true,
+                RectangularCropOnly = true,
                 IncludeDatums = IncludeDatumsCheckBox.IsChecked == true,
                 ApplyAnnotationCrop = ApplyAnnotationCheckBox.IsChecked == true,
                 AnnotationOffsetMm = annotationOffset,
-                ShowDiagnostics = ShowDiagnosticsCheckBox.IsChecked == true,
-                IncludeCoordinationModels = IncludeCoordinationModelsCheckBox.IsChecked == true
+                ShowDiagnostics = showDiagnostics,
+                IncludeCoordinationModels = IncludeCoordinationModelsCheckBox.IsChecked == true,
+                ExtentSource = ModeVisibleRadio.IsChecked == true
+                    ? ViewCropExtentSource.ActiveViewElements
+                    : ViewCropExtentSource.AllModelElements
             };
 
-            DialogResult = true;
-            Close();
+            return true;
+        }
+
+        private void OnRun(object sender, RoutedEventArgs e)
+        {
+            if (ValidateAndBuildSettings(false))
+            {
+                DialogResult = true;
+                Close();
+            }
+        }
+
+        private void OnDiagnosticsRun(object sender, RoutedEventArgs e)
+        {
+            if (ValidateAndBuildSettings(true))
+            {
+                DialogResult = true;
+                Close();
+            }
         }
 
         private void OnCancel(object sender, RoutedEventArgs e)
@@ -215,6 +258,26 @@ namespace AJTools.UI.ViewCrop
                 return;
 
             RunButton.Content = ActiveViewOnlyRadio.IsChecked == true ? "Run" : "Next";
+        }
+
+        private void OnTitleBarDrag(object sender, MouseButtonEventArgs e)
+        {
+            WindowChromeHelper.HandleTitleBarDrag(this, e);
+        }
+
+        private void OnMinimizeClick(object sender, RoutedEventArgs e)
+        {
+            WindowChromeHelper.Minimize(this);
+        }
+
+        private void OnMaximizeClick(object sender, RoutedEventArgs e)
+        {
+            WindowChromeHelper.ToggleMaximize(this, RootBorder);
+        }
+
+        private void OnCloseClick(object sender, RoutedEventArgs e)
+        {
+            OnCancel(sender, e);
         }
     }
 }

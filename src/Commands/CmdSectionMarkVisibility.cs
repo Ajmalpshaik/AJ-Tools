@@ -1,15 +1,40 @@
-// ==================================================
-// Tool Name    : Section Mark Visibility
-// Purpose      : External command entry and orchestration for Section Mark Visibility.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.0
-// Created      : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Section Mark Visibility
+ * File Name     : CmdSectionMarkVisibility.cs
+ * Purpose       : External command entry/orchestration — validates context, gathers settings
+ *                 and target views, runs the visibility service, and reports the result.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-05-24
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, WPF
+ *
+ * Input         : Tool Scope: Active View or user-selected plan views; sheet-number/mode settings
+ * Output        : Section markers hidden/unhidden in target views; summary report on skips/errors
+ *
+ * Notes         :
+ * - Single undo step (one transaction in the service).
+ * - ESC during any pick cancels silently.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-24) - Initial release.
+ * v1.2.0 (2026-06-30) - Cleanup pass: completing without error now returns Succeeded (no longer
+ *                       Failed when nothing to process); clear message when no sections exist;
+ *                       summary report shown on skips as well as errors; metadata block.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -134,13 +159,21 @@ namespace AJTools.Commands
                 }
                 catch { }
 
-                // Only display the summary dialog if there were errors
-                if (result.Errors != null && result.Errors.Count > 0)
+                bool hasErrors = result.Errors != null && result.Errors.Count > 0;
+
+                if (result.ProcessedCount == 0 && result.SkippedCount == 0 && !hasErrors)
                 {
+                    // Nothing to process (e.g. project has no section marks) — plain info, not a failure.
+                    DialogHelper.ShowInfo(ToolTitle, result.DiagnosticsReport);
+                }
+                else if (hasErrors || result.SkippedCount > 0)
+                {
+                    // Report counts whenever views were skipped or errors were encountered.
                     ShowSummaryReport(result);
                 }
 
-                return result.ProcessedCount > 0 ? Result.Succeeded : Result.Failed;
+                // Completing without an exception is success — even if there was nothing to change.
+                return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
@@ -239,17 +272,17 @@ namespace AJTools.Commands
                 CommonButtons = TaskDialogCommonButtons.Ok
             };
 
-            string content = $"Successfully processed {result.ProcessedCount} view(s).";
+            string content = $"Processed {result.ProcessedCount} view(s).";
             if (result.SkippedCount > 0)
             {
-                content += $"\nSkipped {result.SkippedCount} unsupported view(s).";
+                content += $"\nSkipped {result.SkippedCount} view(s) (unsupported or not editable).";
             }
 
             dialog.MainContent = content;
 
             if (result.Errors != null && result.Errors.Count > 0)
             {
-                dialog.ExpandedContent = "Errors encountered during execution:\n" + string.Join("\n", result.Errors);
+                dialog.ExpandedContent = "Details:\n" + string.Join("\n", result.Errors);
             }
 
             dialog.Show();

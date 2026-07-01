@@ -1,22 +1,29 @@
 <!--
 ==================================================
-Tool Name    : Apply Graphics
-Purpose      : Defines the WPF Apply Graphics settings window layout.
-Author       : Ajmal P.S.
-Company      : AJ Tools
-Version      : 1.4.6
-Created      : 2026-03-30
-Last Updated : 2026-05-10
-Target       : Revit 2020
-Framework    : .NET Framework 4.7.2
-Platform     : C# Revit Add-in
-Dependencies : Autodesk Revit API, WPF
-Input        : User graphics settings selections, apply mode choice, and selected categories.
-Output       : Structured settings window for the combined Apply Graphics workflow.
-Notes        : Normal success is silent; validation and critical errors are reported to the user.
-Changelog    : v1.4.6 - Compact tabbed layout with a visible custom close button and smaller startup size.
-License      : All Rights Reserved
-Repo         : AJ-Tools
+Tool Name     : Apply Graphics
+File Name     : GraphicsOverrideWindow.xaml
+Purpose       : Defines the WPF Apply Graphics settings window layout.
+
+Author        : Ajmal P.S.
+Version       : 1.5.0
+
+Created Date  : 2026-03-30
+Last Updated  : 2026-06-30
+
+Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+Platform      : C# Revit Add-in
+Dependencies  : Autodesk Revit API, WPF
+Input         : User graphics settings selections, apply mode choice, and selected categories.
+Output        : Structured settings window for the combined Apply Graphics workflow.
+Notes         : Targets Revit 2020 through latest; normal success is silent; errors are reported to the user.
+
+Changelog     :
+v1.5.0 (2026-06-30) - Header aligned to the suite metadata standard; code-behind hardened (single-undo Match, version-safe ids).
+v1.4.6 (2026-05-10) - Compact tabbed layout with a visible custom close button and smaller startup size.
+
+License       : All Rights Reserved
+Repo          : AJ-Tools
 ==================================================
 -->
 

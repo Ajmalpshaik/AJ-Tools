@@ -1,15 +1,35 @@
-// ==================================================
-// Tool Name    : Section Mark Visibility
-// Purpose      : Code-behind for main Section Mark Visibility options dialog.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.0
-// Created      : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Section Mark Visibility
+ * File Name     : SectionMarkVisibilityWindow.xaml.cs
+ * Purpose       : Code-behind for the main options dialog (run scope, sheet-number rows, modes).
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-05-24
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, WPF
+ *
+ * Input         : Previously saved settings
+ * Output        : Selected settings; settings persisted to disk
+ *
+ * Notes         :
+ * - Light code-behind only; no Revit model changes here.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-24) - Initial release.
+ * v1.2.0 (2026-06-30) - Cleanup pass: metadata block; aligned with service refactor.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;

@@ -1,10 +1,39 @@
-// Tool Name: Linked ID Viewer
-// Description: Displays the Element ID and model source for a picked element (host or linked).
-// Author: Ajmal P.S.
-// Version: 1.0.1
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Get Element ID from Selection (Linked ID Viewer)
+ * File Name     : CmdLinkedElementIdViewer.cs
+ * Purpose       : Lets the user pick one element - in the host model or a linked model - and shows its
+ *                 Element ID together with which model it came from.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-07
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.UI (LinkedIdViewerWindow), AJTools.Utils (ElementIdHelper)
+ *
+ * Input         : Selection - one picked element (host or linked). Read-only tool, no transaction.
+ * Output        : A window showing the Element ID and its model source.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - Read-only: reads linked-model data via the link instance, never modifies any element.
+ * - Esc during the pick cancels silently.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.1 (2025-12-10) - Host/linked pick fallback and clean link naming.
+ * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; version-safe ElementId display. Behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;
@@ -12,6 +41,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using AJTools.UI;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -81,7 +111,7 @@ namespace AJTools.Commands
                 }
 
                 var window = new LinkedIdViewerWindow(
-                    elementIdToShow.IntegerValue.ToString(),
+                    ElementIdHelper.ToReportString(elementIdToShow),
                     modelSource);
 
                 window.ShowDialog();

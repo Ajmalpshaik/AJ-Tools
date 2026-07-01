@@ -1,22 +1,37 @@
-// ==================================================
-// Tool Name    : Apply Graphics
-// Purpose      : Handles the Apply Graphics window behavior and input conversion.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.6
-// Created      : 2026-03-30
-// Last Updated : 2026-05-10
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : User graphics settings selections, apply mode choice, selected source categories, and category selections.
-// Output       : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
-// Notes        : Keeps Revit override construction outside the WPF UI layer.
-// Changelog    : v1.4.6 - Added compact tabbed UI sizing and custom title-bar close handling.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Apply Graphics
+ * File Name     : GraphicsOverrideWindow.xaml.cs
+ * Purpose       : Drives the Apply Graphics settings window and converts UI selections into Revit OverrideGraphicSettings.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-03-30
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, WPF
+ *
+ * Input         : User graphics settings selections, apply mode choice, and category selections.
+ * Output        : Selected Revit OverrideGraphicSettings and apply-mode data for command execution.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - Keeps Revit override construction outside the WPF UI layer (delegated to GraphicsOverrideBuilder).
+ * - Last-used settings are loaded on open and saved on apply.
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Removed unused constructor/initial-settings path; version-safe ElementId access; full metadata block.
+ * v1.4.6 (2026-05-10) - Added compact tabbed UI sizing and custom title-bar close handling.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -31,6 +46,7 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using AJTools.Models.GraphicsTools;
 using AJTools.Services.GraphicsTools;
+using AJTools.Utils;
 using Forms = System.Windows.Forms;
 using DrawingColor = System.Drawing.Color;
 using MediaColor = System.Windows.Media.Color;
@@ -148,18 +164,12 @@ namespace AJTools.UI.GraphicsTools
         private bool _isCutSettingsLinked;
         private CutOverrideState _manualCutState;
 
-        public GraphicsOverrideWindow(Document doc, string windowTitle, OverrideGraphicSettings initialSettings = null)
-            : this(doc, doc?.ActiveView, windowTitle, null, null, initialSettings)
-        {
-        }
-
         public GraphicsOverrideWindow(
             Document doc,
             View activeView,
             string windowTitle,
             ICollection<Category> availableCategories,
-            ICollection<ElementId> preselectedCategoryIds,
-            OverrideGraphicSettings initialSettings = null)
+            ICollection<ElementId> preselectedCategoryIds)
         {
             InitializeComponent();
             ApplyInitialWindowBounds();
@@ -173,20 +183,14 @@ namespace AJTools.UI.GraphicsTools
             _initialSelectedCategoryKeys = new HashSet<int>(
                 _categoryOptions
                     .Where(option => option.IsSelected)
-                    .Select(option => option.CategoryId.IntegerValue));
+                    .Select(option => ElementIdHelper.GetIntegerValue(option.CategoryId)));
 
             BindDropdownData(doc);
             PopulateColorPresetPanels();
             BindCategoryData();
 
-            GraphicsOverrideMemoryState memoryState = initialSettings == null
-                ? GraphicsOverrideMemoryService.Load()
-                : null;
-            if (initialSettings != null)
-            {
-                ApplySettings(initialSettings, inferCutLink: true);
-            }
-            else if (memoryState != null)
+            GraphicsOverrideMemoryState memoryState = GraphicsOverrideMemoryService.Load();
+            if (memoryState != null)
             {
                 ApplyMemorySettings(memoryState);
             }
@@ -485,8 +489,8 @@ namespace AJTools.UI.GraphicsTools
                 return;
             }
 
-            int targetId = (id ?? ElementId.InvalidElementId).IntegerValue;
-            GraphicsIdOption match = options.FirstOrDefault(option => option.Id.IntegerValue == targetId);
+            int targetId = ElementIdHelper.GetIntegerValue(id);
+            GraphicsIdOption match = options.FirstOrDefault(option => ElementIdHelper.GetIntegerValue(option.Id) == targetId);
             comboBox.SelectedItem = match ?? options.FirstOrDefault();
         }
 
@@ -509,7 +513,7 @@ namespace AJTools.UI.GraphicsTools
             {
                 match = optionList.FirstOrDefault(option =>
                     option.Id != null &&
-                    option.Id.IntegerValue == memoryValue.IntegerValue);
+                    ElementIdHelper.GetIntegerValue(option.Id) == memoryValue.IntegerValue);
 
                 if (match == null && !string.IsNullOrWhiteSpace(memoryValue.DisplayName))
                 {
@@ -685,7 +689,7 @@ namespace AJTools.UI.GraphicsTools
             for (int i = 0; i < _categoryOptions.Count; i++)
             {
                 GraphicsCategoryOption option = _categoryOptions[i];
-                option.IsSelected = _initialSelectedCategoryKeys.Contains(option.CategoryId.IntegerValue);
+                option.IsSelected = _initialSelectedCategoryKeys.Contains(ElementIdHelper.GetIntegerValue(option.CategoryId));
             }
 
             RefreshCategoryList();
@@ -720,7 +724,7 @@ namespace AJTools.UI.GraphicsTools
             {
                 GraphicsCategoryOption option = _categoryOptions[i];
                 bool isSelected =
-                    selectedIds.Contains(option.CategoryId.IntegerValue) ||
+                    selectedIds.Contains(ElementIdHelper.GetIntegerValue(option.CategoryId)) ||
                     selectedNames.Contains(option.DisplayName);
 
                 option.IsSelected = isSelected;
@@ -1018,8 +1022,8 @@ namespace AJTools.UI.GraphicsTools
 
         private static bool AreElementIdsEqual(ElementId first, ElementId second)
         {
-            int firstValue = (first ?? ElementId.InvalidElementId).IntegerValue;
-            int secondValue = (second ?? ElementId.InvalidElementId).IntegerValue;
+            int firstValue = ElementIdHelper.GetIntegerValue(first);
+            int secondValue = ElementIdHelper.GetIntegerValue(second);
             return firstValue == secondValue;
         }
 
@@ -1136,7 +1140,7 @@ namespace AJTools.UI.GraphicsTools
                 HasCategorySelection = true,
                 SelectedCategoryIntegerIds = _categoryOptions
                     .Where(option => option.IsSelected)
-                    .Select(option => option.CategoryId.IntegerValue)
+                    .Select(option => ElementIdHelper.GetIntegerValue(option.CategoryId))
                     .ToList(),
                 SelectedCategoryNames = _categoryOptions
                     .Where(option => option.IsSelected)
@@ -1184,7 +1188,7 @@ namespace AJTools.UI.GraphicsTools
 
             return new GraphicsIdMemoryValue
             {
-                IntegerValue = (selected.Id ?? ElementId.InvalidElementId).IntegerValue,
+                IntegerValue = ElementIdHelper.GetIntegerValue(selected.Id),
                 DisplayName = selected.DisplayName
             };
         }

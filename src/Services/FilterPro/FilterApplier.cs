@@ -1,10 +1,40 @@
-// Tool Name: Filter Pro - Filter Applier
-// Description: Applies parameter filters to views with graphic overrides and order management.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, System.Linq
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : FilterApplier.cs
+ * Purpose       : Applies parameter filters to views with graphic colour overrides, fill pattern
+ *                 assignment, halftone, and view-template protection checks.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, System.Linq
+ *
+ * Input         : Active View, FilterSelection (graphics options), ElementId of filter and solid fill pattern
+ * Output        : View filter graphics updated — colour, pattern, halftone, visibility
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - OverrideGraphicSettings surface/cut pattern API (SetSurfaceForegroundPatternId etc.) confirmed valid 2020-2026.
+ * - Read-only service — all model writes occur inside a Transaction managed by the caller.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using System.Linq;

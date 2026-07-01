@@ -1,10 +1,40 @@
-// Tool Name: Smart Connect Command
-// Description: Connects two same-category MEP elements using selected routing and angle settings.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-25
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.SmartConnect
+#region Metadata
+/*
+ * Tool Name     : Connect MEP Elements (Smart Connect)
+ * File Name     : SmartConnectCommand.cs
+ * Purpose       : Connects two same-category MEP elements (Pipe, Duct, or Cable Tray) with a routed run
+ *                 using the routing mode and bend angle chosen in the Smart Connect window.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-03-25
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Services.SmartConnect, AJTools.UI, AJTools.Utils
+ *
+ * Input         : Active project - routing settings from the window, then two same-category MEP elements
+ *                 picked per connection (Esc to finish).
+ * Output        : A connecting run built between each pair; each connection commits on its own.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Project-only tool; validates an editable, non-family document before picking.
+ * - Esc during a pick ends the session silently; an invalid pair shows the reason and lets the user retry.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-03-25) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Connect behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;

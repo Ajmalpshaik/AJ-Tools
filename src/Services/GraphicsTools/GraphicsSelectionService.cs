@@ -1,22 +1,37 @@
-// ==================================================
-// Tool Name    : Apply Graphics
-// Purpose      : Captures Apply Graphics selections and shared command execution context.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.4
-// Created      : 2026-03-30
-// Last Updated : 2026-05-09
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Active Revit UI document and user selections.
-// Output       : Validated command context and selected element ids.
-// Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.4 - Added active-view graphics override validation for all Graphics commands.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Graphics Tools (shared)
+ * File Name     : GraphicsSelectionService.cs
+ * Purpose       : Shared command context creation, single-transaction execution, and preselection-first selection capture for all Graphics tools.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-03-30
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active Revit UI document and user selections.
+ * Output        : Validated command context and distinct selected element ids.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - Validates active view, editable document, and that graphics overrides are allowed before any command runs.
+ * - ESC during a pick is caught and reported as a silent cancel.
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
+ * v1.4.4 (2026-05-09) - Added active-view graphics override validation for all Graphics commands.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -267,7 +282,7 @@ namespace AJTools.Services.GraphicsTools
             {
                 if (id != null && id != ElementId.InvalidElementId)
                 {
-                    set.Add(id.IntegerValue);
+                    set.Add(ElementIdHelper.GetIntegerValue(id));
                 }
             }
 
@@ -295,7 +310,7 @@ namespace AJTools.Services.GraphicsTools
                     continue;
                 }
 
-                int key = id.IntegerValue;
+                int key = ElementIdHelper.GetIntegerValue(id);
                 if (excluded != null && excluded.Contains(key))
                 {
                     continue;

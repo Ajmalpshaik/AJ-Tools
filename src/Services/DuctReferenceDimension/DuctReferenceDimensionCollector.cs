@@ -172,10 +172,9 @@ namespace AJTools.Services.DuctReferenceDimension
             ISet<ElementId> ignoredDuctIds,
             IDictionary<int, Element> elementsById)
         {
-            IList<Element> ducts = new FilteredElementCollector(doc, view.Id)
+            IEnumerable<Element> ducts = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(BuiltInCategory.OST_DuctCurves)
-                .WhereElementIsNotElementType()
-                .ToElements();
+                .WhereElementIsNotElementType();
 
             foreach (Element duct in ducts)
             {
@@ -203,10 +202,9 @@ namespace AJTools.Services.DuctReferenceDimension
             DuctDimensionAxis axis,
             IDictionary<int, Element> elementsById)
         {
-            IList<Element> elements = new FilteredElementCollector(doc, view.Id)
+            IEnumerable<Element> elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(category)
-                .WhereElementIsNotElementType()
-                .ToElements();
+                .WhereElementIsNotElementType();
 
             foreach (Element element in elements)
             {

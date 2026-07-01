@@ -1,22 +1,56 @@
-// ==================================================
-// Tool Name    : AJ Tools Assembly Metadata
-// Purpose      : Defines assembly-level metadata and version information for the AJ Tools add-in.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.5.0
-// Created      : 2025-12-10
-// Last Updated : 2026-05-30
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : System.Reflection, System.Runtime.InteropServices
-// Input        : Assembly build metadata.
-// Output       : Versioned AJ Tools assembly attributes.
-// Notes        : Keep this version aligned with release tags and installer package versions.
-// Changelog    : v1.5.0 - Added Filter Pro Search and Sort capabilities.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : AJ Tools Assembly Metadata
+ * File Name     : AssemblyInfo.cs
+ * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.8.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : System.Reflection, System.Runtime.InteropServices
+ *
+ * Input         : Build metadata.
+ * Output        : Versioned AJ Tools assembly attributes.
+ *
+ * Notes         :
+ * - Suite version is independent of each tool's own version (tracked in its source file metadata).
+ * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
+ *
+ * Changelog     :
+ * v1.8.0 (2026-07-01) - Full project audit pass: added Pipe Sizing tool (MEP panel) with its own metadata,
+ *                       report, and CSV export; hardened the AJ AI shell with GeneratedCodeSafetyValidator
+ *                       (blocks process/registry/network/reflection/file-delete calls, flags destructive
+ *                       Revit ops for confirmation), AiShellActivityLogger, and AiShellConstants; wired the
+ *                       previously-unused CmdPurgeUnusedFamilyParametersAvailability into its ribbon button
+ *                       so Purge Family Parameters is only enabled in the Family Editor; fixed the About
+ *                       panel's inconsistent "Aj tool" label; removed 8 orphaned icon resources and a
+ *                       stray local dev script/screenshot from src. All existing tool behaviour unchanged.
+ * v1.7.0 (2026-07-01) - AJ Annotation tab refactor/audit: full metadata blocks across every Dimensions,
+ *                       Auto Duct Dimension, Tags, Duct Flow, Revision Cloud, and Text tool; single-undo
+ *                       grouping for Copy Dimension Text, Copy Text, and continuous Revision Clouds; About
+ *                       and both ribbon-builder files standardized. All tool behaviour unchanged.
+ * v1.6.0 (2026-07-01) - Modify / MEP / Coordination / Data / Manage / Family panels refactor/audit: full
+ *                       metadata blocks across every tool in these panels; Match Elevation now a single
+ *                       undo step; Reassign Level gains a Full-Project bulk-edit confirmation; version-safe
+ *                       ElementId access (Linked ID Viewer, Reassign Level); Duct Standards no-document
+ *                       path cancels cleanly with a project guard; removed loose scratch scripts from src.
+ *                       All tool behaviour unchanged.
+ * v1.5.4 (2026-06-30) - Datums panel refactor/audit: full metadata blocks across all datum tools, removed success popups (silent success), single-undo batch for window-select Flip Bubbles, Family-Editor guards, and de-duplicated reset logic. Datum behaviour unchanged.
+ * v1.5.3 (2026-06-30) - Graphics panel refactor/audit: single-undo TransactionGroup for both Match tools, view-scoped Reset Element Graphics in View, full metadata blocks, and 2024+ ElementId readiness. Graphics behaviour unchanged.
+ * v1.5.2 (2026-06-27) - View Crop tool refactor/audit pass: shared helpers, bulk-edit confirmation, ElementId helper for 2024+ readiness. Behaviour of View Crop unchanged.
+ * v1.5.0 (2026-05-30) - Added Filter Pro Search and Sort capabilities.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -48,5 +82,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.5.1.0")]
-[assembly: AssemblyFileVersion("1.5.1.0")]
+[assembly: AssemblyVersion("1.8.0.0")]
+[assembly: AssemblyFileVersion("1.8.0.0")]

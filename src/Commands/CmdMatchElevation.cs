@@ -1,10 +1,43 @@
-// Tool Name: Match Elevation
-// Description: Matches center, top, or bottom elevation from a source MEP element to target elements.
-// Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2026-04-11
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Match MEP Element Elevation
+ * File Name     : CmdMatchElevation.cs
+ * Purpose       : Matches center, top, or bottom elevation from one picked source MEP element to one or
+ *                 more picked target elements, moving each target vertically only (X/Y unchanged).
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-03-20
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (MepSelectionFilter, DialogHelper)
+ *
+ * Input         : Active document - one source MEP element, then target MEP elements picked one-by-one (Esc to finish).
+ * Output        : Target elements shifted in Z so their center/top/bottom elevation matches the source (single undo step).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; only the location curve is translated in Z, so curve type
+ *   (line, arc, spline) and slope are preserved.
+ * - The whole pick session is wrapped in one TransactionGroup and assimilated, so a single Ctrl+Z
+ *   reverses every matched target.
+ * - Esc during a pick is a normal cancel (handled silently); a target that cannot be moved (e.g. pinned
+ *   or owned by another user) is skipped without aborting the session.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-04-11) - Added top/bottom match modes sharing one base command.
+ * v1.2.0 (2026-07-01) - Refactor/audit: full metadata block; whole pick session now assimilated into a
+ *                       single undo step; per-target skip on failure. Match behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;
@@ -95,57 +128,72 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                // 2) Pick TARGETS in a loop until user cancels
+                // 2) Pick TARGETS in a loop until user cancels. The whole session is grouped so a
+                //    single Ctrl+Z reverses every matched target.
                 int updatedCount = 0;
-                while (true)
+                using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
-                    Reference targetRef;
-                    try
-                    {
-                        targetRef = uidoc.Selection.PickObject(
-                            ObjectType.Element,
-                            filter,
-                            $"Select TARGET element to match {modeLower} elevation (ESC to finish)");
-                    }
-                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                    {
-                        break; // user pressed ESC to finish applying
-                    }
+                    group.Start();
 
-                    Element targetElem = doc.GetElement(targetRef);
-                    if (targetElem == null)
+                    while (true)
                     {
-                        continue;
-                    }
-
-                    using (Transaction t = new Transaction(doc, title))
-                    {
+                        Reference targetRef;
                         try
                         {
-                            t.Start();
-
-                            bool changed = SetTargetReferenceElevation(
-                                targetElem,
-                                sourceReferenceElevation.Value,
-                                MatchMode);
-                            if (changed)
-                            {
-                                t.Commit();
-                                updatedCount++;
-                            }
-                            else
-                            {
-                                t.RollBack();
-                            }
+                            targetRef = uidoc.Selection.PickObject(
+                                ObjectType.Element,
+                                filter,
+                                $"Select TARGET element to match {modeLower} elevation (ESC to finish)");
                         }
-                        catch (Exception)
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
-                            if (t.HasStarted() && !t.HasEnded())
-                            {
-                                t.RollBack();
-                            }
-                            // Continue to next element on error.
+                            break; // user pressed ESC to finish applying
                         }
+
+                        Element targetElem = doc.GetElement(targetRef);
+                        if (targetElem == null)
+                        {
+                            continue;
+                        }
+
+                        using (Transaction t = new Transaction(doc, title))
+                        {
+                            try
+                            {
+                                t.Start();
+
+                                bool changed = SetTargetReferenceElevation(
+                                    targetElem,
+                                    sourceReferenceElevation.Value,
+                                    MatchMode);
+                                if (changed)
+                                {
+                                    t.Commit();
+                                    updatedCount++;
+                                }
+                                else
+                                {
+                                    t.RollBack();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                if (t.HasStarted() && !t.HasEnded())
+                                {
+                                    t.RollBack();
+                                }
+                                // Skip a target that cannot be moved; keep matching the rest.
+                            }
+                        }
+                    }
+
+                    if (updatedCount > 0)
+                    {
+                        group.Assimilate();
+                    }
+                    else
+                    {
+                        group.RollBack();
                     }
                 }
 

@@ -1,8 +1,39 @@
-// Tool Name: Smart MEP Tag Settings Command
-// Description: Opens settings to configure Smart MEP Tag category selection.
-// Author: Ajmal P.S.
-// Version: 1.2.0
-// Revit Version: 2020
+#region Metadata
+/*
+ * Tool Name     : Smart MEP Tagging Settings
+ * File Name     : CmdSmartMepTagSettings.cs
+ * Purpose       : Settings dialog to enable/disable and prioritise the MEP categories that Smart MEP Tags
+ *                 will process, showing each category's element count in the model.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.3.0
+ *
+ * Created Date  : 2026-04-20
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Models.SmartTag, AJTools.Services.SmartTag, AJTools.Utils,
+ *                 System.Windows.Forms
+ *
+ * Input         : Active project - category enable/priority chosen in the dialog.
+ * Output        : Saved Smart MEP Tag settings (read-only to the Revit model; no transaction).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. Settings-only tool; reads category counts but does not modify the model.
+ * - Cancel closes silently.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.2.0 (2026-04-20) - Category enable/priority grid with model counts.
+ * v1.3.0 (2026-07-01) - Refactor/audit: added full metadata block. Settings behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;

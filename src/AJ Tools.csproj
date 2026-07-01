@@ -85,6 +85,9 @@
     <Compile Include="Commands\CmdMaximizeLevelsBySectionBox.cs" />
     <Compile Include="Commands\CmdFilterPro.cs" />
     <Compile Include="Commands\CmdFilterProAvailability.cs" />
+    <Compile Include="Commands\CmdGraphicalViewAvailability.cs" />
+    <Compile Include="Commands\CmdPlanViewAvailability.cs" />
+    <Compile Include="Commands\CmdRevitLinkToggleAvailability.cs" />
     <Compile Include="Commands\CmdFlipGridBubble.cs" />
     <Compile Include="Commands\CmdForceTagLeaderLShape.cs" />
     <Compile Include="Commands\CmdFlowDirectionAnnotations.cs" />
@@ -95,6 +98,7 @@
     <Compile Include="Commands\CmdLinkedElementSearch.cs" />
     <Compile Include="Commands\CmdLocationDataAssigner.cs" />
     <Compile Include="Commands\CmdPinElements.cs" />
+    <Compile Include="Commands\CmdPipeSizing.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
     <Compile Include="Commands\CmdReassignLevel.cs" />
     <Compile Include="Commands\CmdTransferViewTemplates.cs" />
@@ -133,6 +137,10 @@
     <Compile Include="Models\PinTools\PinTargetGroup.cs" />
     <Compile Include="Models\PinTools\PinCategoryItem.cs" />
     <Compile Include="Models\PinTools\PinOperationSummary.cs" />
+    <Compile Include="Models\PipeSizing\PipeFixtureData.cs" />
+    <Compile Include="Models\PipeSizing\PipeSizeOption.cs" />
+    <Compile Include="Models\PipeSizing\PipeSizingResult.cs" />
+    <Compile Include="Models\PipeSizing\PipeSizingState.cs" />
     <Compile Include="Models\ResetDatumMode.cs" />
     <Compile Include="Models\RuleTypeItem.cs" />
     <Compile Include="Models\RuleTypes.cs" />
@@ -188,12 +196,18 @@
     <Compile Include="Services\FlowDirection\FlowDirectionAnnotationService.cs" />
     <Compile Include="Services\FlowDirection\FlowDirectionSettingsTracker.cs" />
     <Compile Include="Services\PinTools\PinElementsService.cs" />
+    <Compile Include="Services\PipeSizing\PipeSizingCalculator.cs" />
+    <Compile Include="Services\PipeSizing\PipeSizingCsvExporter.cs" />
+    <Compile Include="Services\PipeSizing\PipeSizingData.cs" />
+    <Compile Include="Services\PipeSizing\PipeSizingStateService.cs" />
+    <Compile Include="Services\ViewCrop\SettingsTrackerBase.cs" />
     <Compile Include="Services\ViewCrop\ViewCropAnnotationCommandService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropAnnotationService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropAnnotationSettingsTracker.cs" />
     <Compile Include="Services\ViewCrop\ViewCropCommandService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropExtentsService.cs" />
     <Compile Include="Services\ViewCrop\ViewCropGeometryProjectionHelper.cs" />
+    <Compile Include="Services\ViewCrop\ViewCropReportPresenter.cs" />
     <Compile Include="Services\ViewCrop\ViewCropSettingsTracker.cs" />
     <Compile Include="Services\ViewCrop\ViewCropTargetViewCollector.cs" />
     <Compile Include="Services\ViewCrop\ViewCropViewSupport.cs" />
@@ -223,6 +237,8 @@
     <Compile Include="GeminiShell\Commands\ShowGeminiShellCommand.cs" />
     <Compile Include="GeminiShell\Configuration\GeminiShellConfig.cs" />
     <Compile Include="GeminiShell\DockablePane\GeminiShellPaneProvider.cs" />
+    <Compile Include="GeminiShell\Helpers\AiShellActivityLogger.cs" />
+    <Compile Include="GeminiShell\Helpers\AiShellConstants.cs" />
     <Compile Include="GeminiShell\Helpers\CodeExtractionHelper.cs" />
     <Compile Include="GeminiShell\Helpers\Converters.cs" />
     <Compile Include="GeminiShell\Helpers\LoopProtectionRewriter.cs" />
@@ -233,6 +249,7 @@
     <Compile Include="GeminiShell\Models\RevitScriptGlobals.cs" />
     <Compile Include="GeminiShell\Services\ErrorCorrectionService.cs" />
     <Compile Include="GeminiShell\Services\GeminiApiService.cs" />
+    <Compile Include="GeminiShell\Services\GeneratedCodeSafetyValidator.cs" />
     <Compile Include="GeminiShell\Services\IAiProviderService.cs" />
     <Compile Include="GeminiShell\Services\OpenAiApiService.cs" />
     <Compile Include="GeminiShell\Services\RevitContextExtractionService.cs" />
@@ -262,6 +279,9 @@
     </Compile>
     <Compile Include="UI\PinElementsWindow.xaml.cs">
       <DependentUpon>PinElementsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\PipeSizing\PipeSizingWindow.xaml.cs">
+      <DependentUpon>PipeSizingWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\TransferViewTemplatesWindow.xaml.cs">
       <DependentUpon>TransferViewTemplatesWindow.xaml</DependentUpon>
@@ -299,6 +319,7 @@
 
     <Compile Include="Helpers\Constants.cs" />
     <Compile Include="Helpers\DialogHelper.cs" />
+    <Compile Include="Helpers\ElementIdHelper.cs" />
     <Compile Include="Helpers\ElementIdIntegerComparer.cs" />
     <Compile Include="Helpers\GeometryExtensions.cs" />
     <Compile Include="Helpers\IconLoader.cs" />
@@ -311,6 +332,7 @@
     <Compile Include="Helpers\SmartConnectSelectionFilter.cs" />
     <Compile Include="Helpers\TransactionHelper.cs" />
     <Compile Include="Helpers\ValidationHelper.cs" />
+    <Compile Include="Helpers\WindowChromeHelper.cs" />
     <Compile Include="Commands\CmdRevisionCloudByElements.cs" />
     <Compile Include="Commands\CmdRevisionCloudByElementsSettings.cs" />
     <Compile Include="Commands\CmdDuctStandardsManager.cs" />
@@ -392,6 +414,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\PinElementsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\PipeSizing\PipeSizingWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

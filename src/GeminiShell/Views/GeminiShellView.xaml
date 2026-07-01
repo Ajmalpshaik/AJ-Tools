@@ -11,6 +11,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <localHelpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+        <localHelpers:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
     </UserControl.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
@@ -26,8 +27,10 @@
 
         <!-- Top Bar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="⚙ Settings" Command="{Binding ToggleSettingsCommand}" 
+            <Button Content="⚙ Settings" Command="{Binding ToggleSettingsCommand}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                     Padding="10,5" Background="#333" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <TextBlock Text="{Binding ProviderStatusText}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#8AB4F8" FontSize="11"/>
             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#AAAAAA"/>
             <ProgressBar IsIndeterminate="True" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" Width="50" Height="5" Margin="10,0,0,0"/>
         </StackPanel>
@@ -89,7 +92,8 @@
         </GroupBox>
 
         <!-- Generate -->
-        <Button Grid.Row="3" Content="Generate C# Code" Command="{Binding GenerateCodeCommand}" 
+        <Button Grid.Row="3" Content="Generate C# Code" Command="{Binding GenerateCodeCommand}"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                 Margin="0,5,0,5" Padding="0,8" Background="#0F9D58" Foreground="White" BorderThickness="0" FontWeight="Bold" Cursor="Hand"/>
 
         <!-- Code Editor -->
@@ -107,15 +111,19 @@
         <!-- Execution Controls & Progress -->
         <StackPanel Grid.Row="5" Margin="0,5,0,5">
             <StackPanel Orientation="Horizontal">
-                <Button Content="▶ Run Code" Command="{Binding RunCodeCommand}" 
+                <Button Content="▶ Run Code" Command="{Binding RunCodeCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                         Width="100" Padding="0,5" Background="#DB4437" Foreground="White" BorderThickness="0" FontWeight="Bold" Cursor="Hand"/>
-                <Button Content="Review Code" Command="{Binding ReviewCodeCommand}" 
+                <Button Content="Review Code" Command="{Binding ReviewCodeCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                         Width="100" Padding="0,5" Margin="10,0,0,0" Background="#333" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                <Button Content="🧹 Format Code" Command="{Binding FormatCodeCommand}" 
+                <Button Content="🧹 Format Code" Command="{Binding FormatCodeCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                         Width="100" Padding="0,5" Margin="10,0,0,0" Background="#9B59B6" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                <Button Content="💾 Save Script" Command="{Binding SaveScriptCommand}" 
+                <Button Content="💾 Save Script" Command="{Binding SaveScriptCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                         Width="100" Padding="0,5" Margin="10,0,0,0" Background="#007ACC" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                <Button Content="⏹ Stop" Command="{Binding StopCommand}" 
+                <Button Content="⏹ Stop" Command="{Binding StopCommand}"
                         Width="80" Padding="0,5" Margin="10,0,0,0" Background="#F4B400" Foreground="Black" BorderThickness="0" FontWeight="Bold" Cursor="Hand"
                         Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
             </StackPanel>
@@ -143,10 +151,11 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding DisplayName}" Foreground="#DCDCDC" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="{Binding Prompt}"/>
-                                <Button Grid.Column="1" Content="▶ Run" 
-                                        Command="{Binding DataContext.RunFromHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                <TextBlock Text="{Binding DisplayName}" Foreground="#DCDCDC" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="{Binding ToolTipText}"/>
+                                <Button Grid.Column="1" Content="▶ Run"
+                                        Command="{Binding DataContext.RunFromHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                         CommandParameter="{Binding}"
+                                        IsEnabled="{Binding DataContext.IsBusy, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"
                                         Margin="5,0,0,0" Padding="5,2" Background="#0F9D58" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                             </Grid>
                         </Border>

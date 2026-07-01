@@ -1,11 +1,35 @@
-// Tool Name: View Crop - Settings Configuration Store
-// Description: Persists all user settings for the View Crop and integrated Annotation Crop tool on disk.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-05-24
-// Target: Revit 2020
-// Dependencies: System, System.IO, System.Globalization
-
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropConfigStore.cs
+ * Purpose       : Persists View Crop and integrated annotation settings on disk.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-05-24
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : System.IO, System.Globalization
+ *
+ * Input         : ViewCropSettings (Save) or none (Load).
+ * Output        : Loaded ViewCropSettings or persisted text file.
+ *
+ * Notes         :
+ * - File location: %APPDATA%\AJTools\ViewCrop.config (key=value lines, InvariantCulture).
+ * - Read and write failures are swallowed - settings revert to defaults rather than crashing the tool.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Metadata refresh to skill standard.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Globalization;
 using System.IO;

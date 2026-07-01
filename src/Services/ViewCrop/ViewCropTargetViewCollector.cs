@@ -1,27 +1,42 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Collects and groups selectable project views for batch crop processing.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-08
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
-using System;
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropTargetViewCollector.cs
+ * Purpose       : Collects project views for the View Crop target-view picker and maps each to its sheet.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active Revit document, optional pre-selected view ElementId.
+ * Output        : List of ViewCropTargetViewItem with sheet context and support status.
+ *
+ * Notes         :
+ * - Templates, browsers, sheets, internal views, and drafting sheets are filtered out.
+ * - Each view is marked CanSelect=true only when ViewCropViewSupport approves the type.
+ * - ElementId numeric value access via ElementIdHelper (Revit 2024+ deprecated IntegerValue).
+ *
+ * Changelog     :
+ * v1.2.0 (2026-06-28) - Collect only supported plan views (hide unsupported types from the picker).
+ * v1.1.0 (2026-06-27) - Refactor/audit pass: ElementIdHelper, metadata, version coverage notes.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.ViewCrop;
+using AJTools.Utils;
 
 namespace AJTools.Services.ViewCrop
 {
@@ -42,14 +57,16 @@ namespace AJTools.Services.ViewCrop
                 return new List<ViewCropTargetViewItem>();
 
             Dictionary<int, SheetInfo> sheetMap = BuildSheetMap(doc);
+            int preselectKey = preselectViewId != null
+                ? ElementIdHelper.GetIntegerValue(preselectViewId)
+                : ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
 
+            // Only collect views the tool can actually crop (Floor / Ceiling / Engineering / Area plans).
+            // Unsupported types (3D, section, elevation, sheets, legends, schedules, etc.) are not listed.
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(v => v != null && !v.IsTemplate && v.ViewType != ViewType.Internal)
-                .Where(v => v.ViewType != ViewType.ProjectBrowser && v.ViewType != ViewType.SystemBrowser)
-                .Where(v => v.ViewType != ViewType.Undefined)
-                .Where(v => v.ViewType != ViewType.DrawingSheet)
+                .Where(v => v != null && !v.IsTemplate && ViewCropViewSupport.IsSupportedViewType(v.ViewType))
                 .OrderBy(v => ViewCropViewSupport.ToFriendlyTypeName(v.ViewType))
                 .ThenBy(v => v.Name)
                 .ToList();
@@ -58,12 +75,13 @@ namespace AJTools.Services.ViewCrop
             foreach (View view in views)
             {
                 bool isSupported = ViewCropViewSupport.TryValidateType(view, out string reason);
+                int viewKey = ElementIdHelper.GetIntegerValue(view.Id);
 
                 string groupName = "Unplaced Views";
                 string sheetNumber = string.Empty;
                 string sheetName = string.Empty;
 
-                if (sheetMap.TryGetValue(view.Id.IntegerValue, out SheetInfo sheet))
+                if (sheetMap.TryGetValue(viewKey, out SheetInfo sheet))
                 {
                     sheetNumber = sheet.Number;
                     sheetName = sheet.Name;
@@ -80,7 +98,7 @@ namespace AJTools.Services.ViewCrop
                     GroupName = groupName,
                     CanSelect = isSupported,
                     SupportMessage = isSupported ? "Supported" : reason,
-                    IsSelected = isSupported && preselectViewId != null && preselectViewId.IntegerValue == view.Id.IntegerValue
+                    IsSelected = isSupported && ElementIdHelper.IsValid(preselectViewId) && preselectKey == viewKey
                 });
             }
 
@@ -112,7 +130,7 @@ namespace AJTools.Services.ViewCrop
                     if (viewport == null || viewport.ViewId == null)
                         continue;
 
-                    int viewInt = viewport.ViewId.IntegerValue;
+                    int viewInt = ElementIdHelper.GetIntegerValue(viewport.ViewId);
                     if (!map.ContainsKey(viewInt))
                     {
                         map.Add(viewInt, sheetInfo);
