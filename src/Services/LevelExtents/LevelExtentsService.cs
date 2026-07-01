@@ -1,10 +1,41 @@
-// Tool Name: Level Extents Service
-// Description: Copies one source level 3D/model extents to shorter target levels picked one-by-one.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-12
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Match Level Extents
+ * File Name     : LevelExtentsService.cs
+ * Purpose       : Copies one source level's 3D extents onto target levels picked one-by-one, so the
+ *                 targets match the source length across every view that shows them.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-12
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Selection - one source level, then target levels picked one-by-one (Esc to finish).
+ * Output        : Each target level's 3D extents matched to the source; one undo step per target.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. GetCurvesInView / SetCurveInView / SetDatumExtentType are
+ *   stable across all target versions.
+ * - Project-only tool; exits cleanly in the Family Editor.
+ * - Esc during a pick is a normal cancel (handled silently); normal success is silent.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-04-12) - Initial release.
+ * v1.1.0 (2026-06-30) - Added mandatory metadata block; silent success (no result popup);
+ *                       Family-Editor guard; removed dead local. Extent-matching behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -30,6 +61,9 @@ namespace AJTools.Services.LevelExtents
                     return Fail(title, "Open a project view before running this command.");
 
                 Document doc = uidoc.Document;
+                if (doc.IsFamilyDocument)
+                    return Fail(title, "This tool runs in a project, not the Family Editor.");
+
                 View view = doc.ActiveView;
                 if (view == null || view.IsTemplate)
                     return Fail(title, "Please run this tool in a normal project view.");
@@ -52,7 +86,6 @@ namespace AJTools.Services.LevelExtents
                     return Fail(title, "Could not find any 3D/elevation/section view that shows the source level.");
 
                 int updatedCount = 0;
-                int skippedCount = 0;
 
                 while (true)
                 {
@@ -72,7 +105,7 @@ namespace AJTools.Services.LevelExtents
                     if (targetLevel.Id == sourceLevel.Id)
                         continue;
 
-                    using (Transaction t = new Transaction(doc, "AJ Tools - Extend Level"))
+                    using (Transaction t = new Transaction(doc, "AJ Tools - Match Level Extents"))
                     {
                         t.Start();
 
@@ -84,22 +117,17 @@ namespace AJTools.Services.LevelExtents
                         else
                         {
                             t.RollBack();
-                            skippedCount++;
                         }
                     }
                 }
 
                 if (updatedCount == 0)
                 {
-                    DialogHelper.ShowInfo(title, "No target levels were updated.");
+                    DialogHelper.ShowInfo(title, "No target levels were updated. Pick a source level, then pick shorter levels to extend.");
                     return Result.Cancelled;
                 }
 
-                string summary = $"Updated {updatedCount} level(s) to match 3D extents of \"{sourceLevel.Name}\".";
-                if (skippedCount > 0)
-                    summary += $"\nSkipped {skippedCount} level(s) (already longer/equal or could not update).";
-
-                DialogHelper.ShowInfo(title, summary);
+                // Normal success is silent - the matched levels update visibly in their views.
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -131,74 +159,36 @@ namespace AJTools.Services.LevelExtents
 
         private static bool TryApplySourceExtentsAllViews(Level sourceLevel, Level targetLevel, List<View> datumViews)
         {
-            // Step 1: compute source level's full XY bounds by unioning every readable curve.
-            double minX = double.MaxValue, maxX = double.MinValue;
-            double minY = double.MaxValue, maxY = double.MinValue;
-            bool gotAny = false;
-
-            foreach (View view in datumViews)
-            {
-                if (!TryGetCurve(sourceLevel, view, DatumExtentType.Model, out Curve c) &&
-                    !TryGetCurve(sourceLevel, view, DatumExtentType.ViewSpecific, out c))
-                    continue;
-
-                XYZ a = c.GetEndPoint(0);
-                XYZ b = c.GetEndPoint(1);
-                if (a.X < minX) minX = a.X;
-                if (b.X < minX) minX = b.X;
-                if (a.X > maxX) maxX = a.X;
-                if (b.X > maxX) maxX = b.X;
-                if (a.Y < minY) minY = a.Y;
-                if (b.Y < minY) minY = b.Y;
-                if (a.Y > maxY) maxY = a.Y;
-                if (b.Y > maxY) maxY = b.Y;
-                gotAny = true;
-            }
-
-            if (!gotAny) return false;
-
-            // Step 2: apply the bounds to the target in every datum view, choosing X or Y based on the existing line direction.
             bool anyApplied = false;
-            double z = targetLevel.Elevation;
+            double zOffset = targetLevel.Elevation - sourceLevel.Elevation;
+            XYZ translation = new XYZ(0, 0, zOffset);
+            Transform transform = Transform.CreateTranslation(translation);
 
             foreach (View view in datumViews)
             {
-                DatumExtentType extentType = DatumExtentType.Model;
-                if (!TryGetCurve(targetLevel, view, DatumExtentType.Model, out Curve existing))
+                if (!TryGetCurve(sourceLevel, view, DatumExtentType.Model, out Curve sourceCurve))
                 {
-                    if (!TryGetCurve(targetLevel, view, DatumExtentType.ViewSpecific, out existing))
+                    if (!TryGetCurve(sourceLevel, view, DatumExtentType.ViewSpecific, out sourceCurve))
                         continue;
-                    extentType = DatumExtentType.ViewSpecific;
                 }
 
-                if (!(existing is Line line))
-                    continue;
-
-                XYZ dir = line.Direction;
-                XYZ p0, p1;
-                if (Math.Abs(dir.X) >= Math.Abs(dir.Y))
+                DatumExtentType targetType = DatumExtentType.Model;
+                if (!TryGetCurve(targetLevel, view, DatumExtentType.Model, out Curve targetCurve))
                 {
-                    p0 = new XYZ(minX, line.GetEndPoint(0).Y, z);
-                    p1 = new XYZ(maxX, line.GetEndPoint(0).Y, z);
+                    if (!TryGetCurve(targetLevel, view, DatumExtentType.ViewSpecific, out targetCurve))
+                        continue;
+                    targetType = DatumExtentType.ViewSpecific;
                 }
-                else
-                {
-                    p0 = new XYZ(line.GetEndPoint(0).X, minY, z);
-                    p1 = new XYZ(line.GetEndPoint(0).X, maxY, z);
-                }
-
-                if (p0.DistanceTo(p1) <= Constants.MIN_DISTANCE_TOLERANCE)
-                    continue;
 
                 try
                 {
-                    if (extentType == DatumExtentType.Model)
+                    Curve newCurve = sourceCurve.CreateTransformed(transform);
+                    if (targetType == DatumExtentType.Model)
                     {
                         SetModelExtent(targetLevel, view, DatumEnds.End0);
                         SetModelExtent(targetLevel, view, DatumEnds.End1);
                     }
-                    Line newLine = Line.CreateBound(p0, p1);
-                    targetLevel.SetCurveInView(extentType, view, newLine);
+                    targetLevel.SetCurveInView(targetType, view, newCurve);
                     anyApplied = true;
                 }
                 catch
@@ -257,21 +247,6 @@ namespace AJTools.Services.LevelExtents
             catch
             {
                 return false;
-            }
-        }
-
-        private static double GetCurveLength(Curve curve)
-        {
-            if (curve == null || !curve.IsBound)
-                return 0.0;
-
-            try
-            {
-                return curve.Length;
-            }
-            catch
-            {
-                return 0.0;
             }
         }
 

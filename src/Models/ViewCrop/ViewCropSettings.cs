@@ -1,22 +1,38 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Stores crop margin and element inclusion options for View Crop.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.2
-// Created      : 2026-04-08
-// Last Updated : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.2 - Premium settings memory and coordination models tracking.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropSettings.cs
+ * Purpose       : Stores crop margin and element-inclusion options for View Crop.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-28
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : None (uses Constants for unit conversion)
+ *
+ * Input         : User-set values via WPF options window.
+ * Output        : ViewCropSettings instance, plus MarginInternal in Revit feet.
+ *
+ * Notes         :
+ * - Default margin: 300 mm.
+ * - Default annotation offset: 100 mm.
+ * - Clone() returns a fully independent copy.
+ *
+ * Changelog     :
+ * v1.2.0 (2026-06-28) - Added ExtentSource property so the mode (visible/all-model) is stored per document.
+ * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
+ * v1.0.2 (2026-05-24) - Premium settings memory and coordination models tracking.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using AJTools.Utils;
 
 namespace AJTools.Models.ViewCrop
@@ -46,6 +62,8 @@ namespace AJTools.Models.ViewCrop
 
         internal bool IncludeCoordinationModels { get; set; } = false;
 
+        internal ViewCropExtentSource ExtentSource { get; set; } = ViewCropExtentSource.AllModelElements;
+
         internal double MarginInternal => MarginMm * Constants.MM_TO_FEET;
 
         internal ViewCropSettings Clone()
@@ -60,7 +78,8 @@ namespace AJTools.Models.ViewCrop
                 ApplyAnnotationCrop = ApplyAnnotationCrop,
                 AnnotationOffsetMm = AnnotationOffsetMm,
                 ShowDiagnostics = ShowDiagnostics,
-                IncludeCoordinationModels = IncludeCoordinationModels
+                IncludeCoordinationModels = IncludeCoordinationModels,
+                ExtentSource = ExtentSource
             };
         }
     }

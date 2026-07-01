@@ -1,10 +1,38 @@
-// Tool Name: Workset 3D View Service
-// Description: Creates and configures one 3D view per user workset.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-24
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Utils
+#region Metadata
+/*
+ * Tool Name     : Create 3D Views by Workset
+ * File Name     : Workset3DViewService.cs
+ * Purpose       : Service that creates one isometric 3D view per user workset and isolates each workset
+ *                 in its own view, inside a single transaction, with a created/skipped/failed report.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-03-24
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (ValidationHelper, DialogHelper)
+ *
+ * Input         : Full Project - user worksets of a workshared, editable, non-family document.
+ * Output        : One named 3D view per workset; views that already exist are skipped and reported.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Validates document, edit-ability, and worksharing before any change; all views created in one undo step.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-03-24) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. View-creation behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;

@@ -1,25 +1,39 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Coordinates annotation crop command UI, target view selection, execution, and reporting.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-11
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropAnnotationCommandService.cs
+ * Purpose       : Coordinates annotation crop UI, target view selection, execution, and reporting.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-11
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, WPF
+ *
+ * Input         : Active Revit document, active or selected target views (plan views), annotation crop offset.
+ * Output        : Annotation crop enabled with the user-supplied equal offset on each supported view.
+ *
+ * Notes         :
+ * - Tool scope: Active View OR a user-selected batch of plan views.
+ * - Skips unsupported, template, scope-box-controlled, and view-template-locked views.
+ * - Bulk-edit confirmation is shown when more than one view is targeted.
+ * - Summary and error-log handling delegated to ViewCropReportPresenter.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Refactor/audit pass: bulk-edit confirmation, shared report presenter, metadata, version coverage notes.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Windows.Interop;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -94,16 +108,19 @@ namespace AJTools.Services.ViewCrop
                 if (targetViews == null || targetViews.Count == 0)
                     return Result.Cancelled;
 
+                if (!ViewCropCommandService.ConfirmBulkRun(commandTitle, targetViews.Count, "annotation crop"))
+                    return Result.Cancelled;
+
                 var service = new ViewCropAnnotationService(doc, settings);
                 var batch = service.Process(targetViews, $"AJ Tools - {commandTitle}");
 
                 try
                 {
-                    ShowBatchSummaryIfNeeded(commandTitle, batch);
+                    ViewCropReportPresenter.ShowSummaryIfNeeded(commandTitle, "Annotation crop", batch);
                 }
                 catch (Exception summaryEx)
                 {
-                    string summaryLog = TryWriteErrorLog(commandTitle, summaryEx);
+                    string summaryLog = ViewCropReportPresenter.TryWriteErrorLog("AnnotationCrop", commandTitle, null, summaryEx);
                     DialogHelper.ShowError(
                         commandTitle,
                         $"Processing finished, but summary dialog failed.\n{summaryEx.Message}\n\nLog: {summaryLog}");
@@ -114,49 +131,11 @@ namespace AJTools.Services.ViewCrop
             catch (Exception ex)
             {
                 message = ex.Message;
-                string logPath = TryWriteErrorLog(commandTitle, ex);
+                string logPath = ViewCropReportPresenter.TryWriteErrorLog("AnnotationCrop", commandTitle, null, ex);
                 DialogHelper.ShowError(
                     commandTitle,
                     $"{ex.Message}\n\nDetails log:\n{logPath}");
                 return Result.Failed;
-            }
-        }
-
-        private static void ShowBatchSummaryIfNeeded(string title, ViewCropBatchResult batch)
-        {
-            if (batch == null || (batch.SkippedCount == 0 && batch.FailedCount == 0))
-                return;
-
-            var dialog = new TaskDialog(title)
-            {
-                MainInstruction = "Annotation crop processing completed.",
-                MainContent = batch.BuildMainSummary(),
-                ExpandedContent = "Reason summary:\n"
-                    + batch.BuildReasonSummary()
-                    + "\n\nDetailed results:\n"
-                    + batch.BuildDetailedLines(250),
-                CommonButtons = TaskDialogCommonButtons.Ok
-            };
-
-            dialog.Show();
-        }
-
-        private static string TryWriteErrorLog(string commandTitle, Exception ex)
-        {
-            try
-            {
-                string fileName = $"AJTools_AnnotationCrop_Error_{DateTime.Now:yyyyMMdd_HHmmss}.log";
-                string path = Path.Combine(Path.GetTempPath(), fileName);
-                string body =
-                    $"Command: {commandTitle}{Environment.NewLine}" +
-                    $"Timestamp: {DateTime.Now:O}{Environment.NewLine}{Environment.NewLine}" +
-                    ex;
-                File.WriteAllText(path, body);
-                return path;
-            }
-            catch
-            {
-                return "Could not write log file.";
             }
         }
     }

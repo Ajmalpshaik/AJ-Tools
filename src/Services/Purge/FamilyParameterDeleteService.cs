@@ -73,7 +73,7 @@ namespace AJTools.Services.Purge
                         }
                         catch (Exception ex)
                         {
-                            if (transaction.HasStarted() && !transaction.HasEnded())
+                            if (transaction.GetStatus() == TransactionStatus.Started)
                             {
                                 transaction.RollBack();
                             }

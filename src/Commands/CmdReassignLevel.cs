@@ -1,10 +1,42 @@
-// Tool Name: Reassign Level
-// Description: Reassigns supported MEP elements from one level to another without changing physical position.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-14
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, Autodesk.Revit.DB.Mechanical, AJTools.Utils
+#region Metadata
+/*
+ * Tool Name     : Reassign Reference Level
+ * File Name     : CmdReassignLevel.cs
+ * Purpose       : Reassigns supported MEP elements (MEP curves, free-standing family instances, spaces)
+ *                 from one level to another across the whole project without moving them physically.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-14
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, AJTools.Utils
+ *
+ * Input         : Full Project - FROM level and TO level chosen in a dialog.
+ * Output        : Matching elements re-pointed to the TO level (host offset compensated so they stay put);
+ *                 single undo step; final report of reassigned / failed / skipped counts.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - Scope is Full Project, so a confirmation dialog states how many elements will change before any edit.
+ * - Hosted family instances are intentionally skipped (their level follows the host) and reported.
+ * - All reassignments run inside ONE transaction, so a single Ctrl+Z reverses the whole operation.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-04-14) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; added Full-Project bulk-edit confirmation;
+ *                       version-safe ElementId access. Reassign behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -62,7 +94,15 @@ namespace AJTools.Commands
             bool isRevit2020OrAbove = IsRevit2020OrAbove(commandData.Application);
             var offsetHelper = new OffsetHelper(doc, isRevit2020OrAbove);
 
+            var filter = new LogicalOrFilter(new List<ElementFilter>
+            {
+                new ElementClassFilter(typeof(MEPCurve)),
+                new ElementClassFilter(typeof(FamilyInstance)),
+                new ElementClassFilter(typeof(SpatialElement))
+            });
+
             var allElements = new FilteredElementCollector(doc)
+                .WherePasses(filter)
                 .WhereElementIsNotElementType()
                 .ToElements();
 
@@ -91,6 +131,30 @@ namespace AJTools.Commands
                 {
                     candidates.Add(element);
                 }
+            }
+
+            if (candidates.Count == 0)
+            {
+                DialogHelper.ShowInfo(
+                    ToolTitle,
+                    string.Format(
+                        CultureInfo.CurrentCulture,
+                        "No elements were found on \"{0}\" that can be reassigned.",
+                        fromLevel.Name));
+                return Result.Cancelled;
+            }
+
+            // Full Project scope - confirm the bulk change before touching the model.
+            string confirmMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                "This will reassign {0} element(s) from \"{1}\" to \"{2}\" across the whole project.\n\n" +
+                "Elements stay in the same physical position. Continue?",
+                candidates.Count,
+                fromLevel.Name,
+                toLevel.Name);
+            if (!DialogHelper.ShowYesNo(ToolTitle, confirmMessage))
+            {
+                return Result.Cancelled;
             }
 
             int okCount = 0;
@@ -666,7 +730,7 @@ namespace AJTools.Commands
                     Category category = Category.GetCategory(doc, categoryId);
                     if (category != null)
                     {
-                        _categoryIdsToOffset.Add(category.Id.IntegerValue);
+                        _categoryIdsToOffset.Add(ElementIdHelper.GetIntegerValue(category.Id));
                     }
                 }
             }
@@ -676,7 +740,7 @@ namespace AJTools.Commands
                 try
                 {
                     return element?.Category != null &&
-                           _categoryIdsToOffset.Contains(element.Category.Id.IntegerValue);
+                           _categoryIdsToOffset.Contains(ElementIdHelper.GetIntegerValue(element.Category.Id));
                 }
                 catch
                 {

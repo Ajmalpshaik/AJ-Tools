@@ -1,10 +1,41 @@
-// Tool Name: Filter Pro - Helper
-// Description: Utility helpers for filter creation, naming, and parameter handling.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, System.Linq
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : FilterProHelper.cs
+ * Purpose       : Orchestrates Filter Pro operations — validates categories, delegates to
+ *                 FilterCreator and FilterApplier/FilterReorderer, and returns affected count.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.1
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, System.Linq
+ *
+ * Input         : Document, target views, FilterSelection (caller owns the transaction scope)
+ * Output        : Integer count of filters created or updated; skipped reasons logged to caller list
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - Caller must own the transaction scope — this class makes no transactions of its own.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.0.1 (2026-06-30) - Added mandatory metadata block; fixed silent catch in ValidateCategories;
+ *                        replaced O(n²) dedup loop with O(1) HashSet lookup.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,13 +98,15 @@ namespace AJTools.Services.FilterPro
             }
 
             var processedFilterIds = new List<ElementId>();
-            if (creationResult.ProcessedFilterIds != null && creationResult.ProcessedFilterIds.Any())
+            var processedIdSet = new HashSet<int>();
+
+            if (creationResult.ProcessedFilterIds != null)
             {
                 foreach (var id in creationResult.ProcessedFilterIds)
                 {
                     if (id != null &&
                         id != ElementId.InvalidElementId &&
-                        !processedFilterIds.Any(x => x.IntegerValue == id.IntegerValue))
+                        processedIdSet.Add(id.IntegerValue))
                     {
                         processedFilterIds.Add(id);
                     }
@@ -129,9 +162,9 @@ namespace AJTools.Services.FilterPro
                             validCategoryIds.Add(catId);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // ignore bad category ids
+                        skipped?.Add($"Category ID {catId.IntegerValue}: skipped — {ex.Message}");
                     }
                 }
             }

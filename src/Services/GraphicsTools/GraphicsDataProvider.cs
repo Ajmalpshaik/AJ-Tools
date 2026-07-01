@@ -1,28 +1,43 @@
-// ==================================================
-// Tool Name    : Apply Graphics
-// Purpose      : Provides Revit graphics option data for the Apply Graphics UI.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.4
-// Created      : 2026-03-30
-// Last Updated : 2026-05-09
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Active Revit document.
-// Output       : Line pattern, fill pattern, line weight, and category options.
-// Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.4 - Removed dead transparency dropdown options after moving the UI to a slider.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Apply Graphics
+ * File Name     : GraphicsDataProvider.cs
+ * Purpose       : Builds line pattern, fill pattern, line weight, and category dropdown data for the Apply Graphics UI.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-03-30
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active Revit document.
+ * Output        : Line pattern, fill pattern, line weight, and category options.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - Read-only collection; no transaction.
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
+ * v1.4.4 (2026-05-09) - Removed dead transparency dropdown options after moving the UI to a slider.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.GraphicsTools;
+using AJTools.Utils;
 
 namespace AJTools.Services.GraphicsTools
 {
@@ -117,7 +132,7 @@ namespace AJTools.Services.GraphicsTools
                 {
                     if (categoryId != null && categoryId != ElementId.InvalidElementId)
                     {
-                        selectedIds.Add(categoryId.IntegerValue);
+                        selectedIds.Add(ElementIdHelper.GetIntegerValue(categoryId));
                     }
                 }
             }
@@ -133,7 +148,7 @@ namespace AJTools.Services.GraphicsTools
                 .Select(category => new GraphicsCategoryOption(
                     category.Id,
                     category.Name,
-                    selectedIds.Contains(category.Id.IntegerValue)))
+                    selectedIds.Contains(ElementIdHelper.GetIntegerValue(category.Id))))
                 .ToList();
         }
     }

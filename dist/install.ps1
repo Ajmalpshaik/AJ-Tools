@@ -1,8 +1,12 @@
 param(
-    [switch]$AllUsers
+    [switch]$AllUsers,
+    [int[]]$RevitVersions = @(2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027)
 )
 
 $ErrorActionPreference = "Stop"
+
+$supportedNetFrameworkVersions = @(2020, 2021, 2022, 2023, 2024)
+$modernNetRequiredVersions = @(2025, 2026, 2027)
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -61,30 +65,69 @@ $dllPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.dll -File |
     Where-Object { $blockedDllNames -notcontains $_.Name }
 $pdbPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.pdb -File -ErrorAction SilentlyContinue
 
-$installTargets = @(
-    @{
-        Scope = "Current User"
-        AddinRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\2020"
+function Get-InstallTargets {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int[]]$Versions,
+        [switch]$IncludeAllUsers
+    )
+
+    $targets = @()
+    foreach ($version in $Versions) {
+        $targets += @{
+            Scope = "Current User"
+            Version = $version
+            AddinRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$version"
+        }
+
+        if ($IncludeAllUsers) {
+            $targets += @{
+                Scope = "All Users"
+                Version = $version
+                AddinRoot = Join-Path $env:ProgramData "Autodesk\Revit\Addins\$version"
+            }
+        }
     }
-)
+
+    return $targets
+}
 
 if ($AllUsers) {
     if (-not (Test-IsAdministrator)) {
         throw "All-users install requires Administrator privileges. Run install-all-users.cmd as Administrator."
     }
-
-    $installTargets += @{
-        Scope = "All Users"
-        AddinRoot = Join-Path $env:ProgramData "Autodesk\Revit\Addins\2020"
-    }
 }
 
+$installTargets = Get-InstallTargets -Versions $RevitVersions -IncludeAllUsers:$AllUsers
+$installedVersions = New-Object System.Collections.Generic.List[int]
+$skippedVersions = New-Object System.Collections.Generic.List[int]
+
 foreach ($target in $installTargets) {
+    $version = [int]$target.Version
+
+    if ($modernNetRequiredVersions -contains $version) {
+        if (-not $skippedVersions.Contains($version)) {
+            $skippedVersions.Add($version)
+        }
+
+        Write-Warning "Skipping Revit $version. This package is a .NET Framework/Revit 2020-2024 build. Revit $version requires a separate modern .NET build."
+        continue
+    }
+
+    if (-not ($supportedNetFrameworkVersions -contains $version)) {
+        if (-not $skippedVersions.Contains($version)) {
+            $skippedVersions.Add($version)
+        }
+
+        Write-Warning "Skipping Revit $version. AJ Tools has not been configured for this Revit version."
+        continue
+    }
+
     $addinRoot = $target.AddinRoot
     $targetDir = Join-Path $addinRoot "AJ Tools"
     $manifestPath = Join-Path $addinRoot "AJ Tools.addin"
 
-    Write-Host "Installing AJ Tools ($($target.Scope)) to $targetDir"
+    Write-Host "Installing AJ Tools for Revit $version ($($target.Scope)) to $targetDir"
 
     New-Item -ItemType Directory -Path $addinRoot -Force | Out-Null
     Remove-Item -LiteralPath $targetDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -119,6 +162,10 @@ foreach ($target in $installTargets) {
 
     $addinXml | Out-File -FilePath $manifestPath -Encoding utf8 -Force
     Unblock-FilesInPath -Path $manifestPath
+
+    if (-not $installedVersions.Contains($version)) {
+        $installedVersions.Add($version)
+    }
 }
 
 if ($AllUsers) {
@@ -126,4 +173,15 @@ if ($AllUsers) {
 } else {
     Write-Host "AJ Tools installation complete (Current User)."
     Write-Host "Tip: run install-all-users.cmd as Administrator to install for all users."
+}
+
+if ($installedVersions.Count -gt 0) {
+    $installedVersionText = [string]::Join(", ", @($installedVersions | Sort-Object | ForEach-Object { $_.ToString() }))
+    Write-Host "Installed Revit versions: $installedVersionText"
+}
+
+if ($skippedVersions.Count -gt 0) {
+    $skippedVersionText = [string]::Join(", ", @($skippedVersions | Sort-Object | ForEach-Object { $_.ToString() }))
+    Write-Host "Skipped Revit versions: $skippedVersionText"
+    Write-Host "NEEDS_REVIEW: Revit 2025-2027 require separate modern .NET build outputs before they can be installed."
 }

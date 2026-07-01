@@ -2,6 +2,8 @@
 
 AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit 2020.
 
+Current suite version: **1.8.0**
+
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
 ## Repository Type
@@ -26,19 +28,25 @@ The add-in is built against the Revit 2020 API. Later Revit versions require Rev
 - Autodesk Revit 2020 API (`RevitAPI`, `RevitAPIUI`)
 - WPF/XAML
 - `Newtonsoft.Json`
+- `AvalonEdit`, `CommunityToolkit.Mvvm`, and Roslyn scripting for the AI shell
 
 ## Product Scope
 
 AJ Tools provides commands for:
 
-- graphics cleanup and overrides
-- linked model lookup and workset utilities
-- dimension and datum workflows
-- annotation and tagging helpers
-- AJ Annotation duct reference dimension tools
-- MEP coordination and duct utilities
-- family parameter cleanup and conversion
-- standards and data management tools
+- view, crop, filter, and link visibility control
+- graphics override apply, match, and reset
+- grid and level datum extents and bubble control
+- MEP elevation matching, level reassignment, and element pinning
+- MEP connection, ceiling-grid snapping, HVAC schematic generation, and domestic water pipe sizing
+- element ID lookup across host and linked models, workset 3D views, and link workset assignment
+- location data assignment and duct standards calculation
+- view template transfer and purge utilities (unplaced views, family parameters)
+- shared-to-family parameter conversion
+- automatic and quick dimensioning of grids, levels, and ducts
+- duct flow annotations, revision clouds, and text-note copy/swap
+- intelligent MEP tagging, tag rearranging, and L-shape leaders
+- a built-in AI Assistant (Gemini C# Shell)
 
 ## Repository Layout
 
@@ -52,8 +60,28 @@ Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged D
 
 ## Revit Ribbon Tabs
 
-- `AJ Tools`: main tool tab for view, graphics, dimensions, annotation, MEP, data, purge, and family utilities
-- `AJ Annotation`: separate annotation tab for duct reference dimension workflows
+The add-in registers **two** ribbon tabs:
+
+- `AJ Tools`: main tool tab with the following panels:
+  - **View** — View Crop, Unhide All, Toggle Link, Filter Pro, Section Mark Visibility
+  - **Graphics** — Apply Graphics, Match Graphics, Reset Graphics
+  - **Datums** — Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
+  - **Modify** — Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements
+  - **MEP** — Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
+  - **Coordination** — Element ID lookup, 3D Views by Workset, Link Workset
+  - **Data** — Assign Location, Duct Standard
+  - **Manage** — Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)
+  - **Family** — Shared to Family
+  - **AI Assistant** — AJ AI (Gemini C# Shell)
+  - **About**
+- `AJ Annotation`: separate annotation tab with the following panels:
+  - **Auto Dimention** — Auto Duct Dimension (single duct to wall, all duct to wall)
+  - **Dimensions** — Automatic Dimension, Quick Dimension, Copy Dimension Text
+  - **Annotation** — Duct Flow Annotations, Revision Clouds, Copy/Swap Text Notes
+  - **Family** — Center Annotation
+  - **Tags** — Smart MEP Tags, Rearrange Tags, L-Shape Leader
+
+The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab plus a dockable **Gemini Shell** pane — it is not a separate ribbon tab.
 
 ## Installation
 

@@ -1,22 +1,44 @@
-// ==================================================
-// Tool Name    : Toggle Link
-// Purpose      : Toggles Revit Link category visibility in the active view.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.1.0
-// Created      : 2025-12-10
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Active editable Revit project view.
-// Output       : Revit Links category visibility toggled in the active view.
-// Notes        : Normal success is silent; view templates or unsupported views may block category visibility changes.
-// Changelog    : v1.1.0 - Added safe validation, standardized metadata, and cleaned command flow.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Toggle Link
+ * File Name     : CmdToggleRevitLinks.cs
+ * Purpose       : Toggles Revit Link category visibility in the active view.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-29
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active View — no selection required.
+ * Output        : Revit Links category visibility toggled in the active view.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - Verify the newest Revit version's required .NET target before building.
+ * - Production-ready implementation.
+ * - Safe transaction handling.
+ * - Silent on success — no summary needed for a category visibility toggle.
+ * - View templates that lock Revit Links visibility will block the toggle; user is informed.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.1.0 (2026-05-06) - Added safe validation, standardized metadata, and cleaned command flow.
+ * v1.2.0 (2026-06-29) - Added Regeneration attribute; corrected transaction name to "AJ-Tools: Toggle Link";
+ *                        corrected dialog title to "AJ-Tools"; replaced ex.Message in user-facing
+ *                        error dialogs with plain-language guidance.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;
@@ -26,14 +48,12 @@ using AJTools.Utils;
 
 namespace AJTools.Commands
 {
-    /// <summary>
-    /// Toggles link category visibility in the active view.
-    /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CmdToggleRevitLinks : IExternalCommand
     {
-        private const string Title = "Toggle Link";
-        private const string TransactionName = "AJ Tools - Toggle Link";
+        private const string ToolTitle = "AJ-Tools";
+        private const string TransactionName = "AJ-Tools: Toggle Link";
         private static readonly ElementId RevitLinksCategoryId = new ElementId(BuiltInCategory.OST_RvtLinks);
 
         public Result Execute(
@@ -46,21 +66,21 @@ namespace AJTools.Commands
                 UIDocument uidoc = commandData.Application?.ActiveUIDocument;
                 if (!ValidationHelper.ValidateUIDocumentAndView(uidoc, out message))
                 {
-                    DialogHelper.ShowError(Title, message);
+                    DialogHelper.ShowError(ToolTitle, message);
                     return Result.Cancelled;
                 }
 
                 Document doc = uidoc.Document;
                 if (!ValidationHelper.ValidateEditableDocument(doc, out message))
                 {
-                    DialogHelper.ShowError(Title, message);
+                    DialogHelper.ShowError(ToolTitle, message);
                     return Result.Cancelled;
                 }
 
                 View view = doc.ActiveView;
                 if (!CanToggleRevitLinks(view, out message))
                 {
-                    DialogHelper.ShowError(Title, message);
+                    DialogHelper.ShowError(ToolTitle, message);
                     return Result.Cancelled;
                 }
 
@@ -82,10 +102,9 @@ namespace AJTools.Commands
             {
                 message = ex.Message;
                 DialogHelper.ShowError(
-                    Title,
+                    ToolTitle,
                     "Could not toggle Revit Link visibility in the active view.\n\n"
-                    + ex.Message
-                    + "\n\nIf a view template controls Revit Links visibility, unlock that setting and try again.");
+                    + "If a view template controls Revit Links visibility, unlock that setting and try again.");
                 return Result.Failed;
             }
         }
@@ -108,9 +127,9 @@ namespace AJTools.Commands
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                reason = $"Could not validate Revit Links category visibility support: {ex.Message}";
+                reason = "Revit Links category visibility check failed. Please try in a different view.";
                 return false;
             }
 

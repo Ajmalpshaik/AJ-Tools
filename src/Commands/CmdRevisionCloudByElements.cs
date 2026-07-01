@@ -1,3 +1,42 @@
+#region Metadata
+/*
+ * Tool Name     : Revision Clouds by Elements
+ * File Name     : CmdRevisionCloudByElements.cs
+ * Purpose       : Creates orthogonal, stepped revision-cloud boundaries around selected elements, aligned
+ *                 to the dominant selection angle, using the latest project revision. Continuous - keeps
+ *                 prompting for the next selection until Esc.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-05-02
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Models.RevisionCloud, AJTools.Services.RevisionCloud
+ *
+ * Input         : Active View - selected elements (repeated selection passes, Esc to finish). Offset from settings.
+ * Output        : Revision clouds around each selection; final report of passes / processed / created / skipped / failures.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. Supports plan, ceiling, section, elevation, detail, and drafting views.
+ * - Needs at least one project revision. All selection passes are grouped into one undo step.
+ * - Esc ends the continuous session; a small/invalid geometry is skipped and reported.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-02) - Initial release (continuous cloud creation by elements).
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block; all selection passes now assimilate
+ *                       into a single undo step. Cloud behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
+
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -77,29 +116,40 @@ namespace AJTools.Commands
                 if (selectedIds == null || selectedIds.Count == 0)
                     return Result.Cancelled;
 
-                while (selectedIds != null && selectedIds.Count > 0)
+                // Group every selection pass so the whole continuous session is a single undo step.
+                using (TransactionGroup group = new TransactionGroup(doc, TransactionName))
                 {
-                    passes++;
+                    group.Start();
 
-                    CreateCloudsForSelection(
-                        doc,
-                        activeView,
-                        viewPlane,
-                        latestRevision.Id,
-                        settings,
-                        selectedIds,
-                        out int elementsProcessed,
-                        out int skippedCount,
-                        out int cloudsCreated,
-                        out int failedClouds);
+                    while (selectedIds != null && selectedIds.Count > 0)
+                    {
+                        passes++;
 
-                    totalElementsProcessed += elementsProcessed;
-                    totalCloudsCreated += cloudsCreated;
-                    totalSkipped += skippedCount;
-                    totalFailures += failedClouds;
+                        CreateCloudsForSelection(
+                            doc,
+                            activeView,
+                            viewPlane,
+                            latestRevision.Id,
+                            settings,
+                            selectedIds,
+                            out int elementsProcessed,
+                            out int skippedCount,
+                            out int cloudsCreated,
+                            out int failedClouds);
 
-                    // Next pass: always prompt selection; press ESC to finish continuous mode.
-                    selectedIds = GetSelectedElements(uidoc, false);
+                        totalElementsProcessed += elementsProcessed;
+                        totalCloudsCreated += cloudsCreated;
+                        totalSkipped += skippedCount;
+                        totalFailures += failedClouds;
+
+                        // Next pass: always prompt selection; press ESC to finish continuous mode.
+                        selectedIds = GetSelectedElements(uidoc, false);
+                    }
+
+                    if (totalCloudsCreated > 0)
+                        group.Assimilate();
+                    else
+                        group.RollBack();
                 }
 
                 if (totalCloudsCreated > 0)

@@ -1,10 +1,43 @@
-// Tool Name: Filter Pro - Filter Creator
-// Description: Creates and updates parameter filters with naming, ordering, and graphics.
-// Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2026-05-25
-// Revit Version: 2020+
-// Dependencies: Autodesk.Revit.DB, System.Linq
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : FilterCreator.cs
+ * Purpose       : Creates and updates ParameterFilterElements — builds filter rules by storage type,
+ *                 composes and sanitises filter names, and ensures name uniqueness in the project.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, System.Linq
+ *
+ * Input         : FilterSelection (categories, parameter, values, rule type, naming options)
+ * Output        : ParameterFilterElements created or updated in the Revit document
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - ParameterFilterRuleFactory string overloads with caseSensitive bool are confirmed valid for 2020-2026.
+ * - ElementId.IntegerValue is deprecated in Revit 2024+ (replaced by ElementId.Value returning long).
+ *   Current usage is safe on all versions; upgrading to .Value requires a #if REVIT2024 guard.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.1.0 (2026-05-25) - Optimised name-uniqueness check from O(n²) DB queries to O(1) dictionary
+ *                        lookups; added HashSet dedup for processed filter IDs; removed dead fallback method.
+ * v1.1.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -497,16 +530,5 @@ namespace AJTools.Services.FilterPro
             }
         }
 
-        /// <summary>
-        /// Finds a parameter filter by name (case-insensitive).
-        /// Kept as a fallback for single-lookup scenarios outside bulk creation.
-        /// </summary>
-        private static ParameterFilterElement FindFilterByName(Document doc, string name)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(ParameterFilterElement))
-                .Cast<ParameterFilterElement>()
-                .FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        }
     }
 }

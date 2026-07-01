@@ -4,17 +4,19 @@ Tool Name    : View Crop
 Purpose      : Defines the selectable target view list dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.0.1
+Version      : 1.3.0
 Created      : 2026-04-08
-Last Updated : 2026-05-06
-Target       : Revit 2020
-Framework    : .NET Framework 4.7.2
+Last Updated : 2026-06-28
+Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in
 Dependencies : Autodesk Revit API, WPF
 Input        : Active Revit document, active or selected target views, and View Crop settings.
 Output       : Updated view crop or annotation crop settings for supported target views.
-Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-Changelog    : v1.0.1 - Standardized metadata after production cleanup.
+Notes        : Lists supported plan views only (Floor/Ceiling/Engineering/Area). Pixel-scrolling list.
+Changelog    : v1.3.0 - List supported views only; removed Status column; fixed grouped-list scrolling.
+               v1.2.0 - Custom chrome (title bar + window controls) to match the View Crop Settings window; resizable via corner grip.
+               v1.1.0 - UI polish: subtitle guidance, softened list border, no-italic footer, metadata aligned.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -27,10 +29,12 @@ Repo         : AJ-Tools
         Height="620"
         MinWidth="760"
         MinHeight="480"
-        ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}"
-        Foreground="{DynamicResource TextPrimary}">
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        SizeToContent="Manual"
+        ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -39,200 +43,232 @@ Repo         : AJ-Tools
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- Outer Border for custom rounded window with drop shadow -->
+    <Border x:Name="RootBorder"
+            Background="{StaticResource BackgroundDark}"
+            CornerRadius="8"
+            BorderBrush="{StaticResource BorderSoft}"
+            BorderThickness="1"
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" ShadowDepth="4" Direction="270" Opacity="0.4" Color="#000000"/>
+        </Border.Effect>
 
-        <TextBlock Grid.Row="0"
-                   Text="Select target views"
-                   Foreground="{StaticResource TextPrimary}"
-                   FontSize="16"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,8"/>
+        <Grid Margin="16,12,16,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Title bar -->
+                <RowDefinition Height="Auto"/> <!-- Search row -->
+                <RowDefinition Height="Auto"/> <!-- Column headers -->
+                <RowDefinition Height="*"/>    <!-- List -->
+                <RowDefinition Height="Auto"/> <!-- Selection error -->
+                <RowDefinition Height="Auto"/> <!-- Count + buttons -->
+                <RowDefinition Height="Auto"/> <!-- Footer -->
+            </Grid.RowDefinitions>
 
-        <Grid Grid.Row="1" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <!-- Custom Title Bar -->
+            <Grid Grid.Row="0" Margin="0,0,0,12" Background="Transparent" MouseLeftButtonDown="OnTitleBarDrag">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <TextBox x:Name="SearchTextBox"
-                     Grid.Column="0"
-                     Style="{StaticResource ModernTextBox}"
-                     Margin="0,0,8,0"
-                     ToolTip="Search by view name, type, sheet number, or sheet name"
-                     TextChanged="OnSearchChanged"/>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Select target views"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+                    <TextBlock Text="Pick the views to crop. Views that cannot be cropped are listed with a reason and cannot be selected."
+                               Foreground="{StaticResource TextSecondary}"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
 
-            <Button Grid.Column="1"
-                    Content="Select All"
-                    Style="{StaticResource ModernButton}"
-                    MinWidth="110"
-                    Margin="0,0,8,0"
-                    Click="OnSelectAll"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+                    <Button Content="&#xE921;" ToolTip="Minimize" Width="32" Height="32" Margin="0,0,6,0"
+                            Style="{StaticResource WindowControlButton}" Click="OnMinimizeClick"/>
+                    <Button Content="&#xE922;" ToolTip="Maximize" Width="32" Height="32" Margin="0,0,6,0"
+                            Style="{StaticResource WindowControlButton}" Click="OnMaximizeClick"/>
+                    <Button Content="&#xE8BB;" ToolTip="Close" Width="32" Height="32"
+                            Style="{StaticResource WindowCloseButton}" Click="OnCloseClick"/>
+                </StackPanel>
+            </Grid>
 
-            <Button Grid.Column="2"
-                    Content="Clear All"
-                    Style="{StaticResource SecondaryButton}"
-                    MinWidth="110"
-                    Click="OnClearAll"/>
+            <!-- Search + bulk select -->
+            <Grid Grid.Row="1" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="SearchTextBox"
+                         Grid.Column="0"
+                         Style="{StaticResource ModernTextBox}"
+                         Margin="0,0,8,0"
+                         ToolTip="Search by view name, type, sheet number, or sheet name"
+                         TextChanged="OnSearchChanged"/>
+
+                <Button Grid.Column="1"
+                        Content="Select All"
+                        Style="{StaticResource ModernButton}"
+                        MinWidth="110"
+                        Margin="0,0,8,0"
+                        Click="OnSelectAll"/>
+
+                <Button Grid.Column="2"
+                        Content="Clear All"
+                        Style="{StaticResource SecondaryButton}"
+                        MinWidth="110"
+                        Click="OnClearAll"/>
+            </Grid>
+
+            <!-- Column headers -->
+            <Grid Grid.Row="2" Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="46"/>
+                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="1.4*"/>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Pick" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="1" Text="View Name" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="2" Text="View Type" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="3" Text="Sheet No" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="4" Text="Sheet Name" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
+            </Grid>
+
+            <ListBox x:Name="ViewsListBox"
+                     Grid.Row="3"
+                     Style="{StaticResource ModernListBox}"
+                     ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                     BorderBrush="{StaticResource BorderSoft}"
+                     BorderThickness="1"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.CanContentScroll="False">
+                <!-- Pixel-scrolling template so the grouped list scrolls smoothly even with many views. -->
+                <ListBox.Template>
+                    <ControlTemplate TargetType="ListBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer Focusable="False"
+                                          Padding="6"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          CanContentScroll="False">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </ListBox.Template>
+                <ListBox.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource BackgroundMedium}" Padding="8" Margin="0,10,0,0" CornerRadius="4">
+                                    <TextBlock Text="{Binding Name}"
+                                               Foreground="{StaticResource TextPrimary}"
+                                               FontWeight="Bold"/>
+                                </Border>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ListBox.GroupStyle>
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,1,0,1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="46"/>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="1.4*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding ViewName}"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="4,0"/>
+
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding ViewTypeName}"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="4,0"/>
+
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding SheetNumber}"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="4,0"/>
+
+                            <TextBlock Grid.Column="4"
+                                       Text="{Binding SheetName}"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="4,0"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock x:Name="SelectionErrorText"
+                       Grid.Row="4"
+                       Foreground="{StaticResource AccentDanger}"
+                       Margin="2,8,0,0"/>
+
+            <Grid Grid.Row="5" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="SelectionCountText"
+                           Grid.Column="0"
+                           Foreground="{StaticResource TextSecondary}"
+                           VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="Run"
+                        Style="{StaticResource ModernButton}"
+                        IsDefault="True"
+                        MinWidth="110"
+                        Margin="0,0,8,0"
+                        Click="OnRun"/>
+
+                <Button Grid.Column="2"
+                        Content="Cancel"
+                        Style="{StaticResource SecondaryButton}"
+                        IsCancel="True"
+                        MinWidth="110"
+                        Click="OnCancel"/>
+            </Grid>
+
+            <!-- Footer -->
+            <TextBlock Grid.Row="6"
+                       Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                       Foreground="{StaticResource TextDisabled}"
+                       FontSize="11"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,0"/>
         </Grid>
-
-        <Grid Grid.Row="2" Margin="0,0,0,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="46"/>
-                <ColumnDefinition Width="3*"/>
-                <ColumnDefinition Width="1.4*"/>
-                <ColumnDefinition Width="1*"/>
-                <ColumnDefinition Width="2*"/>
-                <ColumnDefinition Width="1.5*"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.Column="0" Text="Pick" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="1" Text="View Name" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="2" Text="View Type" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="3" Text="Sheet No" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="4" Text="Sheet Name" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="5" Text="Status" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold"/>
-        </Grid>
-
-        <ListBox x:Name="ViewsListBox"
-                 Grid.Row="3"
-                 Style="{StaticResource ModernListBox}"
-                 ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                 BorderBrush="{StaticResource AccentBlue}"
-                 BorderThickness="1"
-                 VirtualizingPanel.IsVirtualizing="True"
-                 VirtualizingPanel.VirtualizationMode="Recycling"
-                 ScrollViewer.CanContentScroll="True">
-            <ListBox.GroupStyle>
-                <GroupStyle>
-                    <GroupStyle.HeaderTemplate>
-                        <DataTemplate>
-                            <Border Background="{StaticResource BackgroundMedium}" Padding="8" Margin="0,10,0,0" CornerRadius="4">
-                                <TextBlock Text="{Binding Name}"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontWeight="Bold"/>
-                            </Border>
-                        </DataTemplate>
-                    </GroupStyle.HeaderTemplate>
-                </GroupStyle>
-            </ListBox.GroupStyle>
-
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid Margin="0,1,0,1">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="46"/>
-                            <ColumnDefinition Width="3*"/>
-                            <ColumnDefinition Width="1.4*"/>
-                            <ColumnDefinition Width="1*"/>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="1.5*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <CheckBox Grid.Column="0"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                  IsEnabled="{Binding CanSelect}"/>
-
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding ViewName}"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="4,0"/>
-
-                        <TextBlock Grid.Column="2"
-                                   Text="{Binding ViewTypeName}"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="4,0"/>
-
-                        <TextBlock Grid.Column="3"
-                                   Text="{Binding SheetNumber}"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="4,0"/>
-
-                        <TextBlock Grid.Column="4"
-                                   Text="{Binding SheetName}"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="4,0"/>
-
-                        <TextBlock Grid.Column="5"
-                                   Text="{Binding StatusText}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="4,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{StaticResource AccentGreen}"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding CanSelect}" Value="False">
-                                            <Setter Property="Foreground" Value="{StaticResource AccentOrange}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <TextBlock x:Name="SelectionErrorText"
-                   Grid.Row="4"
-                   Foreground="{StaticResource AccentDanger}"
-                   Margin="2,8,0,0"/>
-
-        <Grid Grid.Row="5" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock x:Name="SelectionCountText"
-                       Grid.Column="0"
-                       Foreground="{StaticResource TextSecondary}"
-                       VerticalAlignment="Center"/>
-
-            <Button Grid.Column="1"
-                    Content="Run"
-                    Style="{StaticResource ModernButton}"
-                    IsDefault="True"
-                    MinWidth="110"
-                    Margin="0,0,8,0"
-                    Click="OnRun"/>
-
-            <Button Grid.Column="2"
-                    Content="Cancel"
-                    Style="{StaticResource SecondaryButton}"
-                    IsCancel="True"
-                    MinWidth="110"
-                    Click="OnCancel"/>
-        </Grid>
-
-        <!-- Footer -->
-        <TextBlock Grid.Row="6"
-                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
-                   Foreground="{StaticResource TextDisabled}"
-                   FontSize="10"
-                   HorizontalAlignment="Center"
-                   Margin="0,8,0,0"
-                   FontStyle="Italic"/>
-    </Grid>
+    </Border>
 </Window>

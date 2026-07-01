@@ -363,7 +363,7 @@ namespace AJTools.UI.DuctStandards
 
                     if (!ok && hasExisting)
                     {
-                        try { map.Remove(definition); } catch { }
+                        try { map.Remove(definition); } catch (Exception) { }
                         ok = map.Insert(definition, binding, spec.ParameterGroup);
                     }
 
@@ -446,7 +446,7 @@ namespace AJTools.UI.DuctStandards
         private static DefinitionGroup GetOrCreateGroup(DefinitionFile file, string name)
         {
             DefinitionGroup group = null;
-            try { group = file.Groups.get_Item(name); } catch { group = null; }
+            try { group = file.Groups.get_Item(name); } catch (Exception) { group = null; }
             return group ?? file.Groups.Create(name);
         }
 
@@ -466,13 +466,13 @@ namespace AJTools.UI.DuctStandards
             };
 
             try { return preferredGroup.Definitions.Create(options); }
-            catch { return TryGetDefinition(preferredGroup, name); }
+            catch (Exception) { return TryGetDefinition(preferredGroup, name); }
         }
 
         private static Definition TryGetDefinition(DefinitionGroup group, string name)
         {
             try { return group.Definitions.get_Item(name); }
-            catch { return null; }
+            catch (Exception) { return null; }
         }
 
         private static Definition FindDefinition(BindingMap map, string name)
@@ -776,7 +776,7 @@ namespace AJTools.UI.DuctStandards
                 {
                     Process.Start(folder);
                 }
-                catch { }
+                catch (Exception) { }
             }
         }
 

@@ -43,5 +43,21 @@ namespace AJTools.Models.SmartTag
         /// Set during Phase 2 (Tag Family Selection). Null if no tag family found.
         /// </summary>
         public ElementId TagTypeId { get; set; }
+
+        /// <summary>
+        /// The geometry curve for linear elements (Ducts, Pipes) used to slide candidate positions.
+        /// Will be null for point-based elements (Equipment, Accessories).
+        /// </summary>
+        public Curve ElementCurve { get; set; }
+
+        /// <summary>
+        /// Width of the host element, used to push tags outside its boundaries.
+        /// </summary>
+        public double HostWidth { get; set; }
+
+        /// <summary>
+        /// True if the tag requires a leader due to clashes, False otherwise.
+        /// </summary>
+        public bool NeedsLeader { get; set; }
     }
 }

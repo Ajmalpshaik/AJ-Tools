@@ -1,10 +1,37 @@
-// Tool Name: Intelligent Tag Arranger Settings Command
-// Description: Configures default vertical spacing for Arrange Tags.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-07
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Utils
+#region Metadata
+/*
+ * Tool Name     : Arrange Tag Settings
+ * File Name     : CmdIntelligentTagArrangerSettings.cs
+ * Purpose       : Settings dialog that stores the default vertical spacing (mm) used by Rearrange Tags.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-07
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (TagArrangeSettings, DialogHelper), System.Windows.Forms
+ *
+ * Input         : A spacing value (mm) entered in the dialog.
+ * Output        : Saved spacing setting (no model change; read-only to the Revit model).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. Settings-only tool; does not modify the model, so no transaction.
+ * - Cancel closes silently; a save confirmation shows the stored value.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-04-07) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Settings behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System.Globalization;
 using Autodesk.Revit.Attributes;
@@ -26,21 +53,29 @@ namespace AJTools.Commands
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData?.Application?.ActiveUIDocument;
-            Document doc = uidoc?.Document;
-            if (doc == null)
+            try
             {
-                message = "No active document.";
+                UIDocument uidoc = commandData?.Application?.ActiveUIDocument;
+                Document doc = uidoc?.Document;
+                if (doc == null)
+                {
+                    message = "No active document.";
+                    return Result.Failed;
+                }
+
+                double current = TagArrangeSettings.GetTagSpacingMm();
+                if (!TryPromptSpacing(current, out double spacingMm))
+                    return Result.Cancelled;
+
+                TagArrangeSettings.SaveTagSpacingMm(spacingMm);
+                DialogHelper.ShowInfo(Title, $"Tag spacing saved as {spacingMm:0.###} mm.");
+                return Result.Succeeded;
+            }
+            catch (System.Exception ex)
+            {
+                message = ex.Message;
                 return Result.Failed;
             }
-
-            double current = TagArrangeSettings.GetTagSpacingMm();
-            if (!TryPromptSpacing(current, out double spacingMm))
-                return Result.Cancelled;
-
-            TagArrangeSettings.SaveTagSpacingMm(spacingMm);
-            DialogHelper.ShowInfo(Title, $"Tag spacing saved as {spacingMm:0.###} mm.");
-            return Result.Succeeded;
         }
 
         private static bool TryPromptSpacing(double currentSpacingMm, out double spacingMm)

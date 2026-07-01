@@ -1,4 +1,4 @@
-﻿// Tool Name: Smart Tag Placement Engine
+// Tool Name: Smart Tag Placement Engine
 // Description: Phases 3â€“6 â€” scoring, clash detection, repositioning, and tag placement.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -60,7 +60,8 @@ namespace AJTools.Services.SmartTag
             double estimatedTagWidth,
             double estimatedTagHeight,
             XYZ viewRight,
-            XYZ viewUp)
+            XYZ viewUp,
+            double hostWidth)
         {
             // Safety fallback if settings are missing/invalid.
             if (offsetFromHostToTextEdge <= Constants.ZERO_LENGTH_TOLERANCE)
@@ -73,11 +74,12 @@ namespace AJTools.Services.SmartTag
 
             double halfW = estimatedTagWidth * 0.5;
             double halfH = estimatedTagHeight * 0.5;
+            double hostHalfW = hostWidth * 0.5;
 
-            double topHeadDistance = offsetFromHostToTextEdge + halfH;
-            double bottomHeadDistance = offsetFromHostToTextEdge + halfH;
-            double rightHeadDistance = offsetFromHostToTextEdge + halfW;
-            double leftHeadDistance = offsetFromHostToTextEdge + halfW;
+            double topHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfH;
+            double bottomHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfH;
+            double rightHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfW;
+            double leftHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfW;
 
             return new Dictionary<TagDirection, XYZ>
             {
@@ -136,17 +138,18 @@ namespace AJTools.Services.SmartTag
 
         private static Dictionary<TagDirection, XYZ> BuildCandidatePositions(
             TagCandidate candidate,
+            XYZ anchorPoint,
             double offset,
             double estimatedTagWidth,
             double estimatedTagHeight,
             XYZ viewRight,
             XYZ viewUp)
         {
-            if (candidate == null || candidate.Midpoint == null)
+            if (candidate == null || anchorPoint == null)
                 return new Dictionary<TagDirection, XYZ>();
 
             Dictionary<TagDirection, XYZ> positions = GenerateCandidatePositions(
-                candidate.Midpoint, offset, estimatedTagWidth, estimatedTagHeight, viewRight, viewUp);
+                anchorPoint, offset, estimatedTagWidth, estimatedTagHeight, viewRight, viewUp, candidate.HostWidth);
 
             return positions;
         }
@@ -418,7 +421,8 @@ namespace AJTools.Services.SmartTag
             double estimatedTagHeight,
             int viewScale,
             XYZ viewRight,
-            XYZ viewUp)
+            XYZ viewUp,
+            AnnotationBox hostBox = null)
         {
             // Build the proposed tag box in view-plane coordinates.
             AnnotationBox proposed = CreateCandidateBoxInViewPlane(
@@ -431,6 +435,12 @@ namespace AJTools.Services.SmartTag
             double tolerance = 1.5 * Constants.MM_TO_FEET * viewScale; // 1.5mm at view scale
             double nearMiss = 2.0 * Constants.MM_TO_FEET * viewScale;  // 2mm at view scale
             double threshold10mm = 10.0 * Constants.MM_TO_FEET * viewScale;
+
+            if (hostBox != null && proposed.Inflated(tolerance).Overlaps(hostBox))
+            {
+                return -1; // Disqualified — clashes with its own host element.
+            }
+
             double searchMargin = Math.Max(nearMiss, threshold10mm);
             List<AnnotationBox> nearbyAnnotations = QueryNearbyAnnotations(
                 spatialIndex,
@@ -817,40 +827,109 @@ namespace AJTools.Services.SmartTag
             ResolveTagSizeForCandidate(candidate, sizeHints, viewScale, out tagWidth, out tagHeight);
             bool hadBoundaryCandidate = false;
 
-            // â”€â”€ STEP 1: Try only the configured offset â”€â”€
+            // â”€â”€ STEP 1: Try multiple candidate positions along the curve â”€â”€
             {
-                double baseOff = fixedOffsetInternal;
-                Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
-                    candidate, baseOff, tagWidth, tagHeight, viewRight, viewUp);
+                AnnotationBox hostBox = null;
+                if (candidate.BoundingBox != null)
+                {
+                    double minX = double.MaxValue, minY = double.MaxValue;
+                    double maxX = double.MinValue, maxY = double.MinValue;
+                    XYZ[] corners = new XYZ[]
+                    {
+                        new XYZ(candidate.BoundingBox.Min.X, candidate.BoundingBox.Min.Y, candidate.BoundingBox.Min.Z),
+                        new XYZ(candidate.BoundingBox.Max.X, candidate.BoundingBox.Min.Y, candidate.BoundingBox.Min.Z),
+                        new XYZ(candidate.BoundingBox.Min.X, candidate.BoundingBox.Max.Y, candidate.BoundingBox.Min.Z),
+                        new XYZ(candidate.BoundingBox.Max.X, candidate.BoundingBox.Max.Y, candidate.BoundingBox.Min.Z),
+                        new XYZ(candidate.BoundingBox.Min.X, candidate.BoundingBox.Min.Y, candidate.BoundingBox.Max.Z),
+                        new XYZ(candidate.BoundingBox.Max.X, candidate.BoundingBox.Min.Y, candidate.BoundingBox.Max.Z),
+                        new XYZ(candidate.BoundingBox.Min.X, candidate.BoundingBox.Max.Y, candidate.BoundingBox.Max.Z),
+                        new XYZ(candidate.BoundingBox.Max.X, candidate.BoundingBox.Max.Y, candidate.BoundingBox.Max.Z)
+                    };
+                    foreach (XYZ pt in corners)
+                    {
+                        double x = pt.DotProduct(viewRight);
+                        double y = pt.DotProduct(viewUp);
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                    hostBox = new AnnotationBox(minX, minY, maxX, maxY);
+                }
 
-                // Score in direction priority order.
-                TagDirection[] priority = GetDirectionPriority(candidate, preflight);
                 int bestScore = -1;
                 XYZ bestPos = null;
 
-                foreach (TagDirection dir in priority)
+                // Test sliding positions if curve exists, otherwise just test midpoint.
+                double[] testParams = (candidate.ElementCurve != null) 
+                    ? new double[] { 0.5, 0.25, 0.75 } 
+                    : new double[] { 0.5 };
+
+                bool[] leaderPasses = new bool[] { true, false };
+
+                foreach (bool tryLeader in leaderPasses)
                 {
-                    XYZ pos;
-                    if (!positions.TryGetValue(dir, out pos))
-                        continue;
+                    double baseOff = tryLeader ? fixedOffsetInternal * 3.0 : fixedOffsetInternal;
 
-                    if (!IsWithinTagPlacementBoundary(pos, placementBoundary, viewRight, viewUp))
-                        continue;
-
-                    hadBoundaryCandidate = true;
-
-                    int score = ScoreCandidatePosition(
-                        pos, dir,
-                        annotations, spatialIndex, tagWidth, tagHeight, viewScale, viewRight, viewUp);
-
-                    if (score > bestScore)
+                    foreach (double tParam in testParams)
                     {
-                        bestScore = score;
-                        bestPos = pos;
+                        XYZ anchorPoint;
+                        if (candidate.ElementCurve != null)
+                        {
+                            try { anchorPoint = candidate.ElementCurve.Evaluate(tParam, true); }
+                            catch { anchorPoint = candidate.Midpoint; }
+                        }
+                        else
+                        {
+                            anchorPoint = candidate.Midpoint;
+                        }
+
+                        Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
+                            candidate, anchorPoint, baseOff, tagWidth, tagHeight, viewRight, viewUp);
+
+                        // Score in direction priority order.
+                        TagDirection[] priority = GetDirectionPriority(candidate, preflight);
+
+                        foreach (TagDirection dir in priority)
+                        {
+                            XYZ pos;
+                            if (!positions.TryGetValue(dir, out pos))
+                                continue;
+
+                            if (!IsWithinTagPlacementBoundary(pos, placementBoundary, viewRight, viewUp))
+                                continue;
+
+                            hadBoundaryCandidate = true;
+
+                            int score = ScoreCandidatePosition(
+                                pos, dir,
+                                annotations, spatialIndex, tagWidth, tagHeight, viewScale, viewRight, viewUp, hostBox);
+
+                            if (score > bestScore)
+                            {
+                                bestScore = score;
+                                bestPos = pos;
+                                candidate.NeedsLeader = tryLeader;
+                            }
+
+                            // Early exit if we find a perfect, non-clashing spot
+                            if (score >= 60)
+                            {
+                                candidate.NeedsLeader = tryLeader;
+                                return bestPos;
+                            }
+                        }
+                    }
+
+                    // If we found a valid position WITH a leader (score >= 0), don't bother doing the no-leader pass.
+                    if (tryLeader && bestScore >= 0 && bestPos != null)
+                    {
+                        candidate.NeedsLeader = true;
+                        return bestPos;
                     }
                 }
 
-                if (bestScore > 0 && bestPos != null)
+                if (bestScore >= 0 && bestPos != null)
                     return bestPos;
             }
 
@@ -896,7 +975,7 @@ namespace AJTools.Services.SmartTag
                 {
                     // Force tag at base offset â€” best available even if imperfect.
                     Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
-                        candidate, fixedOffsetInternal, tagWidth, tagHeight, viewRight, viewUp);
+                        candidate, candidate.Midpoint, fixedOffsetInternal, tagWidth, tagHeight, viewRight, viewUp);
                     TagDirection[] priority = GetDirectionPriority(candidate, preflight);
 
                     // Pick the direction with the least overlap (even if not perfect).
@@ -1150,13 +1229,21 @@ namespace AJTools.Services.SmartTag
 
                         Reference elemRef = new Reference(targetElement);
 
+                        bool addLeader = candidate.NeedsLeader;
+                        TagOrientation orientation = TagOrientation.Horizontal;
+
+                        if (!addLeader && candidate.Orientation == ElementOrientation.Vertical)
+                        {
+                            orientation = TagOrientation.Vertical;
+                        }
+
                         IndependentTag newTag = IndependentTag.Create(
                             doc,
                             view.Id,
                             elemRef,
-                            true, // addLeader â€” always enabled per spec
+                            addLeader,
                             TagMode.TM_ADDBY_CATEGORY,
-                            TagOrientation.Horizontal, // Always horizontal per spec
+                            orientation,
                             tagPosition);
 
                         if (newTag == null)
@@ -1172,13 +1259,16 @@ namespace AJTools.Services.SmartTag
                         }
                         catch (Exception)
                         {
-                            // If type change fails, the default type was used â€” still acceptable.
+                            // If type change fails, the default type was used — still acceptable.
                         }
 
-                        if (!ApplyLeaderBehavior(doc, newTag, view, leaderLogic))
+                        if (addLeader)
                         {
-                            t.RollBack();
-                            return false;
+                            if (!ApplyLeaderBehavior(doc, newTag, view, leaderLogic))
+                            {
+                                t.RollBack();
+                                return false;
+                            }
                         }
 
                         t.Commit();

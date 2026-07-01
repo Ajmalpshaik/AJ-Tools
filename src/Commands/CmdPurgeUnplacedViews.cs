@@ -1,22 +1,38 @@
-// ==================================================
-// Tool Name    : Purge Unplaced Views
-// Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.0
-// Created      : 2026-05-11
-// Last Updated : 2026-05-11
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Active Revit document and user purge options.
-// Output       : Safe purge result with final report.
-// Notes        : Added under AJ Tools Purge panel.
-// Changelog    : v1.0.0 - Converted from Interactive Python Shell script.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Purge Unplaced Views (shared runner)
+ * File Name     : CmdPurgeUnplacedViews.cs
+ * Purpose       : Shared runner used by the Purge Unplaced 3D Views and Purge Unplaced Sections commands;
+ *                 validates the project, opens the preview window for the chosen mode, and reports the result.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-05-11
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Models.Purge, AJTools.UI.Purge (PurgeUnplacedViewsWindow)
+ *
+ * Input         : Full Project - the purge mode (3D views or sections) passed by the calling command.
+ * Output        : Selected unplaced views deleted (transaction owned by the window); Succeeded/Cancelled.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. Project-only; exits cleanly in the Family Editor.
+ * - Not exposed as its own ribbon button - it is the shared engine behind the two purge commands.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-11) - Converted from interactive Python shell script.
+ * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block. Purge behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;

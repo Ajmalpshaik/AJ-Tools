@@ -1,4 +1,4 @@
-﻿// Tool Name: Location Data Assigner UI
+// Tool Name: Location Data Assigner UI
 // Description: Code-behind for assigning room, level, coordinate, altitude, and HVAC zone data.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -579,7 +579,7 @@ namespace AJTools.UI
 
                     if (!ok && hasExisting)
                     {
-                        try { map.Remove(definition); } catch { }
+                        try { map.Remove(definition); } catch (Exception) { }
                         ok = map.Insert(definition, binding, spec.ParameterGroup);
                     }
 
@@ -641,7 +641,7 @@ namespace AJTools.UI
         private static DefinitionGroup GetOrCreateGroup(DefinitionFile file, string name)
         {
             DefinitionGroup group = null;
-            try { group = file.Groups.get_Item(name); } catch { group = null; }
+            try { group = file.Groups.get_Item(name); } catch (Exception) { group = null; }
             return group ?? file.Groups.Create(name);
         }
 
@@ -661,13 +661,13 @@ namespace AJTools.UI
             };
 
             try { return preferredGroup.Definitions.Create(options); }
-            catch { return TryGetDefinition(preferredGroup, name); }
+            catch (Exception) { return TryGetDefinition(preferredGroup, name); }
         }
 
         private static Definition TryGetDefinition(DefinitionGroup group, string name)
         {
             try { return group.Definitions.get_Item(name); }
-            catch { return null; }
+            catch (Exception) { return null; }
         }
 
         private static Definition FindDefinition(BindingMap map, string name)
@@ -921,7 +921,7 @@ namespace AJTools.UI
                     if (room != null && room.IsPointInRoom(point))
                         return room;
                 }
-                catch { }
+                catch (Exception) { }
             }
             return null;
         }
@@ -935,7 +935,7 @@ namespace AJTools.UI
                     if (space != null && space.IsPointInSpace(point))
                         return space;
                 }
-                catch { }
+                catch (Exception) { }
             }
             return null;
         }
@@ -1012,7 +1012,7 @@ namespace AJTools.UI
             }
 
             Zone zone = null;
-            try { zone = space.Zone; } catch { zone = null; }
+            try { zone = space.Zone; } catch (Exception) { zone = null; }
             if (zone == null)
             {
                 AddReason(result, options.Debug, "No HVAC zone");
@@ -1085,7 +1085,7 @@ namespace AJTools.UI
             Level level = null;
             if (room != null)
             {
-                try { level = room.Level; } catch { level = null; }
+                try { level = room.Level; } catch (Exception) { level = null; }
             }
 
             if (level == null)
@@ -1104,7 +1104,7 @@ namespace AJTools.UI
                 return null;
 
             ElementId id = ElementId.InvalidElementId;
-            try { if (el.LevelId != ElementId.InvalidElementId) id = el.LevelId; } catch { }
+            try { if (el.LevelId != ElementId.InvalidElementId) id = el.LevelId; } catch (Exception) { }
 
             if (id == ElementId.InvalidElementId) id = LevelIdFrom(el, BuiltInParameter.FAMILY_LEVEL_PARAM);
             if (id == ElementId.InvalidElementId) id = LevelIdFrom(el, BuiltInParameter.SCHEDULE_LEVEL_PARAM);
@@ -1272,7 +1272,7 @@ namespace AJTools.UI
                 double el = survey.get_Parameter(BuiltInParameter.BASEPOINT_ELEVATION_PARAM)?.AsDouble() ?? 0.0;
                 return new XYZ(ew, ns, el);
             }
-            catch
+            catch (Exception)
             {
                 return XYZ.Zero;
             }
@@ -1281,7 +1281,7 @@ namespace AJTools.UI
         private static Transform GetInternalToShared(Document doc)
         {
             try { return doc.ActiveProjectLocation?.GetTransform() ?? Transform.Identity; }
-            catch { return Transform.Identity; }
+            catch (Exception) { return Transform.Identity; }
         }
 
         private void SetBusy(bool busy, string msg)

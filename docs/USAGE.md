@@ -22,6 +22,10 @@
 
 - Dimension: Duct Reference Dimension, Active View Duct Dimensions
 
+### AJ AI
+
+- AI Assistant: Gemini Shell
+
 ## Typical Workflow
 1. Open a Revit 2020 project (non-template view).
 2. Use AJ Tools commands from the AJ Tools ribbon tab.

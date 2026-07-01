@@ -1,10 +1,40 @@
-// Tool Name: Filter Pro - State Tracker
-// Description: Manages persisted Filter Pro UI state between window sessions per document.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: System, System.Collections.Generic, System.Linq, Autodesk.Revit.DB, AJTools.Models
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : FilterProStateTracker.cs
+ * Purpose       : Tracks and restores last-used Filter Pro UI selections per document across
+ *                 window sessions. Resets automatically when the active document changes.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, System.Linq
+ *
+ * Input         : Active Project document; FilterSelection after a successful filter operation
+ * Output        : FilterProState persisted in memory for the current document session
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - State is in-memory only — cleared when Revit is closed or the document changes.
+ * - Document key is built from PathName when available; falls back to Title + hash for unsaved docs.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,22 +1,35 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Defines View Crop source and result state enumerations.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-08
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropEnums.cs
+ * Purpose       : Defines View Crop source and result state enumerations.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : None
+ *
+ * Input         : None
+ * Output        : Enum types ViewCropExtentSource and ViewCropResultState.
+ *
+ * Notes         :
+ * - Result states: Updated / Skipped / Failed.
+ * - Extent sources: ActiveViewElements / AllModelElements.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 namespace AJTools.Models.ViewCrop
 {
     /// <summary>
