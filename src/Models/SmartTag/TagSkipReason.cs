@@ -15,6 +15,7 @@ namespace AJTools.Models.SmartTag
         None,
         AlreadyTagged,
         FilteredOutSize,
+        FilteredOutType,
         FilteredOutVisibility,
         OutsideCropRegion,
         DenseZoneSkipped,

@@ -1,22 +1,37 @@
-// ==================================================
-// Tool Name    : Graphics Tools
-// Purpose      : Copies element override settings from a source element to target elements.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.4
-// Created      : 2026-03-30
-// Last Updated : 2026-05-09
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : One source element and one or more target elements.
-// Output       : Target element graphics overrides matched in the active view.
-// Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.4 - Reviewed Match Element Graphics flow, shared validation, and metadata for release.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Match Element Graphics
+ * File Name     : CmdMatchElementGraphics.cs
+ * Purpose       : Copies element-level graphics overrides from one picked source element to one or more picked target elements in the active view.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-03-30
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active View - one source element, then one or more target elements (pick, ESC to finish).
+ * Output        : Target element graphics overrides matched to the source in the active view (single undo step).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - All target matches are grouped in one TransactionGroup so a single Ctrl+Z reverses the whole operation.
+ * - ESC during a pick cancels silently (no error dialog); normal success is silent.
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Grouped multi-target matching into one TransactionGroup (single undo); version-safe ElementId access; full metadata block.
+ * v1.4.4 (2026-05-09) - Reviewed Match Element Graphics flow, shared validation, and metadata for release.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -70,44 +85,58 @@ namespace AJTools.Commands.GraphicsTools
                 var processedElementIds = new HashSet<int>();
                 int appliedCount = 0;
 
-                while (true)
+                using (var transactionGroup = new TransactionGroup(context.Document, "AJ Tools - Match Element Graphics"))
                 {
-                    if (!GraphicsSelectionService.TryPickSingleElementId(
-                        context.UIDocument,
-                        selectionFilter: null,
-                        prompt: "Select TARGET element (ESC to finish).",
-                        out ElementId targetElementId,
-                        out bool wasCancelled))
+                    transactionGroup.Start();
+
+                    while (true)
                     {
-                        if (wasCancelled)
+                        if (!GraphicsSelectionService.TryPickSingleElementId(
+                            context.UIDocument,
+                            selectionFilter: null,
+                            prompt: "Select TARGET element (ESC to finish).",
+                            out ElementId targetElementId,
+                            out bool wasCancelled))
                         {
-                            break;
+                            if (wasCancelled)
+                            {
+                                break;
+                            }
+
+                            continue;
                         }
 
-                        continue;
+                        if (targetElementId == sourceElementId ||
+                            processedElementIds.Contains(ElementIdHelper.GetIntegerValue(targetElementId)) ||
+                            context.Document.GetElement(targetElementId) == null)
+                        {
+                            continue;
+                        }
+
+                        using (var transaction = new Transaction(context.Document, "AJ Tools - Match Element Graphics"))
+                        {
+                            transaction.Start();
+                            try
+                            {
+                                context.ActiveView.SetElementOverrides(targetElementId, sourceSettings);
+                                transaction.Commit();
+                                processedElementIds.Add(ElementIdHelper.GetIntegerValue(targetElementId));
+                                appliedCount++;
+                            }
+                            catch
+                            {
+                                transaction.RollBack();
+                            }
+                        }
                     }
 
-                    if (targetElementId == sourceElementId ||
-                        processedElementIds.Contains(targetElementId.IntegerValue) ||
-                        context.Document.GetElement(targetElementId) == null)
+                    if (appliedCount > 0)
                     {
-                        continue;
+                        transactionGroup.Assimilate();
                     }
-
-                    using (var transaction = new Transaction(context.Document, "AJ Tools - Match Element Graphics"))
+                    else
                     {
-                        transaction.Start();
-                        try
-                        {
-                            context.ActiveView.SetElementOverrides(targetElementId, sourceSettings);
-                            transaction.Commit();
-                            processedElementIds.Add(targetElementId.IntegerValue);
-                            appliedCount++;
-                        }
-                        catch
-                        {
-                            transaction.RollBack();
-                        }
+                        transactionGroup.RollBack();
                     }
                 }
 
@@ -127,4 +156,3 @@ namespace AJTools.Commands.GraphicsTools
         }
     }
 }
-

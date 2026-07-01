@@ -7,6 +7,35 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.8.0] - 2026-07-01
+
+- Full project audit: added the **Pipe Sizing** tool (MEP panel) for domestic water pipe sizing from fixture units, system type, pipe material, and velocity limit.
+- Hardened the AJ AI shell with `GeneratedCodeSafetyValidator` (blocks process/registry/network/reflection/unmanaged/file-delete calls in AI-generated scripts and flags destructive Revit operations for user confirmation before running), plus activity logging.
+- Fixed a dead ribbon wiring gap: `CmdPurgeUnusedFamilyParametersAvailability` existed but was never assigned to its button, so "Purge Family Parameters" stayed clickable outside the Family Editor. It is now wired in.
+- Fixed the About panel's inconsistent "Aj tool" ribbon label.
+- Removed 8 orphaned icon resources and a stray local dev script/screenshot that had no code references.
+- Verified a clean Release/x64 build (zero errors, zero warnings) against the Revit 2020 API.
+
+## [1.7.0] - 2026-07-01
+
+- AJ Annotation tab refactor/audit: full metadata blocks across every Dimensions, Auto Duct Dimension, Tags, Duct Flow, Revision Cloud, and Text tool; single-undo grouping for Copy Dimension Text, Copy Text, and continuous Revision Clouds; About and both ribbon-builder files standardized. All tool behaviour unchanged.
+
+## [1.6.0] - 2026-07-01
+
+- Modify / MEP / Coordination / Data / Manage / Family panels refactor/audit: full metadata blocks across every tool in these panels; Match Elevation now a single undo step; Reassign Level gains a Full-Project bulk-edit confirmation; version-safe ElementId access (Linked ID Viewer, Reassign Level); Duct Standards no-document path cancels cleanly with a project guard; removed loose scratch scripts from src. All tool behaviour unchanged.
+
+## [1.5.4] - 2026-06-30
+
+- Datums panel refactor/audit: full metadata blocks across all datum tools, removed success popups (silent success), single-undo batch for window-select Flip Bubbles, Family-Editor guards, and de-duplicated reset logic. Datum behaviour unchanged.
+
+## [1.5.3] - 2026-06-30
+
+- Graphics panel refactor/audit: single-undo TransactionGroup for both Match tools, view-scoped Reset Element Graphics in View, full metadata blocks, and 2024+ ElementId readiness. Graphics behaviour unchanged.
+
+## [1.5.2] - 2026-06-27
+
+- View Crop tool refactor/audit pass: shared helpers, bulk-edit confirmation, ElementId helper for 2024+ readiness. Behaviour of View Crop unchanged.
+
 ## [1.5.1] - 2026-06-24
 
 - Integrated the AJ AI (Gemini Shell) tool into the main AJ Tools ribbon under a new "AI Assistant" panel, fixing visibility issues caused by an empty standalone tab.

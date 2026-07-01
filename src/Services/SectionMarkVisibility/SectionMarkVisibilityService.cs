@@ -1,15 +1,43 @@
-// ==================================================
-// Tool Name    : Section Mark Visibility
-// Purpose      : Core business logic service with direct Sheet Number parameter evaluation.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.1.0
-// Created      : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Section Mark Visibility
+ * File Name     : SectionMarkVisibilityService.cs
+ * Purpose       : Core logic — unhides/filters section markers in plan views by
+ *                 evaluating each Section View's native 'Sheet Number' parameter.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-05-24
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Tool Scope: Active View / selected plan views (+ dependent views); user settings
+ * Output        : Section markers hidden/unhidden in target views; processing result counts
+ *
+ * Notes         :
+ * - All section markers are collected and classified ONCE before the view loop (no full-model
+ *   scan inside the loop).
+ * - Workshared models: views owned by another user are skipped with a clear reason.
+ * - All changes run inside ONE transaction (single undo step).
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-24) - Initial release.
+ * v1.1.0 (2026-05-24) - Direct Sheet Number parameter evaluation.
+ * v1.2.0 (2026-06-30) - Cleanup pass: section markers collected/classified once before the
+ *                       view loop (performance); workshared view editability check with clear
+ *                       skip reason; removed never-matching Id fallback; metadata block.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -27,6 +55,9 @@ namespace AJTools.Services.SectionMarkVisibility
     {
         private readonly Document _doc;
         private readonly SectionMarkVisibilitySettings _settings;
+
+        // Caches whether a given ViewFamilyType (by Id) is a Section type, to avoid repeated lookups.
+        private readonly Dictionary<int, bool> _sectionTypeCache = new Dictionary<int, bool>();
 
         public SectionMarkVisibilityService(Document doc, SectionMarkVisibilitySettings settings)
         {
@@ -58,7 +89,8 @@ namespace AJTools.Services.SectionMarkVisibility
 
             if (allSections.Count == 0)
             {
-                return new SectionMarkVisibilityResult(0, 0, new List<string> { "No Section Views found in the project." }, "No Section Views found in the project.");
+                // Not an error — there is simply nothing to process. Reported as an info message.
+                return new SectionMarkVisibilityResult(0, 0, new List<string>(), "No section marks were found in this project.");
             }
 
             // 2. Build a lookup: SectionName -> ViewSection (for matching markers to sections)
@@ -72,13 +104,13 @@ namespace AJTools.Services.SectionMarkVisibility
                 }
             }
 
-            // Also build ID-based lookup for fast access
-            var sectionById = allSections.ToDictionary(s => s.Id.IntegerValue, s => s);
+            // 3. Collect and classify ALL section markers ONCE (avoids a full-model scan inside the loop)
+            var sectionMarkers = CollectSectionMarkers();
 
-            // 3. Resolve the full list of views to process, including dependent plan views
+            // 4. Resolve the full list of views to process, including dependent plan views
             var viewsToProcess = ResolveViewsAndDependents(targetViews);
 
-            // 4. Run visibility operations inside a Revit Transaction
+            // 5. Run visibility operations inside a Revit Transaction
             using (var trans = new Transaction(_doc, transactionName))
             {
                 trans.Start();
@@ -93,13 +125,21 @@ namespace AJTools.Services.SectionMarkVisibility
                             continue;
                         }
 
+                        // Worksharing: skip views owned by another user (cannot be modified)
+                        if (!IsViewEditable(view, out string ownerReason))
+                        {
+                            skippedCount++;
+                            errors.Add($"Skipped view '{view.Name}': {ownerReason}");
+                            continue;
+                        }
+
                         // A. Ensure the OST_Sections category is visible in the view
                         EnsureSectionsCategoryVisible(view);
 
                         // B. Unhide ALL section markers in the target view first (reset state)
-                        UnhideAllSectionsInView(view, sectionByName, sectionById);
+                        UnhideAllSectionsInView(view, sectionMarkers);
 
-                        // CRITICAL: We must regenerate the document here. 
+                        // CRITICAL: We must regenerate the document here.
                         // Otherwise, the view-specific FilteredElementCollector in HideNonMatchingSectionsInView
                         // will not 'see' the newly unhidden section markers in the same transaction!
                         _doc.Regenerate();
@@ -108,7 +148,7 @@ namespace AJTools.Services.SectionMarkVisibility
                         //    Otherwise, hide sections that do not match the sheet criteria
                         if (!_settings.UnhideAllSections)
                         {
-                            HideNonMatchingSectionsInView(view, sectionByName, sectionById);
+                            HideNonMatchingSectionsInView(view, sectionByName);
                         }
 
                         processedCount++;
@@ -217,24 +257,17 @@ namespace AJTools.Services.SectionMarkVisibility
         }
 
         /// <summary>
-        /// Unhides ALL section markers that are currently hidden in this view.
-        /// This resets the view state so that fresh filtering can be applied.
-        /// 
-        /// Strategy: We cannot use FilteredElementCollector(doc, viewId) because it only returns
-        /// VISIBLE elements. To find HIDDEN section markers, we collect all OST_Viewers from the 
-        /// entire document, then check each one:
-        ///   1. Is it a section-type viewer? (ViewFamily.Section)
-        ///   2. Does it belong to this view? (OwnerViewId matches)
-        ///   3. Is it currently hidden in this view?
-        /// If all conditions are true, we unhide it.
+        /// Collects every section-type marker (OST_Viewers) in the document, ONCE.
+        /// FilteredElementCollector(doc, viewId) only returns VISIBLE elements, so to be able to
+        /// unhide HIDDEN markers later we gather them all here and classify by ViewFamily.Section.
+        /// This runs a single full-document collection, outside the per-view loop.
         /// </summary>
-        private void UnhideAllSectionsInView(View view, Dictionary<string, ViewSection> sectionByName, Dictionary<int, ViewSection> sectionById)
+        private List<Element> CollectSectionMarkers()
         {
-            var elementsToUnhide = new List<ElementId>();
+            var markers = new List<Element>();
 
             try
             {
-                // Collect ALL OST_Viewers from the entire document (includes hidden ones)
                 var allViewers = new FilteredElementCollector(_doc)
                     .OfCategory(BuiltInCategory.OST_Viewers)
                     .WhereElementIsNotElementType()
@@ -242,11 +275,57 @@ namespace AJTools.Services.SectionMarkVisibility
 
                 foreach (Element viewer in allViewers)
                 {
-                    if (viewer == null) continue;
+                    if (viewer != null && IsSectionTypeViewer(viewer))
+                        markers.Add(viewer);
+                }
+            }
+            catch
+            {
+                // Ignore collector errors — return whatever was gathered.
+            }
 
-                    // Check if this is a section-type viewer
-                    if (!IsSectionTypeViewer(viewer))
-                        continue;
+            return markers;
+        }
+
+        /// <summary>
+        /// Returns false if the view is owned by another user in a workshared model (cannot be edited).
+        /// </summary>
+        private bool IsViewEditable(View view, out string reason)
+        {
+            reason = string.Empty;
+            try
+            {
+                if (!_doc.IsWorkshared)
+                    return true;
+
+                CheckoutStatus status = WorksharingUtils.GetCheckoutStatus(_doc, view.Id);
+                if (status == CheckoutStatus.OwnedByOtherUser)
+                {
+                    reason = "view is owned by another user.";
+                    return false;
+                }
+            }
+            catch
+            {
+                // If status cannot be determined, allow the attempt — any failure is caught per-view.
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Unhides ALL section markers that are currently hidden in this view.
+        /// This resets the view state so that fresh filtering can be applied.
+        /// Uses the pre-collected marker set, so no document scan happens inside the loop.
+        /// </summary>
+        private void UnhideAllSectionsInView(View view, IList<Element> sectionMarkers)
+        {
+            var elementsToUnhide = new List<ElementId>();
+
+            try
+            {
+                foreach (Element viewer in sectionMarkers)
+                {
+                    if (viewer == null || !viewer.IsValidObject) continue;
 
                     // Check if it is currently hidden in this view
                     try
@@ -291,7 +370,7 @@ namespace AJTools.Services.SectionMarkVisibility
         /// its corresponding ViewSection by name, evaluate the ViewSection's Sheet Number parameter,
         /// and hide markers whose section doesn't match the filter.
         /// </summary>
-        private void HideNonMatchingSectionsInView(View view, Dictionary<string, ViewSection> sectionByName, Dictionary<int, ViewSection> sectionById)
+        private void HideNonMatchingSectionsInView(View view, Dictionary<string, ViewSection> sectionByName)
         {
             var markersToHide = new List<ElementId>();
 
@@ -312,7 +391,7 @@ namespace AJTools.Services.SectionMarkVisibility
                         continue;
 
                     // Match this marker to its ViewSection by name
-                    ViewSection matchedSection = FindMatchingSection(viewer, sectionByName, sectionById);
+                    ViewSection matchedSection = FindMatchingSection(viewer, sectionByName);
                     if (matchedSection == null)
                     {
                         // Cannot determine which section this marker represents — hide it to be safe
@@ -384,7 +463,7 @@ namespace AJTools.Services.SectionMarkVisibility
 
         /// <summary>
         /// Determines if an OST_Viewers element is a section-type viewer (not an elevation, callout, etc.)
-        /// by checking its ViewFamilyType.
+        /// by checking its ViewFamilyType. Results are cached per type to avoid repeated lookups.
         /// </summary>
         private bool IsSectionTypeViewer(Element viewer)
         {
@@ -393,8 +472,14 @@ namespace AJTools.Services.SectionMarkVisibility
                 ElementId typeId = viewer.GetTypeId();
                 if (typeId == ElementId.InvalidElementId) return false;
 
+                int typeKey = typeId.IntegerValue;
+                if (_sectionTypeCache.TryGetValue(typeKey, out bool cached))
+                    return cached;
+
                 var vfType = _doc.GetElement(typeId) as ViewFamilyType;
-                return vfType != null && vfType.ViewFamily == ViewFamily.Section;
+                bool isSection = vfType != null && vfType.ViewFamily == ViewFamily.Section;
+                _sectionTypeCache[typeKey] = isSection;
+                return isSection;
             }
             catch
             {
@@ -403,24 +488,15 @@ namespace AJTools.Services.SectionMarkVisibility
         }
 
         /// <summary>
-        /// Matches an OST_Viewers marker element to its corresponding ViewSection.
-        /// Uses multiple strategies in order of reliability:
-        ///   1. Name matching (OST_Viewers element Name == ViewSection.Name)
-        ///   2. ElementId matching via the viewer's own ID in the section map
+        /// Matches an OST_Viewers marker element to its corresponding ViewSection by name
+        /// (the marker's Name equals the ViewSection's Name for standard sections).
         /// </summary>
-        private ViewSection FindMatchingSection(Element viewer, Dictionary<string, ViewSection> sectionByName, Dictionary<int, ViewSection> sectionById)
+        private static ViewSection FindMatchingSection(Element viewer, Dictionary<string, ViewSection> sectionByName)
         {
-            // Strategy 1: Match by name (most reliable for standard sections)
             string viewerName = viewer.Name;
             if (!string.IsNullOrEmpty(viewerName) && sectionByName.TryGetValue(viewerName, out ViewSection secByName))
             {
                 return secByName;
-            }
-
-            // Strategy 2: The OST_Viewers element ID might be the same as the ViewSection ID in some Revit versions
-            if (sectionById.TryGetValue(viewer.Id.IntegerValue, out ViewSection secById))
-            {
-                return secById;
             }
 
             return null;

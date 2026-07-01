@@ -1,3 +1,51 @@
+#region Metadata
+/*
+ * Tool Name     : AJ AI (Gemini Shell)
+ * File Name     : GeminiShellViewModel.cs
+ * Purpose       : WPF ViewModel driving the AJ AI dockable pane — takes a plain-English prompt,
+ *                 sends it (with live Revit context) to Gemini or OpenAI, extracts the returned
+ *                 C# script, runs it safely against the open Revit document, and auto-retries a
+ *                 failed run with the AI's help up to a fixed attempt limit.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-01-01
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in (WPF, no direct Revit API calls — all Revit access goes through
+ *                 RevitContextExtractionService / RevitExecutionService via ExternalEvent)
+ *
+ * Dependencies  : IAiProviderService (Gemini/OpenAI), RevitExecutionService, RevitContextExtractionService,
+ *                 GeneratedCodeSafetyValidator, ErrorCorrectionService
+ *
+ * Input         : User prompt text, live Revit selection context, saved script history
+ * Output        : Generated/edited C# script, execution results, saved .cs script files
+ *
+ * Notes         :
+ * - Single system prompt constant (previously duplicated in two methods) constrains the AI to
+ *   Revit 2020-safe C#, no external I/O, and a required Execute()-returns-summary structure.
+ * - Every run is scanned by GeneratedCodeSafetyValidator before execution: outright-dangerous
+ *   patterns (Process.Start, registry, network, reflection/unsafe, raw file I/O) are blocked;
+ *   destructive-but-legitimate ones (Delete/Purge) require a Yes/No confirmation once per run.
+ * - The auto-fix retry loop stops early if the AI returns the same error twice in a row, instead
+ *   of burning all remaining attempts on a fix that isn't working.
+ * - IsBusy is checked at the top of every command method as a defensive re-entrancy guard, in
+ *   addition to the XAML now disabling the action buttons while a request is in flight.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-01-01) - Initial release.
+ * v1.1.0 (2026-07-01) - Safety-hardening pass: deduped system prompt, added pre-execution safety
+ *                       scan + confirmation, repeat-error detection, IsBusy guards, provider/key
+ *                       status text, saved-script provider metadata, activity logging.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
+
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -17,13 +65,41 @@ namespace AJTools.GeminiShell.ViewModels
 {
     public class GeminiShellViewModel : ObservableObject
     {
+        // The one and only system prompt sent to the AI for both code generation and auto-fix
+        // requests. Previously this exact text was duplicated in GenerateCodeAsync and
+        // RunCodeAsync — kept in sync manually. Now there is exactly one copy.
+        private const string SystemPrompt = @"You are generating C# code for a live Revit automation assistant, acting as an expert Revit API developer. Think like a BIM Modeler and a Coding Agent — write clean, concise, and efficient code.
+
+HARD RULES:
+1. Generate raw C# script only. Do not create a full add-in project. Do not generate Python, Dynamo, PowerShell, or external application code. Do not use external NuGet packages.
+2. Target the Revit 2020 API strictly. Do NOT use ForgeTypeId, UnitTypeId, SpecTypeId, Parameter.GetElementId(), or any other Revit 2021+ API. Use only APIs compatible with Revit 2020 and .NET Framework 4.7.2.
+3. Use only the provided globals: Document Document, UIDocument UIDocument, Application Application, Action<int,string> ReportProgress. Do not access the network, the registry, or external processes, and do not launch other programs.
+4. Do not delete, purge, or bulk-modify elements unless the user's request clearly asked for that.
+5. Validate before you use: check elements are not null and IsValidObject, check a Category exists before assuming it, check a Parameter is not null and not read-only before setting it. Never guess a parameter name.
+6. Use a Transaction only when the model is actually being modified. Read-only code (counting, checking, reporting) must NOT open a Transaction.
+7. Do not use TaskDialog for routine success messages — return a plain summary string instead so it shows in the tool's own output panel.
+8. Keep code short, safe, and focused on exactly what was asked.
+
+REQUIRED STRUCTURE (read carefully — this prevents a common mistake):
+1. The very first line of your response MUST be a comment with a name: // Name: YourPascalCaseName
+2. Do NOT declare your own class (do NOT write `public class SomeName { ... }`). A class you declare yourself CANNOT see Document, UIDocument, Application, or ReportProgress — those are only visible in code written directly in the script, including a plain method written directly in the script.
+3. Structure the script exactly like this:
+   string Execute()
+   {
+       // your logic here, using Document, UIDocument, Application directly by name
+       return ""summary of what happened"";
+   }
+   return Execute();
+4. Execute() MUST return a clear summary string describing what happened (e.g. how many elements were checked or changed). It must NOT return void, and it must NOT be declared inside a class.
+
+If the user's request is unsafe, destructive without being explicitly asked for, or unclear, generate safe validation/reporting code instead of risky modification code, and explain in the summary what additional confirmation would be needed.";
+
         private readonly GeminiShellConfig _config;
         private readonly IAiProviderService _geminiService;
         private readonly IAiProviderService _openAiService;
         private readonly RevitExecutionService _executionService;
         private readonly RevitContextExtractionService _contextService;
         private CancellationTokenSource _cts;
-        private const int MaxHistorySize = 50;
 
         public GeminiShellViewModel(
             GeminiShellConfig config,
@@ -134,11 +210,16 @@ namespace AJTools.GeminiShell.ViewModels
                 _config.Save();
                 OnPropertyChanged(nameof(IsGeminiSelected));
                 OnPropertyChanged(nameof(IsOpenAiSelected));
+                OnPropertyChanged(nameof(ProviderStatusText));
             }
         }
 
         public bool IsGeminiSelected => SelectedProvider == "Gemini";
         public bool IsOpenAiSelected => SelectedProvider == "OpenAI";
+
+        /// <summary>Plain-language provider + key status for the top bar — never shows the key itself.</summary>
+        public string ProviderStatusText =>
+            $"{SelectedProvider}: {(GetActiveService()?.IsConfigured() == true ? "API key configured" : "API key missing — open Settings")}";
 
         private string _geminiApiKeyInput;
         public string GeminiApiKeyInput
@@ -192,10 +273,10 @@ namespace AJTools.GeminiShell.ViewModels
 
         private void RunFromHistory(HistoryItem item)
         {
-            if (item == null || !File.Exists(item.FilePath)) return;
+            if (IsBusy || item == null || !File.Exists(item.FilePath)) return;
             PromptInput = item.Prompt;
             CodeEditorContent = item.Code;
-            
+
             if (RunCodeCommand.CanExecute(null))
             {
                 RunCodeCommand.Execute(null);
@@ -224,23 +305,15 @@ namespace AJTools.GeminiShell.ViewModels
             var files = Directory.GetFiles(ScriptsFolderPath, "*.cs");
             foreach (var file in files)
             {
-                var content = File.ReadAllText(file);
-                var prompt = "";
-                if (content.StartsWith("// Prompt: "))
-                {
-                    var firstLineEnd = content.IndexOf('\n');
-                    if (firstLineEnd > 0)
-                    {
-                        prompt = content.Substring(11, firstLineEnd - 11).Trim();
-                        content = content.Substring(firstLineEnd + 1).TrimStart();
-                    }
-                }
+                var rawContent = File.ReadAllText(file);
+                var (prompt, provider, code) = ParseSavedScriptHeader(rawContent);
 
                 SavedHistory.Add(new HistoryItem
                 {
                     FilePath = file,
                     Prompt = prompt,
-                    Code = content,
+                    Provider = provider,
+                    Code = code,
                     DateCreated = File.GetCreationTime(file)
                 });
             }
@@ -250,6 +323,42 @@ namespace AJTools.GeminiShell.ViewModels
             sorted.Sort((a, b) => b.DateCreated.CompareTo(a.DateCreated));
             SavedHistory.Clear();
             foreach (var item in sorted) SavedHistory.Add(item);
+        }
+
+        /// <summary>
+        /// Saved scripts start with one or two header comment lines (// Prompt: ... and
+        /// // Provider: ...) followed by a blank line and the code. This peels those header
+        /// lines off in a single, testable place instead of ad-hoc string math at each call site.
+        /// </summary>
+        private static (string Prompt, string Provider, string Code) ParseSavedScriptHeader(string rawContent)
+        {
+            string prompt = string.Empty;
+            string provider = string.Empty;
+            string remaining = rawContent ?? string.Empty;
+
+            remaining = ConsumeHeaderLine(remaining, "// Prompt: ", out prompt);
+            remaining = ConsumeHeaderLine(remaining, "// Provider: ", out provider);
+
+            return (prompt, provider, remaining.TrimStart('\r', '\n'));
+        }
+
+        private static string ConsumeHeaderLine(string content, string prefix, out string value)
+        {
+            value = string.Empty;
+            if (string.IsNullOrEmpty(content) || !content.StartsWith(prefix))
+            {
+                return content;
+            }
+
+            int lineEnd = content.IndexOf('\n');
+            if (lineEnd < 0)
+            {
+                value = content.Substring(prefix.Length).Trim();
+                return string.Empty;
+            }
+
+            value = content.Substring(prefix.Length, lineEnd - prefix.Length).Trim();
+            return content.Substring(lineEnd + 1);
         }
 
         private void SaveScript()
@@ -271,7 +380,7 @@ namespace AJTools.GeminiShell.ViewModels
             StatusText = "Saving script...";
 
             string fileName = "GeneratedScript.cs";
-            
+
             // Extract the name from the first line of the code to save API tokens
             if (!string.IsNullOrWhiteSpace(CodeEditorContent))
             {
@@ -298,12 +407,14 @@ namespace AJTools.GeminiShell.ViewModels
                 counter++;
             }
 
-            string fileContent = $"// Prompt: {PromptInput?.Replace("\n", " ")}\n\n{CodeEditorContent}";
+            string promptHeader = $"// Prompt: {PromptInput?.Replace("\n", " ")}";
+            string providerHeader = $"// Provider: {SelectedProvider} (Revit 2020 target)";
+            string fileContent = $"{promptHeader}\n{providerHeader}\n\n{CodeEditorContent}";
             File.WriteAllText(filePath, fileContent);
 
-            StatusText = $"Script saved to {Path.GetFileName(filePath)}";
+            StatusText = $"Script saved to {filePath}";
             IsBusy = false;
-            
+
             RefreshScriptsList();
         }
 
@@ -318,7 +429,7 @@ namespace AJTools.GeminiShell.ViewModels
 
         private void TrimHistory()
         {
-            while (History.Count > MaxHistorySize)
+            while (History.Count > Helpers.AiShellConstants.MaxChatHistoryMessages)
             {
                 History.RemoveAt(0);
             }
@@ -340,10 +451,13 @@ namespace AJTools.GeminiShell.ViewModels
             _config.Save();
             IsSettingsVisible = false;
             StatusText = "Settings saved securely.";
+            OnPropertyChanged(nameof(ProviderStatusText));
         }
 
         private async Task GenerateCodeAsync()
         {
+            if (IsBusy) return;
+
             var activeService = GetActiveService();
             if (!activeService.IsConfigured())
             {
@@ -367,7 +481,7 @@ namespace AJTools.GeminiShell.ViewModels
                 }
 
                 StatusText = $"Generating code using {activeService.ProviderName}...";
-                
+
                 var messages = new System.Collections.Generic.List<GeminiMessage>();
                 if (!string.IsNullOrWhiteSpace(contextString) && contextString != "No active document." && contextString != "No elements currently selected.")
                 {
@@ -375,28 +489,14 @@ namespace AJTools.GeminiShell.ViewModels
                 }
                 messages.Add(new GeminiMessage { Role = "user", Content = PromptInput });
 
-                            string systemPrompt = @"You are an expert Revit API C# Developer.
-Think like a BIM Modeler and a Coding Agent. Write clean, concise, and highly efficient code to save API tokens.
-
-Provide ONLY valid C# code that can be executed via Roslyn.
-Assume the following globals are available:
-- Document Document
-- UIDocument UIDocument
-- Application Application
-- Action<int, string> ReportProgress
-
-CRITICAL FORMATTING AND STRUCTURE RULES:
-1. The very first line of your response MUST be a comment with a name, formatted exactly like this: // Name: YourPascalCaseName
-2. You MUST structure your code by placing the main logic inside a `public string Execute()` method.
-3. At the very end of the script, you MUST call this method and return its value by adding: `return Execute();`
-4. Inside the Execute() method, all modifications must be wrapped in a Transaction.
-5. Your Execute() method MUST return a summary string explaining exactly how many elements were modified (e.g., `return $""{count} elements were updated successfully."";`). Do NOT return void.
-6. CRITICAL API VERSION: You MUST write code strictly for the Revit 2020 API. Do NOT use newer APIs (like ForgeTypeId, Parameter.GetElementId(), etc.) introduced in Revit 2021+.";
-
-                string response = await activeService.SendMessageAsync(messages, systemPrompt, _cts.Token);
+                string response = await activeService.SendMessageAsync(messages, SystemPrompt, _cts.Token);
                 CodeEditorContent = Helpers.CodeExtractionHelper.ExtractCSharpCode(response);
-                StatusText = "Code generated successfully.";
-                
+
+                var safety = GeneratedCodeSafetyValidator.Validate(CodeEditorContent);
+                StatusText = safety.HighestLevel == CodeRiskLevel.Safe
+                    ? "Code generated successfully."
+                    : $"Code generated. Note: {safety.Findings.First().Reason} Review before running.";
+
                 History.Add(new GeminiMessage { Role = "user", Content = PromptInput });
                 History.Add(new GeminiMessage { Role = "model", Content = response });
                 TrimHistory();
@@ -415,6 +515,7 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
 
         private async Task RunCodeAsync()
         {
+            if (IsBusy) return;
             if (string.IsNullOrWhiteSpace(CodeEditorContent)) return;
 
             try
@@ -428,8 +529,11 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
                 ExecutionProgressText = "Initializing...";
 
                 int attempt = 0;
-                int maxAttempts = 5;
+                int maxAttempts = Helpers.AiShellConstants.MaxAutoFixAttempts;
                 bool success = false;
+                bool blocked = false;
+                bool userCancelledConfirmation = false;
+                string previousErrorMessage = null;
 
                 Action<int, string> progressCallback = (percent, message) =>
                 {
@@ -443,7 +547,36 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
                 while (attempt < maxAttempts && !success && !_cts.IsCancellationRequested)
                 {
                     attempt++;
-                    var result = await _executionService.ExecuteAsync(CodeEditorContent, progressCallback);
+
+                    var safety = GeneratedCodeSafetyValidator.Validate(CodeEditorContent);
+                    if (safety.IsBlocked)
+                    {
+                        blocked = true;
+                        string reasons = string.Join("\n - ", safety.Findings.Where(f => f.Level == CodeRiskLevel.Blocked).Select(f => f.Reason));
+                        ExecutionResults += $"\n\n[Attempt {attempt}] BLOCKED before running — this script does something AJ AI does not allow:\n - {reasons}\n\nEdit the code to remove this, or ask AJ AI to regenerate a safer version.";
+                        StatusText = "Blocked: unsafe operation detected. Not executed.";
+                        break;
+                    }
+
+                    if (safety.RequiresConfirmation && attempt == 1)
+                    {
+                        string reasons = string.Join("\n - ", safety.Findings.Select(f => f.Reason));
+                        var confirm = System.Windows.MessageBox.Show(
+                            $"This script does the following:\n - {reasons}\n\nThis can only be undone with Ctrl+Z in Revit. Continue?",
+                            "AJ AI: Confirm Risky Operation",
+                            System.Windows.MessageBoxButton.YesNo,
+                            System.Windows.MessageBoxImage.Warning);
+
+                        if (confirm != System.Windows.MessageBoxResult.Yes)
+                        {
+                            userCancelledConfirmation = true;
+                            ExecutionResults += "\n\nRun cancelled — destructive operation not confirmed.";
+                            StatusText = "Cancelled: destructive operation not confirmed.";
+                            break;
+                        }
+                    }
+
+                    var result = await _executionService.ExecuteAsync(CodeEditorContent, progressCallback, _cts.Token);
 
                     if (result.Success)
                     {
@@ -455,33 +588,25 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
                     }
                     else
                     {
+                        string currentError = (result.ErrorMessage ?? string.Empty).Trim();
                         ExecutionResults += $"\n\n[Attempt {attempt}] Execution Failed:\n{result.ErrorMessage}";
+
+                        if (previousErrorMessage != null && string.Equals(previousErrorMessage, currentError, StringComparison.OrdinalIgnoreCase))
+                        {
+                            ExecutionResults += "\n\nSame error as the previous attempt — stopping auto-fix early since it isn't working.";
+                            StatusText = "Stopped: the same error repeated.";
+                            break;
+                        }
+                        previousErrorMessage = currentError;
+
                         StatusText = $"Execution failed (Attempt {attempt}/{maxAttempts}). Requesting fix...";
 
                         var activeService = GetActiveService();
                         if (activeService.IsConfigured() && attempt < maxAttempts && !_cts.IsCancellationRequested)
                         {
-                            string systemPrompt = @"You are an expert Revit API C# Developer.
-Think like a BIM Modeler and a Coding Agent. Write clean, concise, and highly efficient code to save API tokens.
-
-Provide ONLY valid C# code that can be executed via Roslyn.
-Assume the following globals are available:
-- Document Document
-- UIDocument UIDocument
-- Application Application
-- Action<int, string> ReportProgress
-
-CRITICAL FORMATTING AND STRUCTURE RULES:
-1. The very first line of your response MUST be a comment with a name, formatted exactly like this: // Name: YourPascalCaseName
-2. You MUST structure your code by placing the main logic inside a `public string Execute()` method.
-3. At the very end of the script, you MUST call this method and return its value by adding: `return Execute();`
-4. Inside the Execute() method, all modifications must be wrapped in a Transaction.
-5. Your Execute() method MUST return a summary string explaining exactly how many elements were modified (e.g., `return $""{count} elements were updated successfully."";`). Do NOT return void.
-6. CRITICAL API VERSION: You MUST write code strictly for the Revit 2020 API. Do NOT use newer APIs (like ForgeTypeId, Parameter.GetElementId(), etc.) introduced in Revit 2021+.";
-                            
                             var errorService = new ErrorCorrectionService(activeService);
-                            var fixedCode = await errorService.RequestFixAsync(CodeEditorContent, result.ErrorMessage, new System.Collections.Generic.List<GeminiMessage>(History), systemPrompt, _cts.Token);
-                            
+                            var fixedCode = await errorService.RequestFixAsync(CodeEditorContent, result.ErrorMessage, new System.Collections.Generic.List<GeminiMessage>(History), SystemPrompt, _cts.Token);
+
                             if (!string.IsNullOrWhiteSpace(fixedCode))
                             {
                                 CodeEditorContent = fixedCode;
@@ -500,10 +625,19 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
                     ExecutionResults += "\n\nProcess was stopped by the user.";
                     StatusText = "Stopped.";
                 }
-                else if (!success)
+                else if (!success && !blocked && !userCancelledConfirmation)
                 {
                     StatusText = "Max auto-fix attempts reached.";
+                    ExecutionResults += "\n\nCould not get this script working after several attempts. Try rephrasing your request, or simplify what you're asking for.";
                 }
+
+                Helpers.AiShellActivityLogger.LogRun(
+                    GetActiveService().ProviderName,
+                    PromptInput,
+                    success,
+                    attempt,
+                    scriptName: null,
+                    errorSummary: success ? null : previousErrorMessage);
             }
             catch (OperationCanceledException)
             {
@@ -523,6 +657,8 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
 
         private async Task ReviewCodeAsync()
         {
+            if (IsBusy) return;
+
             var activeService = GetActiveService();
             if (!activeService.IsConfigured()) return;
 
@@ -537,7 +673,7 @@ CRITICAL FORMATTING AND STRUCTURE RULES:
                 _cts = new CancellationTokenSource();
                 IsBusy = true;
                 StatusText = "Reviewing code...";
-                
+
                 var response = await activeService.SendMessageAsync(new System.Collections.Generic.List<GeminiMessage>(History), null, _cts.Token);
                 History.Add(new GeminiMessage { Role = "model", Content = response });
                 TrimHistory();

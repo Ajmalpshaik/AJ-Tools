@@ -1,10 +1,41 @@
-// Tool Name: Copy Text
-// Description: Copies a text note's contents to other text notes.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-14
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Copy Text Notes
+ * File Name     : CmdCopyText.cs
+ * Purpose       : Copies the text value from one picked source text note to one or more picked target
+ *                 text notes, until Esc.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-14
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (TextNoteSelectionFilter, DialogHelper)
+ *
+ * Input         : Active View - one source text note, then target text notes picked one-by-one (Esc to finish).
+ * Output        : Target text notes set to the source text (single undo step); silent success.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - The whole pick session is wrapped in one TransactionGroup and assimilated, so a single Ctrl+Z
+ *   reverses every pasted note.
+ * - Esc during a pick is a normal cancel (handled silently); normal success is silent.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-14) - Source/target text-copy pick loop.
+ * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; whole pick session now assimilated into a
+ *                       single undo step. Copy behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;
@@ -54,33 +85,44 @@ namespace AJTools.Commands
                 const string targetPrompt = "Select TARGET text note (ESC to finish)";
                 int pastedCount = 0;
 
-                while (true)
+                // Group the whole pick session so a single Ctrl+Z reverses every pasted note.
+                using (TransactionGroup group = new TransactionGroup(doc, "AJ-Tools: Copy Text Notes"))
                 {
-                    Reference targetRef;
-                    try
+                    group.Start();
+
+                    while (true)
                     {
-                        targetRef = uidoc.Selection.PickObject(
-                            ObjectType.Element,
-                            new TextNoteSelectionFilter(),
-                            targetPrompt);
-                    }
-                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                    {
-                        break;
+                        Reference targetRef;
+                        try
+                        {
+                            targetRef = uidoc.Selection.PickObject(
+                                ObjectType.Element,
+                                new TextNoteSelectionFilter(),
+                                targetPrompt);
+                        }
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                        {
+                            break;
+                        }
+
+                        TextNote targetNote = doc.GetElement(targetRef) as TextNote;
+                        if (targetNote == null)
+                            continue;
+
+                        using (Transaction t = new Transaction(doc, "Paste Text Note"))
+                        {
+                            t.Start();
+                            targetNote.Text = sourceText;
+                            t.Commit();
+                        }
+
+                        pastedCount++;
                     }
 
-                    TextNote targetNote = doc.GetElement(targetRef) as TextNote;
-                    if (targetNote == null)
-                        continue;
-
-                    using (Transaction t = new Transaction(doc, "Paste Text Note"))
-                    {
-                        t.Start();
-                        targetNote.Text = sourceText;
-                        t.Commit();
-                    }
-
-                    pastedCount++;
+                    if (pastedCount > 0)
+                        group.Assimilate();
+                    else
+                        group.RollBack();
                 }
 
                 if (pastedCount == 0)

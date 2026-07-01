@@ -1,10 +1,38 @@
-// Tool Name: Constants
-// Description: Centralized constants used across the AJ Tools solution.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-11
-// Revit Version: 2020
-// Dependencies: None
+#region Metadata
+/*
+ * Tool Name     : AJ-Tools
+ * File Name     : Constants.cs
+ * Purpose       : Centralized numeric constants shared across all AJ-Tools — unit conversions,
+ *                 geometry tolerances, and scan limits.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.1
+ *
+ * Created Date  : 2025-12-11
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : None
+ *
+ * Input         : N/A — constants only
+ * Output        : N/A — constants only
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - No Revit API dependency; framework-agnostic.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-11) - Initial release.
+ * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 namespace AJTools.Utils
 {
@@ -17,6 +45,11 @@ namespace AJTools.Utils
         /// Conversion factor from millimeters to feet (Revit internal units).
         /// </summary>
         public const double MM_TO_FEET = 0.00328084;
+
+        /// <summary>
+        /// Conversion factor from feet (Revit internal units) to millimeters.
+        /// </summary>
+        public const double FEET_TO_MM = 304.8;
 
         /// <summary>
         /// Minimum distance threshold for point comparisons and geometry validation.

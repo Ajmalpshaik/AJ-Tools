@@ -1,22 +1,37 @@
-// ==================================================
-// Tool Name    : Graphics Tools
-// Purpose      : Resets category graphics overrides for categories represented by selected elements.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.4
-// Created      : 2026-03-30
-// Last Updated : 2026-05-09
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Selected model elements in the active view.
-// Output       : Selected categories reset to By View graphics.
-// Notes        : Normal success is silent; validation and critical errors are reported to the user.
-// Changelog    : v1.4.4 - Reviewed Reset Category Graphics flow, shared validation, and metadata for release.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Reset Category Graphics by Selection
+ * File Name     : CmdResetCategoryGraphics.cs
+ * Purpose       : Resets category graphics overrides for the categories represented by the selected elements in the active view.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-03-30
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active View - selected model elements (preselected, or picked when none preselected).
+ * Output        : The categories of the selected elements reset to By View graphics (single undo step).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Normal success is silent; missing selection and critical errors are reported to the user.
+ * - ESC during a pick cancels silently (no error dialog).
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Added a missing-selection message; full metadata block.
+ * v1.4.4 (2026-05-09) - Reviewed Reset Category Graphics flow, shared validation, and metadata for release.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -37,7 +52,7 @@ namespace AJTools.Commands.GraphicsTools
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            const string dialogTitle = "Reset Category Graphics";
+            const string dialogTitle = "Reset Category Graphics by Selection";
 
             try
             {
@@ -61,6 +76,7 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (selection.ElementIds.Count == 0)
                 {
+                    DialogHelper.ShowError(dialogTitle, "Select at least one model element.");
                     return Result.Cancelled;
                 }
 
@@ -72,12 +88,13 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (categories.Count == 0)
                 {
+                    DialogHelper.ShowError(dialogTitle, "The selected elements have no overridable model category in this view.");
                     return Result.Cancelled;
                 }
 
                 GraphicsOperationSummary summary = GraphicsCommandService.ExecuteSummaryTransaction(
                     context.Document,
-                    "AJ Tools - Reset Category Graphics",
+                    "AJ Tools - Reset Category Graphics by Selection",
                     () => GraphicsCategoryService.ApplyOverrides(
                         context.ActiveView,
                         categories,
@@ -100,4 +117,3 @@ namespace AJTools.Commands.GraphicsTools
         }
     }
 }
-

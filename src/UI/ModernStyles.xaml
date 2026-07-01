@@ -1,25 +1,77 @@
+<!--
+==================================================
+Tool Name    : AJ Tools - Shared UI Theme
+Purpose      : Suite-wide WPF resource dictionary (soft dark UI, Neon Blue primary). Used by every AJ Tools window.
+Author       : Ajmal P.S.
+Company      : AJ Tools
+Version      : 1.1.0
+Created      : 2025-12-10
+Last Updated : 2026-06-28
+Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+Platform     : C# Revit Add-in (WPF)
+Notes        : Brush KEY names are kept stable - every window binds to them. Only values are tuned to the AJ skill.
+               Style = Neumorphism + Claymorphism soft UI; Neon Blue primary; orange = warning; red = danger; green = success.
+Changelog    : v1.1.0 - Skill alignment: Segoe UI font, Neon Blue #00C8FF, softer card radius, button shadow trimmed, Consolas mono style.
+License      : All Rights Reserved
+Repo         : AJ-Tools
+==================================================
+-->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Colors -->
-    <SolidColorBrush x:Key="BackgroundDark" Color="#FF070B14"/>
-    <SolidColorBrush x:Key="BackgroundMedium" Color="#FF111A2E"/>
-    <SolidColorBrush x:Key="BackgroundLight" Color="#FF1A2742"/>
-    <SolidColorBrush x:Key="CardBackground" Color="#FF111A2E"/>
-    <SolidColorBrush x:Key="AccentBlue" Color="#FF00E5FF"/>
-    <SolidColorBrush x:Key="AccentGreen" Color="#FF2BFFB4"/>
-    <SolidColorBrush x:Key="AccentOrange" Color="#FFFFC05A"/>
-    <SolidColorBrush x:Key="AccentGray" Color="#FF1A2742"/>
-    <SolidColorBrush x:Key="AccentMagenta" Color="#FFFF58DA"/>
-    <SolidColorBrush x:Key="AccentDanger" Color="#FFFF5A7F"/>
-    <SolidColorBrush x:Key="TextPrimary" Color="#FFF4F8FF"/>
-    <SolidColorBrush x:Key="TextSecondary" Color="#FFB6C4E3"/>
-    <SolidColorBrush x:Key="TextDisabled" Color="#FF6E7D9D"/>
-    <SolidColorBrush x:Key="TextOnLight" Color="#FF060B13"/>
-    <SolidColorBrush x:Key="BorderSoft" Color="#FF2A3958"/>
-    <SolidColorBrush x:Key="BorderStrong" Color="#FF3D4E70"/>
-    <SolidColorBrush x:Key="BorderGlow" Color="#6600E5FF"/>
-    <SolidColorBrush x:Key="OverlayBackground" Color="#CC070B14"/>
+    <!-- ============================================================
+         Colors - Revit-UI skill DARK theme (exact values).
+         Key NAMES are kept stable (every window binds to them); only values changed.
+         Skill brush-name aliases are added below so new UI can use skill vocabulary.
+         ============================================================ -->
+
+    <!-- Surfaces -->
+    <!-- Surface / page background (Mica Dark Fallback) -->
+    <SolidColorBrush x:Key="BackgroundDark" Color="#FF202020"/>
+    <!-- SoftCard (slightly raised) -->
+    <SolidColorBrush x:Key="BackgroundMedium" Color="#FF2D2D2D"/>
+    <!-- Raised header band -->
+    <SolidColorBrush x:Key="BackgroundLight" Color="#FF323232"/>
+    <!-- Card / panel surface -->
+    <SolidColorBrush x:Key="CardBackground" Color="#FF2B2B2B"/>
+
+    <!-- Accents: Primary = WinUI Accent. -->
+    <SolidColorBrush x:Key="AccentBlue" Color="#FF0078D4"/>
+    <SolidColorBrush x:Key="AccentGreen" Color="#FF0F7B0F"/>
+    <SolidColorBrush x:Key="AccentOrange" Color="#FFF7630C"/>
+    <!-- Secondary button / hover fill -->
+    <SolidColorBrush x:Key="AccentGray" Color="#FF333333"/>
+    <SolidColorBrush x:Key="AccentMagenta" Color="#FFB146C2"/>
+    <SolidColorBrush x:Key="AccentDanger" Color="#FFE81123"/>
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="TextPrimary" Color="#FFF2F7FA"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#FFA8B4BE"/>
+    <SolidColorBrush x:Key="TextDisabled" Color="#FF6E7882"/>
+    <!-- Dark text for use on bright accent (neon/green/amber) button fills -->
+    <SolidColorBrush x:Key="TextOnLight" Color="#FF0B1418"/>
+    <SolidColorBrush x:Key="TextSuccess" Color="#FF81C784"/>
+
+    <!-- Borders / overlay -->
+    <SolidColorBrush x:Key="BorderSoft" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="BorderStrong" Color="#33FFFFFF"/>
+    <SolidColorBrush x:Key="BorderGlow" Color="#660078D4"/>
+    <SolidColorBrush x:Key="OverlayBackground" Color="#CC202020"/>
+
+    <!-- Skill brush-name aliases (same colors, skill's standard vocabulary) -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#FF0078D4"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#FF268CDA"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#FF005A9E"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FF202020"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#FF2D2D2D"/>
+    <SolidColorBrush x:Key="SoftCardBrush" Color="#FF2D2D2D"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#FFF2F7FA"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#FFA8B4BE"/>
+    <SolidColorBrush x:Key="BorderBrushSoft" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#FFE81123"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#FF0F7B0F"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#FFF7630C"/>
 
     <!-- Typography -->
     <Style x:Key="TitleText" TargetType="TextBlock">
@@ -45,18 +97,25 @@
         <Setter Property="FontSize" Value="11"/>
     </Style>
 
+    <!-- Monospace for element IDs, GUIDs, file paths, parameter codes (skill: Consolas). -->
+    <Style x:Key="MonoText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
     <!-- Global -->
-    <Style TargetType="Window">
-        <Setter Property="Background" Value="{StaticResource BackgroundDark}"/>
+    <Style x:Key="ModernWindow" TargetType="Window">
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
         <Setter Property="TextElement.Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="Bahnschrift"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="ResizeMode" Value="CanResize"/>
-        <Setter Property="SizeToContent" Value="Manual"/>
-        <Setter Property="WindowStyle" Value="SingleBorderWindow"/>
+        <Setter Property="ResizeMode" Value="NoResize"/>
+        <Setter Property="SizeToContent" Value="WidthAndHeight"/>
+        <Setter Property="WindowStyle" Value="None"/>
+        <Setter Property="AllowsTransparency" Value="True"/>
         <Setter Property="MinWidth" Value="380"/>
-        <Setter Property="MinHeight" Value="260"/>
         <Setter Property="UseLayoutRounding" Value="True"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
@@ -85,71 +144,106 @@
         <Setter Property="Padding" Value="8,4"/>
     </Style>
 
-    <Style x:Key="PanelCard" TargetType="Border">
+    <Style x:Key="PanelCard" TargetType="ContentControl">
         <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="10"/>
-        <Setter Property="Padding" Value="12"/>
-        <Setter Property="Effect">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="Template">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.22" Color="#70000000"/>
+                <ControlTemplate TargetType="ContentControl">
+                    <Grid Margin="4">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1"
+                                CornerRadius="8" 
+                                Padding="12">
+                            <ContentPresenter />
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
     <!-- Buttons -->
     <Style x:Key="ButtonBase" TargetType="Button">
-        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="Padding" Value="14,6"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="MinHeight" Value="36"/>
-        <Setter Property="MinWidth" Value="104"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="MinWidth" Value="80"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Root"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
-                            Padding="{TemplateBinding Padding}"
-                            TextElement.Foreground="{TemplateBinding Foreground}">
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.20" Color="#55000000"/>
-                        </Border.Effect>
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          RecognizesAccessKey="True"/>
-                    </Border>
+                    <Grid x:Name="Root" Margin="2">
+                        <Border x:Name="InnerFill" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource BorderStrong}"/>
-                            <Setter TargetName="Root" Property="Opacity" Value="0.96"/>
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
-                            <Setter TargetName="Root" Property="Effect">
-                                <Setter.Value>
-                                    <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.45" Color="#AA00E5FF"/>
-                                </Setter.Value>
-                            </Setter>
+                            <Setter TargetName="InnerFill" Property="Opacity" Value="0.9"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.88"/>
+                            <Setter TargetName="InnerFill" Property="Opacity" Value="0.7"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.46"/>
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4"/>
                             <Setter Property="Foreground" Value="{StaticResource TextDisabled}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Window Control Buttons -->
+    <Style x:Key="WindowControlButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="16">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#20FFFFFF"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#10FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Close Button specifically highlights Red on hover -->
+    <Style x:Key="WindowCloseButton" BasedOn="{StaticResource WindowControlButton}" TargetType="Button">
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#E81123"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="ModernButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
@@ -203,6 +297,19 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="MinHeight" Value="34"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
@@ -221,7 +328,7 @@
                 Background="{TemplateBinding Background}"
                 BorderBrush="{TemplateBinding BorderBrush}"
                 BorderThickness="{TemplateBinding BorderThickness}"
-                CornerRadius="8"
+                CornerRadius="4"
                 SnapsToDevicePixels="True">
             <Grid>
                 <Path x:Name="ComboArrow"

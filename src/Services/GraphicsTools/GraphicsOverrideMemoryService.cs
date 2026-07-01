@@ -1,22 +1,36 @@
-// ==================================================
-// Tool Name    : Apply Graphics
-// Purpose      : Persists last-used Apply Graphics settings between tool launches.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.4
-// Created      : 2026-05-09
-// Last Updated : 2026-05-09
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Newtonsoft.Json
-// Input        : Serializable Apply Graphics memory state.
-// Output       : Last-used settings JSON in the user's application data folder.
-// Notes        : Memory persistence is best effort and does not block the Revit command.
-// Changelog    : v1.4.4 - Added persistent memory for Graphics Tool settings.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Apply Graphics
+ * File Name     : GraphicsOverrideMemoryService.cs
+ * Purpose       : Persists and restores the last-used Apply Graphics UI settings between tool launches.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-05-09
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Newtonsoft.Json
+ *
+ * Input         : Serializable Apply Graphics memory state.
+ * Output        : Last-used settings JSON in the user's application data folder.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Memory persistence is best effort and never blocks or fails the Revit command.
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Full metadata block; reviewed for release.
+ * v1.4.4 (2026-05-09) - Added persistent memory for Graphics Tool settings.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.IO;

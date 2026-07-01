@@ -1,22 +1,43 @@
-// ==================================================
-// Tool Name    : Ceiling Magnet
-// Purpose      : Snaps point-based elements to the nearest ceiling grid tile centers.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.1.0
-// Created      : 2026-04-12
-// Last Updated : 2026-05-07
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Selected ceiling, one anchor grid intersection, and point-based elements.
-// Output       : Selected elements aligned to the nearest ceiling grid tile centers.
-// Notes        : Supports current-model and linked-model ceilings; reports skipped elements and keeps Revit 2020 behavior.
-// Changelog    : v1.1.0 - Refined ceiling selection, grid resolution, transaction flow, and standardized metadata.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Elements to Ceiling Grid (Ceiling Magnet)
+ * File Name     : CmdCeilingMagnet.cs
+ * Purpose       : Snaps point-based elements to the nearest ceiling grid tile centers, using the picked
+ *                 ceiling's surface pattern (or a 600x600 fallback) and one clicked grid intersection.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-12
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (DialogHelper)
+ *
+ * Input         : Active project - a ceiling (host or linked), one anchor grid intersection, then
+ *                 point-based elements (pre-selected and/or picked one-by-one, Esc to finish).
+ * Output        : Elements moved in plan to the nearest tile center; final report of moved / aligned / skipped.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. Tile size/angle is read from the ceiling surface pattern; uses
+ *   UnitUtils with DisplayUnitType (the Revit 2020 unit API) - revisit for 2021+ ForgeTypeId builds.
+ * - Reads linked-model ceilings for reference only; never modifies linked elements.
+ * - The whole session (pre-selected batch + each pick) is one TransactionGroup assimilated into a single undo step.
+ * - Esc during a pick ends the session silently; pinned / non-point elements are skipped and counted.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-04-12) - Initial C# port of the pyRevit ceiling-snap logic.
+ * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block; ceiling selection, grid resolution
+ *                       and transaction flow reviewed. Snap behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;

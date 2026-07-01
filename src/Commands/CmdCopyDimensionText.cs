@@ -1,10 +1,41 @@
-﻿// Tool Name: Copy Dimension Text
-// Description: Copies dimension text properties between selected dimensions.
-// Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+﻿#region Metadata
+/*
+ * Tool Name     : Copy Dimension Text
+ * File Name     : CmdCopyDimensionText.cs
+ * Purpose       : Copies the Above / Below / Prefix / Suffix text and value override from one picked
+ *                 source dimension onto one or more picked target dimensions.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (DimensionSelectionFilter, DialogHelper)
+ *
+ * Input         : Active View - one source dimension, then target dimensions picked one-by-one (Esc to finish).
+ * Output        : Target dimension text fields matched to the source (single undo step); silent success.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - The whole pick session is wrapped in one TransactionGroup and assimilated, so a single Ctrl+Z
+ *   reverses every pasted dimension.
+ * - Esc during a pick is a normal cancel (handled silently); normal success is silent.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.1.0 (2025-12-10) - Source/target pick loop with value-override copy.
+ * v1.2.0 (2026-07-01) - Refactor/audit: full metadata block; whole pick session now assimilated into a
+ *                       single undo step. Copy behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;
@@ -72,42 +103,53 @@ namespace AJTools.Commands
                 const string targetPrompt = "Select TARGET dimension (ESC to finish)";
                 int pastedCount = 0;
 
-                // 2) Loop: pick TARGET dimensions until ESC
-                while (true)
+                // 2) Loop: pick TARGET dimensions until ESC. The whole session is grouped so a single
+                //    Ctrl+Z reverses every pasted dimension.
+                using (TransactionGroup group = new TransactionGroup(doc, "AJ-Tools: Copy Dimension Text"))
                 {
-                    Reference targetRef;
-                    try
+                    group.Start();
+
+                    while (true)
                     {
-                        targetRef = uidoc.Selection.PickObject(
-                            ObjectType.Element,
-                            new DimensionSelectionFilter(),
-                            targetPrompt);
-                    }
-                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                    {
-                        // ESC or right-click cancel → exit loop
-                        break;
+                        Reference targetRef;
+                        try
+                        {
+                            targetRef = uidoc.Selection.PickObject(
+                                ObjectType.Element,
+                                new DimensionSelectionFilter(),
+                                targetPrompt);
+                        }
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                        {
+                            // ESC or right-click cancel → exit loop
+                            break;
+                        }
+
+                        Dimension targetDim = doc.GetElement(targetRef) as Dimension;
+                        if (targetDim == null)
+                            continue;
+
+                        using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
+                        {
+                            t.Start();
+                            ApplyDimensionText(
+                                targetDim,
+                                textAbove,
+                                textBelow,
+                                textPrefix,
+                                textSuffix,
+                                copyValueOverride,
+                                valueOverride);
+                            t.Commit();
+                        }
+
+                        pastedCount++;
                     }
 
-                    Dimension targetDim = doc.GetElement(targetRef) as Dimension;
-                    if (targetDim == null)
-                        continue;
-
-                    using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
-                    {
-                        t.Start();
-                        ApplyDimensionText(
-                            targetDim,
-                            textAbove,
-                            textBelow,
-                            textPrefix,
-                            textSuffix,
-                            copyValueOverride,
-                            valueOverride);
-                        t.Commit();
-                    }
-
-                    pastedCount++;
+                    if (pastedCount > 0)
+                        group.Assimilate();
+                    else
+                        group.RollBack();
                 }
 
                 // 3) Behaviour after ESC

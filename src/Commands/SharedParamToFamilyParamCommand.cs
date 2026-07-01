@@ -1,10 +1,39 @@
-// Tool Name: Shared Parameter to Family Parameter - Command
-// Description: Converts selected shared parameters in a family into normal family parameters.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-26
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Shared to Family (Shared Parameter to Family Parameter)
+ * File Name     : SharedParamToFamilyParamCommand.cs
+ * Purpose       : Converts selected shared parameters in the active family into normal (non-shared) family
+ *                 parameters, keeping their values, via the Shared-to-Family window and service.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-03-26
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Services (SharedParamToFamilyParamService), AJTools.UI
+ *
+ * Input         : Active Family document - shared parameters the user selects in the window.
+ * Output        : Selected shared parameters converted to family parameters; conversion summary reported.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Family-Editor-only tool; validates an editable family document before running.
+ * - Esc / cancel is handled silently; the conversion summary is the tool's final report.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-03-26) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Conversion behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;

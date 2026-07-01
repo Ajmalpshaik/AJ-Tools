@@ -1,10 +1,37 @@
-// Tool Name: Swap Text
-// Description: Swaps text values between two text notes.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-14
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Swap Text Notes
+ * File Name     : CmdSwapText.cs
+ * Purpose       : Swaps the text values between two picked text notes in one action.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-14
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (TextNoteSelectionFilter, DialogHelper)
+ *
+ * Input         : Active View - two picked text notes.
+ * Output        : The two notes' text values swapped in one transaction (single undo step); silent success.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Esc during a pick is a normal cancel (handled silently); picking the same note twice is rejected.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-14) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Swap behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using Autodesk.Revit.Attributes;

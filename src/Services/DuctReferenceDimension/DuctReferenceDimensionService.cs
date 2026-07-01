@@ -144,7 +144,6 @@ namespace AJTools.Services.DuctReferenceDimension
                 IList<Element> ducts = new FilteredElementCollector(doc, view.Id)
                     .OfCategory(BuiltInCategory.OST_DuctCurves)
                     .WhereElementIsNotElementType()
-                    .ToElements()
                     .Where(DuctSelectionFilter.IsDuct)
                     .OrderBy(e => e.Id.IntegerValue)
                     .ToList();

@@ -1,25 +1,39 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Code-behind for annotation crop settings and run scope dialog.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-11
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropAnnotationOptionsWindow.xaml.cs
+ * Purpose       : Code-behind for the annotation-crop settings and run-scope dialog.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-11
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : WPF
+ *
+ * Input         : Initial ViewCropAnnotationSettings, tool title.
+ * Output        : Edited ViewCropAnnotationSettings via SelectedSettings property; ApplyToActiveViewOnly flag.
+ *
+ * Notes         :
+ * - Modal dialog - no Revit API calls in code-behind (skill rule).
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System.Globalization;
 using System.Windows;
+using System.Windows.Input;
 using AJTools.Models.ViewCrop;
+using AJTools.Utils;
 
 namespace AJTools.UI.ViewCrop
 {
@@ -55,17 +69,18 @@ namespace AJTools.UI.ViewCrop
         private void OnRun(object sender, RoutedEventArgs e)
         {
             ErrorText.Text = string.Empty;
+            ErrorText.Visibility = Visibility.Collapsed;
 
             string offsetText = (OffsetTextBox.Text ?? string.Empty).Trim();
             if (!double.TryParse(offsetText, NumberStyles.Float, CultureInfo.CurrentCulture, out double offsetMm))
             {
-                ErrorText.Text = "Offset must be a valid number.";
+                ShowError("Offset must be a valid number.");
                 return;
             }
 
             if (offsetMm < 0)
             {
-                ErrorText.Text = "Offset cannot be negative.";
+                ShowError("Offset cannot be negative.");
                 return;
             }
 
@@ -78,10 +93,36 @@ namespace AJTools.UI.ViewCrop
             Close();
         }
 
+        private void ShowError(string text)
+        {
+            ErrorText.Text = text;
+            ErrorText.Visibility = Visibility.Visible;
+        }
+
         private void OnCancel(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
             Close();
+        }
+
+        private void OnTitleBarDrag(object sender, MouseButtonEventArgs e)
+        {
+            WindowChromeHelper.HandleTitleBarDrag(this, e);
+        }
+
+        private void OnMinimizeClick(object sender, RoutedEventArgs e)
+        {
+            WindowChromeHelper.Minimize(this);
+        }
+
+        private void OnMaximizeClick(object sender, RoutedEventArgs e)
+        {
+            WindowChromeHelper.ToggleMaximize(this, RootBorder);
+        }
+
+        private void OnCloseClick(object sender, RoutedEventArgs e)
+        {
+            OnCancel(sender, e);
         }
 
         private void UpdateRunButtonText()

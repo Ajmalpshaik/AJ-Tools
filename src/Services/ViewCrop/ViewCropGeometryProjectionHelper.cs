@@ -1,22 +1,35 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Projects model-space bounding boxes into view-local crop coordinates.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-08
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropGeometryProjectionHelper.cs
+ * Purpose       : Projects model-space bounding boxes into view-local crop coordinates and builds rectangular crop loops.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : View, BoundingBoxXYZ, PlaneBounds.
+ * Output        : Inverse Transform, projected XYZ corners, CurveLoop for rectangular crop region.
+ *
+ * Notes         :
+ * - GetModelToViewTransform null-guards view.CropBox AND cropBox.Transform.
+ * - All XYZ values validated via IsFinite (X, Y, Z).
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using Autodesk.Revit.DB;
 

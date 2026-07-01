@@ -1,25 +1,42 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Coordinates View Crop command UI, target view selection, execution, and reporting.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.2
-// Created      : 2026-04-08
-// Last Updated : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.2 - Premium UI redesign with presets and integrated annotation crop.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropCommandService.cs
+ * Purpose       : Coordinates View Crop UI flow, target view selection, processing, and reporting.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-28
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, WPF
+ *
+ * Input         : Active Revit document, active or selected target views (Floor/Ceiling/Engineering/Area plans), View Crop settings.
+ * Output        : Updated view crop settings for supported target views; batch summary + optional diagnostics window.
+ *
+ * Notes         :
+ * - Tool scope: Active View OR a user-selected batch of plan views.
+ * - Supported view types only: Floor Plan, Ceiling Plan, Engineering Plan, Area Plan.
+ * - Skips unsupported, template, scope-box-controlled, and view-template-locked views.
+ * - Bulk-edit confirmation is shown when more than one view is targeted (skill safety gate).
+ * - Summary and error-log handling delegated to ViewCropReportPresenter.
+ *
+ * Changelog     :
+ * v1.2.0 (2026-06-28) - Merged two commands into one: ExtentSource now read from ViewCropSettings (user sets mode in the dialog).
+ * v1.1.0 (2026-06-27) - Refactor/audit pass: bulk-edit confirmation, shared report presenter, ElementId helper, metadata, version coverage notes.
+ * v1.0.2 (2026-05-24) - Premium UI redesign with presets and integrated annotation crop.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Windows.Interop;
 using Autodesk.Revit.DB;
@@ -37,10 +54,10 @@ namespace AJTools.Services.ViewCrop
     {
         internal static Result Execute(
             ExternalCommandData commandData,
-            ViewCropExtentSource source,
             string commandTitle,
             ref string message)
         {
+            string extentSourceLabel = "(not yet set)";
             try
             {
                 UIDocument uidoc = commandData.Application?.ActiveUIDocument;
@@ -76,6 +93,7 @@ namespace AJTools.Services.ViewCrop
                     return Result.Cancelled;
 
                 ViewCropSettings settings = optionsWindow.SelectedSettings ?? new ViewCropSettings();
+                extentSourceLabel = settings.ExtentSource.ToString();
                 settingsTracker.Save(settings);
 
                 IList<View> targetViews = ResolveTargetViews(
@@ -95,94 +113,32 @@ namespace AJTools.Services.ViewCrop
                 if (targetViews == null || targetViews.Count == 0)
                     return Result.Cancelled;
 
-                var service = new ViewCropExtentsService(doc, settings, source);
+                if (!ConfirmBulkRun(commandTitle, targetViews.Count, "view crop"))
+                    return Result.Cancelled;
+
+                var service = new ViewCropExtentsService(doc, settings, settings.ExtentSource);
                 var batch = service.Process(targetViews, $"AJ Tools - {commandTitle}");
 
-                // Integrated Annotation Crop trigger
                 if (settings.ApplyAnnotationCrop && batch.UpdatedCount > 0)
                 {
-                    try
-                    {
-                        var successfullyCropped = new List<View>();
-                        foreach (var result in batch.Items)
-                        {
-                            if (result.State == ViewCropResultState.Updated)
-                            {
-                                View v = doc.GetElement(result.ViewId) as View;
-                                if (v != null)
-                                    successfullyCropped.Add(v);
-                            }
-                        }
-
-                        if (successfullyCropped.Count > 0)
-                        {
-                            var annotationSettings = new ViewCropAnnotationSettings
-                            {
-                                OffsetMm = settings.AnnotationOffsetMm
-                            };
-                            var annotationService = new ViewCropAnnotationService(doc, annotationSettings);
-                            annotationService.Process(successfullyCropped, "AJ Tools - Integrated Annotation Crop");
-                        }
-                    }
-                    catch (Exception annotationEx)
-                    {
-                        string annotationLog = TryWriteErrorLog(commandTitle + " (Annotation Fallback)", source, annotationEx);
-                        DialogHelper.ShowError(
-                            commandTitle,
-                            $"View cropping succeeded, but integrated annotation cropping failed.\n{annotationEx.Message}\n\nLog: {annotationLog}");
-                    }
+                    RunIntegratedAnnotationCrop(doc, batch, settings, commandTitle);
                 }
 
                 try
                 {
-                    ShowBatchSummaryIfNeeded(commandTitle, batch);
+                    ViewCropReportPresenter.ShowSummaryIfNeeded(commandTitle, "View crop", batch);
                 }
                 catch (Exception summaryEx)
                 {
-                    string summaryLog = TryWriteErrorLog(commandTitle, source, summaryEx);
+                    string summaryLog = ViewCropReportPresenter.TryWriteErrorLog("ViewCrop", commandTitle, extentSourceLabel, summaryEx);
                     DialogHelper.ShowError(
                         commandTitle,
                         $"Processing finished, but summary dialog failed.\n{summaryEx.Message}\n\nLog: {summaryLog}");
                 }
 
-                // Show Diagnostic Boundary Report if enabled
                 if (settings.ShowDiagnostics && batch.UpdatedCount > 0)
                 {
-                    var sbDiag = new System.Text.StringBuilder();
-                    foreach (var item in batch.Items)
-                    {
-                        if (item.State == ViewCropResultState.Updated && !string.IsNullOrWhiteSpace(item.DiagnosticReport))
-                        {
-                            sbDiag.AppendLine($"### VIEW: {item.ViewName} ({item.ViewTypeName}) ###");
-                            sbDiag.AppendLine(item.DiagnosticReport);
-                            sbDiag.AppendLine();
-                            sbDiag.AppendLine();
-                        }
-                    }
-
-                    string diagReport = sbDiag.ToString().Trim();
-                    if (!string.IsNullOrWhiteSpace(diagReport))
-                    {
-                        try
-                        {
-                            var diagWindow = new ViewCropDiagnosticsWindow(diagReport);
-                            new System.Windows.Interop.WindowInteropHelper(diagWindow)
-                            {
-                                Owner = commandData.Application.MainWindowHandle
-                            };
-                            diagWindow.ShowDialog();
-                        }
-                        catch
-                        {
-                            // Fallback to clipboard copy if WPF window throws an exception
-                            try
-                            {
-                                System.Windows.Clipboard.SetText(diagReport);
-                                DialogHelper.ShowInfo(commandTitle + " - Diagnostics", "Diagnostics successfully copied directly to Clipboard!");
-                            }
-                            catch { }
-                        }
-                    }
+                    ShowDiagnosticsIfAny(commandData, commandTitle, batch);
                 }
 
                 return ToCommandResult(batch);
@@ -190,7 +146,7 @@ namespace AJTools.Services.ViewCrop
             catch (Exception ex)
             {
                 message = ex.Message;
-                string logPath = TryWriteErrorLog(commandTitle, source, ex);
+                string logPath = ViewCropReportPresenter.TryWriteErrorLog("ViewCrop", commandTitle, extentSourceLabel, ex);
                 DialogHelper.ShowError(
                     commandTitle,
                     $"{ex.Message}\n\nDetails log:\n{logPath}");
@@ -241,7 +197,7 @@ namespace AJTools.Services.ViewCrop
             }
 
             views = views
-                .GroupBy(v => v.Id.IntegerValue)
+                .GroupBy(v => ElementIdHelper.GetIntegerValue(v.Id))
                 .Select(g => g.First())
                 .ToList();
 
@@ -264,42 +220,111 @@ namespace AJTools.Services.ViewCrop
             return batch.FailedCount > 0 ? Result.Failed : Result.Cancelled;
         }
 
-        private static void ShowBatchSummaryIfNeeded(string title, ViewCropBatchResult batch)
+        /// <summary>
+        /// Skill safety-gate: confirm before changing crop on more than one view.
+        /// Single-view runs (active view only) need no extra confirmation - the user already
+        /// explicitly picked that view.
+        /// </summary>
+        internal static bool ConfirmBulkRun(string commandTitle, int viewCount, string operationLabel)
         {
-            if (batch == null || (batch.SkippedCount == 0 && batch.FailedCount == 0))
-                return;
+            if (viewCount <= 1)
+                return true;
 
-            var dialog = new TaskDialog(title)
-            {
-                MainInstruction = "View crop processing completed.",
-                MainContent = batch.BuildMainSummary(),
-                ExpandedContent = "Reason summary:\n"
-                    + batch.BuildReasonSummary()
-                    + "\n\nDetailed results:\n"
-                    + batch.BuildDetailedLines(250),
-                CommonButtons = TaskDialogCommonButtons.Ok
-            };
+            string message =
+                $"This will modify the {operationLabel} on {viewCount} views.\n" +
+                "This change can be undone with a single Ctrl+Z. Continue?";
 
-            dialog.Show();
+            return DialogHelper.ShowYesNo(commandTitle, message);
         }
 
-        private static string TryWriteErrorLog(string commandTitle, ViewCropExtentSource source, Exception ex)
+        private static void RunIntegratedAnnotationCrop(
+            Document doc,
+            ViewCropBatchResult batch,
+            ViewCropSettings settings,
+            string commandTitle)
         {
             try
             {
-                string fileName = $"AJTools_ViewCrop_Error_{DateTime.Now:yyyyMMdd_HHmmss}.log";
-                string path = Path.Combine(Path.GetTempPath(), fileName);
-                string body =
-                    $"Command: {commandTitle}{Environment.NewLine}" +
-                    $"Source: {source}{Environment.NewLine}" +
-                    $"Timestamp: {DateTime.Now:O}{Environment.NewLine}{Environment.NewLine}" +
-                    ex;
-                File.WriteAllText(path, body);
-                return path;
+                var successfullyCropped = new List<View>();
+                foreach (var result in batch.Items)
+                {
+                    if (result.State == ViewCropResultState.Updated)
+                    {
+                        View v = doc.GetElement(result.ViewId) as View;
+                        if (v != null)
+                            successfullyCropped.Add(v);
+                    }
+                }
+
+                if (successfullyCropped.Count == 0)
+                    return;
+
+                var annotationSettings = new ViewCropAnnotationSettings
+                {
+                    OffsetMm = settings.AnnotationOffsetMm
+                };
+                var annotationService = new ViewCropAnnotationService(doc, annotationSettings);
+                annotationService.Process(successfullyCropped, "AJ Tools - Integrated Annotation Crop");
             }
-            catch
+            catch (Exception annotationEx)
             {
-                return "Could not write log file.";
+                string annotationLog = ViewCropReportPresenter.TryWriteErrorLog(
+                    "ViewCrop_AnnotationFallback",
+                    commandTitle + " (Annotation Fallback)",
+                    settings.ExtentSource.ToString(),
+                    annotationEx);
+                DialogHelper.ShowError(
+                    commandTitle,
+                    $"View cropping succeeded, but integrated annotation cropping failed.\n{annotationEx.Message}\n\nLog: {annotationLog}");
+            }
+        }
+
+        private static void ShowDiagnosticsIfAny(
+            ExternalCommandData commandData,
+            string commandTitle,
+            ViewCropBatchResult batch)
+        {
+            var sbDiag = new System.Text.StringBuilder();
+            foreach (var item in batch.Items)
+            {
+                if (item.State == ViewCropResultState.Updated && !string.IsNullOrWhiteSpace(item.DiagnosticReport))
+                {
+                    sbDiag.AppendLine($"### VIEW: {item.ViewName} ({item.ViewTypeName}) ###");
+                    sbDiag.AppendLine(item.DiagnosticReport);
+                    sbDiag.AppendLine();
+                    sbDiag.AppendLine();
+                }
+            }
+
+            string diagReport = sbDiag.ToString().Trim();
+            if (string.IsNullOrWhiteSpace(diagReport))
+                return;
+
+            try
+            {
+                var diagWindow = new ViewCropDiagnosticsWindow(diagReport);
+                new WindowInteropHelper(diagWindow)
+                {
+                    Owner = commandData.Application.MainWindowHandle
+                };
+                diagWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                // Diagnostics report is a "nice to have" - if the WPF window fails, fall back to clipboard.
+                try
+                {
+                    System.Windows.Clipboard.SetText(diagReport);
+                    DialogHelper.ShowInfo(
+                        commandTitle + " - Diagnostics",
+                        "Diagnostics report could not be shown in a window and was copied to the clipboard instead.");
+                }
+                catch
+                {
+                    DialogHelper.ShowError(
+                        commandTitle + " - Diagnostics",
+                        $"Diagnostics report could not be displayed.\n{ex.Message}");
+                }
             }
         }
     }

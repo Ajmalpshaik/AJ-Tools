@@ -103,15 +103,26 @@ namespace AJTools.Services.TagArrange
                     using (Transaction t = new Transaction(doc, "Try Arrangement"))
                     {
                         t.Start();
-                        bool ok = TryArrangeAtPoint(doc, activeView, leaderLogic, allTags, basePointModel, verticalOffset);
-                        if (ok)
+                        try
                         {
-                            t.Commit();
-                            hadCommit = true;
+                            bool ok = TryArrangeAtPoint(doc, activeView, leaderLogic, allTags, basePointModel, verticalOffset);
+                            if (ok)
+                            {
+                                t.Commit();
+                                hadCommit = true;
+                            }
+                            else
+                            {
+                                t.RollBack();
+                            }
                         }
-                        else
+                        catch (Exception)
                         {
-                            t.RollBack();
+                            if (t.GetStatus() != TransactionStatus.RolledBack && t.GetStatus() != TransactionStatus.Committed)
+                            {
+                                t.RollBack();
+                            }
+                            break;
                         }
                     }
                 }

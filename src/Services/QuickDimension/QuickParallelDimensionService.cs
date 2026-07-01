@@ -670,30 +670,7 @@ namespace AJTools.Services.QuickDimension
             return false;
         }
 
-        private static bool TryGetGeometryLineReference(
-            Element element,
-            XYZ leadDirection,
-            XYZ placementPoint,
-            out Reference reference)
-        {
-            reference = null;
 
-            if (!TryCollectLineReferenceCandidates(element, placementPoint, out List<LineReferenceCandidate> candidates))
-                return false;
-
-            LineReferenceCandidate bestParallel = candidates
-                .Where(c => IsParallel(c.Direction, leadDirection))
-                .OrderBy(c => c.DistanceToPick)
-                .FirstOrDefault();
-
-            LineReferenceCandidate bestAny = candidates
-                .OrderBy(c => c.DistanceToPick)
-                .FirstOrDefault();
-
-            LineReferenceCandidate chosen = bestParallel ?? bestAny;
-            reference = chosen?.Ref;
-            return reference != null;
-        }
 
         private static bool TryCollectLineReferenceCandidates(
             Element element,

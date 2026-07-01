@@ -4,11 +4,20 @@ Tool Name    : View Crop - Diagnostics Window
 Purpose      : Displays scrollable, copyable crop boundary diagnostics report.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.0.0
+Version      : 1.2.0
 Created      : 2026-05-24
-Target       : Revit 2020
-Framework    : .NET Framework 4.7.2
+Last Updated : 2026-06-28
+Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in
+Dependencies : WPF
+Input        : Diagnostic report string.
+Output       : Modal window; clipboard copy on demand.
+Notes        : Read-only window; no Revit API calls in code-behind.
+Changelog    : v1.2.0 - Custom chrome (title bar + window controls) to match the View Crop Settings window; resizable via corner grip.
+               v1.1.0 - UI polish: plain-language button wording, no-italic footer, full metadata.
+License      : All Rights Reserved
+Repo         : AJ-Tools
 ==================================================
 -->
 <Window x:Class="AJTools.UI.ViewCrop.ViewCropDiagnosticsWindow"
@@ -19,10 +28,12 @@ Platform     : C# Revit Add-in
         Height="620"
         MinWidth="450"
         MinHeight="500"
-        ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BackgroundDark}"
-        Foreground="{DynamicResource TextPrimary}">
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        SizeToContent="Manual"
+        ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -31,93 +42,123 @@ Platform     : C# Revit Add-in
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- Outer Border for custom rounded window with drop shadow -->
+    <Border x:Name="RootBorder"
+            Background="{StaticResource BackgroundDark}"
+            CornerRadius="8"
+            BorderBrush="{StaticResource BorderSoft}"
+            BorderThickness="1"
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" ShadowDepth="4" Direction="270" Opacity="0.4" Color="#000000"/>
+        </Border.Effect>
 
-        <!-- Top Header Card -->
-        <Border Grid.Row="0"
-                Background="{StaticResource CardBackground}"
-                CornerRadius="8"
-                Padding="12"
-                Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="Crop Boundary Diagnostics"
-                           Foreground="{StaticResource TextPrimary}"
-                           FontSize="14"
-                           FontWeight="Bold"
-                           Margin="0,0,0,4"/>
-                <TextBlock Text="These are the outermost elements defining the crop boundary. Copy this log and share it to diagnose stray, huge, or far-away elements."
-                           Foreground="{StaticResource TextSecondary}"
-                           FontSize="11"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
-        </Border>
+        <Grid Margin="16,12,16,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Title bar -->
+                <RowDefinition Height="Auto"/> <!-- Description -->
+                <RowDefinition Height="*"/>    <!-- Report text -->
+                <RowDefinition Height="Auto"/> <!-- Notification -->
+                <RowDefinition Height="Auto"/> <!-- Buttons -->
+                <RowDefinition Height="Auto"/> <!-- Footer -->
+            </Grid.RowDefinitions>
 
-        <!-- Diagnostics Text Box Scrollable -->
-        <Border Grid.Row="1"
-                Background="{StaticResource CardBackground}"
-                CornerRadius="8"
-                Padding="8"
-                Margin="0,0,0,10">
-            <TextBox x:Name="DiagnosticsTextBox"
-                     IsReadOnly="True"
-                     AcceptsReturn="True"
-                     TextWrapping="Wrap"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     Background="Transparent"
-                     Foreground="{StaticResource TextPrimary}"
-                     BorderThickness="0"
-                     FontFamily="Consolas"
-                     FontSize="11.5"
-                     Padding="4"/>
-        </Border>
+            <!-- Custom Title Bar -->
+            <Grid Grid.Row="0" Margin="0,0,0,12" Background="Transparent" MouseLeftButtonDown="OnTitleBarDrag">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Copy to Clipboard Success Message -->
-        <TextBlock x:Name="NotificationText"
-                   Grid.Row="2"
-                   Foreground="{StaticResource TextSuccess}"
-                   FontWeight="SemiBold"
-                   HorizontalAlignment="Center"
-                   Margin="0,0,0,8"
-                   Visibility="Collapsed"/>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Crop Boundary Diagnostics"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+                    <TextBlock Text="The outermost elements that define each view's crop boundary."
+                               Foreground="{StaticResource TextSecondary}"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
 
-        <!-- Action Buttons -->
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+                    <Button Content="&#xE921;" ToolTip="Minimize" Width="32" Height="32" Margin="0,0,6,0"
+                            Style="{StaticResource WindowControlButton}" Click="OnMinimizeClick"/>
+                    <Button Content="&#xE922;" ToolTip="Maximize" Width="32" Height="32" Margin="0,0,6,0"
+                            Style="{StaticResource WindowControlButton}" Click="OnMaximizeClick"/>
+                    <Button Content="&#xE8BB;" ToolTip="Close" Width="32" Height="32"
+                            Style="{StaticResource WindowCloseButton}" Click="OnCloseClick"/>
+                </StackPanel>
+            </Grid>
 
-            <Button Grid.Column="1"
-                    Content="Copy Debug Report"
-                    Style="{StaticResource ModernButton}"
-                    MinWidth="160"
-                    Margin="0,0,8,0"
-                    Click="OnCopyReport"/>
+            <!-- Hint -->
+            <TextBlock Grid.Row="1"
+                       Text="Copy this log and share it to diagnose stray, huge, or far-away elements pushing the crop out."
+                       Foreground="{StaticResource TextSecondary}"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,10"/>
 
-            <Button Grid.Column="2"
-                    Content="Close"
-                    Style="{StaticResource SecondaryButton}"
-                    IsCancel="True"
-                    MinWidth="100"
-                    Click="OnClose"/>
+            <!-- Report text -->
+            <Border Grid.Row="2"
+                    Background="{StaticResource CardBackground}"
+                    CornerRadius="14"
+                    Padding="8"
+                    Margin="0,0,0,10">
+                <TextBox x:Name="DiagnosticsTextBox"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         Background="Transparent"
+                         Foreground="{StaticResource TextPrimary}"
+                         BorderThickness="0"
+                         FontFamily="Consolas"
+                         FontSize="11.5"
+                         Padding="4"/>
+            </Border>
+
+            <!-- Copy confirmation -->
+            <TextBlock x:Name="NotificationText"
+                       Grid.Row="3"
+                       Foreground="{StaticResource TextSuccess}"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,8"
+                       Visibility="Collapsed"/>
+
+            <!-- Action Buttons -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="1"
+                        Content="Copy Report"
+                        Style="{StaticResource ModernButton}"
+                        MinWidth="160"
+                        Margin="0,0,8,0"
+                        Click="OnCopyReport"/>
+
+                <Button Grid.Column="2"
+                        Content="Close"
+                        Style="{StaticResource SecondaryButton}"
+                        IsCancel="True"
+                        MinWidth="100"
+                        Click="OnClose"/>
+            </Grid>
+
+            <!-- Footer -->
+            <TextBlock Grid.Row="5"
+                       Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                       Foreground="{StaticResource TextDisabled}"
+                       FontSize="11"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,0"/>
         </Grid>
-
-        <!-- Footer -->
-        <TextBlock Grid.Row="4"
-                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
-                   Foreground="{StaticResource TextDisabled}"
-                   FontSize="10"
-                   HorizontalAlignment="Center"
-                   Margin="0,8,0,0"
-                   FontStyle="Italic"/>
-    </Grid>
+    </Border>
 </Window>

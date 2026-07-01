@@ -1,15 +1,36 @@
-// ==================================================
-// Tool Name    : Section Mark Visibility
-// Purpose      : Persists Section Mark Visibility settings on disk.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.0
-// Created      : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : System, System.IO
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Section Mark Visibility
+ * File Name     : SectionMarkVisibilityConfigStore.cs
+ * Purpose       : Persists/loads the user's run scope and sheet-number filter between sessions.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-05-24
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : System, System.IO
+ *
+ * Input         : Settings object / on-disk config file
+ * Output        : Persisted config file / restored settings
+ *
+ * Notes         :
+ * - Only the run scope and sheet-number filter are persisted (these are restored in the UI).
+ *   The mode buttons (Keep All Placed / Unhide All) are per-run actions and are not persisted.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-24) - Initial release.
+ * v1.2.0 (2026-06-30) - Cleanup pass: persist only the values restored by the UI; metadata block.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -59,12 +80,6 @@ namespace AJTools.Utils
                                 settings.ApplyToActiveViewOnly = activeOnly;
                             break;
 
-                        case "keepallplacedsections":
-                            if (bool.TryParse(val, out bool keepPlaced))
-                                settings.KeepAllPlacedSections = keepPlaced;
-                            break;
-
-
                         case "sheetnumbers":
                             settings.SheetNumbers = val.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                                 .Select(s => s.Trim())
@@ -101,7 +116,6 @@ namespace AJTools.Utils
                 using (var writer = new StreamWriter(path, false))
                 {
                     writer.WriteLine($"ApplyToActiveViewOnly={settings.ApplyToActiveViewOnly}");
-                    writer.WriteLine($"KeepAllPlacedSections={settings.KeepAllPlacedSections}");
                     writer.WriteLine($"SheetNumbers={sheetNumbersCsv}");
                 }
             }
