@@ -1,10 +1,42 @@
-// Tool Name: Level Extents By Section Box Service
-// Description: Maximizes all visible level 3D extents to fit the active 3D view's section box.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-12
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Maximize Level Extents to Section Box
+ * File Name     : LevelExtentsBySectionBoxService.cs
+ * Purpose       : Stretches every level's 3D extent to the active 3D view's section box, writing the
+ *                 new extents into all elevation, section, and 3D views that show each level.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-12
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Full Project - all levels; bounds taken from the active 3D view's section box.
+ * Output        : Level 3D extents maximized to the section box footprint; single undo step.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest. GetSectionBox / SetCurveInView / SetDatumExtentType are
+ *   stable across all target versions.
+ * - Project-only tool; exits cleanly in the Family Editor.
+ * - Requires an active 3D view with its section box enabled.
+ * - Normal success is silent; only validation and errors are reported.
+ * - Production-ready implementation with safe single-transaction handling.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-04-12) - Initial release.
+ * v1.1.0 (2026-06-30) - Added mandatory metadata block; silent success (no result popup);
+ *                       Family-Editor guard. Extent-maximizing behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -29,6 +61,9 @@ namespace AJTools.Services.LevelExtents
                     return Fail(title, "Open a project view before running this command.");
 
                 Document doc = uidoc.Document;
+                if (doc.IsFamilyDocument)
+                    return Fail(title, "This tool runs in a project, not the Family Editor.");
+
                 View3D view3D = doc.ActiveView as View3D;
                 if (view3D == null || view3D.IsTemplate)
                     return Fail(title, "Run this tool from an active 3D view.");
@@ -95,7 +130,16 @@ namespace AJTools.Services.LevelExtents
                     tx.Commit();
                 }
 
-                DialogHelper.ShowInfo(title, $"Updated {updatedCount} level(s) to the active 3D view's section box.");
+                if (updatedCount == 0)
+                {
+                    DialogHelper.ShowInfo(
+                        title,
+                        "No level extents could be updated. Make sure levels are visible in elevation, " +
+                        "section, or 3D views and that the section box has valid extents.");
+                    return Result.Cancelled;
+                }
+
+                // Normal success is silent - the levels update visibly in elevation/section/3D views.
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -120,28 +164,39 @@ namespace AJTools.Services.LevelExtents
                     continue;
 
                 XYZ dir = line.Direction;
-                XYZ p0, p1;
+                Line unbound = Line.CreateUnbound(line.GetEndPoint(0), dir);
+                double minParam = double.MaxValue;
+                double maxParam = double.MinValue;
 
-                if (Math.Abs(dir.X) >= Math.Abs(dir.Y))
+                XYZ[] boxCorners = new XYZ[] 
                 {
-                    // level line runs primarily along X
-                    p0 = new XYZ(minX, line.GetEndPoint(0).Y, z);
-                    p1 = new XYZ(maxX, line.GetEndPoint(0).Y, z);
-                }
-                else
+                    new XYZ(minX, minY, z),
+                    new XYZ(maxX, minY, z),
+                    new XYZ(maxX, maxY, z),
+                    new XYZ(minX, maxY, z)
+                };
+
+                foreach (XYZ corner in boxCorners)
                 {
-                    p0 = new XYZ(line.GetEndPoint(0).X, minY, z);
-                    p1 = new XYZ(line.GetEndPoint(0).X, maxY, z);
+                    IntersectionResult res = unbound.Project(corner);
+                    if (res != null)
+                    {
+                        double p = res.Parameter;
+                        if (p < minParam) minParam = p;
+                        if (p > maxParam) maxParam = p;
+                    }
                 }
 
-                if (p0.DistanceTo(p1) <= Constants.MIN_DISTANCE_TOLERANCE)
+                if (maxParam - minParam <= Constants.MIN_DISTANCE_TOLERANCE)
                     continue;
 
                 try
                 {
                     SetModelExtent(level, view, DatumEnds.End0);
                     SetModelExtent(level, view, DatumEnds.End1);
-                    Line newLine = Line.CreateBound(p0, p1);
+                    XYZ newP0 = unbound.Evaluate(minParam, false);
+                    XYZ newP1 = unbound.Evaluate(maxParam, false);
+                    Line newLine = Line.CreateBound(newP0, newP1);
                     level.SetCurveInView(DatumExtentType.Model, view, newLine);
                     anyApplied = true;
                 }

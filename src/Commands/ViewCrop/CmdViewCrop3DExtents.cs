@@ -1,59 +1,68 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : External commands for View Crop and annotation crop workflows.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-08
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : CmdViewCrop3DExtents.cs
+ * Purpose       : External commands for View Crop (active-view / all-model) and integrated annotation crop.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.2.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-28
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Tool Scope: Active View OR a user-selected batch of plan views (Floor / Ceiling / Engineering / Area Plan).
+ * Output        : Updated view crop and/or annotation crop on each supported target view, plus batch report.
+ *
+ * Notes         :
+ * - Two ribbon commands are registered:
+ *     CmdViewCropByAllModelElements        - unified crop command; user picks mode (visible/all) inside the settings dialog.
+ *     CmdSetAnnotationCropByViewCrop       - set annotation crop with equal offsets.
+ * - Only plan-family views are supported. Sections, elevations, 3D, sheets, schedules, legends are skipped.
+ * - Linked-model elements are read-only (used for extents, never modified).
+ * - Bulk-edit confirmation is shown when more than one view is targeted (skill safety gate).
+ *
+ * Changelog     :
+ * v1.2.0 (2026-06-28) - Merged two commands into one button: CmdViewCropByActiveViewElements removed; mode is now chosen inside the settings dialog.
+ * v1.1.0 (2026-06-27) - Refactor/audit pass: bulk-edit confirmation, shared report presenter, ElementIdHelper, metadata, version coverage notes. Behaviour unchanged.
+ * v1.0.1 (2026-05-06) - Standardized metadata after production cleanup.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using AJTools.Models.ViewCrop;
 using AJTools.Services.ViewCrop;
 
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Fits crop by elements visible in each target view.
-    /// </summary>
-    [Transaction(TransactionMode.Manual)]
-    public class CmdViewCropByActiveViewElements : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            return ViewCropCommandService.Execute(
-                commandData,
-                ViewCropExtentSource.ActiveViewElements,
-                "View Crop by Active View Elements",
-                ref message);
-        }
-    }
-
-    /// <summary>
-    /// Fits crop by all model elements projected to each target view.
+    /// Unified crop command. User picks "Visible elements" or "All model elements" inside the settings dialog.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdViewCropByAllModelElements : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            return ViewCropCommandService.Execute(
-                commandData,
-                ViewCropExtentSource.AllModelElements,
-                "View Crop by All Model Elements",
-                ref message);
+            try
+            {
+                return ViewCropCommandService.Execute(
+                    commandData,
+                    "Crop View by Elements",
+                    ref message);
+            }
+            catch (System.Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 
@@ -65,10 +74,18 @@ namespace AJTools.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            return ViewCropAnnotationCommandService.Execute(
-                commandData,
-                "Set Annotation Crop by View Crop",
-                ref message);
+            try
+            {
+                return ViewCropAnnotationCommandService.Execute(
+                    commandData,
+                    "Set Annotation Crop by View Crop",
+                    ref message);
+            }
+            catch (System.Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 }

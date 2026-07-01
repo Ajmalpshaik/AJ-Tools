@@ -1,22 +1,37 @@
-// ==================================================
-// Tool Name    : Apply Graphics
-// Purpose      : Applies graphics overrides to selected elements or selected categories from one combined tool.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.4.4
-// Created      : 2026-05-07
-// Last Updated : 2026-05-09
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Active view, selected graphics settings, and selected source elements.
-// Output       : Element or category graphics overrides applied in the active view.
-// Notes        : Normal success is silent; both apply modes use one selected-element source.
-// Changelog    : v1.4.4 - Uses the reference-style split apply buttons and prevents duplicate settings windows.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : Apply Graphics
+ * File Name     : CmdApplyGraphics.cs
+ * Purpose       : Applies the same graphics overrides to selected elements or to their categories from one combined settings window.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.5.0
+ *
+ * Created Date  : 2026-05-07
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active View - selected source elements and the chosen graphics settings (Element mode or Category mode).
+ * Output        : Element or category graphics overrides applied in the active view (single undo step per apply).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
+ * - Normal success is silent; both apply modes use one selected-element source.
+ * - A single settings window instance is enforced to prevent duplicate dialogs.
+ *
+ * Changelog     :
+ * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
+ * v1.4.4 (2026-05-09) - Uses the reference-style split apply buttons and prevents duplicate settings windows.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;
@@ -114,9 +129,9 @@ namespace AJTools.Commands.GraphicsTools
                     }
 
                     HashSet<int> selectedCategoryKeys = new HashSet<int>(
-                        settingsWindow.SelectedCategoryIds.Select(categoryId => categoryId.IntegerValue));
+                        settingsWindow.SelectedCategoryIds.Select(categoryId => ElementIdHelper.GetIntegerValue(categoryId)));
                     IList<Category> categories = preselectedCategories
-                        .Where(category => selectedCategoryKeys.Contains(category.Id.IntegerValue))
+                        .Where(category => selectedCategoryKeys.Contains(ElementIdHelper.GetIntegerValue(category.Id)))
                         .ToList();
 
                     summary = GraphicsCommandService.ExecuteSummaryTransaction(

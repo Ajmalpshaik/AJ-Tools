@@ -4,10 +4,11 @@ Tool Name    : Section Mark Visibility
 Purpose      : Defines the selectable target view list dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.0.0
+Version      : 1.2.0
 Created      : 2026-05-24
-Target       : Revit 2020
-Framework    : .NET Framework 4.7.2
+Last Updated : 2026-06-30
+Target Revit : 2020 - latest
+Framework    : .NET Fx 4.7.2 (2020) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in
 Dependencies : Autodesk Revit API, WPF
 ==================================================

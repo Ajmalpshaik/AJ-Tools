@@ -1,10 +1,41 @@
-// Tool Name: Filter Pro - Data Provider
-// Description: Collects filterable categories, parameters, and values for the Filter Pro UI.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-11
-// Revit Version: 2020
-// Dependencies: System, System.Collections.Generic, System.Linq, Autodesk.Revit.DB, Autodesk.Revit.DB.Mechanical
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : FilterProDataProvider.cs
+ * Purpose       : Read-only data provider — collects filterable categories, parameters, and
+ *                 unique parameter values from the project for the Filter Pro UI.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.0
+ *
+ * Created Date  : 2025-12-11
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, System.Linq
+ *
+ * Input         : Active Project document; selected category ElementIds; selected FilterParameterItem
+ * Output        : Lists of FilterCategoryItem, FilterParameterItem, FilterValueItem (read-only, no model changes)
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - Element scan limited to Constants.ELEMENT_SCAN_LIMIT (default 10 000) to prevent UI freeze on large models.
+ * - ParameterFilterUtilities.GetFilterableParametersInCommon confirmed valid 2020-2026.
+ * - LabelUtils.GetLabelFor(BuiltInParameter) used for built-in parameter display names — valid 2020-2026.
+ * - Production-ready implementation. No model changes — no Transaction required.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-11) - Initial release.
+ * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using System.Linq;

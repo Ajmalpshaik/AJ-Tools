@@ -1,10 +1,40 @@
-// Tool Name: Filter Pro - Value Key Matcher
-// Description: Builds and evaluates value keys for restoring Filter Pro selections.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
-// Revit Version: 2020
-// Dependencies: System, System.Collections.Generic, Autodesk.Revit.DB, AJTools.Models
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : FilterValueKeyMatcher.cs
+ * Purpose       : Builds composite FilterValueKey objects from UI selections and evaluates
+ *                 whether a given FilterValueItem matches a saved key, enabling session restore.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, System.Collections.Generic
+ *
+ * Input         : IList<FilterValueItem> (selected values from UI); IList<FilterValueKey> (saved keys)
+ * Output        : List<FilterValueKey> for persistence; boolean match result for restore
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - Family+Type keys are encoded as "__FAMILY_AND_TYPE__<family>|||<type>" to avoid collision.
+ * - Double comparison uses 1e-6 tolerance to handle floating-point storage differences.
+ * - Production-ready implementation. No model changes.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;

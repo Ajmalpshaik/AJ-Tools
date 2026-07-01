@@ -1,10 +1,38 @@
-// Tool Name: Duct Flow Annotations
-// Description: Places duct flow annotation families along ducts with user-controlled spacing.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-21
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.FlowDirection
+#region Metadata
+/*
+ * Tool Name     : Duct Flow Annotations
+ * File Name     : CmdFlowDirectionAnnotations.cs
+ * Purpose       : Places duct flow-direction annotation families along horizontal ducts in the active view,
+ *                 using the family and spacing set in Duct Flow Annotation Settings.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-21
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Services.FlowDirection, AJTools.Models, AJTools.Utils
+ *
+ * Input         : Active View - horizontal ducts; family and spacing from saved settings.
+ * Output        : Flow annotation instances placed along ducts; validation/transaction/report handled here and in the service.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Project-only, view-based tool; validates document, editability, and a supported view before running.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-21) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Annotation behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;

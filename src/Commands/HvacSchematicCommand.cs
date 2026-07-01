@@ -1,22 +1,40 @@
-// ==================================================
-// Tool Name    : HVAC Schematic
-// Purpose      : Creates a drafting-view HVAC schematic from selected model elements.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.0
-// Created      : 2026-05-07
-// Last Updated : 2026-05-07
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API
-// Input        : Selected ducts, air terminals, and mechanical equipment in an editable project.
-// Output       : A new drafting view containing a logical HVAC schematic layout.
-// Notes        : Runs only on selected supported HVAC elements and reports unresolved connectors or levels.
-// Changelog    : v1.0.0 - Initial production-ready HVAC schematic command with standardized metadata.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : HVAC Schematic
+ * File Name     : HvacSchematicCommand.cs
+ * Purpose       : Builds a logical HVAC schematic in a new drafting view from the selected ducts,
+ *                 air terminals, and mechanical equipment, using their connector network and levels.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.0.0
+ *
+ * Created Date  : 2026-05-07
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Services.HvacSchematic, AJTools.Utils
+ *
+ * Input         : Selection - ducts, air terminals, and mechanical equipment in an editable project.
+ * Output        : A new drafting view with the schematic (detail lines, risers, text notes); final report
+ *                 of accepted elements, connections, rejected/unresolved items.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Project-only tool; validates an editable, non-family document and a non-empty selection first.
+ * - All view/geometry creation runs in ONE transaction, so a single Ctrl+Z removes the schematic.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-05-07) - Initial production-ready HVAC schematic command.
+ * v1.0.0 (2026-07-01) - Refactor/audit: standardized metadata block. Schematic behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using System.Linq;

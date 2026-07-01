@@ -1,10 +1,41 @@
-// Tool Name: Transfer View Templates
-// Description: Transfers selected view templates between open project documents with optional override.
-// Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-14
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.UI, AJTools.Utils
+#region Metadata
+/*
+ * Tool Name     : Transfer View Templates
+ * File Name     : CmdTransferViewTemplates.cs
+ * Purpose       : Copies selected view templates from one open project document to another, optionally
+ *                 overriding same-named templates in the target and re-pointing the views that used them.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-14
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.UI (TransferViewTemplatesWindow), AJTools.Utils
+ *
+ * Input         : Two or more open projects - source, target, templates, and override flag chosen in the window.
+ * Output        : Selected templates copied into the target; views re-pointed when overriding; final
+ *                 report of transferred / updated / added.
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Needs at least two open, non-linked project documents; refuses a read-only target.
+ * - The whole transfer (remove + copy + reassign) runs in one TransactionGroup, so it reverses in one Ctrl+Z.
+ * - Override mode is chosen explicitly in the window before anything is removed.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2026-04-14) - Initial release.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Transfer behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;

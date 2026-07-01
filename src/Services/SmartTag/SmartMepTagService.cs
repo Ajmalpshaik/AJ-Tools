@@ -210,9 +210,9 @@ namespace AJTools.Services.SmartTag
         // ═══════════════════════════════════════════════════════════════
 
         // Size thresholds in feet (Revit internal units).
-        private static readonly double MinDuctWidth = 200.0 * Constants.MM_TO_FEET;      // 200mm
-        private static readonly double MinPipeDiameter = 25.0 * Constants.MM_TO_FEET;    // 25mm
-        private static readonly double MinCurveLength = 300.0 * Constants.MM_TO_FEET;    // 300mm
+        private static readonly double MinDuctWidth = 100.0 * Constants.MM_TO_FEET;      // 100mm
+        private static readonly double MinPipeDiameter = 0.0 * Constants.MM_TO_FEET;    // 0mm (No limit)
+        private static readonly double MinCurveLength = 1000.0 * Constants.MM_TO_FEET;    // 1000mm (1 meter) minimum curve length
         private static readonly double DensityRadius = 500.0 * Constants.MM_TO_FEET;     // 500mm
         private const int DensityThreshold = 5;
 
@@ -343,6 +343,21 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
+                // FILTER 4.5 — VERTICAL DUCTS
+                if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct duct)
+                {
+                    if (IsVerticalDuct(duct))
+                    {
+                        results.Add(new TagPlacementResult
+                        {
+                            ElementId = eid, Category = bic, Success = false,
+                            SkipReason = TagSkipReason.FilteredOutType,
+                            Note = "Vertical duct is excluded"
+                        });
+                        continue;
+                    }
+                }
+
                 // ── Build the candidate ──
                 XYZ midpoint;
                 midpointLookup.TryGetValue(eid, out midpoint);
@@ -365,6 +380,19 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
+                Curve elementCurve = null;
+                LocationCurve locCurve = elem.Location as LocationCurve;
+                if (locCurve != null && locCurve.Curve != null)
+                {
+                    elementCurve = locCurve.Curve;
+                }
+
+                double hostWidth = 0;
+                if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct d)
+                {
+                    hostWidth = GetDuctWidth(d);
+                }
+
                 // FILTER 5 — DENSITY PRE-CHECK
                 // Count elements within 500mm radius. Flag but don't skip yet — priority decides later.
                 var candidate = new TagCandidate
@@ -374,8 +402,10 @@ namespace AJTools.Services.SmartTag
                     Priority = SmartTagSettingsTracker.ResolvePriority(settingsState, bic),
                     BoundingBox = elem.get_BoundingBox(activeView),
                     Midpoint = midpoint,
+                    ElementCurve = elementCurve,
                     IsDenseZone = false,
-                    Orientation = GetElementOrientation(elem, activeView)
+                    Orientation = GetElementOrientation(elem, activeView),
+                    HostWidth = hostWidth
                 };
 
                 candidates.Add(candidate);
@@ -476,6 +506,21 @@ namespace AJTools.Services.SmartTag
             }
         }
 
+        private static bool IsVerticalDuct(Duct duct)
+        {
+            if (duct == null) return false;
+            if (duct.Location is LocationCurve locCurve && locCurve.Curve is Line line)
+            {
+                XYZ dir = line.Direction;
+                // If Z is almost 1 or -1, it's vertical
+                if (Math.Abs(dir.Z) > 0.95)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Checks whether an element passes the minimum size threshold for its category.
         /// Prevents tagging of small spurs, flex connections, and short segments.
@@ -532,7 +577,6 @@ namespace AJTools.Services.SmartTag
                         break;
 
                     case BuiltInCategory.OST_PipeAccessory:
-                    case BuiltInCategory.OST_DuctAccessory:
                         // Only tag valves, dampers, and major fittings.
                         // We check the family name for common accessory types.
                         if (!IsMajorAccessory(elem))
@@ -540,6 +584,9 @@ namespace AJTools.Services.SmartTag
                             reason = "Minor accessory — not a valve, damper, or major fitting";
                             return false;
                         }
+                        break;
+                    case BuiltInCategory.OST_DuctAccessory:
+                        // All duct accessories are tagged, regardless of size or subtype.
                         break;
                 }
             }
@@ -1545,7 +1592,12 @@ namespace AJTools.Services.SmartTag
             }
 
             // ── PHASES 3–6: Score positions, detect clashes, reposition, and place tags ──
-            SmartTagPlacementEngine.ProcessAndPlaceTags(doc, preflight, settingsState, candidates, results);
+            using (TransactionGroup tg = new TransactionGroup(doc, "Smart MEP Tag All"))
+            {
+                tg.Start();
+                SmartTagPlacementEngine.ProcessAndPlaceTags(doc, preflight, settingsState, candidates, results);
+                tg.Assimilate();
+            }
             RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
 
             // ── PHASE 7: Generate output report ──

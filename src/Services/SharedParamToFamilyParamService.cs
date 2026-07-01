@@ -88,7 +88,10 @@ namespace AJTools.Services
                         }
                         catch (Exception ex)
                         {
-                            transaction.RollBack();
+                            if (transaction.GetStatus() != TransactionStatus.RolledBack && transaction.GetStatus() != TransactionStatus.Committed)
+                            {
+                                transaction.RollBack();
+                            }
                             result.AddFailure(parameterName, $"Unexpected error: {ex.Message}");
                         }
                     }
@@ -375,7 +378,7 @@ namespace AJTools.Services
                 return false;
             }
 
-            if (first.Id != null && second.Id != null)
+            if (first.Id != null && second.Id != null && first.Id != ElementId.InvalidElementId && second.Id != ElementId.InvalidElementId)
             {
                 return first.Id.IntegerValue == second.Id.IntegerValue;
             }

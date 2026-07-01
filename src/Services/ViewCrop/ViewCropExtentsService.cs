@@ -1,22 +1,38 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Calculates and applies crop extents for supported target views.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-08
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropExtentsService.cs
+ * Purpose       : Calculates and applies crop extents for supported plan views.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active Revit document, supported target views (plan family), View Crop settings.
+ * Output        : Updated view crop region on each supported target view; diagnostic report per view.
+ *
+ * Notes         :
+ * - Single TransactionGroup per batch + one Transaction per view => single undo step (group.Assimilate).
+ * - All ElementId numeric access funneled through ElementIdHelper (Revit 2024+ deprecated IntegerValue).
+ * - mm/feet conversion via Constants.MM_TO_FEET and Constants.FEET_TO_MM.
+ * - The two CollectBoundsFromXxx methods are kept separate by design: they differ in element source
+ *   and per-corner exception handling. Sharing the inner loop would alter exception semantics.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Refactor/audit pass: ElementIdHelper, FEET_TO_MM constant, metadata, version coverage notes.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -76,7 +92,7 @@ namespace AJTools.Services.ViewCrop
             internal string Category { get; set; } = "(none)";
             internal string LinkName { get; set; } = null;
             internal double ValueFeet { get; set; }
-            internal double ValueMm => ValueFeet * 304.8; // Convert feet to mm
+            internal double ValueMm => ValueFeet * Constants.FEET_TO_MM;
         }
 
         private sealed class BoundTracker
@@ -88,73 +104,79 @@ namespace AJTools.Services.ViewCrop
 
             internal void Update(Element element, string linkName, double minX, double maxX, double minY, double maxY)
             {
+                string elementIdText = ElementIdHelper.ToReportString(element.Id);
+                string categoryName = element.Category?.Name ?? "Unknown";
+
                 if (minX < Left.ValueFeet)
                 {
                     Left.ValueFeet = minX;
-                    Left.Id = element.Id.IntegerValue.ToString();
+                    Left.Id = elementIdText;
                     Left.Name = element.Name;
-                    Left.Category = element.Category?.Name ?? "Unknown";
+                    Left.Category = categoryName;
                     Left.LinkName = linkName;
                 }
                 if (maxX > Right.ValueFeet)
                 {
                     Right.ValueFeet = maxX;
-                    Right.Id = element.Id.IntegerValue.ToString();
+                    Right.Id = elementIdText;
                     Right.Name = element.Name;
-                    Right.Category = element.Category?.Name ?? "Unknown";
+                    Right.Category = categoryName;
                     Right.LinkName = linkName;
                 }
                 if (minY < Bottom.ValueFeet)
                 {
                     Bottom.ValueFeet = minY;
-                    Bottom.Id = element.Id.IntegerValue.ToString();
+                    Bottom.Id = elementIdText;
                     Bottom.Name = element.Name;
-                    Bottom.Category = element.Category?.Name ?? "Unknown";
+                    Bottom.Category = categoryName;
                     Bottom.LinkName = linkName;
                 }
                 if (maxY > Top.ValueFeet)
                 {
                     Top.ValueFeet = maxY;
-                    Top.Id = element.Id.IntegerValue.ToString();
+                    Top.Id = elementIdText;
                     Top.Name = element.Name;
-                    Top.Category = element.Category?.Name ?? "Unknown";
+                    Top.Category = categoryName;
                     Top.LinkName = linkName;
                 }
             }
 
             internal void UpdateFromCandidate(GlobalExtentCandidate candidate, double minX, double maxX, double minY, double maxY)
             {
+                string candidateIdText = ElementIdHelper.ToReportString(candidate.ElementId);
+                string candidateLink = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+
                 if (minX < Left.ValueFeet)
                 {
                     Left.ValueFeet = minX;
-                    Left.Id = candidate.ElementId.IntegerValue.ToString();
+                    Left.Id = candidateIdText;
                     Left.Name = candidate.ElementName;
                     Left.Category = candidate.CategoryName;
-                    Left.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                    Left.LinkName = candidateLink;
                 }
                 if (maxX > Right.ValueFeet)
                 {
                     Right.ValueFeet = maxX;
-                    Right.Id = candidate.ElementId.IntegerValue.ToString();
+                    Right.Id = candidateIdText;
                     Right.Name = candidate.ElementName;
                     Right.Category = candidate.CategoryName;
-                    Right.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                    Right.LinkName = candidateLink;
                 }
                 if (minY < Bottom.ValueFeet)
                 {
                     Bottom.ValueFeet = minY;
-                    Bottom.Id = candidate.ElementId.IntegerValue.ToString();
+                    Bottom.Id = candidateIdText;
                     Bottom.Name = candidate.ElementName;
                     Bottom.Category = candidate.CategoryName;
-                    Bottom.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                    Bottom.LinkName = candidateLink;
                 }
                 if (maxY > Top.ValueFeet)
                 {
                     Top.ValueFeet = maxY;
-                    Top.Id = candidate.ElementId.IntegerValue.ToString();
+                    Top.Id = candidateIdText;
                     Top.Name = candidate.ElementName;
                     Top.Category = candidate.CategoryName;
-                    Top.LinkName = string.IsNullOrWhiteSpace(candidate.LinkName) ? null : candidate.LinkName;
+                    Top.LinkName = candidateLink;
                 }
             }
 
@@ -329,7 +351,7 @@ namespace AJTools.Services.ViewCrop
             if (scopeBoxParam != null && scopeBoxParam.HasValue)
             {
                 ElementId scopeBoxId = scopeBoxParam.AsElementId();
-                if (HasValidElementId(scopeBoxId))
+                if (ElementIdHelper.IsValid(scopeBoxId))
                 {
                     reason = "Scope box is assigned. Remove scope box control before running this tool.";
                     return false;
@@ -338,7 +360,7 @@ namespace AJTools.Services.ViewCrop
 
             Parameter cropActiveParam = view.get_Parameter(BuiltInParameter.VIEWER_CROP_REGION);
             ElementId templateId = view.ViewTemplateId;
-            if (HasValidElementId(templateId) && cropActiveParam != null && cropActiveParam.IsReadOnly)
+            if (ElementIdHelper.IsValid(templateId) && cropActiveParam != null && cropActiveParam.IsReadOnly)
             {
                 reason = "View template controls crop settings for this view.";
                 return false;
@@ -465,7 +487,7 @@ namespace AJTools.Services.ViewCrop
                 if (category.CategoryType != CategoryType.Model)
                     continue;
 
-                int categoryId = category.Id.IntegerValue;
+                int categoryId = ElementIdHelper.GetIntegerValue(category.Id);
                 if (categoryId == (int)BuiltInCategory.OST_Coordination_Model)
                     continue;
 
@@ -658,7 +680,7 @@ namespace AJTools.Services.ViewCrop
                         if (category.CategoryType != CategoryType.Model)
                             continue;
 
-                        int categoryId = category.Id.IntegerValue;
+                        int categoryId = ElementIdHelper.GetIntegerValue(category.Id);
                         if (categoryId == (int)BuiltInCategory.OST_Coordination_Model)
                             continue;
 
@@ -746,7 +768,7 @@ namespace AJTools.Services.ViewCrop
                 if (cat == null || cat.Id == null)
                     continue;
 
-                int catId = cat.Id.IntegerValue;
+                int catId = ElementIdHelper.GetIntegerValue(cat.Id);
                 candidates.Add(new GlobalExtentCandidate(
                     catId,
                     corners,
@@ -789,7 +811,7 @@ namespace AJTools.Services.ViewCrop
                 return false;
             }
 
-            int categoryId = category.Id.IntegerValue;
+            int categoryId = ElementIdHelper.GetIntegerValue(category.Id);
             if (categoryId == (int)BuiltInCategory.OST_Coordination_Model)
             {
                 if (!_settings.IncludeCoordinationModels)
@@ -1013,9 +1035,5 @@ namespace AJTools.Services.ViewCrop
             return $"{first} | {second}";
         }
 
-        private static bool HasValidElementId(ElementId id)
-        {
-            return id != null && id.IntegerValue != ElementId.InvalidElementId.IntegerValue;
-        }
     }
 }

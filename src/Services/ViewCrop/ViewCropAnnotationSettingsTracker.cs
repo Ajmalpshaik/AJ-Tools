@@ -1,23 +1,35 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Stores last-used annotation crop settings for the current Revit session.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.1
-// Created      : 2026-04-11
-// Last Updated : 2026-05-06
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.1 - Standardized metadata after production cleanup.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
-using System;
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropAnnotationSettingsTracker.cs
+ * Purpose       : Stores last-used annotation crop settings for the active Revit session.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-11
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active Revit Document, annotation crop settings.
+ * Output        : Cached last settings (per document) - in-memory only.
+ *
+ * Notes         :
+ * - Inherits the shared per-document caching logic from SettingsTrackerBase{T}.
+ * - No disk persistence - annotation crop offset is intentionally session-scoped.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Refactored onto shared SettingsTrackerBase. Behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using Autodesk.Revit.DB;
 using AJTools.Models.ViewCrop;
 
@@ -26,40 +38,15 @@ namespace AJTools.Services.ViewCrop
     /// <summary>
     /// Stores annotation crop settings in-memory for the active document during the session.
     /// </summary>
-    internal sealed class ViewCropAnnotationSettingsTracker
+    internal sealed class ViewCropAnnotationSettingsTracker : SettingsTrackerBase<ViewCropAnnotationSettings>
     {
-        private static ViewCropAnnotationSettings _lastSettings;
-        private static string _lastDocKey;
-
-        internal ViewCropAnnotationSettingsTracker(Document doc)
+        internal ViewCropAnnotationSettingsTracker(Document doc) : base(doc)
         {
-            if (doc == null)
-                throw new ArgumentNullException(nameof(doc));
-
-            string key = BuildDocKey(doc);
-            if (!string.Equals(_lastDocKey, key, StringComparison.OrdinalIgnoreCase))
-            {
-                _lastDocKey = key;
-                _lastSettings = null;
-            }
         }
 
-        internal ViewCropAnnotationSettings LastSettings => (_lastSettings ?? new ViewCropAnnotationSettings()).Clone();
+        protected override ViewCropAnnotationSettings CreateDefault() => new ViewCropAnnotationSettings();
 
-        internal void Save(ViewCropAnnotationSettings settings)
-        {
-            if (settings == null)
-                return;
-
-            _lastSettings = settings.Clone();
-        }
-
-        private static string BuildDocKey(Document doc)
-        {
-            if (!string.IsNullOrWhiteSpace(doc.PathName))
-                return doc.PathName;
-
-            return $"{doc.Title}|{doc.GetHashCode()}";
-        }
+        protected override ViewCropAnnotationSettings CloneSettings(ViewCropAnnotationSettings settings) =>
+            (settings ?? CreateDefault()).Clone();
     }
 }

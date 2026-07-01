@@ -1,0 +1,417 @@
+<!--
+==================================================
+Tool Name    : Pipe Sizing
+Purpose      : Standalone WPF calculator for domestic water pipe sizing by fixture units.
+Author       : Ajmal P.S.
+Version      : 1.0.0
+Created      : 2026-07-01
+Last Updated : 2026-07-01
+Target       : Revit 2020 - latest (verify newest SDK before publishing)
+Framework    : .NET Framework 4.7.2 baseline
+Platform     : C# Revit Add-in WPF UI
+Notes        : Ported from the original pyRevit pipe sizing UI.
+License      : All Rights Reserved
+Repo         : AJ-Tools
+==================================================
+-->
+<Window x:Class="AJTools.UI.PipeSizing.PipeSizingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pipe Sizing"
+        Width="1000"
+        Height="800"
+        MinWidth="920"
+        MinHeight="800"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}"
+        Closing="Window_Closing">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="HeaderLabel" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Margin" Value="0,0,0,6"/>
+            </Style>
+
+            <Style x:Key="ResultLabel" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Margin" Value="0,0,0,2"/>
+            </Style>
+
+            <Style x:Key="ResultValue" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="FontSize" Value="18"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+
+            <Style x:Key="TableHeader" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="SupplyToggleButton" TargetType="ToggleButton">
+                <Setter Property="Width" Value="44"/>
+                <Setter Property="Height" Value="26"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="Background" Value="{StaticResource AccentGray}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ResultPanel" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="12"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource BackgroundMedium}"
+                BorderBrush="{StaticResource BorderSoft}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14"
+                Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Pipe Sizing" Style="{StaticResource TitleText}"/>
+                    <TextBlock Text="Fixture-unit water supply sizing using the Hazen-Williams method"
+                               Style="{StaticResource SubtitleText}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="330"/>
+            </Grid.ColumnDefinitions>
+
+            <ContentControl Grid.Column="0"
+                            Style="{StaticResource PanelCard}"
+                            Margin="0,0,12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Fixture Load (FU)"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <Button x:Name="BtnClearAll"
+                                Grid.Column="1"
+                                Content="Clear All"
+                                Style="{StaticResource DangerButton}"
+                                Width="92"
+                                Click="BtnClearAll_Click"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="108"/>
+                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="38"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="FIXTURE TYPE" Style="{StaticResource TableHeader}" HorizontalAlignment="Left"/>
+                        <TextBlock Grid.Column="1" Text="SUPPLY" Style="{StaticResource TableHeader}"/>
+                        <TextBlock Grid.Column="2" Text="QTY" Style="{StaticResource TableHeader}"/>
+                        <TextBlock Grid.Column="3" Text="FU/FIX" Style="{StaticResource TableHeader}"/>
+                        <TextBlock Grid.Column="4" Text="TOTAL" Style="{StaticResource TableHeader}"/>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="2"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="FixtureListPanel"/>
+                    </ScrollViewer>
+
+                    <Grid Grid.Row="3" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="BtnAddFixture"
+                                Content="+ Add Fixture Row"
+                                Style="{StaticResource ModernButton}"
+                                Width="160"
+                                Height="38"
+                                Click="BtnAddFixture_Click"/>
+                        <Border Grid.Column="2"
+                                Background="{StaticResource BackgroundMedium}"
+                                BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Aggregate Total FU"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,12,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtTotalFU"
+                                           Text="0.0"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </ContentControl>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <ContentControl Grid.Row="0"
+                                Style="{StaticResource PanelCard}"
+                                Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="System Parameters"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
+
+                        <TextBlock Text="SYSTEM TYPE" Style="{StaticResource HeaderLabel}"/>
+                        <ComboBox x:Name="ComboSystemType"
+                                  SelectedIndex="0"
+                                  SelectionChanged="CalculateSizing_Event"
+                                  Margin="0,0,0,8">
+                            <ComboBoxItem Content="Flush Valve"/>
+                            <ComboBoxItem Content="Flush Tank"/>
+                        </ComboBox>
+
+                        <TextBlock Text="PIPE MATERIAL" Style="{StaticResource HeaderLabel}"/>
+                        <ComboBox x:Name="ComboPipeMaterial"
+                                  SelectedIndex="0"
+                                  SelectionChanged="CalculateSizing_Event"
+                                  Margin="0,0,0,8">
+                            <ComboBoxItem Content="uPVC (Sch 40)"/>
+                            <ComboBoxItem Content="CPVC (SDR 11)"/>
+                            <ComboBoxItem Content="PPR (SDR 7.4)"/>
+                            <ComboBoxItem Content="Copper (Type L)"/>
+                        </ComboBox>
+
+                        <TextBlock Text="MAX VELOCITY LIMIT" Style="{StaticResource HeaderLabel}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtMaxVelocityMS"
+                                     Grid.Column="0"
+                                     Text="2.4"
+                                     TextAlignment="Center"
+                                     Style="{StaticResource ModernTextBox}"
+                                     TextChanged="TxtMaxVelocityMS_TextChanged"/>
+                            <TextBlock Grid.Column="0"
+                                       Text="m/s"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"
+                                       IsHitTestVisible="False"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="="
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontWeight="Bold"
+                                       Margin="10,0"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="TxtMaxVelocityFTS"
+                                     Grid.Column="2"
+                                     Text="7.87"
+                                     TextAlignment="Center"
+                                     Style="{StaticResource ModernTextBox}"
+                                     TextChanged="TxtMaxVelocityFTS_TextChanged"/>
+                            <TextBlock Grid.Column="2"
+                                       Text="ft/s"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"
+                                       IsHitTestVisible="False"/>
+                        </Grid>
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Grid.Row="1"
+                                Style="{StaticResource PanelCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Text="Sizing Results"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
+
+                        <Border Grid.Row="1" Style="{StaticResource ResultPanel}" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="CALCULATED FLOW RATE" Style="{StaticResource ResultLabel}"/>
+                                <TextBlock x:Name="TxtFlowRate" Text="0.0 GPM" Style="{StaticResource ResultValue}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Style="{StaticResource ResultPanel}" Margin="0,0,5,8">
+                                <StackPanel>
+                                    <TextBlock Text="VELOCITY" Style="{StaticResource ResultLabel}"/>
+                                    <TextBlock x:Name="TxtVelocity" Text="0.0 m/s (0.0 ft/s)" Style="{StaticResource ResultValue}" FontSize="14"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Style="{StaticResource ResultPanel}" Margin="5,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="MINIMUM ID" Style="{StaticResource ResultLabel}"/>
+                                    <TextBlock x:Name="TxtCalcID" Text="0.0 mm" Style="{StaticResource ResultValue}" FontSize="14"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Grid.Row="3"
+                                Background="{StaticResource AccentBlue}"
+                                BorderBrush="{StaticResource AccentBlue}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="10"
+                                Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="RECOMMENDED PIPE SIZE"
+                                           Foreground="{StaticResource TextOnLight}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,5"/>
+                                <TextBlock x:Name="TxtPipeSize"
+                                           Text="--"
+                                           Foreground="{StaticResource TextOnLight}"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                <TextBlock Text="Friction Loss:"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,6,0"/>
+                                <TextBlock x:Name="TxtFrictionLoss"
+                                           Text="0.0 psi/100ft"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TxtStatus"
+                                       Text=""
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </ContentControl>
+            </Grid>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0"
+                       Text="Created and all rights reserved (c) Ajmal P.S. (AJ Tools)"
+                       Foreground="{StaticResource TextSecondary}"
+                       VerticalAlignment="Center"/>
+            <Button x:Name="BtnExport"
+                    Grid.Column="1"
+                    Content="Export CSV Report"
+                    Style="{StaticResource SecondaryButton}"
+                    Width="150"
+                    Margin="0,0,8,0"
+                    Click="BtnExport_Click"/>
+            <Button x:Name="BtnClose"
+                    Grid.Column="2"
+                    Content="Close"
+                    Style="{StaticResource DangerButton}"
+                    Width="100"
+                    Click="BtnClose_Click"/>
+        </Grid>
+    </Grid>
+</Window>

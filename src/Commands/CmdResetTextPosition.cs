@@ -1,10 +1,38 @@
-// Tool Name: Reset Text Position
-// Description: Centers selected annotations in the active family view.
-// Author: Ajmal P.S.
-// Version: 1.0.3
-// Last Updated: 2025-12-14
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
+#region Metadata
+/*
+ * Tool Name     : Center Annotation
+ * File Name     : CmdResetTextPosition.cs
+ * Purpose       : Centers the selected annotations (text notes, labels, symbols, tag graphics) within the
+ *                 active annotation family view.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-14
+ * Last Updated  : 2026-07-01
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (DialogHelper)
+ *
+ * Input         : Selection - annotations in the active annotation family view.
+ * Output        : Selected annotations centered in the view (single undo step).
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - Family-Editor-only tool; validates a family document, editability, a selection, and a valid family view.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.3 (2025-12-14) - Centering across text, labels, symbols, and tag graphics.
+ * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Centering behaviour unchanged.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using System;
 using System.Collections.Generic;

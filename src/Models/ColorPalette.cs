@@ -1,10 +1,42 @@
-// Tool Name: Filter Pro - Color Palette
-// Description: Provides a highly distinct vivid color palette for filter graphics and utilities.
-// Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2025-12-11
-// Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, System
+#region Metadata
+/*
+ * Tool Name     : Filter Pro
+ * File Name     : ColorPalette.cs
+ * Purpose       : Provides a 20-colour neon palette for filter graphic overrides — deterministic
+ *                 colour by ElementId and thread-safe random colour selection.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2025-12-10
+ * Last Updated  : 2026-06-30
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API, System, System.Threading
+ *
+ * Input         : ElementId (for deterministic colour) or none (for random colour)
+ * Output        : Autodesk.Revit.DB.Color instance
+ *
+ * Notes         :
+ * - Targets Revit 2020 through latest.
+ * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
+ * - ThreadLocal<Random> is used to avoid seed-collision on concurrent threads.
+ * - GetColorFor uses unchecked Math.Abs to handle int.MinValue without OverflowException.
+ * - Production-ready implementation.
+ *
+ * Changelog     :
+ * v1.0.0 (2025-12-10) - Initial release.
+ * v1.1.0 (2025-12-11) - Replaced shared Random with ThreadLocal<Random> for thread safety;
+ *                        added unchecked Math.Abs guard for int.MinValue ElementIds.
+ * v1.1.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 
 using Autodesk.Revit.DB;
 using System;

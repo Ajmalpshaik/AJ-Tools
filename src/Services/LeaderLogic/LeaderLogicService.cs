@@ -46,7 +46,7 @@ namespace AJTools.Services.LeaderLogic
         public LeaderLogicService(View view, double minHorizontalStub = 0.5, double minVerticalStub = 0.1)
         {
             if (view == null)
-                throw new ArgumentNullException("view");
+                throw new ArgumentNullException(nameof(view));
 
             _viewRight         = (view.RightDirection != null && view.RightDirection.GetLength() > 1e-9)
                 ? view.RightDirection.Normalize()

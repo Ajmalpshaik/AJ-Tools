@@ -1,23 +1,36 @@
-// ==================================================
-// Tool Name    : View Crop
-// Purpose      : Stores last-used View Crop settings for the current Revit session and persists on disk.
-// Author       : Ajmal P.S.
-// Company      : AJ Tools
-// Version      : 1.0.2
-// Created      : 2026-04-08
-// Last Updated : 2026-05-24
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
-// Platform     : C# Revit Add-in
-// Dependencies : Autodesk Revit API, WPF
-// Input        : Active Revit document, active or selected target views, and View Crop settings.
-// Output       : Updated view crop or annotation crop settings for supported target views.
-// Notes        : Skips unsupported, template, scope-box-controlled, and view-template-locked views.
-// Changelog    : v1.0.2 - Premium disk-based settings persistence.
-// License      : All Rights Reserved
-// Repo         : AJ-Tools
-// ==================================================
-using System;
+#region Metadata
+/*
+ * Tool Name     : View Crop
+ * File Name     : ViewCropSettingsTracker.cs
+ * Purpose       : Stores last-used View Crop settings for the active document and persists them on disk.
+ *
+ * Author        : Ajmal P.S.
+ * Version       : 1.1.0
+ *
+ * Created Date  : 2026-04-08
+ * Last Updated  : 2026-06-27
+ *
+ * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Platform      : C# Revit Add-in
+ *
+ * Dependencies  : Autodesk Revit API
+ *
+ * Input         : Active Revit Document, View Crop settings.
+ * Output        : Cached last settings (per document), disk-persisted via ViewCropConfigStore.
+ *
+ * Notes         :
+ * - Inherits the shared per-document caching logic from SettingsTrackerBase{T}.
+ * - Disk persistence delegated to ViewCropConfigStore.
+ *
+ * Changelog     :
+ * v1.1.0 (2026-06-27) - Refactored onto shared SettingsTrackerBase. Behaviour unchanged.
+ * v1.0.2 (2026-05-24) - Premium disk-based settings persistence.
+ *
+ * License       : All Rights Reserved
+ * Repo          : AJ-Tools
+ */
+#endregion
 using Autodesk.Revit.DB;
 using AJTools.Models.ViewCrop;
 using AJTools.Utils;
@@ -25,53 +38,21 @@ using AJTools.Utils;
 namespace AJTools.Services.ViewCrop
 {
     /// <summary>
-    /// Stores user settings in-memory during the active document session and persists permanently on disk.
+    /// Stores user settings in-memory during the active document session and persists them on disk.
     /// </summary>
-    internal sealed class ViewCropSettingsTracker
+    internal sealed class ViewCropSettingsTracker : SettingsTrackerBase<ViewCropSettings>
     {
-        private static ViewCropSettings _lastSettings;
-        private static string _lastDocKey;
-
-        internal ViewCropSettingsTracker(Document doc)
+        internal ViewCropSettingsTracker(Document doc) : base(doc)
         {
-            if (doc == null)
-                throw new ArgumentNullException(nameof(doc));
-
-            string key = BuildDocKey(doc);
-            if (!string.Equals(_lastDocKey, key, StringComparison.OrdinalIgnoreCase))
-            {
-                _lastDocKey = key;
-                _lastSettings = null; // Clear local session override to reload from disk config
-            }
         }
 
-        internal ViewCropSettings LastSettings
-        {
-            get
-            {
-                if (_lastSettings == null)
-                {
-                    _lastSettings = ViewCropConfigStore.Load();
-                }
-                return _lastSettings.Clone();
-            }
-        }
+        protected override ViewCropSettings CreateDefault() => new ViewCropSettings();
 
-        internal void Save(ViewCropSettings settings)
-        {
-            if (settings == null)
-                return;
+        protected override ViewCropSettings CloneSettings(ViewCropSettings settings) =>
+            (settings ?? CreateDefault()).Clone();
 
-            _lastSettings = settings.Clone();
-            ViewCropConfigStore.Save(_lastSettings);
-        }
+        protected override ViewCropSettings LoadFromStore() => ViewCropConfigStore.Load();
 
-        private static string BuildDocKey(Document doc)
-        {
-            if (!string.IsNullOrWhiteSpace(doc.PathName))
-                return doc.PathName;
-
-            return $"{doc.Title}|{doc.GetHashCode()}";
-        }
+        protected override void SaveToStore(ViewCropSettings settings) => ViewCropConfigStore.Save(settings);
     }
 }
