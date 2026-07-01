@@ -8,7 +8,7 @@
  *                 failed run with the AI's help up to a fixed attempt limit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-01-01
  * Last Updated  : 2026-07-01
@@ -34,12 +34,18 @@
  *   of burning all remaining attempts on a fix that isn't working.
  * - IsBusy is checked at the top of every command method as a defensive re-entrancy guard, in
  *   addition to the XAML now disabling the action buttons while a request is in flight.
+ * - Generate Code is now stateful: if the editor already has code, the next prompt is sent as an
+ *   incremental change request ([EXISTING CODE TO UPDATE] + the new instruction) so the AI edits
+ *   only the requested part instead of rewriting the whole script. Clearing the editor first is
+ *   how the user starts a fresh, unrelated request.
  *
  * Changelog     :
  * v1.0.0 (2026-01-01) - Initial release.
  * v1.1.0 (2026-07-01) - Safety-hardening pass: deduped system prompt, added pre-execution safety
  *                       scan + confirmation, repeat-error detection, IsBusy guards, provider/key
  *                       status text, saved-script provider metadata, activity logging.
+ * v1.2.0 (2026-07-01) - Generate Code now sends the existing script as context for incremental
+ *                       edits when the editor is non-empty, instead of always starting fresh.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -79,6 +85,7 @@ HARD RULES:
 6. Use a Transaction only when the model is actually being modified. Read-only code (counting, checking, reporting) must NOT open a Transaction.
 7. Do not use TaskDialog for routine success messages — return a plain summary string instead so it shows in the tool's own output panel.
 8. Keep code short, safe, and focused on exactly what was asked.
+9. If the user's message contains a block labeled [EXISTING CODE TO UPDATE], that is the script currently in the editor. Treat the instruction that follows it as a small addition or change to that exact script — NOT a new request. Change only the part needed for the new instruction and keep every other part of that script exactly as given, including its structure. Return the complete script with the change applied, not just the changed lines.
 
 REQUIRED STRUCTURE (read carefully — this prevents a common mistake):
 1. The very first line of your response MUST be a comment with a name: // Name: YourPascalCaseName
@@ -480,22 +487,43 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                     contextString = await _contextService.ExtractContextAsync();
                 }
 
-                StatusText = $"Generating code using {activeService.ProviderName}...";
+                // If the editor already has code, this request is an incremental change to it
+                // (e.g. "filter for supply duct", "make it red") rather than a brand new script.
+                // Clearing the editor is how the user signals "start a new, unrelated request".
+                bool isIncrementalUpdate = !string.IsNullOrWhiteSpace(CodeEditorContent);
+                string existingCode = CodeEditorContent;
+
+                StatusText = isIncrementalUpdate
+                    ? $"Updating existing code using {activeService.ProviderName}..."
+                    : $"Generating code using {activeService.ProviderName}...";
 
                 var messages = new System.Collections.Generic.List<GeminiMessage>();
                 if (!string.IsNullOrWhiteSpace(contextString) && contextString != "No active document." && contextString != "No elements currently selected.")
                 {
                     messages.Add(new GeminiMessage { Role = "user", Content = $"[SYSTEM CONTEXT INJECTION]\n{contextString}\nPlease consider this current context if my request implies operating on selected elements." });
                 }
-                messages.Add(new GeminiMessage { Role = "user", Content = PromptInput });
+
+                if (isIncrementalUpdate)
+                {
+                    messages.Add(new GeminiMessage
+                    {
+                        Role = "user",
+                        Content = $"[EXISTING CODE TO UPDATE]\n{existingCode}\n\n[NEW INSTRUCTION]\n{PromptInput}"
+                    });
+                }
+                else
+                {
+                    messages.Add(new GeminiMessage { Role = "user", Content = PromptInput });
+                }
 
                 string response = await activeService.SendMessageAsync(messages, SystemPrompt, _cts.Token);
                 CodeEditorContent = Helpers.CodeExtractionHelper.ExtractCSharpCode(response);
 
                 var safety = GeneratedCodeSafetyValidator.Validate(CodeEditorContent);
+                string resultStatus = isIncrementalUpdate ? "Code updated successfully." : "Code generated successfully.";
                 StatusText = safety.HighestLevel == CodeRiskLevel.Safe
-                    ? "Code generated successfully."
-                    : $"Code generated. Note: {safety.Findings.First().Reason} Review before running.";
+                    ? resultStatus
+                    : $"{(isIncrementalUpdate ? "Code updated." : "Code generated.")} Note: {safety.Findings.First().Reason} Review before running.";
 
                 History.Add(new GeminiMessage { Role = "user", Content = PromptInput });
                 History.Add(new GeminiMessage { Role = "model", Content = response });
