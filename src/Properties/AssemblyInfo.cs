@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.11.1
+ * Version       : 1.11.2
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-06
@@ -24,6 +24,9 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.11.2 (2026-07-06) - Optimized IndependentTag API compatibility so
+ *                        Revit 2022+ uses reference-based tag/leader APIs
+ *                        while Revit 2020-2021 keep the legacy path.
  * v1.11.1 (2026-07-06) - Split Revit 2020-2024 packaging into separate
  *                        API-specific legacy builds using matching Revit SDK
  *                        reference packages.
@@ -119,5 +122,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.11.1.0")]
-[assembly: AssemblyFileVersion("1.11.1.0")]
+[assembly: AssemblyVersion("1.11.2.0")]
+[assembly: AssemblyFileVersion("1.11.2.0")]

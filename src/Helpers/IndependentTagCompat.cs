@@ -17,7 +17,7 @@ namespace AJTools.Utils
 
             try
             {
-#if REVIT2023_OR_GREATER
+#if REVIT2022_OR_GREATER
                 ICollection<ElementId> localIds = tag.GetTaggedLocalElementIds();
                 if (localIds != null)
                 {
@@ -54,7 +54,7 @@ namespace AJTools.Utils
 
             try
             {
-#if REVIT2023_OR_GREATER
+#if REVIT2022_OR_GREATER
                 ICollection<Reference> taggedReferences = tag.GetTaggedReferences();
                 if (taggedReferences != null)
                 {
@@ -100,7 +100,7 @@ namespace AJTools.Utils
                 return null;
             }
 
-#if REVIT2023_OR_GREATER
+#if REVIT2022_OR_GREATER
             foreach (Reference reference in GetTaggedReferences(tag))
             {
                 try
@@ -136,7 +136,7 @@ namespace AJTools.Utils
                 return false;
             }
 
-#if REVIT2023_OR_GREATER
+#if REVIT2022_OR_GREATER
             foreach (Reference reference in GetTaggedReferences(tag))
             {
                 try

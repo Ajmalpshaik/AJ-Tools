@@ -7,6 +7,12 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.11.2] - 2026-07-06
+
+- Optimized `IndependentTag` compatibility so Revit 2022 and newer use the cleaner reference-based tag and leader APIs.
+- Updated the L-Shape Leader command to use direct `IndependentTag` APIs first and keep reflection only as a fallback.
+- Revit 2020-2021 keep the legacy tag API path required by their older Revit API surface.
+
 ## [1.11.1] - 2026-07-06
 
 - Split Revit 2020-2024 into separate .NET Framework package payloads built against matching Revit API reference packages.
