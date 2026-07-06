@@ -7,6 +7,12 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.11.3] - 2026-07-07
+
+- Fixed Revit startup dependency resolution so bundled DLLs such as `CommunityToolkit.Mvvm.dll` load from the AJ Tools install folder.
+- This prevents the Revit 2024 `OnStartup` failure seen when the Gemini Shell dockable pane asks for `CommunityToolkit.Mvvm`.
+- Fixed modern Revit packaging so Revit 2025-2027 payloads include copied NuGet dependency DLLs and `.deps.json` companion files.
+
 ## [1.11.2] - 2026-07-06
 
 - Optimized `IndependentTag` compatibility so Revit 2022 and newer use the cleaner reference-based tag and leader APIs.
