@@ -2,7 +2,7 @@
 
 AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit.
 
-Current suite version: **1.11.1**
+Current suite version: **1.11.2**
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
