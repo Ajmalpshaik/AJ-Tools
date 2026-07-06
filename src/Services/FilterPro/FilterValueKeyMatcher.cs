@@ -182,7 +182,7 @@ namespace AJTools.Services.FilterPro
 
                         ElementId eid = item.ElementId ?? item.RawValue as ElementId ?? ElementId.InvalidElementId;
                         return eid != null && eid != ElementId.InvalidElementId &&
-                               eid.IntegerValue == key.ElementIdValue.Value;
+                               AJTools.Utils.ElementIdHelper.GetIntegerValue(eid) == key.ElementIdValue.Value;
                     }
 
                 default:

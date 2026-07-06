@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.10.1
+ * Version       : 1.11.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-06
@@ -24,6 +24,9 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.11.0 (2026-07-06) - Added modern Revit builds: Revit 2025-2026 target
+ *                        .NET 8 and Revit 2027 targets .NET 10, with
+ *                        versioned installer payloads for 2020-2027.
  * v1.10.1 (2026-07-06) - Installer now stages AJ Tools add-in folders and manifests
  *                        for Revit 2020-2027. Revit 2025-2027 remain NEEDS_REVIEW
  *                        until the separate modern .NET/Revit API build is completed.
@@ -113,5 +116,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.10.1.0")]
-[assembly: AssemblyFileVersion("1.10.1.0")]
+[assembly: AssemblyVersion("1.11.0.0")]
+[assembly: AssemblyFileVersion("1.11.0.0")]

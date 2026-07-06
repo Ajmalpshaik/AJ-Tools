@@ -22,6 +22,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
+#if REVIT2024_OR_GREATER
+using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
+using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+#else
+using ParameterDataTypeId = Autodesk.Revit.DB.ParameterType;
+using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+#endif
+
 namespace AJTools.UI
 {
     public partial class LocationDataAssignerWindow : Window
@@ -494,33 +502,33 @@ namespace AJTools.UI
         {
             map = map ?? CreateDefaultParameterMap();
             var specs = new List<ParamSpec>();
-            AddSpec(specs, map.RoomName, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.RoomNumber, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
+            AddSpec(specs, map.RoomName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.RoomNumber, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
 
             if (includeLevels)
             {
-                AddSpec(specs, map.LevelName, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
+                AddSpec(specs, map.LevelName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
             }
 
             if (includeCoords)
             {
-                AddSpec(specs, map.Easting, ParameterType.Length, BuiltInParameterGroup.PG_DATA);
-                AddSpec(specs, map.Northing, ParameterType.Length, BuiltInParameterGroup.PG_DATA);
+                AddSpec(specs, map.Easting, SharedParamUtils.LengthParameterType, SharedParamUtils.DefaultDataGroup);
+                AddSpec(specs, map.Northing, SharedParamUtils.LengthParameterType, SharedParamUtils.DefaultDataGroup);
             }
 
             if (includeAltitude)
-                AddSpec(specs, map.Altitude, ParameterType.Length, BuiltInParameterGroup.PG_DATA);
+                AddSpec(specs, map.Altitude, SharedParamUtils.LengthParameterType, SharedParamUtils.DefaultDataGroup);
 
             if (includeHvac)
             {
-                AddSpec(specs, map.HvacZoneName, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
-                AddSpec(specs, map.HvacZoneNumber, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
+                AddSpec(specs, map.HvacZoneName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+                AddSpec(specs, map.HvacZoneNumber, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
             }
 
             return specs;
         }
 
-        private static void AddSpec(ICollection<ParamSpec> specs, string name, ParameterType type, BuiltInParameterGroup group)
+        private static void AddSpec(ICollection<ParamSpec> specs, string name, ParameterDataTypeId type, ParameterGroupId group)
         {
             if (specs == null || string.IsNullOrWhiteSpace(name))
                 return;
@@ -609,7 +617,7 @@ namespace AJTools.UI
                     if (c == null || c.CategoryType != CategoryType.Model || !c.AllowsBoundParameters)
                         continue;
 
-                    if (ids.Add(c.Id.IntegerValue))
+                    if (ids.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(c.Id)))
                     {
                         set.Insert(c);
                         count++;
@@ -628,7 +636,7 @@ namespace AJTools.UI
                 if (!defaults.Contains(c.Name))
                     continue;
 
-                if (ids.Add(c.Id.IntegerValue))
+                if (ids.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(c.Id)))
                 {
                     set.Insert(c);
                     count++;
@@ -645,7 +653,7 @@ namespace AJTools.UI
             return group ?? file.Groups.Create(name);
         }
 
-        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, ParameterType type)
+        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, ParameterDataTypeId type)
         {
             foreach (DefinitionGroup group in file.Groups)
             {
@@ -1402,7 +1410,7 @@ namespace AJTools.UI
 
         private sealed class ParamSpec
         {
-            public ParamSpec(string name, ParameterType parameterType, BuiltInParameterGroup parameterGroup)
+            public ParamSpec(string name, ParameterDataTypeId parameterType, ParameterGroupId parameterGroup)
             {
                 Name = name;
                 ParameterType = parameterType;
@@ -1410,8 +1418,8 @@ namespace AJTools.UI
             }
 
             public string Name { get; }
-            public ParameterType ParameterType { get; }
-            public BuiltInParameterGroup ParameterGroup { get; }
+            public ParameterDataTypeId ParameterType { get; }
+            public ParameterGroupId ParameterGroup { get; }
         }
 
         private sealed class ProcessOptions

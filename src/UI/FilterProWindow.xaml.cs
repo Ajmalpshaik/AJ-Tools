@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Filter Pro
  * File Name     : FilterProWindow.xaml.cs
- * Purpose       : WPF code-behind for the Filter Pro window — handles category/parameter/value
+ * Purpose       : WPF code-behind for the Filter Pro window â€” handles category/parameter/value
  *                 selection, naming preview, graphics options, multi-view targeting, and delegates
  *                 all Revit API work to FilterCreator, FilterApplier, and FilterReorderer.
  *
@@ -24,7 +24,7 @@
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
- * - Modal WPF window — all Revit API calls run on the Revit UI thread (no ExternalEvent needed).
+ * - Modal WPF window â€” all Revit API calls run on the Revit UI thread (no ExternalEvent needed).
  * - Async parameter and value loading uses Task.Run + Dispatcher.Invoke to keep the UI responsive.
  * - Production-ready implementation.
  *
@@ -257,7 +257,7 @@ namespace AJTools.UI
                 var previouslySelected = new HashSet<int>(
                     views_listbox.SelectedItems
                         .Cast<ApplyViewItem>()
-                        .Select(v => v.Id.IntegerValue));
+                        .Select(v => AJTools.Utils.ElementIdHelper.GetIntegerValue(v.Id)));
 
                 var views = new FilteredElementCollector(_doc)
                     .OfClass(typeof(View))
@@ -283,7 +283,7 @@ namespace AJTools.UI
                     views_listbox.SelectedItems.Clear();
                     foreach (ApplyViewItem item in _allViews)
                     {
-                        if (previouslySelected.Contains(item.Id.IntegerValue))
+                        if (previouslySelected.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(item.Id)))
                             views_listbox.SelectedItems.Add(item);
                     }
                 }
@@ -409,7 +409,7 @@ namespace AJTools.UI
 
             foreach (PatternItem item in pattern_combo.Items)
             {
-                if (item.Id != null && item.Id.IntegerValue == savedId.IntegerValue)
+                if (item.Id != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(item.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(savedId))
                 {
                     pattern_combo.SelectedItem = item;
                     return;
@@ -420,7 +420,7 @@ namespace AJTools.UI
         private PatternItem GetPatternItem(ElementId id)
         {
             if (id == null || id == ElementId.InvalidElementId) return null;
-            return _patterns.FirstOrDefault(p => p.Id.IntegerValue == id.IntegerValue);
+            return _patterns.FirstOrDefault(p => AJTools.Utils.ElementIdHelper.GetIntegerValue(p.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
         }
 
         private List<ElementId> GetSelectedViewIds()
@@ -505,10 +505,10 @@ namespace AJTools.UI
             if (lastState.CategoryIds?.Any() == true)
             {
                 categories_listbox.SelectedItems.Clear();
-                var wanted = new HashSet<int>(lastState.CategoryIds.Select(id => id.IntegerValue));
+                var wanted = new HashSet<int>(lastState.CategoryIds.Select(id => AJTools.Utils.ElementIdHelper.GetIntegerValue(id)));
                 foreach (FilterCategoryItem item in categories_listbox.Items)
                 {
-                    if (wanted.Contains(item.Id.IntegerValue))
+                    if (wanted.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(item.Id)))
                         categories_listbox.SelectedItems.Add(item);
                 }
 
@@ -520,7 +520,7 @@ namespace AJTools.UI
             {
                 foreach (FilterParameterItem item in parameters_listbox.Items)
                 {
-                    if (item.Id.IntegerValue == lastState.ParameterId.IntegerValue)
+                    if (AJTools.Utils.ElementIdHelper.GetIntegerValue(item.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(lastState.ParameterId))
                     {
                         parameters_listbox.SelectedItem = item;
                         break;
@@ -590,11 +590,11 @@ namespace AJTools.UI
             {
                 apply_multiple_radio.IsChecked = true;
                 views_listbox.IsEnabled = true;
-                var wantedViews = new HashSet<int>(lastState.TargetViewIds.Select(id => id.IntegerValue));
+                var wantedViews = new HashSet<int>(lastState.TargetViewIds.Select(id => AJTools.Utils.ElementIdHelper.GetIntegerValue(id)));
                 views_listbox.SelectedItems.Clear();
                 foreach (ApplyViewItem item in views_listbox.Items)
                 {
-                    if (wantedViews.Contains(item.Id.IntegerValue))
+                    if (wantedViews.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(item.Id)))
                         views_listbox.SelectedItems.Add(item);
                 }
             }
@@ -635,7 +635,7 @@ namespace AJTools.UI
             string status = $"Checked: {totalChecked} | Applied: {applied} | Skipped: {skippedCount}";
 
             if (skippedCount > 0)
-                status += $"  —  {string.Join("; ", skipped)}";
+                status += $"  â€”  {string.Join("; ", skipped)}";
 
             return status;
         }

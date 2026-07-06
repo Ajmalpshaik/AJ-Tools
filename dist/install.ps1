@@ -5,8 +5,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$needsModernNetReviewVersions = @(2025, 2026, 2027)
-
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
@@ -45,11 +43,11 @@ function Unblock-FilesInPath {
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $requiredDll = "AJ Tools.dll"
-$requiredDllPath = Join-Path $scriptDir $requiredDll
+$payloadRoot = Join-Path $scriptDir "Payload"
 $resourcesPath = Join-Path $scriptDir "Resources"
 
-if (-not (Test-Path -LiteralPath $requiredDllPath)) {
-    throw "AJ Tools.dll is missing in dist. Run .\dist\package.ps1 first, then run install again."
+if (-not (Test-Path -LiteralPath $payloadRoot) -and -not (Test-Path -LiteralPath (Join-Path $scriptDir $requiredDll))) {
+    throw "AJ Tools payload is missing in dist. Run .\dist\package.ps1 first, then run install again."
 }
 
 if (-not (Test-Path -LiteralPath $resourcesPath)) {
@@ -60,9 +58,49 @@ if (-not (Test-Path -LiteralPath $resourcesPath)) {
 Unblock-FilesInPath -Path $scriptDir
 
 $blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
-$dllPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.dll -File |
-    Where-Object { $blockedDllNames -notcontains $_.Name }
-$pdbPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.pdb -File -ErrorAction SilentlyContinue
+
+function Resolve-PayloadDirForVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Version
+    )
+
+    $candidates = @()
+    if ($Version -ge 2020 -and $Version -le 2024) {
+        $candidates += (Join-Path $payloadRoot "2020-2024")
+    }
+    $candidates += (Join-Path $payloadRoot $Version)
+    $candidates += $scriptDir
+
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+
+        $candidateDll = Join-Path $candidate $requiredDll
+        if (Test-Path -LiteralPath $candidateDll) {
+            return $candidate
+        }
+    }
+
+    throw "No AJ Tools payload found for Revit $Version. Run .\dist\package.ps1 to create versioned payloads."
+}
+
+function Get-DllPayload {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDir
+    )
+
+    $items = @(Get-ChildItem -LiteralPath $PayloadDir -Filter *.dll -File |
+        Where-Object { $blockedDllNames -notcontains $_.Name })
+
+    if (-not ($items | Where-Object { $_.Name -eq $requiredDll })) {
+        throw "AJ Tools.dll is missing from payload '$PayloadDir'."
+    }
+
+    return $items
+}
 
 function Get-InstallTargets {
     param(
@@ -99,24 +137,19 @@ if ($AllUsers) {
 
 $installTargets = Get-InstallTargets -Versions $RevitVersions -IncludeAllUsers:$AllUsers
 $installedVersions = New-Object System.Collections.Generic.List[int]
-$needsReviewVersions = New-Object System.Collections.Generic.List[int]
 
 foreach ($target in $installTargets) {
     $version = [int]$target.Version
-
-    if ($needsModernNetReviewVersions -contains $version) {
-        if (-not $needsReviewVersions.Contains($version)) {
-            $needsReviewVersions.Add($version)
-        }
-
-        Write-Warning "Installing AJ Tools files for Revit $version as requested. NEEDS_REVIEW: update this package with the matching modern .NET/Revit API build before relying on Revit $version."
-    }
+    $payloadDir = Resolve-PayloadDirForVersion -Version $version
+    $dllPayload = Get-DllPayload -PayloadDir $payloadDir
+    $pdbPayload = Get-ChildItem -LiteralPath $payloadDir -Filter *.pdb -File -ErrorAction SilentlyContinue
 
     $addinRoot = $target.AddinRoot
     $targetDir = Join-Path $addinRoot "AJ Tools"
     $manifestPath = Join-Path $addinRoot "AJ Tools.addin"
 
     Write-Host "Installing AJ Tools for Revit $version ($($target.Scope)) to $targetDir"
+    Write-Host "  Payload: $payloadDir"
 
     New-Item -ItemType Directory -Path $addinRoot -Force | Out-Null
     Remove-Item -LiteralPath $targetDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -167,10 +200,4 @@ if ($AllUsers) {
 if ($installedVersions.Count -gt 0) {
     $installedVersionText = [string]::Join(", ", @($installedVersions | Sort-Object | ForEach-Object { $_.ToString() }))
     Write-Host "Installed Revit versions: $installedVersionText"
-}
-
-if ($needsReviewVersions.Count -gt 0) {
-    $needsReviewVersionText = [string]::Join(", ", @($needsReviewVersions | Sort-Object | ForEach-Object { $_.ToString() }))
-    Write-Host "Compatibility review needed for Revit versions: $needsReviewVersionText"
-    Write-Host "NEEDS_REVIEW: Revit 2025-2027 are staged by this installer, but still require the next modern .NET/Revit API package update."
 }

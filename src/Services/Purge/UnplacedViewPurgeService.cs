@@ -283,8 +283,8 @@ namespace AJTools.Services.Purge
                 return false;
             }
 
-            int target = targetId.IntegerValue;
-            return ids.Any(id => id != null && id.IntegerValue == target);
+            int target = AJTools.Utils.ElementIdHelper.GetIntegerValue(targetId);
+            return ids.Any(id => id != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(id) == target);
         }
 
         private static bool IsDefault3DView(View view)
@@ -300,7 +300,7 @@ namespace AJTools.Services.Purge
                    second != null &&
                    first != ElementId.InvalidElementId &&
                    second != ElementId.InvalidElementId &&
-                   first.IntegerValue == second.IntegerValue;
+                   AJTools.Utils.ElementIdHelper.GetIntegerValue(first) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second);
         }
 
         private static void RollBackIfStarted(Transaction transaction)

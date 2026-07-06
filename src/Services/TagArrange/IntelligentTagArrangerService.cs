@@ -425,7 +425,7 @@ namespace AJTools.Services.TagArrange
 
             try
             {
-                XYZ direct = tag.LeaderEnd;
+                XYZ direct = IndependentTagCompat.GetLeaderEnd(tag);
                 if (direct != null)
                     return direct;
             }
@@ -451,7 +451,7 @@ namespace AJTools.Services.TagArrange
 
             try
             {
-                Reference taggedReference = tag.GetTaggedReference();
+                Reference taggedReference = IndependentTagCompat.GetTaggedReference(tag);
                 if (taggedReference == null)
                     return null;
 
@@ -601,8 +601,7 @@ namespace AJTools.Services.TagArrange
 
             try
             {
-                tag.LeaderElbow = elbow;
-                return true;
+                return IndependentTagCompat.SetLeaderElbow(tag, elbow);
             }
             catch
             {

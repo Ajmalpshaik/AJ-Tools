@@ -40,7 +40,7 @@ namespace AJTools.Services.DuctStandards
                 var elem = doc.GetElement(id);
                 if (elem == null) continue;
                 var cat = elem.Category;
-                if (cat != null && cat.Id.IntegerValue == (int)BuiltInCategory.OST_DuctCurves)
+                if (cat != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(cat.Id) == (int)BuiltInCategory.OST_DuctCurves)
                     ducts.Add(elem);
             }
 

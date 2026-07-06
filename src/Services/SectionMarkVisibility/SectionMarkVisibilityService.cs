@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Section Mark Visibility
  * File Name     : SectionMarkVisibilityService.cs
- * Purpose       : Core logic — unhides/filters section markers in plan views by
+ * Purpose       : Core logic â€” unhides/filters section markers in plan views by
  *                 evaluating each Section View's native 'Sheet Number' parameter.
  *
  * Author        : Ajmal P.S.
@@ -89,7 +89,7 @@ namespace AJTools.Services.SectionMarkVisibility
 
             if (allSections.Count == 0)
             {
-                // Not an error — there is simply nothing to process. Reported as an info message.
+                // Not an error â€” there is simply nothing to process. Reported as an info message.
                 return new SectionMarkVisibilityResult(0, 0, new List<string>(), "No section marks were found in this project.");
             }
 
@@ -203,11 +203,11 @@ namespace AJTools.Services.SectionMarkVisibility
 
             foreach (View view in primaryViews)
             {
-                if (view == null || addedIds.Contains(view.Id.IntegerValue))
+                if (view == null || addedIds.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id)))
                     continue;
 
                 resolved.Add(view);
-                addedIds.Add(view.Id.IntegerValue);
+                addedIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id));
 
                 try
                 {
@@ -217,10 +217,10 @@ namespace AJTools.Services.SectionMarkVisibility
                         foreach (ElementId depId in dependentIds)
                         {
                             var depView = _doc.GetElement(depId) as View;
-                            if (depView != null && !addedIds.Contains(depView.Id.IntegerValue))
+                            if (depView != null && !addedIds.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(depView.Id)))
                             {
                                 resolved.Add(depView);
-                                addedIds.Add(depView.Id.IntegerValue);
+                                addedIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(depView.Id));
                             }
                         }
                     }
@@ -281,7 +281,7 @@ namespace AJTools.Services.SectionMarkVisibility
             }
             catch
             {
-                // Ignore collector errors — return whatever was gathered.
+                // Ignore collector errors â€” return whatever was gathered.
             }
 
             return markers;
@@ -307,7 +307,7 @@ namespace AJTools.Services.SectionMarkVisibility
             }
             catch
             {
-                // If status cannot be determined, allow the attempt — any failure is caught per-view.
+                // If status cannot be determined, allow the attempt â€” any failure is caught per-view.
             }
             return true;
         }
@@ -394,7 +394,7 @@ namespace AJTools.Services.SectionMarkVisibility
                     ViewSection matchedSection = FindMatchingSection(viewer, sectionByName);
                     if (matchedSection == null)
                     {
-                        // Cannot determine which section this marker represents — hide it to be safe
+                        // Cannot determine which section this marker represents â€” hide it to be safe
                         markersToHide.Add(viewer.Id);
                         continue;
                     }
@@ -404,7 +404,7 @@ namespace AJTools.Services.SectionMarkVisibility
 
                     if (_settings.KeepAllPlacedSections)
                     {
-                        // Mode 2: Keep All Placed Sections — hide only unplaced ones
+                        // Mode 2: Keep All Placed Sections â€” hide only unplaced ones
                         if (!isPlaced)
                         {
                             markersToHide.Add(viewer.Id);
@@ -412,7 +412,7 @@ namespace AJTools.Services.SectionMarkVisibility
                     }
                     else
                     {
-                        // Mode 1: Sheet Number Filter — keep only sections on matching sheets
+                        // Mode 1: Sheet Number Filter â€” keep only sections on matching sheets
                         if (isPlaced)
                         {
                             bool matches = false;
@@ -432,7 +432,7 @@ namespace AJTools.Services.SectionMarkVisibility
                         }
                         else
                         {
-                            // Unplaced section — hide it
+                            // Unplaced section â€” hide it
                             markersToHide.Add(viewer.Id);
                         }
                     }
@@ -472,7 +472,7 @@ namespace AJTools.Services.SectionMarkVisibility
                 ElementId typeId = viewer.GetTypeId();
                 if (typeId == ElementId.InvalidElementId) return false;
 
-                int typeKey = typeId.IntegerValue;
+                int typeKey = AJTools.Utils.ElementIdHelper.GetIntegerValue(typeId);
                 if (_sectionTypeCache.TryGetValue(typeKey, out bool cached))
                     return cached;
 

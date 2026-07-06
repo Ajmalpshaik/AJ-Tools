@@ -69,7 +69,7 @@ namespace AJTools.Models.HvacSchematic
 
         public override string ToString()
         {
-            return NodeType + ":" + ElementId.IntegerValue;
+            return NodeType + ":" + AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId);
         }
     }
 }

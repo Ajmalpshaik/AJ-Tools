@@ -2,7 +2,7 @@
 
 AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit.
 
-Current suite version: **1.10.1**
+Current suite version: **1.11.0**
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
@@ -10,22 +10,26 @@ This repository owns the source code, build and packaging scripts, internal rele
 
 - C# Revit add-in source repository
 - WPF/XAML user interfaces
-- Revit 2020 API target for the current .NET Framework package
+- Revit 2020 API target for the .NET Framework package
+- Revit 2025-2026 modern .NET 8 package target
+- Revit 2027 modern .NET 10 package target
 - No pyRevit `.extension`, `.tab`, `.panel`, or `.pushbutton` structure is present in this repository
 
 ## Compatibility
 
-- Autodesk Revit 2020-2027 installer staging
-- .NET Framework 4.7.2
+- Autodesk Revit 2020-2027 installer support
+- .NET Framework 4.7.2 for Revit 2020-2024
+- .NET 8 for Revit 2025-2026
+- .NET 10 for Revit 2027
 - Windows x64
 
-The current public package is built against the Revit 2020 API. The installer creates AJ Tools add-in folders and manifests for Revit 2020-2027; Revit 2025-2027 remain `NEEDS_REVIEW` until the separate modern .NET/Revit API build is completed.
+The release package contains versioned payloads so the installer deploys the matching AJ Tools build for each Revit runtime.
 
 ## Technology Stack
 
 - C#
-- .NET Framework 4.7.2
-- Autodesk Revit 2020 API (`RevitAPI`, `RevitAPIUI`)
+- .NET Framework 4.7.2, .NET 8, and .NET 10
+- Autodesk Revit API references for Revit 2020, 2025, 2026, and 2027 package builds
 - WPF/XAML
 - `Newtonsoft.Json`
 - `AvalonEdit`, `CommunityToolkit.Mvvm`, and Roslyn scripting for the AI shell

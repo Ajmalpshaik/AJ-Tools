@@ -355,6 +355,7 @@
     <Compile Include="Helpers\ElementIdIntegerComparer.cs" />
     <Compile Include="Helpers\GeometryExtensions.cs" />
     <Compile Include="Helpers\IconLoader.cs" />
+    <Compile Include="Helpers\IndependentTagCompat.cs" />
     <Compile Include="Helpers\LinkWorksetSettings.cs" />
     <Compile Include="Helpers\TagArrangeSettings.cs" />
     <Compile Include="Helpers\ViewCropConfigStore.cs" />

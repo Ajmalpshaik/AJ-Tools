@@ -94,18 +94,18 @@ namespace AJTools.Services.HvacSchematic
             }
 
             var edgeAccumulators = new Dictionary<string, EdgeAccumulator>(StringComparer.Ordinal);
-            var supportedQueue = new Queue<Element>(supportedElementsById.Values.OrderBy(element => element.Id.IntegerValue));
+            var supportedQueue = new Queue<Element>(supportedElementsById.Values.OrderBy(element => AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id)));
             var exploredSupportedIds = new HashSet<int>();
 
             while (supportedQueue.Count > 0)
             {
                 Element currentElement = supportedQueue.Dequeue();
-                if (!exploredSupportedIds.Add(currentElement.Id.IntegerValue))
+                if (!exploredSupportedIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(currentElement.Id)))
                 {
                     continue;
                 }
 
-                if (!nodesById[currentElement.Id.IntegerValue].HasConnectorData)
+                if (!nodesById[AJTools.Utils.ElementIdHelper.GetIntegerValue(currentElement.Id)].HasConnectorData)
                 {
                     continue;
                 }
@@ -127,7 +127,7 @@ namespace AJTools.Services.HvacSchematic
             }
 
             result.Nodes.Clear();
-            foreach (SchematicNode node in nodesById.Values.OrderBy(node => node.ElementId.IntegerValue))
+            foreach (SchematicNode node in nodesById.Values.OrderBy(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)))
             {
                 result.Nodes.Add(node);
             }
@@ -156,7 +156,7 @@ namespace AJTools.Services.HvacSchematic
             {
                 Connector startConnector = startConnectors[startConnectorIndex];
                 var queue = new Queue<TraversalState>();
-                var visitedOwnerIds = new HashSet<int> { startElement.Id.IntegerValue };
+                var visitedOwnerIds = new HashSet<int> { AJTools.Utils.ElementIdHelper.GetIntegerValue(startElement.Id) };
 
                 queue.Enqueue(new TraversalState(startElement, startConnector, 0));
 
@@ -175,12 +175,12 @@ namespace AJTools.Services.HvacSchematic
                             }
 
                             Element owner = referenceConnector.Owner;
-                            if (owner == null || owner.Id.IntegerValue == state.CurrentElement.Id.IntegerValue)
+                            if (owner == null || AJTools.Utils.ElementIdHelper.GetIntegerValue(owner.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(state.CurrentElement.Id))
                             {
                                 continue;
                             }
 
-                            int ownerId = owner.Id.IntegerValue;
+                            int ownerId = AJTools.Utils.ElementIdHelper.GetIntegerValue(owner.Id);
                             if (TryResolveNodeType(owner, out SchematicNodeType _))
                             {
                                 if (!supportedElementsById.ContainsKey(ownerId))
@@ -194,10 +194,10 @@ namespace AJTools.Services.HvacSchematic
                                     }
                                 }
 
-                                if (ownerId != startElement.Id.IntegerValue)
+                                if (ownerId != AJTools.Utils.ElementIdHelper.GetIntegerValue(startElement.Id))
                                 {
                                     AddEdgeEvidence(
-                                        startElement.Id.IntegerValue,
+                                        AJTools.Utils.ElementIdHelper.GetIntegerValue(startElement.Id),
                                         ownerId,
                                         state.SourceConnector,
                                         referenceConnector,
@@ -224,13 +224,13 @@ namespace AJTools.Services.HvacSchematic
             var adjacency = new Dictionary<int, List<int>>();
             foreach (SchematicNode node in nodes)
             {
-                adjacency[node.ElementId.IntegerValue] = new List<int>();
+                adjacency[AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)] = new List<int>();
             }
 
             foreach (SchematicEdge edge in edges)
             {
-                int fromId = edge.FromElementId.IntegerValue;
-                int toId = edge.ToElementId.IntegerValue;
+                int fromId = AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId);
+                int toId = AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId);
 
                 List<int> fromNeighbors;
                 if (adjacency.TryGetValue(fromId, out fromNeighbors) && !fromNeighbors.Contains(toId))
@@ -245,13 +245,13 @@ namespace AJTools.Services.HvacSchematic
                 }
             }
 
-            var nodeById = nodes.ToDictionary(node => node.ElementId.IntegerValue);
+            var nodeById = nodes.ToDictionary(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId));
             var visited = new HashSet<int>();
             int networkIndex = 0;
 
-            foreach (SchematicNode node in nodes.OrderBy(GetNetworkOrder).ThenBy(n => n.ElementId.IntegerValue))
+            foreach (SchematicNode node in nodes.OrderBy(GetNetworkOrder).ThenBy(n => AJTools.Utils.ElementIdHelper.GetIntegerValue(n.ElementId)))
             {
-                int nodeId = node.ElementId.IntegerValue;
+                int nodeId = AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId);
                 if (!visited.Add(nodeId))
                 {
                     continue;
@@ -282,7 +282,7 @@ namespace AJTools.Services.HvacSchematic
             foreach (SchematicEdge edge in edges)
             {
                 SchematicNode sourceNode;
-                if (nodeById.TryGetValue(edge.FromElementId.IntegerValue, out sourceNode))
+                if (nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId), out sourceNode))
                 {
                     edge.NetworkIndex = sourceNode.NetworkIndex;
                 }
@@ -309,13 +309,13 @@ namespace AJTools.Services.HvacSchematic
 
         private static void UpdateEdgeMetadata(IList<SchematicNode> nodes, IList<SchematicEdge> edges)
         {
-            var nodeById = nodes.ToDictionary(node => node.ElementId.IntegerValue);
+            var nodeById = nodes.ToDictionary(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId));
             foreach (SchematicEdge edge in edges)
             {
                 SchematicNode fromNode;
                 SchematicNode toNode;
-                if (!nodeById.TryGetValue(edge.FromElementId.IntegerValue, out fromNode) ||
-                    !nodeById.TryGetValue(edge.ToElementId.IntegerValue, out toNode))
+                if (!nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId), out fromNode) ||
+                    !nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId), out toNode))
                 {
                     edge.IsLevelTransition = false;
                     continue;
@@ -332,7 +332,7 @@ namespace AJTools.Services.HvacSchematic
                 return new List<Connector>();
             }
 
-            if (state.CurrentElement.Id.IntegerValue == startElement.Id.IntegerValue)
+            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(state.CurrentElement.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(startElement.Id))
             {
                 return new List<Connector> { state.SourceConnector };
             }
@@ -379,7 +379,7 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<int, SchematicNode> nodesById,
             AnalysisResult result)
         {
-            int key = element.Id.IntegerValue;
+            int key = AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id);
             if (supportedElementsById.ContainsKey(key))
             {
                 return;
@@ -443,7 +443,7 @@ namespace AJTools.Services.HvacSchematic
                 return false;
             }
 
-            BuiltInCategory category = (BuiltInCategory)familyInstance.Category.Id.IntegerValue;
+            BuiltInCategory category = (BuiltInCategory)AJTools.Utils.ElementIdHelper.GetIntegerValue(familyInstance.Category.Id);
             if (category == BuiltInCategory.OST_DuctTerminal)
             {
                 nodeType = SchematicNodeType.AirTerminal;
@@ -657,7 +657,11 @@ namespace AJTools.Services.HvacSchematic
                 return string.Empty;
             }
 
+#if REVIT2024_OR_GREATER
+            return UnitFormatUtils.Format(_document.GetUnits(), SpecTypeId.AirFlow, bestMagnitude, false);
+#else
             return UnitFormatUtils.Format(_document.GetUnits(), UnitType.UT_HVAC_Airflow, bestMagnitude, false, false);
+#endif
         }
 
         private static bool IsPrimaryEquipment(FamilyInstance familyInstance)
@@ -682,7 +686,7 @@ namespace AJTools.Services.HvacSchematic
 
                 MEPSystem system = connector.MEPSystem;
                 FamilyInstance baseEquipment = system?.BaseEquipment;
-                if (baseEquipment != null && baseEquipment.Id.IntegerValue == familyInstance.Id.IntegerValue)
+                if (baseEquipment != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(baseEquipment.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(familyInstance.Id))
                 {
                     return true;
                 }
@@ -729,7 +733,7 @@ namespace AJTools.Services.HvacSchematic
             }
 
             string categoryName = element.Category != null ? element.Category.Name : element.GetType().Name;
-            return categoryName + " [" + element.Id.IntegerValue + "]";
+            return categoryName + " [" + AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id) + "]";
         }
 
         private static string BuildConnectionDescription(
@@ -743,8 +747,8 @@ namespace AJTools.Services.HvacSchematic
 
             SchematicNode firstNode;
             SchematicNode secondNode;
-            nodesById.TryGetValue(edge.FromElementId.IntegerValue, out firstNode);
-            nodesById.TryGetValue(edge.ToElementId.IntegerValue, out secondNode);
+            nodesById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId), out firstNode);
+            nodesById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId), out secondNode);
 
             return DescribeNode(firstNode, edge.FromElementId) + " <-> " + DescribeNode(secondNode, edge.ToElementId);
         }
@@ -753,7 +757,7 @@ namespace AJTools.Services.HvacSchematic
         {
             if (node == null)
             {
-                return "Element [" + (fallbackId != null ? fallbackId.IntegerValue.ToString() : "?") + "]";
+                return "Element [" + (fallbackId != null ? AJTools.Utils.ElementIdHelper.GetIntegerValue(fallbackId).ToString() : "?") + "]";
             }
 
             string typeLabel;
@@ -770,7 +774,7 @@ namespace AJTools.Services.HvacSchematic
                     break;
             }
 
-            return typeLabel + " [" + node.ElementId.IntegerValue + "]";
+            return typeLabel + " [" + AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId) + "]";
         }
 
         private static bool TryGetDirectionalFlow(Connector connector, out FlowDirectionType flowDirection)

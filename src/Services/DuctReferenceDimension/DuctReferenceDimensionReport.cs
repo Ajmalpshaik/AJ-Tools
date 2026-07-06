@@ -48,8 +48,8 @@ namespace AJTools.Services.DuctReferenceDimension
                 return;
 
             TotalDuctsAutoIncluded += coveredDuctIds
-                .Where(id => id != null && selectedDuctId != null && id.IntegerValue != selectedDuctId.IntegerValue)
-                .Select(id => id.IntegerValue)
+                .Where(id => id != null && selectedDuctId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(id) != AJTools.Utils.ElementIdHelper.GetIntegerValue(selectedDuctId))
+                .Select(id => AJTools.Utils.ElementIdHelper.GetIntegerValue(id))
                 .Distinct()
                 .Count();
         }
@@ -99,7 +99,7 @@ namespace AJTools.Services.DuctReferenceDimension
                 sb.AppendLine("Failed items:");
                 foreach (FailedItem item in _failedItems)
                 {
-                    string idText = item.ElementId == null ? "Unknown" : item.ElementId.IntegerValue.ToString();
+                    string idText = item.ElementId == null ? "Unknown" : AJTools.Utils.ElementIdHelper.GetIntegerValue(item.ElementId).ToString();
                     sb.AppendLine("- ElementId " + idText + ": " + item.Reason);
                 }
             }

@@ -147,7 +147,7 @@ namespace AJTools.Commands
 
             if (usedFallback)
             {
-                tileU = UnitUtils.ConvertToInternalUnits(FallbackTileMm, DisplayUnitType.DUT_MILLIMETERS);
+                tileU = ConvertMillimetersToInternal(FallbackTileMm);
                 tileV = tileU;
                 gridAngle = 0.0;
             }
@@ -232,8 +232,8 @@ namespace AJTools.Commands
 
         private static void ShowSummary(CeilingGridDefinition grid, SnapSummary summary)
         {
-            double tileUmm = UnitUtils.ConvertFromInternalUnits(grid.TileU, DisplayUnitType.DUT_MILLIMETERS);
-            double tileVmm = UnitUtils.ConvertFromInternalUnits(grid.TileV, DisplayUnitType.DUT_MILLIMETERS);
+            double tileUmm = ConvertInternalToMillimeters(grid.TileU);
+            double tileVmm = ConvertInternalToMillimeters(grid.TileV);
             double angleDeg = Math.Atan2(grid.AxisV.Y, grid.AxisV.X) * 180.0 / Math.PI;
             string source = grid.UsedFallback
                 ? "fallback 600x600 (no model pattern on ceiling)"
@@ -494,6 +494,24 @@ namespace AJTools.Commands
             }
 
             return false;
+        }
+
+        private static double ConvertMillimetersToInternal(double value)
+        {
+#if REVIT2024_OR_GREATER
+            return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
+#else
+            return UnitUtils.ConvertToInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
+#endif
+        }
+
+        private static double ConvertInternalToMillimeters(double value)
+        {
+#if REVIT2024_OR_GREATER
+            return UnitUtils.ConvertFromInternalUnits(value, UnitTypeId.Millimeters);
+#else
+            return UnitUtils.ConvertFromInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
+#endif
         }
 
         private sealed class PointElementSelectionFilter : ISelectionFilter

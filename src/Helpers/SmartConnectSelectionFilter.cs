@@ -65,7 +65,7 @@ namespace AJTools.Utils
                 return false;
             }
 
-            int categoryId = elementCategory.Id.IntegerValue;
+            int categoryId = AJTools.Utils.ElementIdHelper.GetIntegerValue(elementCategory.Id);
             if (!System.Enum.IsDefined(typeof(BuiltInCategory), categoryId))
             {
                 return false;

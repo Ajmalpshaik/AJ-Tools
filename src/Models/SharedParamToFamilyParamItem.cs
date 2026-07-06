@@ -10,6 +10,14 @@ using System;
 using Autodesk.Revit.DB;
 using AJTools.Utils;
 
+#if REVIT2024_OR_GREATER
+using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
+using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+#else
+using ParameterDataTypeId = Autodesk.Revit.DB.ParameterType;
+using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+#endif
+
 namespace AJTools.Models
 {
     internal sealed class SharedParamToFamilyParamItem
@@ -29,8 +37,8 @@ namespace AJTools.Models
 
             ParameterId = parameter.Id;
             Name = definition.Name ?? string.Empty;
-            ParameterGroup = definition.ParameterGroup;
-            ParameterType = definition.ParameterType;
+            ParameterGroup = SharedParamUtils.GetDefinitionGroupId(definition);
+            ParameterType = SharedParamUtils.GetDefinitionDataType(definition);
             StorageType = parameter.StorageType;
             IsInstance = parameter.IsInstance;
             IsReporting = SharedParamUtils.IsReporting(parameter);
@@ -45,9 +53,9 @@ namespace AJTools.Models
 
         public string Name { get; }
 
-        public BuiltInParameterGroup ParameterGroup { get; }
+        public ParameterGroupId ParameterGroup { get; }
 
-        public ParameterType ParameterType { get; }
+        public ParameterDataTypeId ParameterType { get; }
 
         public StorageType StorageType { get; }
 

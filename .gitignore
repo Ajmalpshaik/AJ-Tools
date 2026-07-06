@@ -4,6 +4,11 @@
 obj*/
 src/bin/
 src/obj*/
+src/*.deps.json
+src/*.dll
+src/*.pdb
+src/*.runtimeconfig.json
+src/*.old
 artifacts/
 TestResults/
 
@@ -27,6 +32,7 @@ dist/*.dll
 dist/*.pdb
 dist/AJ Tools.addin
 dist/Resources/
+dist/Payload/
 dist/release/
 dist/*.zip
 
@@ -45,6 +51,7 @@ _build_*.log
 *.snupkg
 journal*.txt
 packages/
+.dotnet-sdk/
 
 # OS files
 Thumbs.db

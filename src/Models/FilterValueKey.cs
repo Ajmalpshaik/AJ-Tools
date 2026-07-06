@@ -82,7 +82,7 @@ namespace AJTools.Models
             return new FilterValueKey
             {
                 StorageType = StorageType.ElementId,
-                ElementIdValue = id?.IntegerValue
+                ElementIdValue = id == null ? (int?)null : AJTools.Utils.ElementIdHelper.GetIntegerValue(id)
             };
         }
     }
