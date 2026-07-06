@@ -7,6 +7,11 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.10.1] - 2026-07-06
+
+- Updated the installer to stage AJ Tools folders and `.addin` manifests for Revit 2020-2027.
+- Revit 2025-2027 now receive installer entries, while still reporting `NEEDS_REVIEW` until the separate modern .NET/Revit API build is completed.
+
 ## [1.10.0] - 2026-07-03
 
 - Added the **MEP Openings** split-button workflow in the MEP panel.

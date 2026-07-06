@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.10.0
+ * Version       : 1.10.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-03
+ * Last Updated  : 2026-07-06
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,9 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.10.1 (2026-07-06) - Installer now stages AJ Tools add-in folders and manifests
+ *                        for Revit 2020-2027. Revit 2025-2027 remain NEEDS_REVIEW
+ *                        until the separate modern .NET/Revit API build is completed.
  * v1.10.0 (2026-07-03) - Added Opening split button in the MEP panel: Opening Settings
  *                        saves element-specific shape and buffer rules, insulation handling,
  *                        and merge distance; Create Openings generates direct openings for
@@ -110,5 +113,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.10.0.0")]
-[assembly: AssemblyFileVersion("1.10.0.0")]
+[assembly: AssemblyVersion("1.10.1.0")]
+[assembly: AssemblyFileVersion("1.10.1.0")]
