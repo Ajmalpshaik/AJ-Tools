@@ -20,6 +20,7 @@
     <LangVersion>latest</LangVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <BaseOutputPath>bin\Modern\</BaseOutputPath>
     <OutputPath>bin\Modern\$(RevitVersion)\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\Modern\$(RevitVersion)\$(Configuration)\</IntermediateOutputPath>

@@ -102,6 +102,16 @@ function Get-DllPayload {
     return $items
 }
 
+function Get-CompanionPayload {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PayloadDir
+    )
+
+    return @(Get-ChildItem -LiteralPath $PayloadDir -File |
+        Where-Object { $_.Name -like "*.deps.json" -or $_.Name -like "*.runtimeconfig.json" })
+}
+
 function Get-InstallTargets {
     param(
         [Parameter(Mandatory = $true)]
@@ -142,6 +152,7 @@ foreach ($target in $installTargets) {
     $version = [int]$target.Version
     $payloadDir = Resolve-PayloadDirForVersion -Version $version
     $dllPayload = Get-DllPayload -PayloadDir $payloadDir
+    $companionPayload = Get-CompanionPayload -PayloadDir $payloadDir
     $pdbPayload = Get-ChildItem -LiteralPath $payloadDir -Filter *.pdb -File -ErrorAction SilentlyContinue
 
     $addinRoot = $target.AddinRoot
@@ -158,6 +169,10 @@ foreach ($target in $installTargets) {
 
     foreach ($dll in $dllPayload) {
         Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $targetDir $dll.Name) -Force
+    }
+
+    foreach ($companion in $companionPayload) {
+        Copy-Item -LiteralPath $companion.FullName -Destination (Join-Path $targetDir $companion.Name) -Force
     }
 
     foreach ($pdb in $pdbPayload) {

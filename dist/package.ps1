@@ -55,6 +55,8 @@ function Copy-PayloadFromOutput {
     $dllPayload = Get-ChildItem -LiteralPath $SourceDir -Filter *.dll -File |
         Where-Object { $blockedDllNames -notcontains $_.Name }
     $pdbPayload = Get-ChildItem -LiteralPath $SourceDir -Filter *.pdb -File -ErrorAction SilentlyContinue
+    $companionPayload = Get-ChildItem -LiteralPath $SourceDir -File |
+        Where-Object { $_.Name -like "*.deps.json" -or $_.Name -like "*.runtimeconfig.json" }
 
     if (-not ($dllPayload | Where-Object { $_.Name -eq "AJ Tools.dll" })) {
         throw "AJ Tools.dll not found in payload source '$SourceDir'."
@@ -62,6 +64,9 @@ function Copy-PayloadFromOutput {
 
     foreach ($dll in $dllPayload) {
         Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $DestinationDir $dll.Name) -Force
+    }
+    foreach ($companion in $companionPayload) {
+        Copy-Item -LiteralPath $companion.FullName -Destination (Join-Path $DestinationDir $companion.Name) -Force
     }
     if ($IncludeSymbols) {
         foreach ($pdb in $pdbPayload) {

@@ -6,7 +6,7 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.10.0
+ * Version       : 1.11.3
  *
  * Created Date  : 2025-01-01
  * Last Updated  : 2026-07-03
@@ -27,6 +27,9 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.11.3 (2026-07-07) - Generalized bundled DLL resolution so Revit startup
+ *                        can load CommunityToolkit.Mvvm and other package
+ *                        dependencies from the AJ Tools install folder.
  * v1.10.0 (2026-07-03) - Suite bumped for the Opening split button and direct opening tools.
  * v1.5.1 (2026-06-30) - Added mandatory metadata block.
  * v1.5.2 (2026-06-30) - Section Mark Visibility tool cleanup (perf, worksharing safety,
@@ -92,24 +95,21 @@ namespace AJTools.App
         {
             var assemblyName = new AssemblyName(args.Name).Name;
             
-            if (assemblyName == "System.Collections.Immutable" || 
-                assemblyName.StartsWith("Microsoft.CodeAnalysis") ||
-                assemblyName == "System.Runtime.CompilerServices.Unsafe" ||
-                assemblyName == "System.Memory")
-            {
-                string assemblyPath = Path.Combine(_addinFolder, assemblyName + ".dll");
+            if (string.IsNullOrWhiteSpace(_addinFolder))
+                return null;
 
-                if (File.Exists(assemblyPath))
+            string assemblyPath = Path.Combine(_addinFolder, assemblyName + ".dll");
+
+            if (File.Exists(assemblyPath))
+            {
+                try
                 {
-                    try
-                    {
-                        return Assembly.LoadFrom(assemblyPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        string errLog = Path.Combine(Path.GetTempPath(), "AJTools_AssemblyResolve_Error.txt");
-                        File.AppendAllText(errLog, $"\nFailed to load {assemblyName}:\n{ex.ToString()}\n");
-                    }
+                    return Assembly.LoadFrom(assemblyPath);
+                }
+                catch (Exception ex)
+                {
+                    string errLog = Path.Combine(Path.GetTempPath(), "AJTools_AssemblyResolve_Error.txt");
+                    File.AppendAllText(errLog, $"\nFailed to load {assemblyName}:\n{ex.ToString()}\n");
                 }
             }
 
