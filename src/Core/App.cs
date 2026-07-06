@@ -6,10 +6,10 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.7.0
+ * Version       : 1.10.0
  *
  * Created Date  : 2025-01-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-03
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,7 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.10.0 (2026-07-03) - Suite bumped for the Opening split button and direct opening tools.
  * v1.5.1 (2026-06-30) - Added mandatory metadata block.
  * v1.5.2 (2026-06-30) - Section Mark Visibility tool cleanup (perf, worksharing safety,
  *                       correct result code, new ribbon icon).

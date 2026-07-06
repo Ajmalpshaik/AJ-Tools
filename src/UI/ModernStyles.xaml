@@ -144,24 +144,13 @@ Repo         : AJ-Tools
         <Setter Property="Padding" Value="8,4"/>
     </Style>
 
-    <Style x:Key="PanelCard" TargetType="ContentControl">
+    <Style x:Key="PanelCard" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ContentControl">
-                    <Grid Margin="4">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{StaticResource BorderSoft}"
-                                BorderThickness="1"
-                                CornerRadius="8" 
-                                Padding="12">
-                            <ContentPresenter />
-                        </Border>
-                    </Grid>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
     <!-- Buttons -->

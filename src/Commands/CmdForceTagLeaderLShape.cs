@@ -130,7 +130,7 @@ namespace AJTools.Commands
                     continue;
 
                 bool ok;
-                using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leader"))
+                using (Transaction t = new Transaction(doc, "AJ Tools - Force L-Shaped Tag Leader"))
                 {
                     t.Start();
                     ok = TryForceLShape(tag, activeView, leaderLogic);
@@ -197,7 +197,7 @@ namespace AJTools.Commands
             updated = 0;
             skipped = 0;
 
-            using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leaders"))
+            using (Transaction t = new Transaction(doc, "AJ Tools - Force L-Shaped Tag Leaders"))
             {
                 t.Start();
 

@@ -105,7 +105,7 @@ namespace AJTools.Commands
                         break;
                     }
 
-                    using (Transaction transaction = new Transaction(document, "Smart Connect"))
+                    using (Transaction transaction = new Transaction(document, "AJ Tools - Smart Connect"))
                     {
                         transaction.Start();
 

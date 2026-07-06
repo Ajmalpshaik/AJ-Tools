@@ -59,8 +59,8 @@ namespace AJTools.Models.Purge
         public static string GetTransactionName(this UnplacedViewPurgeMode mode)
         {
             return mode == UnplacedViewPurgeMode.SectionViews
-                ? "Purge Unplaced Sections"
-                : "Purge Unplaced 3D Views";
+                ? "AJ Tools - Purge Unplaced Sections"
+                : "AJ Tools - Purge Unplaced 3D Views";
         }
     }
 }

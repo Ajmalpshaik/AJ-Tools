@@ -20,7 +20,7 @@ namespace AJTools.Services.DuctReferenceDimension
     {
         private const string Title = "Duct Reference Dimension";
         private const string ActiveViewTitle = "Duct Reference Dimension - Active View";
-        private const string TransactionName = "AJ Annotation - Duct Reference Dimension";
+        private const string TransactionName = "AJ Tools - Duct Reference Dimension";
         private const double ExistingLineToleranceFactor = 1.25;
         private const double MinimumBatchDuctLength = 1000.0 * Constants.MM_TO_FEET;
         private const double VerticalDuctDotTolerance = 0.90;
@@ -109,6 +109,7 @@ namespace AJTools.Services.DuctReferenceDimension
 
                 if (report.HasActivity)
                 {
+                    DialogHelper.ShowInfo(Title, report.BuildSummary());
                     return report.TotalDimensionsCreated > 0 ? Result.Succeeded : Result.Cancelled;
                 }
 
@@ -184,6 +185,11 @@ namespace AJTools.Services.DuctReferenceDimension
                         processedDuctIds,
                         createdDimensionRecords,
                         report);
+                }
+
+                if (report.HasActivity)
+                {
+                    DialogHelper.ShowInfo(ActiveViewTitle, report.BuildSummary());
                 }
 
                 return report.TotalDimensionsCreated > 0 ? Result.Succeeded : Result.Cancelled;

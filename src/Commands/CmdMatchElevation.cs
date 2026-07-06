@@ -323,6 +323,13 @@ namespace AJTools.Commands
                 return curveHeight / 2.0;
             }
 
+            // Prefer the true outer diameter for pipes so top/bottom-of-pipe alignment uses the
+            // physical surface, not the nominal size (which can differ by (OD - nominal)/2).
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_PIPE_OUTER_DIAMETER, out double pipeOuterDiameter))
+            {
+                return pipeOuterDiameter / 2.0;
+            }
+
             if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, out double pipeDiameter))
             {
                 return pipeDiameter / 2.0;

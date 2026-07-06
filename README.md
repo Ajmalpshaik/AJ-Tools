@@ -1,8 +1,8 @@
 # AJ Tools
 
-AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit 2020.
+AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit.
 
-Current suite version: **1.8.0**
+Current suite version: **1.10.0**
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
@@ -10,16 +10,16 @@ This repository owns the source code, build and packaging scripts, internal rele
 
 - C# Revit add-in source repository
 - WPF/XAML user interfaces
-- Revit 2020 API target
+- Revit 2020 API target for the current .NET Framework package
 - No pyRevit `.extension`, `.tab`, `.panel`, or `.pushbutton` structure is present in this repository
 
 ## Compatibility
 
-- Autodesk Revit 2020
+- Autodesk Revit 2020-2024 for the current .NET Framework package
 - .NET Framework 4.7.2
 - Windows x64
 
-The add-in is built against the Revit 2020 API. Later Revit versions require Revit-side validation before publishing a separate compatible installer.
+The current public package is built against the Revit 2020 API and installs only for Revit 2020-2024. Revit 2025-2027 require a separate modern .NET build and are intentionally skipped by the installer until that build stream is verified.
 
 ## Technology Stack
 
@@ -34,11 +34,11 @@ The add-in is built against the Revit 2020 API. Later Revit versions require Rev
 
 AJ Tools provides commands for:
 
-- view, crop, filter, and link visibility control
+- view, crop, colorize, filter, and link visibility control
 - graphics override apply, match, and reset
 - grid and level datum extents and bubble control
 - MEP elevation matching, level reassignment, and element pinning
-- MEP connection, ceiling-grid snapping, HVAC schematic generation, and domestic water pipe sizing
+- MEP connection, ceiling-grid snapping, opening coordination, HVAC schematic generation, and domestic water pipe sizing
 - element ID lookup across host and linked models, workset 3D views, and link workset assignment
 - location data assignment and duct standards calculation
 - view template transfer and purge utilities (unplaced views, family parameters)
@@ -63,11 +63,11 @@ Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged D
 The add-in registers **two** ribbon tabs:
 
 - `AJ Tools`: main tool tab with the following panels:
-  - **View** — View Crop, Unhide All, Toggle Link, Filter Pro, Section Mark Visibility
+  - **View** - View Crop, Unhide All, Toggle Link, Filter Pro, Colorize, Section Mark Visibility
   - **Graphics** — Apply Graphics, Match Graphics, Reset Graphics
   - **Datums** — Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
   - **Modify** — Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements
-  - **MEP** — Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
+  - **MEP** - Connect MEP Elements, Elements to Ceiling Grid, MEP Openings, HVAC Schematic, Pipe Sizing
   - **Coordination** — Element ID lookup, 3D Views by Workset, Link Workset
   - **Data** — Assign Location, Duct Standard
   - **Manage** — Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)

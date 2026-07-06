@@ -85,7 +85,7 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                using (Transaction t = new Transaction(doc, "Swap Text Notes"))
+                using (Transaction t = new Transaction(doc, "AJ Tools - Swap Text Notes"))
                 {
                     t.Start();
 

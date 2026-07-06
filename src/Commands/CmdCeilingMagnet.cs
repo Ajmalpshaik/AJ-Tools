@@ -57,7 +57,7 @@ namespace AJTools.Commands
         private const string ToolTitle = "Ceiling Magnet";
         private const double FallbackTileMm = 600.0;
         private const double MoveTolerance = 1e-9;
-        private const string TransactionGroupName = "Ceiling Magnet";
+        private const string TransactionGroupName = "AJ Tools - Ceiling Magnet";
         private const string SnapPreselectedTransactionName = "Snap Preselected";
         private const string SnapElementTransactionName = "Snap Element";
 

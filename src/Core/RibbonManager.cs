@@ -6,10 +6,10 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.1
+ * Version       : 1.4.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-04
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,10 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.4.1 (2026-07-04) - Moved the Opening split button from the MEP panel into its
+ *                       own Opening panel for future opening tools.
+ * v1.4.0 (2026-07-03) - Added Opening split button in the MEP panel with Settings and
+ *                       Create Openings commands.
  * v1.2.0 (2026-05-07) - Reorganized ribbon panels; added HVAC schematic registration.
  * v1.3.0 (2026-07-01) - Refactor/audit: standardized metadata block. Ribbon layout unchanged.
  * v1.3.1 (2026-07-01) - Full audit fixes: wired CmdPurgeUnusedFamilyParametersAvailability into the
@@ -58,6 +62,7 @@ namespace AJTools.App
             Datums,
             Modify,
             Mep,
+            Opening,
             Coordination,
             Data,
             Manage,
@@ -104,6 +109,7 @@ namespace AJTools.App
                 [PanelKey.Family] = "Family",
                 [PanelKey.Modify] = "Modify",
                 [PanelKey.Mep] = "MEP",
+                [PanelKey.Opening] = "Opening",
                 [PanelKey.Coordination] = "Coordination",
                 [PanelKey.Data] = "Data",
                 [PanelKey.Manage] = "Manage",
@@ -118,6 +124,7 @@ namespace AJTools.App
                 PanelKey.Datums,
                 PanelKey.Modify,
                 PanelKey.Mep,
+                PanelKey.Opening,
                 PanelKey.Coordination,
                 PanelKey.Data,
                 PanelKey.Manage,
@@ -135,6 +142,7 @@ namespace AJTools.App
                 new ToolPlacement(PanelKey.Datums, BuildDatumsPanel),
                 new ToolPlacement(PanelKey.Modify, BuildModifyPanel),
                 new ToolPlacement(PanelKey.Mep, BuildMepPanel),
+                new ToolPlacement(PanelKey.Opening, BuildOpeningPanel),
                 new ToolPlacement(PanelKey.Coordination, BuildCoordinationPanel),
                 new ToolPlacement(PanelKey.Data, BuildDataPanel),
                 new ToolPlacement(PanelKey.Manage, BuildManagePanel),
@@ -223,6 +231,7 @@ namespace AJTools.App
         {
             AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
             AddTopLevelTool(panel, AddFilterProTool());
+            AddTopLevelTool(panel, AddColorizeTool());
             AddTopLevelTool(panel, AddSectionMarkVisibilityTool());
         }
 
@@ -245,6 +254,11 @@ namespace AJTools.App
         {
             AddStackedTools(panel, AddSmartConnectTool(), AddCeilingMagnetTool(), AddHvacSchematicTool());
             AddTopLevelTool(panel, AddPipeSizingTool());
+        }
+
+        private void BuildOpeningPanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddMepOpeningsTool());
         }
 
         private void BuildCoordinationPanel(RibbonPanel panel)
@@ -329,6 +343,21 @@ namespace AJTools.App
                 "FilterPro.png",
                 "FilterPro.png",
                 pushButton => pushButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName);
+        }
+
+        private TopLevelToolSpec AddColorizeTool()
+        {
+            return CreatePushToolSpec(
+                "Colorize",
+                "Colorize elements by category or by parameter value directly in the active view (or selected views) — no view filter is created.",
+                typeof(CmdColorize),
+                "Colorize.png",
+                "Colorize.png",
+                pushButton =>
+                {
+                    pushButton.LongDescription = "Pick categories (and optionally a parameter and values, using the same category/parameter/value engine as Filter Pro), choose graphics options, then Shuffle Colors applies the overrides directly to matched elements in the active view or selected views — click it again anytime to re-shuffle.";
+                    pushButton.AvailabilityClassName = typeof(CmdColorizeAvailability).FullName;
+                });
         }
 
         private TopLevelToolSpec AddSectionMarkVisibilityTool()
@@ -654,6 +683,27 @@ namespace AJTools.App
                 typeof(CmdPipeSizing),
                 "Pipe Sizing.png",
                 "Pipe Sizing.png");
+        }
+
+        private TopLevelToolSpec AddMepOpeningsTool()
+        {
+            return CreateSplitToolSpec(
+                "Opening",
+                "Create direct wall, floor/slab, and beam openings from selected pipes, ducts, cable trays, and conduits.",
+                "MEP Openings.png",
+                "MEP Openings.png",
+                CreateSplitChildTool(
+                    "Opening\nSettings",
+                    "Set opening shape, cutout buffer, insulation, and merge distance rules.",
+                    typeof(CmdMepOpeningSettings),
+                    "MEP Openings.png",
+                    "MEP Openings.png"),
+                CreateSplitChildTool(
+                    "Create\nOpenings",
+                    "Create and merge direct openings from the selected MEP elements.",
+                    typeof(CmdCreateMepOpenings),
+                    "MEP Openings.png",
+                    "MEP Openings.png"));
         }
 
         private TopLevelToolSpec AddDuctStandardsTool()

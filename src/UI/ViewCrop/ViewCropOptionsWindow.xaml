@@ -82,7 +82,7 @@
             </Grid>
 
             <!-- Card 0: Crop Mode -->
-            <ContentControl Grid.Row="1" Style="{StaticResource PanelCard}" Margin="0,0,0,12">
+            <Border Grid.Row="1" Style="{StaticResource PanelCard}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Text="Crop Mode"
                                Foreground="{StaticResource TextPrimary}"
@@ -109,10 +109,10 @@
                                FontSize="11"
                                Margin="24,0,0,0"/>
                 </StackPanel>
-            </ContentControl>
+            </Border>
 
             <!-- Card 1: Run Scope -->
-            <ContentControl Grid.Row="2" Style="{StaticResource PanelCard}" Margin="0,0,0,12">
+            <Border Grid.Row="2" Style="{StaticResource PanelCard}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Text="Run Scope"
                                Foreground="{StaticResource TextPrimary}"
@@ -135,10 +135,10 @@
                                      Unchecked="OnApplyScopeChanged"/>
                     </StackPanel>
                 </StackPanel>
-            </ContentControl>
+            </Border>
 
             <!-- Card 2: View Crop Settings -->
-            <ContentControl Grid.Row="3" Style="{StaticResource PanelCard}" Margin="0,0,0,12">
+            <Border Grid.Row="3" Style="{StaticResource PanelCard}" Margin="0,0,0,12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -235,10 +235,10 @@
                                    Margin="24,2,0,0"/>
                     </StackPanel>
                 </Grid>
-            </ContentControl>
+            </Border>
 
             <!-- Card 3: Unified Annotation Crop Settings -->
-            <ContentControl Grid.Row="4" Style="{StaticResource PanelCard}" Margin="0,0,0,0">
+            <Border Grid.Row="4" Style="{StaticResource PanelCard}" Margin="0,0,0,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -287,7 +287,7 @@
                              MinWidth="140"
                              IsEnabled="False"/>
                 </Grid>
-            </ContentControl>
+            </Border>
 
             <TextBlock x:Name="ErrorText"
                        Grid.Row="5"

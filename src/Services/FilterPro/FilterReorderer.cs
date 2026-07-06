@@ -48,8 +48,18 @@ namespace AJTools.Services.FilterPro
     internal static class FilterReorderer
     {
         // Cache last known UI order per view to avoid relying on Revit 2020 GetFilters ordering.
-        private static readonly Dictionary<int, List<ElementId>> _lastKnownOrderByView
-            = new Dictionary<int, List<ElementId>>();
+        // Keyed by a document-qualified string because view ids are only unique within one document,
+        // so two open projects could otherwise cross-contaminate each other's cached filter order.
+        private static readonly Dictionary<string, List<ElementId>> _lastKnownOrderByView
+            = new Dictionary<string, List<ElementId>>();
+
+        private static string BuildViewKey(Document doc, View view)
+        {
+            string docKey = doc?.PathName;
+            if (string.IsNullOrEmpty(docKey))
+                docKey = doc?.Title ?? "unknown";
+            return docKey + "|" + view.Id.IntegerValue;
+        }
 
         internal static void ReorderFiltersInView(Document doc,
                                                   View view,
@@ -75,13 +85,13 @@ namespace AJTools.Services.FilterPro
                 if (!newFilters.Any() && !liveClean.Any())
                     return;
 
-                var baseline = BuildBaseline(view, liveClean);
+                var baseline = BuildBaseline(doc, view, liveClean);
                 var desiredOrder = BuildDesiredOrder(newFilters, baseline);
 
                 if (IsOrderIdentical(baseline, desiredOrder))
                 {
                     UpdateGraphicsForNewFilters(doc, view, newFilters, selection, solidFillId, skipped);
-                    _lastKnownOrderByView[view.Id.IntegerValue] = desiredOrder.ToList();
+                    _lastKnownOrderByView[BuildViewKey(doc, view)] = desiredOrder.ToList();
                     return;
                 }
 
@@ -90,7 +100,7 @@ namespace AJTools.Services.FilterPro
                 RemoveAllFilters(view, liveClean);
                 ReapplyFilters(doc, view, desiredOrder, newFilters, selection, solidFillId, overridesMap, visibilityMap, skipped);
 
-                _lastKnownOrderByView[view.Id.IntegerValue] = desiredOrder.ToList();
+                _lastKnownOrderByView[BuildViewKey(doc, view)] = desiredOrder.ToList();
             }
             catch (Exception ex)
             {
@@ -117,9 +127,9 @@ namespace AJTools.Services.FilterPro
                 .ToList();
         }
 
-        private static List<ElementId> BuildBaseline(View view, List<ElementId> liveClean)
+        private static List<ElementId> BuildBaseline(Document doc, View view, List<ElementId> liveClean)
         {
-            var key = view.Id.IntegerValue;
+            var key = BuildViewKey(doc, view);
             if (_lastKnownOrderByView.TryGetValue(key, out var snapshot) && snapshot != null)
             {
                 var snapIds = new HashSet<int>(liveClean.Select(x => x.IntegerValue));

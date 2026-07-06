@@ -7,6 +7,25 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.10.0] - 2026-07-03
+
+- Added the **MEP Openings** split-button workflow in the MEP panel.
+- Added Opening Settings for element-specific shape, buffer, insulation, and merge-distance rules.
+- Added Create Openings for selected pipes, ducts, cable trays, and conduits in current-model walls, floors/slabs, and beams.
+- Verified a clean Release build against the Revit 2020 API.
+
+## [1.9.1] - 2026-07-02
+
+- Fixed Colorize shuffle behavior so repeated shuffles stay in the window and apply immediately.
+- Removed the Colorize rule-type step so selected values are matched with Equals.
+- Fixed shared fill-pattern visibility handling used by Colorize and Filter Pro shuffle colors.
+
+## [1.9.0] - 2026-07-02
+
+- Added the **Colorize** tool in the View panel for per-view element overrides by category or parameter values.
+- Reused Filter Pro category, parameter, value, rule, and override engines without creating persistent view filters.
+- Ported and hardened the retired pyRevit Colorize workflow.
+
 ## [1.8.0] - 2026-07-01
 
 - Full project audit: added the **Pipe Sizing** tool (MEP panel) for domestic water pipe sizing from fixture units, system type, pipe material, and velocity limit.

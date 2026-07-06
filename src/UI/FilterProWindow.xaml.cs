@@ -734,7 +734,7 @@ namespace AJTools.UI
             int created = 0;
             try
             {
-                using (var t = new Transaction(_doc, "AJ-Tools: Create Filters"))
+                using (var t = new Transaction(_doc, "AJ Tools - Create Filters"))
                 {
                     t.Start();
                     created = FilterProHelper.CreateFilters(_doc, new List<View>(), selection, skipped);
@@ -904,7 +904,7 @@ namespace AJTools.UI
             int created = 0;
             try
             {
-                using (var t = new Transaction(_doc, "AJ-Tools: Create and Apply Filters"))
+                using (var t = new Transaction(_doc, "AJ Tools - Create and Apply Filters"))
                 {
                     t.Start();
                     created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);
@@ -936,7 +936,7 @@ namespace AJTools.UI
             int created = 0;
             try
             {
-                using (var t = new Transaction(_doc, "AJ-Tools: Shuffle Colors"))
+                using (var t = new Transaction(_doc, "AJ Tools - Shuffle Colors"))
                 {
                     t.Start();
                     created = FilterProHelper.CreateFilters(_doc, targetViews, selection, skipped);

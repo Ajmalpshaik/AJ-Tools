@@ -610,7 +610,9 @@ namespace AJTools.Services.DuctReferenceDimension
 
         private static double ResolveSearchHalfLength(View view, DuctDimensionAxis axis)
         {
-            if (view?.CropBox == null || axis == null)
+            // An inactive crop box still returns stale bounds that would wrongly shrink the search
+            // range, so only trust CropBox when the crop is actually active.
+            if (view == null || !view.CropBoxActive || view.CropBox == null || axis == null)
                 return DefaultSearchHalfLength;
 
             try

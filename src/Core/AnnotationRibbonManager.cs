@@ -2,7 +2,7 @@
 /*
  * Tool Name     : AJ Annotation Ribbon Manager
  * File Name     : AnnotationRibbonManager.cs
- * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimention, Dimensions,
+ * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimension, Dimensions,
  *                 Annotation, Family, Tags) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
@@ -34,6 +34,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using Autodesk.Revit.UI;
 using AJTools.Commands;
@@ -48,7 +49,7 @@ namespace AJTools.App
     internal sealed class AnnotationRibbonManager
     {
         private const string TabName = "AJ Annotation";
-        private const string DimensionPanelName = "Auto Dimention";
+        private const string DimensionPanelName = "Auto Dimension";
         private const string QuickDimensionIcon = "Dimensions by Line.png";
 
         private readonly UIControlledApplication _app;
@@ -131,6 +132,17 @@ namespace AJTools.App
                     AddChildPushButton(arrangeTagsPulldown, "cmdIntelligentTagArrangerSettings", "Arrange Tag\nSettings", "Set default vertical spacing for Arrange Tags (tag_spacing_mm).", typeof(CmdIntelligentTagArrangerSettings).FullName, "settings.png");
                 }
             }
+
+            PushButtonData centerRoomTagsData = new PushButtonData("cmdCenterRoomTags", "Center Room\nTags", _assemblyPath, typeof(CmdCenterRoomTags).FullName)
+            {
+                ToolTip = "Move every room tag in the active view to the center of its tagged room. Handles local rooms and loaded linked rooms; skips orphaned, pinned, and unreadable tags."
+            };
+            var centerRoomTagsLargeIcon = _iconLoader.LoadLarge("Arrange Tag.png");
+            if (centerRoomTagsLargeIcon != null) centerRoomTagsData.LargeImage = centerRoomTagsLargeIcon;
+            var centerRoomTagsSmallIcon = _iconLoader.LoadSmall("Arrange Tag.png");
+            if (centerRoomTagsSmallIcon != null) centerRoomTagsData.Image = centerRoomTagsSmallIcon;
+
+            panel.AddItem(centerRoomTagsData);
         }
 
         private void AddFamilyPanelTools(RibbonPanel panel)
@@ -173,7 +185,23 @@ namespace AJTools.App
             var textToolsSmallIcon = _iconLoader.LoadSmall("copyswaptext.png");
             if (textToolsSmallIcon != null) textToolsData.Image = textToolsSmallIcon;
 
-            var stackedItems = panel.AddStackedItems(ductFlowData, revisionCloudData, textToolsData);
+            IList<RibbonItem> stackedItems;
+            try
+            {
+                stackedItems = panel.AddStackedItems(ductFlowData, revisionCloudData, textToolsData);
+            }
+            catch (Exception)
+            {
+                // Some Revit versions reject a SplitButton stacked alongside pulldown buttons.
+                // Fall back to adding each item on its own so the ribbon (and the whole add-in) still loads.
+                stackedItems = new List<RibbonItem>();
+                RibbonItem ductFlowItem = panel.AddItem(ductFlowData);
+                if (ductFlowItem != null) stackedItems.Add(ductFlowItem);
+                RibbonItem revisionCloudItem = panel.AddItem(revisionCloudData);
+                if (revisionCloudItem != null) stackedItems.Add(revisionCloudItem);
+                RibbonItem textToolsItem = panel.AddItem(textToolsData);
+                if (textToolsItem != null) stackedItems.Add(textToolsItem);
+            }
 
             if (stackedItems.Count >= 3)
             {
@@ -259,7 +287,7 @@ namespace AJTools.App
 
             PulldownButtonData pulldownData = new PulldownButtonData(
                 "cmdAutoDuctDimensionPulldown",
-                "Auto Duct\nDimention");
+                "Auto Duct\nDimension");
 
             var largeIcon = _iconLoader.LoadLarge(QuickDimensionIcon);
             if (largeIcon != null)

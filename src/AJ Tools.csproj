@@ -79,10 +79,13 @@
     <Compile Include="Commands\CmdAutoDimensions.cs" />
     <Compile Include="Commands\CmdCopyDimensionText.cs" />
     <Compile Include="Commands\CmdCeilingMagnet.cs" />
+    <Compile Include="Commands\CmdCenterRoomTags.cs" />
     <Compile Include="Commands\CmdCopyText.cs" />
     <Compile Include="Commands\CmdDimensionByLine.cs" />
     <Compile Include="Commands\CmdExtendLevelsBySelected.cs" />
     <Compile Include="Commands\CmdMaximizeLevelsBySectionBox.cs" />
+    <Compile Include="Commands\CmdColorize.cs" />
+    <Compile Include="Commands\CmdColorizeAvailability.cs" />
     <Compile Include="Commands\CmdFilterPro.cs" />
     <Compile Include="Commands\CmdFilterProAvailability.cs" />
     <Compile Include="Commands\CmdGraphicalViewAvailability.cs" />
@@ -97,6 +100,8 @@
     <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
     <Compile Include="Commands\CmdLinkedElementSearch.cs" />
     <Compile Include="Commands\CmdLocationDataAssigner.cs" />
+    <Compile Include="Commands\CmdMepOpeningSettings.cs" />
+    <Compile Include="Commands\CmdCreateMepOpenings.cs" />
     <Compile Include="Commands\CmdPinElements.cs" />
     <Compile Include="Commands\CmdPipeSizing.cs" />
     <Compile Include="Commands\CmdMatchElevation.cs" />
@@ -133,6 +138,15 @@
     <Compile Include="Models\FilterValueItem.cs" />
     <Compile Include="Models\FilterValueKey.cs" />
     <Compile Include="Models\LinkDisplayItem.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningElementKind.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningElementRule.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningCreationMode.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningHostKind.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningRunResult.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningSettings.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningSelectionMethod.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningShape.cs" />
+    <Compile Include="Models\MepOpenings\MepOpeningSourceElement.cs" />
     <Compile Include="Models\PatternItem.cs" />
     <Compile Include="Models\PinTools\PinTargetGroup.cs" />
     <Compile Include="Models\PinTools\PinCategoryItem.cs" />
@@ -186,8 +200,11 @@
     <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionReport.cs" />
     <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionService.cs" />
     <Compile Include="Services\DuctReferenceDimension\DuctSelectionFilter.cs" />
+    <Compile Include="Services\Colorize\ColorizeElementMatcher.cs" />
+    <Compile Include="Services\Colorize\ColorizeApplier.cs" />
     <Compile Include="Services\FilterPro\FilterApplier.cs" />
     <Compile Include="Services\FilterPro\FilterCreator.cs" />
+    <Compile Include="Services\FilterPro\FilterRuleBuilder.cs" />
     <Compile Include="Services\FilterPro\FilterProDataProvider.cs" />
     <Compile Include="Services\FilterPro\FilterProHelper.cs" />
     <Compile Include="Services\FilterPro\FilterProStateTracker.cs" />
@@ -221,9 +238,15 @@
     <Compile Include="Services\HvacSchematic\SchematicLayoutEngine.cs" />
     <Compile Include="Services\HvacSchematic\DraftingViewBuilder.cs" />
     <Compile Include="Services\LeaderLogic\LeaderLogicService.cs" />
+    <Compile Include="Services\RoomTags\RoomTagCenteringService.cs" />
     <Compile Include="Services\TagArrange\IntelligentTagArrangerService.cs" />
     <Compile Include="Services\LevelExtents\LevelExtentsService.cs" />
     <Compile Include="Services\LevelExtents\LevelExtentsBySectionBoxService.cs" />
+    <Compile Include="Services\MepOpenings\MepOpeningSelectionFilter.cs" />
+    <Compile Include="Services\MepOpenings\MepOpeningService.cs" />
+    <Compile Include="Services\MepOpenings\MepOpeningHostSelectionFilter.cs" />
+    <Compile Include="Services\MepOpenings\MepOpeningSourceSelectionFilter.cs" />
+    <Compile Include="Services\MepOpenings\MepOpeningSettingsService.cs" />
     <Compile Include="Services\ResetDatums\ResetDatumService.cs" />
     <Compile Include="Services\SharedParamToFamilyParamService.cs" />
     <Compile Include="Services\WorksetViews\Workset3DViewService.cs" />
@@ -262,6 +285,9 @@
     <Compile Include="UI\FilterProWindow.xaml.cs">
       <DependentUpon>FilterProWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\ColorizeWindow.xaml.cs">
+      <DependentUpon>ColorizeWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\AboutWindow.xaml.cs">
       <DependentUpon>AboutWindow.xaml</DependentUpon>
     </Compile>
@@ -280,8 +306,14 @@
     <Compile Include="UI\PinElementsWindow.xaml.cs">
       <DependentUpon>PinElementsWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\ReassignLevelWindow.xaml.cs">
+      <DependentUpon>ReassignLevelWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\PipeSizing\PipeSizingWindow.xaml.cs">
       <DependentUpon>PipeSizingWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\MepOpenings\MepOpeningSettingsWindow.xaml.cs">
+      <DependentUpon>MepOpeningSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\TransferViewTemplatesWindow.xaml.cs">
       <DependentUpon>TransferViewTemplatesWindow.xaml</DependentUpon>
@@ -397,6 +429,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="UI\ColorizeWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="UI\FlowDirectionSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -417,7 +453,15 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="UI\ReassignLevelWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="UI\PipeSizing\PipeSizingWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\MepOpenings\MepOpeningSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

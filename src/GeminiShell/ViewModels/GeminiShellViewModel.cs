@@ -561,6 +561,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 bool success = false;
                 bool blocked = false;
                 bool userCancelledConfirmation = false;
+                bool confirmedThisRun = false;
                 string previousErrorMessage = null;
 
                 Action<int, string> progressCallback = (percent, message) =>
@@ -586,7 +587,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                         break;
                     }
 
-                    if (safety.RequiresConfirmation && attempt == 1)
+                    if (safety.RequiresConfirmation && !confirmedThisRun)
                     {
                         string reasons = string.Join("\n - ", safety.Findings.Select(f => f.Reason));
                         var confirm = System.Windows.MessageBox.Show(
@@ -602,6 +603,10 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                             StatusText = "Cancelled: destructive operation not confirmed.";
                             break;
                         }
+
+                        // Confirmed once for this run - matches the tool's "once per run" design even if a
+                        // later auto-fix attempt introduces a different destructive operation.
+                        confirmedThisRun = true;
                     }
 
                     var result = await _executionService.ExecuteAsync(CodeEditorContent, progressCallback, _cts.Token);

@@ -60,7 +60,7 @@ namespace AJTools.Services
                 return result;
             }
 
-            using (var group = new TransactionGroup(_doc, "Shared Parameter to Family Parameter"))
+            using (var group = new TransactionGroup(_doc, "AJ Tools - Shared Parameter to Family Parameter"))
             {
                 group.Start();
 
@@ -78,8 +78,18 @@ namespace AJTools.Services
                         {
                             if (TryConvertSingle(item, result))
                             {
-                                transaction.Commit();
-                                hasCommittedChanges = true;
+                                // Only record success if Revit actually commits; an auto-rollback
+                                // during commit must not be reported to the user as a conversion.
+                                TransactionStatus commitStatus = transaction.Commit();
+                                if (commitStatus == TransactionStatus.Committed)
+                                {
+                                    result.AddSuccess(parameterName);
+                                    hasCommittedChanges = true;
+                                }
+                                else
+                                {
+                                    result.AddFailure(parameterName, "Revit rolled back the change during commit.");
+                                }
                             }
                             else
                             {
@@ -204,7 +214,7 @@ namespace AJTools.Services
                 wasReporting,
                 warnings);
 
-            result.AddSuccess(parameterName);
+            // Success is recorded by the caller only after the transaction actually commits.
             for (int i = 0; i < warnings.Count; i++)
             {
                 result.AddWarning(parameterName, warnings[i]);

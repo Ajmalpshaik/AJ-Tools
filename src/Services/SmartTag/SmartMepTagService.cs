@@ -1592,7 +1592,7 @@ namespace AJTools.Services.SmartTag
             }
 
             // ── PHASES 3–6: Score positions, detect clashes, reposition, and place tags ──
-            using (TransactionGroup tg = new TransactionGroup(doc, "Smart MEP Tag All"))
+            using (TransactionGroup tg = new TransactionGroup(doc, "AJ Tools - Smart MEP Tag All"))
             {
                 tg.Start();
                 SmartTagPlacementEngine.ProcessAndPlaceTags(doc, preflight, settingsState, candidates, results);

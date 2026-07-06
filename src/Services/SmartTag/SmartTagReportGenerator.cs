@@ -41,11 +41,12 @@ namespace AJTools.Services.SmartTag
             int filteredSize = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutSize);
             int filteredVisibility = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutVisibility);
             int outsideCrop = results.Count(r => r.SkipReason == TagSkipReason.OutsideCropRegion);
+            int filteredType = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutType);
             int denseSkipped = results.Count(r => r.SkipReason == TagSkipReason.DenseZoneSkipped);
             int groupSkipped = results.Count(r => r.SkipReason == TagSkipReason.PartOfTaggedGroup);
             int noCleanSpace = results.Count(r => r.SkipReason == TagSkipReason.NoCleanSpaceAvailable);
             int noTagFamily = results.Count(r => r.SkipReason == TagSkipReason.NoTagFamilyAvailable);
-            int filteredTotal = filteredSize + filteredVisibility + outsideCrop;
+            int filteredTotal = filteredSize + filteredVisibility + outsideCrop + filteredType;
 
             var sb = new StringBuilder();
 
@@ -59,13 +60,15 @@ namespace AJTools.Services.SmartTag
             sb.AppendLine(string.Format("Total Elements Analysed:     {0}", totalAnalysed));
             sb.AppendLine(string.Format("Successfully Tagged:         {0}", successCount));
             sb.AppendLine(string.Format("Already Tagged (skipped):    {0}", alreadyTagged));
-            sb.AppendLine(string.Format("Filtered Out (size/vis):     {0}", filteredTotal));
+            sb.AppendLine(string.Format("Filtered Out (size/vis/type): {0}", filteredTotal));
             if (filteredSize > 0)
                 sb.AppendLine(string.Format("    - Below size threshold:  {0}", filteredSize));
             if (filteredVisibility > 0)
                 sb.AppendLine(string.Format("    - Hidden in view:        {0}", filteredVisibility));
             if (outsideCrop > 0)
                 sb.AppendLine(string.Format("    - Outside crop region:   {0}", outsideCrop));
+            if (filteredType > 0)
+                sb.AppendLine(string.Format("    - Excluded element type: {0}", filteredType));
             sb.AppendLine(string.Format("Skipped (Dense Zone):        {0}", denseSkipped));
             sb.AppendLine(string.Format("Skipped (Tagged Group):      {0}", groupSkipped));
             sb.AppendLine(string.Format("Failed (No Clean Space):     {0}", noCleanSpace));
