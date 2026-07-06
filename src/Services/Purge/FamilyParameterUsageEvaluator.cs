@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.Services.Purge
 {
@@ -289,8 +290,7 @@ namespace AJTools.Services.Purge
                     case StorageType.Integer:
                     {
                         int value = familyType.AsInteger(parameter) ?? 0;
-                        bool isYesNo = parameter.Definition != null &&
-                                       parameter.Definition.ParameterType == ParameterType.YesNo;
+                        bool isYesNo = SharedParamUtils.IsYesNoParameter(parameter.Definition);
                         if (isYesNo)
                         {
                             return value != 0 ? ValueStrength.Meaningful : ValueStrength.DefaultLike;
@@ -356,7 +356,7 @@ namespace AJTools.Services.Purge
                 return int.MinValue;
             }
 
-            return parameter.Id.IntegerValue;
+            return AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id);
         }
 
         private static bool IsSameParameter(FamilyParameter first, FamilyParameter second)

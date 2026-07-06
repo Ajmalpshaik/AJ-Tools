@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Section Mark Visibility
  * File Name     : CmdSectionMarkVisibility.cs
- * Purpose       : External command entry/orchestration — validates context, gathers settings
+ * Purpose       : External command entry/orchestration â€” validates context, gathers settings
  *                 and target views, runs the visibility service, and reports the result.
  *
  * Author        : Ajmal P.S.
@@ -163,7 +163,7 @@ namespace AJTools.Commands
 
                 if (result.ProcessedCount == 0 && result.SkippedCount == 0 && !hasErrors)
                 {
-                    // Nothing to process (e.g. project has no section marks) — plain info, not a failure.
+                    // Nothing to process (e.g. project has no section marks) â€” plain info, not a failure.
                     DialogHelper.ShowInfo(ToolTitle, result.DiagnosticsReport);
                 }
                 else if (hasErrors || result.SkippedCount > 0)
@@ -172,7 +172,7 @@ namespace AJTools.Commands
                     ShowSummaryReport(result);
                 }
 
-                // Completing without an exception is success — even if there was nothing to change.
+                // Completing without an exception is success â€” even if there was nothing to change.
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -210,7 +210,7 @@ namespace AJTools.Commands
                     var vp = doc.GetElement(vpId) as Viewport;
                     if (vp == null || vp.ViewId == null) continue;
 
-                    int viewIdVal = vp.ViewId.IntegerValue;
+                    int viewIdVal = AJTools.Utils.ElementIdHelper.GetIntegerValue(vp.ViewId);
                     if (!sheetMap.ContainsKey(viewIdVal))
                     {
                         sheetMap[viewIdVal] = new SheetInfo { Number = sheet.SheetNumber, Name = sheet.Name };
@@ -234,7 +234,7 @@ namespace AJTools.Commands
                 string sheetName = string.Empty;
                 string groupName = "Unplaced Views";
 
-                if (sheetMap.TryGetValue(v.Id.IntegerValue, out SheetInfo sInfo))
+                if (sheetMap.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(v.Id), out SheetInfo sInfo))
                 {
                     sheetNumber = sInfo.Number;
                     sheetName = sInfo.Name;
@@ -251,7 +251,7 @@ namespace AJTools.Commands
                     GroupName = groupName,
                     CanSelect = true,
                     StatusText = "Supported",
-                    IsSelected = activeViewId != null && activeViewId.IntegerValue == v.Id.IntegerValue
+                    IsSelected = activeViewId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(activeViewId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(v.Id)
                 });
             }
 

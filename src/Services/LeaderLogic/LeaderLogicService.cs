@@ -8,6 +8,7 @@
 
 using System;
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.Services.LeaderLogic
 {
@@ -86,8 +87,7 @@ namespace AJTools.Services.LeaderLogic
             if (tag == null || !tag.HasLeader)
                 return null;
 
-            try { return tag.LeaderEnd; }
-            catch { return null; }
+            return IndependentTagCompat.GetLeaderEnd(tag);
         }
 
         // ─────────────────────────────────────────
@@ -193,7 +193,7 @@ namespace AJTools.Services.LeaderLogic
             tag.TagHeadPosition = t1;
 
             if (e1 != null)
-                tag.LeaderElbow = e1;
+                IndependentTagCompat.SetLeaderElbow(tag, e1);
         }
 
         /// <summary>

@@ -20,7 +20,11 @@ namespace AJTools.UI
     /// </summary>
     public partial class FlowDirectionSettingsWindow : Window
     {
+#if REVIT2024_OR_GREATER
+        private readonly ForgeTypeId _displayUnitType;
+#else
         private readonly DisplayUnitType _displayUnitType;
+#endif
 
         public FamilySymbol SelectedSymbol { get; private set; }
 
@@ -135,21 +139,46 @@ namespace AJTools.UI
             return family.FamilyPlacementType == FamilyPlacementType.ViewBased;
         }
 
-        private static DisplayUnitType ResolveLengthDisplayUnit(Document doc)
+        private static
+#if REVIT2024_OR_GREATER
+            ForgeTypeId
+#else
+            DisplayUnitType
+#endif
+            ResolveLengthDisplayUnit(Document doc)
         {
+#if REVIT2024_OR_GREATER
+            if (doc == null)
+                return UnitTypeId.Meters;
+
+            Units units = doc.GetUnits();
+            FormatOptions options = units.GetFormatOptions(SpecTypeId.Length);
+            return options?.GetUnitTypeId() ?? UnitTypeId.Meters;
+#else
             if (doc == null)
                 return DisplayUnitType.DUT_METERS;
 
             Units units = doc.GetUnits();
             FormatOptions options = units.GetFormatOptions(UnitType.UT_Length);
             return options.DisplayUnits;
+#endif
         }
 
-        private static string SafeUnitLabel(DisplayUnitType unitType)
+        private static string SafeUnitLabel(
+#if REVIT2024_OR_GREATER
+            ForgeTypeId unitType
+#else
+            DisplayUnitType unitType
+#endif
+            )
         {
             try
             {
+#if REVIT2024_OR_GREATER
+                return LabelUtils.GetLabelForUnit(unitType);
+#else
                 return LabelUtils.GetLabelFor(unitType);
+#endif
             }
             catch
             {

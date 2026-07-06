@@ -81,7 +81,7 @@ namespace AJTools.Utils
             if (cat == null)
                 return false;
 
-            return _categories.Contains((BuiltInCategory)cat.Id.IntegerValue);
+            return _categories.Contains((BuiltInCategory)AJTools.Utils.ElementIdHelper.GetIntegerValue(cat.Id));
         }
 
         public bool AllowReference(Reference reference, XYZ position)
@@ -107,7 +107,7 @@ namespace AJTools.Utils
             if (cat == null)
                 return false;
 
-            return _categories.Contains((BuiltInCategory)cat.Id.IntegerValue);
+            return _categories.Contains((BuiltInCategory)AJTools.Utils.ElementIdHelper.GetIntegerValue(cat.Id));
         }
 
         public bool AllowReference(Reference reference, XYZ position)
@@ -127,7 +127,7 @@ namespace AJTools.Utils
             if (cat == null)
                 return false;
 
-            return cat.Id.IntegerValue == (int)BuiltInCategory.OST_DuctCurves;
+            return AJTools.Utils.ElementIdHelper.GetIntegerValue(cat.Id) == (int)BuiltInCategory.OST_DuctCurves;
         }
 
         public bool AllowReference(Reference reference, XYZ position)

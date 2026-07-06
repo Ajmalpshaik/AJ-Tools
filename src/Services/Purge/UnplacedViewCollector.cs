@@ -73,7 +73,7 @@ namespace AJTools.Services.Purge
                 return false;
             }
 
-            return GetPlacedViewIds().Contains(viewId.IntegerValue);
+            return GetPlacedViewIds().Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(viewId));
         }
 
         private void AddUnplaced3DViews(ICollection<UnplacedViewPurgeItem> items, ISet<int> placedViewIds)
@@ -124,14 +124,14 @@ namespace AJTools.Services.Purge
 
             return view.Id != null &&
                    view.Id != ElementId.InvalidElementId &&
-                   !placedViewIds.Contains(view.Id.IntegerValue);
+                   !placedViewIds.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id));
         }
 
         private UnplacedViewPurgeItem CreateItem(View view, string viewKind)
         {
             var item = new UnplacedViewPurgeItem
             {
-                ViewIdValue = view.Id.IntegerValue,
+                ViewIdValue = AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id),
                 ViewName = SafeGetName(view),
                 ViewKind = viewKind,
                 ViewTypeText = view.ViewType.ToString(),
@@ -180,7 +180,7 @@ namespace AJTools.Services.Purge
                     continue;
                 }
 
-                placedViewIds.Add(viewport.ViewId.IntegerValue);
+                placedViewIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(viewport.ViewId));
             }
 
             return placedViewIds;
@@ -199,7 +199,7 @@ namespace AJTools.Services.Purge
                    second != null &&
                    first != ElementId.InvalidElementId &&
                    second != ElementId.InvalidElementId &&
-                   first.IntegerValue == second.IntegerValue;
+                   AJTools.Utils.ElementIdHelper.GetIntegerValue(first) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second);
         }
 
         private static string SafeGetName(View view)

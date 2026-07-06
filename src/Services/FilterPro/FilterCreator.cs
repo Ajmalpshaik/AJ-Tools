@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Filter Pro
  * File Name     : FilterCreator.cs
- * Purpose       : Creates and updates ParameterFilterElements — builds filter rules by storage type,
+ * Purpose       : Creates and updates ParameterFilterElements â€” builds filter rules by storage type,
  *                 composes and sanitises filter names, and ensures name uniqueness in the project.
  *
  * Author        : Ajmal P.S.
@@ -30,7 +30,7 @@
  *
  * Changelog     :
  * v1.0.0 (2025-12-10) - Initial release.
- * v1.1.0 (2026-05-25) - Optimised name-uniqueness check from O(n²) DB queries to O(1) dictionary
+ * v1.1.0 (2026-05-25) - Optimised name-uniqueness check from O(nÂ²) DB queries to O(1) dictionary
  *                        lookups; added HashSet dedup for processed filter IDs; removed dead fallback method.
  * v1.1.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
  * v1.2.0 (2026-07-02) - Extracted rule-building logic (BuildRules + storage-type helpers) into the
@@ -165,8 +165,8 @@ namespace AJTools.Services.FilterPro
 
                     if (createdNew || modifiedExisting)
                     {
-                        // O(1) dedup using HashSet — avoids O(n) linear scan from previous version.
-                        if (processedIds.Add(filter.Id.IntegerValue))
+                        // O(1) dedup using HashSet â€” avoids O(n) linear scan from previous version.
+                        if (processedIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(filter.Id)))
                             result.ProcessedFilterIds.Add(filter.Id);
                     }
                 }

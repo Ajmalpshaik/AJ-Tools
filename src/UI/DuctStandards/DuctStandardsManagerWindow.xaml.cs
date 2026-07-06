@@ -14,6 +14,14 @@ using AJTools.Models.DuctStandards;
 using AJTools.Services.DuctStandards;
 using AJTools.Utils;
 
+#if REVIT2024_OR_GREATER
+using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
+using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+#else
+using ParameterDataTypeId = Autodesk.Revit.DB.ParameterType;
+using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+#endif
+
 namespace AJTools.UI.DuctStandards
 {
     public partial class DuctStandardsManagerWindow : Window
@@ -291,14 +299,14 @@ namespace AJTools.UI.DuctStandards
             var specs = new List<DuctParamSpec>();
             var map = config?.ParameterMap ?? new DuctParameterMap();
 
-            AddSpec(specs, map.SheetThickness, ParameterType.Number, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.Gauge, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.WeightPerMeter, ParameterType.Number, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.TotalWeight, ParameterType.Number, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.SheetArea, ParameterType.Number, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.RuleSource, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.PressureClass, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
-            AddSpec(specs, map.MaterialName, ParameterType.Text, BuiltInParameterGroup.PG_DATA);
+            AddSpec(specs, map.SheetThickness, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.Gauge, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.WeightPerMeter, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.TotalWeight, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.SheetArea, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.RuleSource, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.PressureClass, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.MaterialName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
 
             return specs;
         }
@@ -317,7 +325,7 @@ namespace AJTools.UI.DuctStandards
                 .ToList();
         }
 
-        private static void AddSpec(List<DuctParamSpec> specs, string name, ParameterType parameterType, BuiltInParameterGroup group)
+        private static void AddSpec(List<DuctParamSpec> specs, string name, ParameterDataTypeId parameterType, ParameterGroupId group)
         {
             if (specs == null || string.IsNullOrWhiteSpace(name))
                 return;
@@ -462,7 +470,7 @@ namespace AJTools.UI.DuctStandards
             return group ?? file.Groups.Create(name);
         }
 
-        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, ParameterType type)
+        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, ParameterDataTypeId type)
         {
             foreach (DefinitionGroup group in file.Groups)
             {
@@ -870,7 +878,7 @@ namespace AJTools.UI.DuctStandards
 
         private sealed class DuctParamSpec
         {
-            public DuctParamSpec(string name, ParameterType parameterType, BuiltInParameterGroup parameterGroup)
+            public DuctParamSpec(string name, ParameterDataTypeId parameterType, ParameterGroupId parameterGroup)
             {
                 Name = name;
                 ParameterType = parameterType;
@@ -878,8 +886,8 @@ namespace AJTools.UI.DuctStandards
             }
 
             public string Name { get; }
-            public ParameterType ParameterType { get; }
-            public BuiltInParameterGroup ParameterGroup { get; }
+            public ParameterDataTypeId ParameterType { get; }
+            public ParameterGroupId ParameterGroup { get; }
         }
     }
 }

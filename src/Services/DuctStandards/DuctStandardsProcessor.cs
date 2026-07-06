@@ -32,7 +32,7 @@ namespace AJTools.Services.DuctStandards
                 {
                     result = new DuctCalculationResult
                     {
-                        ElementId = duct.Id.IntegerValue,
+                        ElementId = AJTools.Utils.ElementIdHelper.GetIntegerValue(duct.Id),
                         Success = false,
                         ErrorMessage = ex.Message
                     };
@@ -80,7 +80,7 @@ namespace AJTools.Services.DuctStandards
         {
             var result = new DuctCalculationResult
             {
-                ElementId = duct.Id.IntegerValue
+                ElementId = AJTools.Utils.ElementIdHelper.GetIntegerValue(duct.Id)
             };
 
             // Shape

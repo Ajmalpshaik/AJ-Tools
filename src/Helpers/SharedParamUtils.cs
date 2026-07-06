@@ -82,7 +82,7 @@ namespace AJTools.Utils
 
             foreach (var parameter in GetSharedParameters(familyManager))
             {
-                if (parameter.Id != null && item.ParameterId != null && parameter.Id.IntegerValue == item.ParameterId.IntegerValue)
+                if (parameter.Id != null && item.ParameterId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(item.ParameterId))
                 {
                     return parameter;
                 }
@@ -396,6 +396,117 @@ namespace AJTools.Utils
             }
         }
 
+#if REVIT2024_OR_GREATER
+        public static ForgeTypeId DefaultDataGroup => GroupTypeId.Data;
+
+        public static ForgeTypeId TextParameterType => SpecTypeId.String.Text;
+
+        public static ForgeTypeId NumberParameterType => SpecTypeId.Number;
+
+        public static ForgeTypeId LengthParameterType => SpecTypeId.Length;
+
+        public static ForgeTypeId YesNoParameterType => SpecTypeId.Boolean.YesNo;
+
+        public static ForgeTypeId GetDefinitionGroupId(Definition definition)
+        {
+            if (definition == null)
+            {
+                return DefaultDataGroup;
+            }
+
+            try
+            {
+                ForgeTypeId group = definition.GetGroupTypeId();
+                return group ?? DefaultDataGroup;
+            }
+            catch
+            {
+                return DefaultDataGroup;
+            }
+        }
+
+        public static ForgeTypeId GetDefinitionDataType(Definition definition)
+        {
+            if (definition == null)
+            {
+                return TextParameterType;
+            }
+
+            try
+            {
+                ForgeTypeId dataType = definition.GetDataType();
+                return dataType ?? TextParameterType;
+            }
+            catch
+            {
+                return TextParameterType;
+            }
+        }
+
+        public static string GetGroupLabel(ForgeTypeId group)
+        {
+            try
+            {
+                string label = LabelUtils.GetLabelForGroup(group);
+                return string.IsNullOrWhiteSpace(label) ? GetForgeTypeIdText(group) : label;
+            }
+            catch
+            {
+                return GetForgeTypeIdText(group);
+            }
+        }
+
+        public static string GetParameterTypeLabel(ForgeTypeId parameterType)
+        {
+            try
+            {
+                string label = LabelUtils.GetLabelForSpec(parameterType);
+                return string.IsNullOrWhiteSpace(label) ? GetForgeTypeIdText(parameterType) : label;
+            }
+            catch
+            {
+                return GetForgeTypeIdText(parameterType);
+            }
+        }
+
+        public static bool IsYesNoParameter(Definition definition)
+        {
+            ForgeTypeId dataType = GetDefinitionDataType(definition);
+            return dataType != null && dataType == YesNoParameterType;
+        }
+
+        private static string GetForgeTypeIdText(ForgeTypeId id)
+        {
+            try
+            {
+                return id == null ? string.Empty : id.TypeId;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+#else
+        public static BuiltInParameterGroup DefaultDataGroup => BuiltInParameterGroup.PG_DATA;
+
+        public static ParameterType TextParameterType => ParameterType.Text;
+
+        public static ParameterType NumberParameterType => ParameterType.Number;
+
+        public static ParameterType LengthParameterType => ParameterType.Length;
+
+        public static ParameterType YesNoParameterType => ParameterType.YesNo;
+
+        public static BuiltInParameterGroup GetDefinitionGroupId(Definition definition)
+        {
+            return definition == null ? DefaultDataGroup : definition.ParameterGroup;
+        }
+
+        public static ParameterType GetDefinitionDataType(Definition definition)
+        {
+            return definition == null ? TextParameterType : definition.ParameterType;
+        }
+
         public static string GetGroupLabel(BuiltInParameterGroup group)
         {
             try
@@ -421,6 +532,12 @@ namespace AJTools.Utils
                 return parameterType.ToString();
             }
         }
+
+        public static bool IsYesNoParameter(Definition definition)
+        {
+            return definition != null && definition.ParameterType == ParameterType.YesNo;
+        }
+#endif
 
         public static IList<FamilyType> GetFamilyTypes(FamilyManager familyManager)
         {

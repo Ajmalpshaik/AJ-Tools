@@ -77,7 +77,7 @@ namespace AJTools.Services.HvacSchematic
             view.Name = "HVAC Schematic " + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
 
             ElementId textTypeId = _document.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
-            Dictionary<int, SchematicNode> nodeById = nodes.ToDictionary(node => node.ElementId.IntegerValue);
+            Dictionary<int, SchematicNode> nodeById = nodes.ToDictionary(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId));
             BuildResult result = new BuildResult { View = view };
 
             DrawLevelBands(view, textTypeId, nodes, result);
@@ -269,29 +269,29 @@ namespace AJTools.Services.HvacSchematic
 
             SchematicNode first;
             SchematicNode second;
-            if (!nodeById.TryGetValue(edge.FromElementId.IntegerValue, out first) ||
-                !nodeById.TryGetValue(edge.ToElementId.IntegerValue, out second))
+            if (!nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId), out first) ||
+                !nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId), out second))
             {
                 return false;
             }
 
             if (edge.HasDirectionHint)
             {
-                if (nodeById.TryGetValue(edge.PreferredParentElementId.IntegerValue, out parent) &&
-                    nodeById.TryGetValue(edge.PreferredChildElementId.IntegerValue, out child))
+                if (nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.PreferredParentElementId), out parent) &&
+                    nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.PreferredChildElementId), out child))
                 {
                     return true;
                 }
             }
 
-            if (first.ParentElementId.IntegerValue == second.ElementId.IntegerValue)
+            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(first.ParentElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second.ElementId))
             {
                 parent = second;
                 child = first;
                 return true;
             }
 
-            if (second.ParentElementId.IntegerValue == first.ElementId.IntegerValue)
+            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(second.ParentElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(first.ElementId))
             {
                 parent = first;
                 child = second;

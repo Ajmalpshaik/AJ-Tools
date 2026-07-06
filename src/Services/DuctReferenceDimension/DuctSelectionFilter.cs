@@ -33,7 +33,7 @@ namespace AJTools.Services.DuctReferenceDimension
             if (category == null)
                 return false;
 
-            return category.Id.IntegerValue == (int)BuiltInCategory.OST_DuctCurves;
+            return AJTools.Utils.ElementIdHelper.GetIntegerValue(category.Id) == (int)BuiltInCategory.OST_DuctCurves;
         }
     }
 }

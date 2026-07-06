@@ -25,7 +25,7 @@
  * - Extracted from FilterCreator.cs (was FilterCreator.BuildRules + 4 private Build*Rules helpers).
  *   Logic is unchanged from the original Filter Pro implementation — this is a pure relocation so
  *   Colorize can call the exact same rule-building code instead of duplicating it.
- * - ParameterFilterRuleFactory string overloads with caseSensitive bool are confirmed valid for 2020-2026.
+ * - ParameterFilterRuleFactory string overloads changed in Revit 2026; helpers below isolate that API difference.
  *
  * Changelog     :
  * v1.0.0 (2026-07-02) - Extracted from FilterCreator.cs for reuse by the new Colorize tool.
@@ -60,11 +60,11 @@ namespace AJTools.Services.FilterPro
                 // caseSensitive is always false in current workflow (Revit filter UI matches this).
                 return new List<FilterRule>
                 {
-                    ParameterFilterRuleFactory.CreateEqualsRule(
+                    CreateStringEqualsRule(
                         new ElementId(BuiltInParameter.ALL_MODEL_FAMILY_NAME),
                         familyAndType.Item1,
                         caseSensitive),
-                    ParameterFilterRuleFactory.CreateEqualsRule(
+                    CreateStringEqualsRule(
                         new ElementId(BuiltInParameter.ALL_MODEL_TYPE_NAME),
                         familyAndType.Item2,
                         caseSensitive)
@@ -98,28 +98,28 @@ namespace AJTools.Services.FilterPro
             switch (ruleType)
             {
                 case RuleTypes.EqualsRule:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateEqualsRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringEqualsRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.Contains:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateContainsRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringContainsRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.BeginsWith:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateBeginsWithRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringBeginsWithRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.EndsWith:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateEndsWithRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringEndsWithRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.NotEquals:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateNotEqualsRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringNotEqualsRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.NotContains:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateNotContainsRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringNotContainsRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.NotBeginsWith:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateNotBeginsWithRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringNotBeginsWithRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.NotEndsWith:
-                    singleRules.Add(ParameterFilterRuleFactory.CreateNotEndsWithRule(paramId, text, caseSensitive));
+                    singleRules.Add(CreateStringNotEndsWithRule(paramId, text, caseSensitive));
                     break;
                 case RuleTypes.HasValue:
                     singleRules.Add(ParameterFilterRuleFactory.CreateHasValueParameterRule(paramId));
@@ -265,6 +265,78 @@ namespace AJTools.Services.FilterPro
             }
 
             return singleRules;
+        }
+
+        private static FilterRule CreateStringEqualsRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateEqualsRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateEqualsRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringNotEqualsRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateNotEqualsRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateNotEqualsRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringContainsRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateContainsRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateContainsRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringNotContainsRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateNotContainsRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateNotContainsRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringBeginsWithRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateBeginsWithRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateBeginsWithRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringNotBeginsWithRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateNotBeginsWithRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateNotBeginsWithRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringEndsWithRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateEndsWithRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateEndsWithRule(paramId, text, caseSensitive);
+#endif
+        }
+
+        private static FilterRule CreateStringNotEndsWithRule(ElementId paramId, string text, bool caseSensitive)
+        {
+#if REVIT2026 || REVIT2027
+            return ParameterFilterRuleFactory.CreateNotEndsWithRule(paramId, text);
+#else
+            return ParameterFilterRuleFactory.CreateNotEndsWithRule(paramId, text, caseSensitive);
+#endif
         }
 
         private static bool TryGetInt(object raw, out int value)

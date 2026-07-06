@@ -956,7 +956,7 @@ namespace AJTools.Services.QuickDimension
             }
             catch
             {
-                return reference.ElementId.IntegerValue.ToString();
+                return AJTools.Utils.ElementIdHelper.GetIntegerValue(reference.ElementId).ToString();
             }
         }
 

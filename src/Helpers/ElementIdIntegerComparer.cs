@@ -22,7 +22,7 @@
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
- * - Must NOT use == operator or GetHashCode() on ElementId directly — Revit may return new
+ * - Must NOT use == operator or GetHashCode() on ElementId directly â€” Revit may return new
  *   wrapper objects for the same logical element.
  * - IntegerValue is deprecated in Revit 2024+ (replaced by Value returning long); usage here
  *   remains safe since filter IDs are well within int range on all supported versions.
@@ -58,14 +58,14 @@ namespace AJTools.Utils
             if (x == null || y == null)
                 return false;
 
-            // Compare by integer value — the only reliable identity for ElementIds.
-            return x.IntegerValue == y.IntegerValue;
+            // Compare by integer value â€” the only reliable identity for ElementIds.
+            return AJTools.Utils.ElementIdHelper.GetIntegerValue(x) == AJTools.Utils.ElementIdHelper.GetIntegerValue(y);
         }
 
         public int GetHashCode(ElementId obj)
         {
             // Hash on IntegerValue to match the Equals contract.
-            return obj == null ? 0 : obj.IntegerValue.GetHashCode();
+            return obj == null ? 0 : AJTools.Utils.ElementIdHelper.GetIntegerValue(obj).GetHashCode();
         }
     }
 }

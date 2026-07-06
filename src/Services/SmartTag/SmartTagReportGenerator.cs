@@ -1,5 +1,5 @@
 // Tool Name: Smart Tag Report Generator
-// Description: Phase 7 — generates a clean formatted report after all tagging is complete.
+// Description: Phase 7 â€” generates a clean formatted report after all tagging is complete.
 // Author: Ajmal P.S.
 // Version: 1.0.0
 // Revit Version: 2020
@@ -50,13 +50,13 @@ namespace AJTools.Services.SmartTag
 
             var sb = new StringBuilder();
 
-            // ── Summary header ──
+            // â”€â”€ Summary header â”€â”€
             sb.AppendLine(string.Format("View Name:    {0}", preflight.ActiveView.Name));
             sb.AppendLine(string.Format("View Scale:   1:{0}", preflight.ViewScale));
             sb.AppendLine(string.Format("View Type:    {0}", preflight.ViewType));
             sb.AppendLine();
 
-            // ── Counts ──
+            // â”€â”€ Counts â”€â”€
             sb.AppendLine(string.Format("Total Elements Analysed:     {0}", totalAnalysed));
             sb.AppendLine(string.Format("Successfully Tagged:         {0}", successCount));
             sb.AppendLine(string.Format("Already Tagged (skipped):    {0}", alreadyTagged));
@@ -74,16 +74,16 @@ namespace AJTools.Services.SmartTag
             sb.AppendLine(string.Format("Failed (No Clean Space):     {0}", noCleanSpace));
             sb.AppendLine(string.Format("No Tag Family Found:         {0}", noTagFamily));
 
-            // ── Tag warnings ──
+            // â”€â”€ Tag warnings â”€â”€
             if (tagWarnings != null && tagWarnings.Count > 0)
             {
                 sb.AppendLine();
                 sb.AppendLine("TAG FAMILY WARNINGS:");
                 foreach (string warning in tagWarnings)
-                    sb.AppendLine(string.Format("  • {0}", warning));
+                    sb.AppendLine(string.Format("  â€¢ {0}", warning));
             }
 
-            // ── Manual review list ──
+            // â”€â”€ Manual review list â”€â”€
             List<TagPlacementResult> manualReview = results
                 .Where(r => r.SkipReason == TagSkipReason.NoCleanSpaceAvailable)
                 .ToList();
@@ -100,9 +100,9 @@ namespace AJTools.Services.SmartTag
                 {
                     string catName = GetCategoryDisplayName(r.Category);
                     sb.AppendLine(string.Format("  Element ID: {0}  ({1}){2}",
-                        r.ElementId.IntegerValue,
+                        AJTools.Utils.ElementIdHelper.GetIntegerValue(r.ElementId),
                         catName,
-                        string.IsNullOrEmpty(r.Note) ? "" : " — " + r.Note));
+                        string.IsNullOrEmpty(r.Note) ? "" : " â€” " + r.Note));
                 }
             }
 
@@ -114,10 +114,10 @@ namespace AJTools.Services.SmartTag
                 sb.AppendLine(telemetrySummary);
             }
 
-            // ── Display ──
+            // â”€â”€ Display â”€â”€
             string title = successCount > 0
-                ? string.Format("Smart MEP Tag — {0} Tags Placed", successCount)
-                : "Smart MEP Tag — Complete (No Tags Placed)";
+                ? string.Format("Smart MEP Tag â€” {0} Tags Placed", successCount)
+                : "Smart MEP Tag â€” Complete (No Tags Placed)";
 
             DialogHelper.ShowDialog(title, GetMainInstruction(successCount, totalAnalysed), sb.ToString());
         }

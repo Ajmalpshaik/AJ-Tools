@@ -186,7 +186,7 @@ namespace AJTools.Services.HvacSchematic
                 return false;
             }
 
-            if (!visited.Add(host.Id.IntegerValue))
+            if (!visited.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(host.Id)))
             {
                 return false;
             }
@@ -290,12 +290,12 @@ namespace AJTools.Services.HvacSchematic
                     }
 
                     Element owner = referenceConnector.Owner;
-                    if (owner == null || owner.Id.IntegerValue == element.Id.IntegerValue)
+                    if (owner == null || AJTools.Utils.ElementIdHelper.GetIntegerValue(owner.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id))
                     {
                         continue;
                     }
 
-                    if (!visited.Add(owner.Id.IntegerValue))
+                    if (!visited.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(owner.Id)))
                     {
                         continue;
                     }

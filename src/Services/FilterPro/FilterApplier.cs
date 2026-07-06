@@ -18,13 +18,13 @@
  * Dependencies  : Autodesk Revit API, System.Linq
  *
  * Input         : Active View, FilterSelection (graphics options), ElementId of filter and solid fill pattern
- * Output        : View filter graphics updated — colour, pattern, halftone, visibility
+ * Output        : View filter graphics updated â€” colour, pattern, halftone, visibility
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
  * - OverrideGraphicSettings surface/cut pattern API (SetSurfaceForegroundPatternId etc.) confirmed valid 2020-2026.
- * - Read-only service — all model writes occur inside a Transaction managed by the caller.
+ * - Read-only service â€” all model writes occur inside a Transaction managed by the caller.
  * - Production-ready implementation.
  *
  * Changelog     :
@@ -36,7 +36,7 @@
  *                        the same OverrideGraphicSettings and apply them directly to elements instead
  *                        of to a saved filter. No behavior change to Filter Pro's own apply path.
  * v1.1.1 (2026-07-02) - Fixed BuildOverrideSettings never calling SetSurfaceForegroundPatternVisible/
- *                        SetCutForegroundPatternVisible(true) — a fill pattern override in Revit needs
+ *                        SetCutForegroundPatternVisible(true) â€” a fill pattern override in Revit needs
  *                        its own visibility flag turned on or it never renders even with a valid
  *                        pattern id and colour set. Line colour overrides were unaffected (no separate
  *                        visibility flag). Fixes both Filter Pro's and Colorize's pattern checkboxes.
@@ -87,12 +87,12 @@ namespace AJTools.Services.FilterPro
             try
             {
                 var current = view.GetFilters() ?? new List<ElementId>();
-                // Must compare by IntegerValue — Revit may return new ElementId wrapper objects
+                // Must compare by IntegerValue â€” Revit may return new ElementId wrapper objects
                 // that are not reference-equal even when they represent the same filter.
                 bool alreadyAdded = false;
                 foreach (var existingId in current)
                 {
-                    if (existingId != null && existingId.IntegerValue == filterId.IntegerValue)
+                    if (existingId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(existingId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(filterId))
                     {
                         alreadyAdded = true;
                         break;
@@ -103,7 +103,7 @@ namespace AJTools.Services.FilterPro
             }
             catch (Exception ex)
             {
-                skipped?.Add($"Failed to add filter {filterId.IntegerValue} to view '{view.Name}': {ex.Message}");
+                skipped?.Add($"Failed to add filter {AJTools.Utils.ElementIdHelper.GetIntegerValue(filterId)} to view '{view.Name}': {ex.Message}");
                 return;
             }
 
@@ -168,7 +168,7 @@ namespace AJTools.Services.FilterPro
             }
             catch (Exception ex)
             {
-                skipped?.Add($"Error applying graphics for filter {filterId.IntegerValue} in view '{view.Name}': {ex.Message}");
+                skipped?.Add($"Error applying graphics for filter {AJTools.Utils.ElementIdHelper.GetIntegerValue(filterId)} in view '{view.Name}': {ex.Message}");
             }
         }
 
@@ -187,7 +187,7 @@ namespace AJTools.Services.FilterPro
 
         /// <summary>
         /// Builds (or extends) an OverrideGraphicSettings from a FilterSelection's graphics toggles, a
-        /// resolved colour, and a resolved pattern id. Pure construction — does not touch any view or
+        /// resolved colour, and a resolved pattern id. Pure construction â€” does not touch any view or
         /// filter. Shared by Filter Pro (applies the result to a saved filter) and Colorize (applies the
         /// result directly to matched elements).
         /// </summary>

@@ -103,7 +103,7 @@ namespace AJTools.Services.Purge
                 p != null &&
                 p.Id != null &&
                 p.Id != ElementId.InvalidElementId &&
-                p.Id.IntegerValue == item.ParameterIdValue);
+                AJTools.Utils.ElementIdHelper.GetIntegerValue(p.Id) == item.ParameterIdValue);
 
             if (byId != null)
             {

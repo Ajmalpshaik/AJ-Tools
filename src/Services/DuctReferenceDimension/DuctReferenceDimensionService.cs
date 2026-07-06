@@ -146,7 +146,7 @@ namespace AJTools.Services.DuctReferenceDimension
                     .OfCategory(BuiltInCategory.OST_DuctCurves)
                     .WhereElementIsNotElementType()
                     .Where(DuctSelectionFilter.IsDuct)
-                    .OrderBy(e => e.Id.IntegerValue)
+                    .OrderBy(e => AJTools.Utils.ElementIdHelper.GetIntegerValue(e.Id))
                     .ToList();
 
                 foreach (Element duct in ducts)
@@ -403,7 +403,7 @@ namespace AJTools.Services.DuctReferenceDimension
                 foreach (Reference reference in EnumerateDimensionReferences(dimension))
                 {
                     ElementId referenceElementId = reference?.ElementId;
-                    if (referenceElementId != null && referenceElementId.IntegerValue == elementId.IntegerValue)
+                    if (referenceElementId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(referenceElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(elementId))
                         return true;
                 }
             }

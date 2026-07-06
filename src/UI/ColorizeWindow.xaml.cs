@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Colorize
  * File Name     : ColorizeWindow.xaml.cs
- * Purpose       : WPF code-behind for the Colorize window — mirrors FilterProWindow.xaml.cs's
+ * Purpose       : WPF code-behind for the Colorize window â€” mirrors FilterProWindow.xaml.cs's
  *                 category/parameter/value cascade and multi-view apply scope, but drops all
  *                 filter-naming logic and the rule-type step, and reduces the footer to a single
  *                 "Shuffle Colors" action that colorizes matched elements directly, applying its own
@@ -28,14 +28,14 @@
  * Notes         :
  * - Category/parameter/value loading and search+sort are ported directly from FilterProWindow.xaml.cs
  *   so both tools behave identically for element matching (always an exact-match Equals rule per
- *   selected value — there is no rule-type step here, unlike Filter Pro).
+ *   selected value â€” there is no rule-type step here, unlike Filter Pro).
  * - Parameter selection is OPTIONAL here (unlike Filter Pro, which requires one): leaving it
  *   unselected colorizes the selected categories as a whole via ColorizeApplier's category-only path.
  * - "Shuffle Colors" always randomizes colours (RandomColors = true), matching Filter Pro's own
- *   Shuffle Colors button — there is no separate deterministic-colour mode in the UI, same as Filter Pro.
+ *   Shuffle Colors button â€” there is no separate deterministic-colour mode in the UI, same as Filter Pro.
  * - Owns its own Transaction per click via GraphicsCommandService.ExecuteSummaryTransaction +
  *   ColorizeApplier.ApplyColorizeToViews (same pattern FilterProWindow uses for its own action
- *   buttons) — clicking Shuffle Colors does not close the window, so it can be clicked repeatedly to
+ *   buttons) â€” clicking Shuffle Colors does not close the window, so it can be clicked repeatedly to
  *   keep re-shuffling colours; only Close ends the dialog.
  *
  * Changelog     :
@@ -44,7 +44,7 @@
  *                       multi-view apply scope, fill pattern selection. Removed the Naming Convention
  *                       and Create/Apply To View paths entirely.
  * v2.1.0 (2026-07-02) - Shuffle Colors now applies directly (owns its own Transaction) instead of
- *                       closing the dialog for CmdColorize to apply — it can be clicked repeatedly;
+ *                       closing the dialog for CmdColorize to apply â€” it can be clicked repeatedly;
  *                       only Close ends the dialog.
  * v2.2.0 (2026-07-02) - Removed the Rule Type step entirely; selected values now always match with an
  *                       exact Equals rule.
@@ -71,7 +71,7 @@ using AJTools.Services.GraphicsTools;
 namespace AJTools.UI
 {
     /// <summary>
-    /// Colorize settings window — Filter Pro's Selection/Apply UX, single Shuffle Colors action,
+    /// Colorize settings window â€” Filter Pro's Selection/Apply UX, single Shuffle Colors action,
     /// no saved filter involved.
     /// </summary>
     public partial class ColorizeWindow : Window
@@ -267,7 +267,7 @@ namespace AJTools.UI
                 if (param == null || !catIds.Any())
                 {
                     UpdateStatus(param == null
-                        ? "No parameter selected — the selected categories will be colorized as a whole."
+                        ? "No parameter selected â€” the selected categories will be colorized as a whole."
                         : "Select a parameter to load its values.");
                     return;
                 }
@@ -329,7 +329,7 @@ namespace AJTools.UI
             try
             {
                 var previouslySelected = new HashSet<int>(
-                    views_listbox.SelectedItems.Cast<ApplyViewItem>().Select(v => v.Id.IntegerValue));
+                    views_listbox.SelectedItems.Cast<ApplyViewItem>().Select(v => AJTools.Utils.ElementIdHelper.GetIntegerValue(v.Id)));
 
                 var views = new FilteredElementCollector(_doc)
                     .OfClass(typeof(View))
@@ -355,7 +355,7 @@ namespace AJTools.UI
                     views_listbox.SelectedItems.Clear();
                     foreach (ApplyViewItem item in _allViews)
                     {
-                        if (previouslySelected.Contains(item.Id.IntegerValue))
+                        if (previouslySelected.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(item.Id)))
                             views_listbox.SelectedItems.Add(item);
                     }
                 }
@@ -464,7 +464,7 @@ namespace AJTools.UI
 
         #endregion
 
-        #region Shuffle Colors (the only apply action — colorizes and applies in one click)
+        #region Shuffle Colors (the only apply action â€” colorizes and applies in one click)
 
         private void ShuffleColorsButton_Click(object sender, RoutedEventArgs e)
         {
@@ -507,7 +507,7 @@ namespace AJTools.UI
             string status = $"Attempted: {summary.Attempted} | Applied: {summary.Applied} | Skipped: {summary.Skipped}";
 
             if (skippedCount > 0)
-                status += $"  —  {string.Join("; ", skipped)}";
+                status += $"  â€”  {string.Join("; ", skipped)}";
 
             return status;
         }

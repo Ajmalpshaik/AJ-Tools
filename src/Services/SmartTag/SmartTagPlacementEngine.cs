@@ -671,7 +671,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                ElementId taggedId = tag.TaggedLocalElementId;
+                ElementId taggedId = IndependentTagCompat.GetTaggedLocalElementId(tag);
                 if (taggedId == null || taggedId == ElementId.InvalidElementId)
                     return false;
 
@@ -679,7 +679,7 @@ namespace AJTools.Services.SmartTag
                 if (tagged?.Category == null)
                     return false;
 
-                category = (BuiltInCategory)tagged.Category.Id.IntegerValue;
+                category = (BuiltInCategory)ElementIdHelper.GetIntegerValue(tagged.Category.Id);
                 return true;
             }
             catch (Exception)
@@ -1364,7 +1364,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                XYZ direct = tag.LeaderEnd;
+                XYZ direct = IndependentTagCompat.GetLeaderEnd(tag);
                 if (direct != null)
                     return direct;
             }
@@ -1390,7 +1390,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                Reference taggedReference = tag.GetTaggedReference();
+                Reference taggedReference = IndependentTagCompat.GetTaggedReference(tag);
                 if (taggedReference == null)
                     return null;
 
@@ -1677,8 +1677,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                tag.LeaderElbow = elbow;
-                return true;
+                return IndependentTagCompat.SetLeaderElbow(tag, elbow);
             }
             catch (Exception)
             {

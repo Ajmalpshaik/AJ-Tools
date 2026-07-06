@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Filter Pro
  * File Name     : ColorPalette.cs
- * Purpose       : Provides a 20-colour neon palette for filter graphic overrides — deterministic
+ * Purpose       : Provides a 20-colour neon palette for filter graphic overrides â€” deterministic
  *                 colour by ElementId and thread-safe random colour selection.
  *
  * Author        : Ajmal P.S.
@@ -83,15 +83,15 @@ namespace AJTools.Models
 
         /// <summary>
         /// Returns a consistent color for an ElementId.
-        /// Same ID → same color.
+        /// Same ID â†’ same color.
         /// </summary>
         public static Color GetColorFor(ElementId id)
         {
-            if (id == null || id == ElementId.InvalidElementId || id.IntegerValue == 0)
+            if (id == null || id == ElementId.InvalidElementId || AJTools.Utils.ElementIdHelper.GetIntegerValue(id) == 0)
                 return Palette[0];
 
             // Use unchecked to prevent OverflowException when IntegerValue is int.MinValue.
-            int index = unchecked(Math.Abs(id.IntegerValue)) & 0x7FFFFFFF;
+            int index = unchecked(Math.Abs(AJTools.Utils.ElementIdHelper.GetIntegerValue(id))) & 0x7FFFFFFF;
             return Palette[index % Palette.Length];
         }
 
@@ -106,7 +106,7 @@ namespace AJTools.Models
 
         /// <summary>
         /// Returns a stable palette color by position (e.g. a value's index in a selection list).
-        /// Same index → same color, with no dependency on a Revit ElementId.
+        /// Same index â†’ same color, with no dependency on a Revit ElementId.
         /// </summary>
         public static Color GetColorAt(int index)
         {

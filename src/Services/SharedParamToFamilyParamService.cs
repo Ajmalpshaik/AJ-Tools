@@ -13,6 +13,12 @@ using Autodesk.Revit.DB;
 using AJTools.Models;
 using AJTools.Utils;
 
+#if REVIT2024_OR_GREATER
+using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+#else
+using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+#endif
+
 namespace AJTools.Services
 {
     internal sealed class SharedParamToFamilyParamService
@@ -149,7 +155,7 @@ namespace AJTools.Services
             }
 
             string parameterName = definition.Name;
-            BuiltInParameterGroup parameterGroup = definition.ParameterGroup;
+            ParameterGroupId parameterGroup = SharedParamUtils.GetDefinitionGroupId(definition);
             bool isInstance = sourceParameter.IsInstance;
             bool wasReporting = SharedParamUtils.IsReporting(sourceParameter);
             string formula = SharedParamUtils.GetFormula(sourceParameter);
@@ -226,7 +232,7 @@ namespace AJTools.Services
         private bool TryReplaceSharedParameter(
             FamilyParameter sourceParameter,
             string targetName,
-            BuiltInParameterGroup parameterGroup,
+            ParameterGroupId parameterGroup,
             bool isInstance,
             IList<string> warnings,
             out FamilyParameter convertedParameter,
@@ -390,7 +396,7 @@ namespace AJTools.Services
 
             if (first.Id != null && second.Id != null && first.Id != ElementId.InvalidElementId && second.Id != ElementId.InvalidElementId)
             {
-                return first.Id.IntegerValue == second.Id.IntegerValue;
+                return AJTools.Utils.ElementIdHelper.GetIntegerValue(first.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second.Id);
             }
 
             return ReferenceEquals(first, second);

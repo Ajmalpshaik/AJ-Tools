@@ -19,8 +19,8 @@ namespace AJTools.Services.SmartTag
 {
     /// <summary>
     /// Main service that orchestrates the Smart MEP Tagging pipeline.
-    /// Processes elements through all phases: pre-flight → collection → tag selection →
-    /// placement scoring → clash detection → placement → reporting.
+    /// Processes elements through all phases: pre-flight â†’ collection â†’ tag selection â†’
+    /// placement scoring â†’ clash detection â†’ placement â†’ reporting.
     /// </summary>
     internal static class SmartMepTagService
     {
@@ -30,11 +30,11 @@ namespace AJTools.Services.SmartTag
         private static bool _geometryChecksCompleted;
 #endif
 
-        // ═══════════════════════════════════════════════════════════════
-        // PHASE 0 — PRE-FLIGHT CHECKS
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // PHASE 0 â€” PRE-FLIGHT CHECKS
         // Validates that the active view is suitable for automated tagging.
         // Every check must pass before any MEP elements are collected.
-        // ═══════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         /// <summary>
         /// Runs all pre-flight checks against the active view.
@@ -42,14 +42,14 @@ namespace AJTools.Services.SmartTag
         /// </summary>
         public static PreFlightResult RunPreFlightChecks(Document doc, View activeView)
         {
-            // ── CHECK 1: Active view exists and is not a Sheet ──
+            // â”€â”€ CHECK 1: Active view exists and is not a Sheet â”€â”€
             if (activeView == null)
                 return PreFlightResult.Fail("No active view found. Please open a view before running Smart Tag.");
 
             if (activeView is ViewSheet)
                 return PreFlightResult.Fail("Smart Tag cannot run on a Sheet view. Please open a Plan, Section, or Elevation view.");
 
-            // ── CHECK 2: View type must be Plan, Section, or Elevation ──
+            // â”€â”€ CHECK 2: View type must be Plan, Section, or Elevation â”€â”€
             ViewType viewType = activeView.ViewType;
             bool isValidViewType = viewType == ViewType.FloorPlan
                                 || viewType == ViewType.CeilingPlan
@@ -63,7 +63,7 @@ namespace AJTools.Services.SmartTag
                     string.Format("Smart Tag only works in Plan, Section, or Elevation views. Current view type: {0}.", typeName));
             }
 
-            // ── CHECK 3: View must not be a template ──
+            // â”€â”€ CHECK 3: View must not be a template â”€â”€
             if (activeView.IsTemplate)
                 return PreFlightResult.Fail("Smart Tag cannot run on a View Template. Please open a normal view.");
 
@@ -74,7 +74,7 @@ namespace AJTools.Services.SmartTag
                 ViewType = viewType
             };
 
-            // ── CHECK 4: Read view scale — controls leader length and tag offset distances ──
+            // â”€â”€ CHECK 4: Read view scale â€” controls leader length and tag offset distances â”€â”€
             try
             {
                 int scale = activeView.Scale;
@@ -88,13 +88,13 @@ namespace AJTools.Services.SmartTag
                     string.Format("Failed to read view scale: {0}", ex.Message));
             }
 
-            // ── CHECK 5: Retrieve crop region boundary ──
-            // The crop region defines the visible area — elements fully outside are excluded.
+            // â”€â”€ CHECK 5: Retrieve crop region boundary â”€â”€
+            // The crop region defines the visible area â€” elements fully outside are excluded.
             try
             {
                 if (!activeView.CropBoxActive)
                 {
-                    // No crop region — use a very large outline so nothing is excluded.
+                    // No crop region â€” use a very large outline so nothing is excluded.
                     // This is valid: some views legitimately have no crop.
                     result.CropRegionPoints = null;
                     result.CropOutline = null;
@@ -130,7 +130,7 @@ namespace AJTools.Services.SmartTag
                     string.Format("Failed to retrieve crop region: {0}", ex.Message));
             }
 
-            // ── CHECK 6: Retrieve annotation crop boundary ──
+            // â”€â”€ CHECK 6: Retrieve annotation crop boundary â”€â”€
             // Annotations outside this boundary won't appear on sheets.
             try
             {
@@ -170,12 +170,12 @@ namespace AJTools.Services.SmartTag
             }
             catch (Exception)
             {
-                // Non-fatal — if we can't read the annotation crop, fall back to model crop.
+                // Non-fatal â€” if we can't read the annotation crop, fall back to model crop.
                 result.AnnotationCropOutline = null;
                 result.Warnings.Add("Could not read annotation crop boundary. Falling back to model crop region.");
             }
 
-            // ── CHECK 7: Detect View Template ──
+            // â”€â”€ CHECK 7: Detect View Template â”€â”€
             // If a view template is applied, some annotation categories may be turned off,
             // which can prevent tags from being placed. Warn but do not abort.
             try
@@ -196,18 +196,18 @@ namespace AJTools.Services.SmartTag
             }
             catch (Exception)
             {
-                // Non-fatal — proceed without template info.
+                // Non-fatal â€” proceed without template info.
                 result.HasViewTemplate = false;
             }
 
             return result;
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // PHASE 1 — ELEMENT COLLECTION & FILTERING
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // PHASE 1 â€” ELEMENT COLLECTION & FILTERING
         // Collects MEP elements from the active view, applies 5 filters,
         // and returns a prioritised list of tagging candidates.
-        // ═══════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         // Size thresholds in feet (Revit internal units).
         private static readonly double MinDuctWidth = 100.0 * Constants.MM_TO_FEET;      // 100mm
@@ -230,11 +230,11 @@ namespace AJTools.Services.SmartTag
             View activeView = preflight.ActiveView;
             var candidates = new List<TagCandidate>();
 
-            // ── Collect all existing tags in this view ONCE ──
+            // â”€â”€ Collect all existing tags in this view ONCE â”€â”€
             // Used by Filter 3 to skip already-tagged elements.
             HashSet<ElementId> alreadyTaggedIds = CollectAlreadyTaggedElementIds(doc, activeView);
 
-            // ── Collect raw elements per category ──
+            // â”€â”€ Collect raw elements per category â”€â”€
             var allElements = new List<ElementWithCategory>();
             foreach (BuiltInCategory bic in GetEnabledCategories(settingsState))
             {
@@ -247,7 +247,7 @@ namespace AJTools.Services.SmartTag
                     foreach (Element elem in collector)
                     {
                         // Hard constraint: never tag elements from linked models.
-                        // Elements in the host model have a null GetTypeId check — linked elements
+                        // Elements in the host model have a null GetTypeId check â€” linked elements
                         // would come from a RevitLinkInstance collector, which we never use.
                         // FilteredElementCollector scoped to the view only returns host elements,
                         // but we add an explicit guard for safety.
@@ -263,7 +263,7 @@ namespace AJTools.Services.SmartTag
                 }
             }
 
-            // ── Build a spatial lookup of all collected element midpoints for density checks ──
+            // â”€â”€ Build a spatial lookup of all collected element midpoints for density checks â”€â”€
             // We compute midpoints once and reuse them for Filter 5.
             var midpointLookup = new Dictionary<ElementId, XYZ>();
             foreach (var ewc in allElements)
@@ -273,14 +273,14 @@ namespace AJTools.Services.SmartTag
                     midpointLookup[ewc.Element.Id] = mid;
             }
 
-            // ── Apply filters to each element ──
+            // â”€â”€ Apply filters to each element â”€â”€
             foreach (var ewc in allElements)
             {
                 Element elem = ewc.Element;
                 BuiltInCategory bic = ewc.Category;
                 ElementId eid = elem.Id;
 
-                // FILTER 1 — VISIBILITY
+                // FILTER 1 â€” VISIBILITY
                 // Element must be visible in the active view (not hidden by workset, filter, or category override).
                 try
                 {
@@ -300,7 +300,7 @@ namespace AJTools.Services.SmartTag
                     // If visibility check fails, include the element (safe default).
                 }
 
-                // FILTER 2 — INSIDE CROP REGION
+                // FILTER 2 â€” INSIDE CROP REGION
                 // Element bounding box must intersect the crop region. Fully outside = exclude.
                 if (preflight.CropOutline != null)
                 {
@@ -317,7 +317,7 @@ namespace AJTools.Services.SmartTag
                     }
                 }
 
-                // FILTER 3 — NOT ALREADY TAGGED
+                // FILTER 3 â€” NOT ALREADY TAGGED
                 if (alreadyTaggedIds.Contains(eid))
                 {
                     results.Add(new TagPlacementResult
@@ -329,7 +329,7 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // FILTER 4 — SIZE THRESHOLD
+                // FILTER 4 â€” SIZE THRESHOLD
                 // Skip small spurs, flex connections, tiny pipes, and short curve segments.
                 string sizeSkipReason;
                 if (!PassesSizeFilter(elem, bic, out sizeSkipReason))
@@ -343,7 +343,7 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // FILTER 4.5 — VERTICAL DUCTS
+                // FILTER 4.5 â€” VERTICAL DUCTS
                 if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct duct)
                 {
                     if (IsVerticalDuct(duct))
@@ -358,7 +358,7 @@ namespace AJTools.Services.SmartTag
                     }
                 }
 
-                // ── Build the candidate ──
+                // â”€â”€ Build the candidate â”€â”€
                 XYZ midpoint;
                 midpointLookup.TryGetValue(eid, out midpoint);
                 if (midpoint == null)
@@ -370,7 +370,7 @@ namespace AJTools.Services.SmartTag
 
                 if (midpoint == null)
                 {
-                    // Cannot determine position — skip.
+                    // Cannot determine position â€” skip.
                     results.Add(new TagPlacementResult
                     {
                         ElementId = eid, Category = bic, Success = false,
@@ -393,8 +393,8 @@ namespace AJTools.Services.SmartTag
                     hostWidth = GetDuctWidth(d);
                 }
 
-                // FILTER 5 — DENSITY PRE-CHECK
-                // Count elements within 500mm radius. Flag but don't skip yet — priority decides later.
+                // FILTER 5 â€” DENSITY PRE-CHECK
+                // Count elements within 500mm radius. Flag but don't skip yet â€” priority decides later.
                 var candidate = new TagCandidate
                 {
                     ElementId = eid,
@@ -411,20 +411,20 @@ namespace AJTools.Services.SmartTag
                 candidates.Add(candidate);
             }
 
-            // ── Sort by priority: HIGH first, then MEDIUM, then LOW ──
+            // â”€â”€ Sort by priority: HIGH first, then MEDIUM, then LOW â”€â”€
             MarkDenseZones(candidates);
             candidates.Sort((a, b) => a.Priority.CompareTo(b.Priority));
 
             return candidates;
         }
 
-        // ─────────────────────────────────────────────
-        // Phase 1 — Helper methods
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // Phase 1 â€” Helper methods
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         /// <summary>
         /// Collects all element IDs that already have a tag in the active view.
-        /// Done once at the start — never inside a loop.
+        /// Done once at the start â€” never inside a loop.
         /// </summary>
         private static HashSet<ElementId> CollectAlreadyTaggedElementIds(Document doc, View view)
         {
@@ -443,14 +443,14 @@ namespace AJTools.Services.SmartTag
 
                     try
                     {
-                        // Revit 2020: use TaggedLocalElementId property.
-                        ElementId taggedId = tag.TaggedLocalElementId;
-                        if (taggedId != null && taggedId != ElementId.InvalidElementId)
+                        foreach (ElementId taggedId in IndependentTagCompat.GetTaggedLocalElementIds(tag))
+                        {
                             taggedIds.Add(taggedId);
+                        }
                     }
                     catch (Exception)
                     {
-                        // Some tags may not have a valid tagged element — skip.
+                        // Some tags may not have a valid tagged element â€” skip.
                     }
                 }
             }
@@ -547,7 +547,7 @@ namespace AJTools.Services.SmartTag
                 switch (category)
                 {
                     case BuiltInCategory.OST_DuctCurves:
-                        // Check duct width — skip small spurs and flex connections.
+                        // Check duct width â€” skip small spurs and flex connections.
                         Duct duct = elem as Duct;
                         if (duct != null)
                         {
@@ -562,7 +562,7 @@ namespace AJTools.Services.SmartTag
                         break;
 
                     case BuiltInCategory.OST_PipeCurves:
-                        // Check pipe diameter — skip small branch connections.
+                        // Check pipe diameter â€” skip small branch connections.
                         Pipe pipe = elem as Pipe;
                         if (pipe != null)
                         {
@@ -581,7 +581,7 @@ namespace AJTools.Services.SmartTag
                         // We check the family name for common accessory types.
                         if (!IsMajorAccessory(elem))
                         {
-                            reason = "Minor accessory — not a valve, damper, or major fitting";
+                            reason = "Minor accessory â€” not a valve, damper, or major fitting";
                             return false;
                         }
                         break;
@@ -617,7 +617,7 @@ namespace AJTools.Services.SmartTag
             }
             catch (Exception)
             {
-                // Return -1 to indicate unknown — element won't be filtered by length.
+                // Return -1 to indicate unknown â€” element won't be filtered by length.
             }
             return -1;
         }
@@ -678,7 +678,7 @@ namespace AJTools.Services.SmartTag
                 }
 
                 if (string.IsNullOrEmpty(familyName))
-                    return true; // Unknown family — include to be safe.
+                    return true; // Unknown family â€” include to be safe.
 
                 string upper = familyName.ToUpperInvariant();
 
@@ -875,7 +875,7 @@ namespace AJTools.Services.SmartTag
                     return false;
                 }
 
-                // Case 2: 90° rotation about Z at origin.
+                // Case 2: 90Â° rotation about Z at origin.
                 var rotated = new BoundingBoxXYZ
                 {
                     Min = new XYZ(0, 0, 0),
@@ -965,8 +965,8 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// Determines the orientation of an MEP element in the active view.
-        /// Horizontal ducts/pipes → prefer tag above/below.
-        /// Vertical risers → prefer tag left/right.
+        /// Horizontal ducts/pipes â†’ prefer tag above/below.
+        /// Vertical risers â†’ prefer tag left/right.
         /// </summary>
         private static ElementOrientation GetElementOrientation(Element elem, View view)
         {
@@ -1050,12 +1050,12 @@ namespace AJTools.Services.SmartTag
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // PHASE 2 — TAG FAMILY SELECTION
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // PHASE 2 â€” TAG FAMILY SELECTION
         // For each candidate, finds the correct tag FamilySymbol based on
         // category and view type. Falls back to any loaded tag if the
         // preferred name isn't found. Removes candidates with no tag family.
-        // ═══════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         /// <summary>
         /// Preferred tag family names by category and view context.
@@ -1099,13 +1099,13 @@ namespace AJTools.Services.SmartTag
             bool isSectionOrElevation = preflight.ViewType == ViewType.Section
                                      || preflight.ViewType == ViewType.Elevation;
 
-            // ── Build a cache of all loaded tag types per category ──
-            // Done ONCE — never inside the candidate loop.
+            // â”€â”€ Build a cache of all loaded tag types per category â”€â”€
+            // Done ONCE â€” never inside the candidate loop.
             Dictionary<BuiltInCategory, List<FamilySymbol>> tagCache = BuildTagFamilyCache(doc);
             Dictionary<BuiltInCategory, ElementId> configuredTagTypeByCategory =
                 CollectConfiguredTagTypes(doc, preflight.ActiveView, tagCache);
 
-            // ── Resolve tag for each candidate ──
+            // â”€â”€ Resolve tag for each candidate â”€â”€
             // Iterate backwards so we can remove candidates with no tag family.
             for (int i = candidates.Count - 1; i >= 0; i--)
             {
@@ -1167,7 +1167,7 @@ namespace AJTools.Services.SmartTag
                     string fallbackName = availableTags[0].Family != null
                         ? availableTags[0].Family.Name
                         : availableTags[0].Name;
-                    string msg = string.Format("Preferred tag not found for {0} — fallback used: \"{1}\"",
+                    string msg = string.Format("Preferred tag not found for {0} â€” fallback used: \"{1}\"",
                         bic, fallbackName);
                     if (!warnings.Contains(msg))
                         warnings.Add(msg);
@@ -1179,7 +1179,7 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// Builds a lookup of all loaded tag FamilySymbol instances per taggable MEP category.
-        /// Collected ONCE at the start — maps each BuiltInCategory to its available tag types.
+        /// Collected ONCE at the start â€” maps each BuiltInCategory to its available tag types.
         /// </summary>
         private static Dictionary<BuiltInCategory, List<FamilySymbol>> BuildTagFamilyCache(Document doc)
         {
@@ -1192,7 +1192,7 @@ namespace AJTools.Services.SmartTag
             try
             {
                 // Collect all IndependentTag types in the project.
-                // Each tag FamilySymbol has a category it can tag — we match on that.
+                // Each tag FamilySymbol has a category it can tag â€” we match on that.
                 var collector = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol));
 
@@ -1208,7 +1208,7 @@ namespace AJTools.Services.SmartTag
                     if (famCat == null)
                         continue;
 
-                    BuiltInCategory tagCat = MapTagCategoryToModelCategory(famCat.Id.IntegerValue);
+                    BuiltInCategory tagCat = MapTagCategoryToModelCategory(AJTools.Utils.ElementIdHelper.GetIntegerValue(famCat.Id));
                     if (tagCat == BuiltInCategory.INVALID)
                         continue;
 
@@ -1219,7 +1219,7 @@ namespace AJTools.Services.SmartTag
             }
             catch (Exception)
             {
-                // If collection fails, cache will have empty lists — elements will be skipped.
+                // If collection fails, cache will have empty lists â€” elements will be skipped.
             }
 
             foreach (KeyValuePair<BuiltInCategory, List<FamilySymbol>> kvp in cache)
@@ -1235,7 +1235,7 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// Maps a tag annotation category to the model category it tags.
-        /// E.g. OST_DuctTags → OST_DuctCurves.
+        /// E.g. OST_DuctTags â†’ OST_DuctCurves.
         /// </summary>
         private static Dictionary<BuiltInCategory, ElementId> CollectConfiguredTagTypes(
             Document doc,
@@ -1270,15 +1270,7 @@ namespace AJTools.Services.SmartTag
                     if (tag == null)
                         continue;
 
-                    ElementId taggedId;
-                    try
-                    {
-                        taggedId = tag.TaggedLocalElementId;
-                    }
-                    catch (Exception)
-                    {
-                        continue;
-                    }
+                    ElementId taggedId = IndependentTagCompat.GetTaggedLocalElementId(tag);
 
                     if (taggedId == null || taggedId == ElementId.InvalidElementId)
                         continue;
@@ -1290,7 +1282,7 @@ namespace AJTools.Services.SmartTag
                     BuiltInCategory modelCategory;
                     try
                     {
-                        modelCategory = (BuiltInCategory)taggedElement.Category.Id.IntegerValue;
+                        modelCategory = (BuiltInCategory)ElementIdHelper.GetIntegerValue(taggedElement.Category.Id);
                     }
                     catch (Exception)
                     {
@@ -1315,7 +1307,7 @@ namespace AJTools.Services.SmartTag
                         usage[modelCategory] = categoryUsage;
                     }
 
-                    int key = typeId.IntegerValue;
+                    int key = AJTools.Utils.ElementIdHelper.GetIntegerValue(typeId);
                     int count;
                     categoryUsage.TryGetValue(key, out count);
                     categoryUsage[key] = count + 1;
@@ -1323,7 +1315,7 @@ namespace AJTools.Services.SmartTag
 
                 foreach (KeyValuePair<BuiltInCategory, Dictionary<int, int>> kvp in usage)
                 {
-                    int bestTypeInt = ElementId.InvalidElementId.IntegerValue;
+                    int bestTypeInt = AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
                     int bestCount = -1;
                     foreach (KeyValuePair<int, int> countKvp in kvp.Value)
                     {
@@ -1334,7 +1326,7 @@ namespace AJTools.Services.SmartTag
                         }
                     }
 
-                    if (bestTypeInt != ElementId.InvalidElementId.IntegerValue)
+                    if (bestTypeInt != AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
                         preferred[kvp.Key] = new ElementId(bestTypeInt);
                 }
             }
@@ -1385,7 +1377,7 @@ namespace AJTools.Services.SmartTag
 
             foreach (FamilySymbol fs in tags)
             {
-                if (fs != null && fs.Id != null && fs.Id.IntegerValue == typeId.IntegerValue)
+                if (fs != null && fs.Id != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(fs.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(typeId))
                     return fs;
             }
 
@@ -1479,7 +1471,7 @@ namespace AJTools.Services.SmartTag
             return null;
         }
 
-        // ═══════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         private static string GetTagDisplayName(FamilySymbol symbol)
         {
             if (symbol == null)
@@ -1491,8 +1483,8 @@ namespace AJTools.Services.SmartTag
         }
 
         // MAIN ENTRY POINT
-        // Called by the command — orchestrates all phases in sequence.
-        // ═══════════════════════════════════════════════════════════════
+        // Called by the command â€” orchestrates all phases in sequence.
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         /// <summary>
         /// Executes the full Smart MEP Tagging pipeline on the active view.
@@ -1527,7 +1519,7 @@ namespace AJTools.Services.SmartTag
 
             View activeView = doc.ActiveView;
 
-            // ── PHASE 0: Pre-flight checks ──
+            // â”€â”€ PHASE 0: Pre-flight checks â”€â”€
             PreFlightResult preflight = RunPreFlightChecks(doc, activeView);
             if (!preflight.Passed)
             {
@@ -1547,7 +1539,7 @@ namespace AJTools.Services.SmartTag
                     return Result.Cancelled;
             }
 
-            // ── PHASE 1: Collect and filter MEP elements ──
+            // â”€â”€ PHASE 1: Collect and filter MEP elements â”€â”€
             var settingsTracker = new SmartTagSettingsTracker(doc);
             SmartTagSettingsState settingsState =
                 SmartTagSettingsTracker.EnsureDefaults(settingsTracker.LastState);
@@ -1579,7 +1571,7 @@ namespace AJTools.Services.SmartTag
                 return Result.Succeeded;
             }
 
-            // ── PHASE 2: Select tag families for each candidate ──
+            // â”€â”€ PHASE 2: Select tag families for each candidate â”€â”€
             List<string> tagWarnings = SelectTagFamilies(doc, preflight, candidates, results);
 
             if (candidates.Count == 0)
@@ -1591,7 +1583,7 @@ namespace AJTools.Services.SmartTag
                 return Result.Succeeded;
             }
 
-            // ── PHASES 3–6: Score positions, detect clashes, reposition, and place tags ──
+            // â”€â”€ PHASES 3â€“6: Score positions, detect clashes, reposition, and place tags â”€â”€
             using (TransactionGroup tg = new TransactionGroup(doc, "AJ Tools - Smart MEP Tag All"))
             {
                 tg.Start();
@@ -1600,7 +1592,7 @@ namespace AJTools.Services.SmartTag
             }
             RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
 
-            // ── PHASE 7: Generate output report ──
+            // â”€â”€ PHASE 7: Generate output report â”€â”€
             SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings);
 
             int successCount = results.Count(r => r.Success);

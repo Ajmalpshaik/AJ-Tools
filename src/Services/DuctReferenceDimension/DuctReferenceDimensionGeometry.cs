@@ -285,7 +285,7 @@ namespace AJTools.Services.DuctReferenceDimension
             catch
             {
                 ElementId elementId = reference.ElementId;
-                return elementId == null ? string.Empty : elementId.IntegerValue.ToString();
+                return elementId == null ? string.Empty : AJTools.Utils.ElementIdHelper.GetIntegerValue(elementId).ToString();
             }
         }
 
@@ -496,7 +496,7 @@ namespace AJTools.Services.DuctReferenceDimension
             if (string.IsNullOrWhiteSpace(stableKey))
                 return false;
 
-            bool isSelectedDuct = selectedDuctId != null && element.Id.IntegerValue == selectedDuctId.IntegerValue;
+            bool isSelectedDuct = selectedDuctId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(selectedDuctId);
             candidate = new DuctReferenceCandidate
             {
                 ElementId = element.Id,

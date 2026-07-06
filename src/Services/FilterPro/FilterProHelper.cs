@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Filter Pro
  * File Name     : FilterProHelper.cs
- * Purpose       : Orchestrates Filter Pro operations — validates categories, delegates to
+ * Purpose       : Orchestrates Filter Pro operations â€” validates categories, delegates to
  *                 FilterCreator and FilterApplier/FilterReorderer, and returns affected count.
  *
  * Author        : Ajmal P.S.
@@ -23,13 +23,13 @@
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
- * - Caller must own the transaction scope — this class makes no transactions of its own.
+ * - Caller must own the transaction scope â€” this class makes no transactions of its own.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.0.1 (2026-06-30) - Added mandatory metadata block; fixed silent catch in ValidateCategories;
- *                        replaced O(n²) dedup loop with O(1) HashSet lookup.
+ *                        replaced O(nÂ²) dedup loop with O(1) HashSet lookup.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -106,7 +106,7 @@ namespace AJTools.Services.FilterPro
                 {
                     if (id != null &&
                         id != ElementId.InvalidElementId &&
-                        processedIdSet.Add(id.IntegerValue))
+                        processedIdSet.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
                     {
                         processedFilterIds.Add(id);
                     }
@@ -164,7 +164,7 @@ namespace AJTools.Services.FilterPro
                     }
                     catch (Exception ex)
                     {
-                        skipped?.Add($"Category ID {catId.IntegerValue}: skipped — {ex.Message}");
+                        skipped?.Add($"Category ID {AJTools.Utils.ElementIdHelper.GetIntegerValue(catId)}: skipped â€” {ex.Message}");
                     }
                 }
             }

@@ -174,8 +174,8 @@ namespace AJTools.Services.Purge
             {
                 ParameterIdValue = parameterId,
                 ParameterName = parameter.Definition.Name ?? string.Empty,
-                ParameterTypeText = SharedParamUtils.GetParameterTypeLabel(parameter.Definition.ParameterType),
-                ParameterGroupText = SharedParamUtils.GetGroupLabel(parameter.Definition.ParameterGroup),
+                ParameterTypeText = SharedParamUtils.GetParameterTypeLabel(SharedParamUtils.GetDefinitionDataType(parameter.Definition)),
+                ParameterGroupText = SharedParamUtils.GetGroupLabel(SharedParamUtils.GetDefinitionGroupId(parameter.Definition)),
                 StorageTypeText = parameter.StorageType.ToString(),
                 IsInstance = parameter.IsInstance,
                 IsShared = parameter.IsShared,
@@ -229,8 +229,8 @@ namespace AJTools.Services.Purge
         {
             var lines = new List<string>
             {
-                "Group: " + SharedParamUtils.GetGroupLabel(parameter.Definition.ParameterGroup),
-                "Parameter Type: " + SharedParamUtils.GetParameterTypeLabel(parameter.Definition.ParameterType),
+                "Group: " + SharedParamUtils.GetGroupLabel(SharedParamUtils.GetDefinitionGroupId(parameter.Definition)),
+                "Parameter Type: " + SharedParamUtils.GetParameterTypeLabel(SharedParamUtils.GetDefinitionDataType(parameter.Definition)),
                 "Storage: " + parameter.StorageType,
                 "Shared GUID: " + (parameter.IsShared ? SafeGetGuid(parameter).ToString() : "N/A"),
                 "Formula: " + (string.IsNullOrWhiteSpace(formula) ? "None" : formula),
@@ -350,7 +350,7 @@ namespace AJTools.Services.Purge
                     continue;
                 }
 
-                if (parameter.Id.IntegerValue == id.IntegerValue)
+                if (AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(id))
                 {
                     return parameter;
                 }
@@ -428,7 +428,7 @@ namespace AJTools.Services.Purge
                 return int.MinValue;
             }
 
-            return parameter.Id.IntegerValue;
+            return AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id);
         }
     }
 }

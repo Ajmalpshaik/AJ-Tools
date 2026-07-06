@@ -506,7 +506,7 @@ namespace AJTools.Services.PinTools
 
             ElementId id = viewport.Id;
             if (id != null && id != ElementId.InvalidElementId)
-                sink.Add(id.IntegerValue);
+                sink.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
         }
 
         private static void AddSheetSchedules(Document doc, ViewSheet sheet, ISet<int> sink)
@@ -573,7 +573,7 @@ namespace AJTools.Services.PinTools
 
                 ElementId id = scheduleInstance.Id;
                 if (id != null && id != ElementId.InvalidElementId)
-                    sink.Add(id.IntegerValue);
+                    sink.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
             }
         }
 
@@ -634,7 +634,7 @@ namespace AJTools.Services.PinTools
             foreach (ElementId id in ids)
             {
                 if (id != null && id != ElementId.InvalidElementId)
-                    sink.Add(id.IntegerValue);
+                    sink.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
             }
         }
 
