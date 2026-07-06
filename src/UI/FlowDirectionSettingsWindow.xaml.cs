@@ -20,7 +20,7 @@ namespace AJTools.UI
     /// </summary>
     public partial class FlowDirectionSettingsWindow : Window
     {
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
         private readonly ForgeTypeId _displayUnitType;
 #else
         private readonly DisplayUnitType _displayUnitType;
@@ -140,14 +140,14 @@ namespace AJTools.UI
         }
 
         private static
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             ForgeTypeId
 #else
             DisplayUnitType
 #endif
             ResolveLengthDisplayUnit(Document doc)
         {
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             if (doc == null)
                 return UnitTypeId.Meters;
 
@@ -165,7 +165,7 @@ namespace AJTools.UI
         }
 
         private static string SafeUnitLabel(
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             ForgeTypeId unitType
 #else
             DisplayUnitType unitType
@@ -174,7 +174,7 @@ namespace AJTools.UI
         {
             try
             {
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
                 return LabelUtils.GetLabelForUnit(unitType);
 #else
                 return LabelUtils.GetLabelFor(unitType);

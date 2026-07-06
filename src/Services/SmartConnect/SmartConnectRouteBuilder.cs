@@ -1310,7 +1310,7 @@ namespace AJTools.Services.SmartConnect
 
         private static double ConvertMillimetersToInternal(double value)
         {
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
 #else
             return UnitUtils.ConvertToInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);

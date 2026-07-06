@@ -23,7 +23,7 @@
     <BaseOutputPath>bin\Modern\</BaseOutputPath>
     <OutputPath>bin\Modern\$(RevitVersion)\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\Modern\$(RevitVersion)\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion);REVIT2024_OR_GREATER</DefineConstants>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion);REVIT2022_OR_GREATER;REVIT2023_OR_GREATER;REVIT2024_OR_GREATER</DefineConstants>
     <RevitInstallDir Condition="'$(RevitInstallDir)' == ''">C:\Program Files\Autodesk\Revit $(RevitVersion)\</RevitInstallDir>
     <UseInstalledRevitApi Condition="'$(UseInstalledRevitApi)' == '' and Exists('$(RevitInstallDir)RevitAPI.dll')">true</UseInstalledRevitApi>
     <UseInstalledRevitApi Condition="'$(UseInstalledRevitApi)' == ''">false</UseInstalledRevitApi>

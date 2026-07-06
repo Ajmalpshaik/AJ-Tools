@@ -22,7 +22,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
-#if REVIT2024_OR_GREATER
+#if REVIT2023_OR_GREATER
 using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
 using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
 #else

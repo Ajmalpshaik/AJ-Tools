@@ -66,10 +66,10 @@ function Resolve-PayloadDirForVersion {
     )
 
     $candidates = @()
+    $candidates += (Join-Path $payloadRoot $Version)
     if ($Version -ge 2020 -and $Version -le 2024) {
         $candidates += (Join-Path $payloadRoot "2020-2024")
     }
-    $candidates += (Join-Path $payloadRoot $Version)
     $candidates += $scriptDir
 
     foreach ($candidate in $candidates) {

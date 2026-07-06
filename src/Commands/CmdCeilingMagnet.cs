@@ -498,7 +498,7 @@ namespace AJTools.Commands
 
         private static double ConvertMillimetersToInternal(double value)
         {
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
 #else
             return UnitUtils.ConvertToInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
@@ -507,7 +507,7 @@ namespace AJTools.Commands
 
         private static double ConvertInternalToMillimeters(double value)
         {
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             return UnitUtils.ConvertFromInternalUnits(value, UnitTypeId.Millimeters);
 #else
             return UnitUtils.ConvertFromInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);

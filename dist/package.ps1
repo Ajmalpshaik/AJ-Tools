@@ -12,11 +12,11 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $repoRoot = Split-Path -Parent $scriptDir
 $projectPath = Join-Path $repoRoot "src\AJ Tools.csproj"
 $modernProjectPath = Join-Path $repoRoot "src\AJ Tools.Modern.csproj"
-$buildOutputDir = Join-Path $repoRoot "src\bin\$Configuration"
 $distDir = $scriptDir
 $payloadRoot = Join-Path $distDir "Payload"
 $resourcesSource = Join-Path $repoRoot "src\Resources"
 $addinTemplate = Join-Path $repoRoot "Addin\AJ Tools.addin"
+$legacyRevitVersions = @(2020, 2021, 2022, 2023, 2024)
 $modernRevitVersions = @(2025, 2026, 2027)
 $blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
 
@@ -70,6 +70,15 @@ function Copy-PayloadFromOutput {
     }
 }
 
+function Get-LegacyOutputDir {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$RevitVersion
+    )
+
+    return (Join-Path $repoRoot "src\bin\$RevitVersion\$Configuration")
+}
+
 if (-not $SkipBuild) {
     $buildToolPath = $null
 
@@ -92,19 +101,25 @@ if (-not $SkipBuild) {
         throw "MSBuild was not found. Install Visual Studio Build Tools, or build manually and rerun with -SkipBuild."
     }
 
-    Write-Host "Building $Configuration configuration..."
-    $buildArgs = @(
-        $projectPath,
-        "/t:Restore;Build",
-        "/p:Configuration=$Configuration",
-        "/p:Platform=AnyCPU",
-        "/p:SkipRevitAddinDeploy=true",
-        "/p:SkipAjToolsAutoDeploy=true"
-    )
+    foreach ($revitVersion in $legacyRevitVersions) {
+        Write-Host "Building legacy Revit $revitVersion $Configuration configuration..."
+        $legacyOutputDir = Get-LegacyOutputDir -RevitVersion $revitVersion
+        Remove-Item -LiteralPath $legacyOutputDir -Recurse -Force -ErrorAction SilentlyContinue
 
-    & $buildToolPath @buildArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Build failed with exit code $LASTEXITCODE."
+        $buildArgs = @(
+            $projectPath,
+            "/t:Restore;Build",
+            "/p:Configuration=$Configuration",
+            "/p:Platform=AnyCPU",
+            "/p:RevitVersion=$revitVersion",
+            "/p:SkipRevitAddinDeploy=true",
+            "/p:SkipAjToolsAutoDeploy=true"
+        )
+
+        & $buildToolPath @buildArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "Legacy Revit $revitVersion build failed with exit code $LASTEXITCODE."
+        }
     }
 
     if (-not (Test-Path -LiteralPath $modernProjectPath)) {
@@ -121,20 +136,18 @@ if (-not $SkipBuild) {
     }
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $buildOutputDir "AJ Tools.dll"))) {
-    throw "Build output missing AJ Tools.dll in '$buildOutputDir'."
-}
-
 Get-ChildItem -LiteralPath $distDir -File |
     Where-Object { $_.Extension -in @(".dll", ".pdb") } |
     Remove-Item -Force
 Remove-Item -LiteralPath $payloadRoot -Recurse -Force -ErrorAction SilentlyContinue
 
-$legacyPayloadDir = Join-Path $payloadRoot "2020-2024"
-Copy-PayloadFromOutput -SourceDir $buildOutputDir -DestinationDir $legacyPayloadDir
+foreach ($revitVersion in $legacyRevitVersions) {
+    $legacyOutputDir = Get-LegacyOutputDir -RevitVersion $revitVersion
+    Copy-PayloadFromOutput -SourceDir $legacyOutputDir -DestinationDir (Join-Path $payloadRoot $revitVersion)
+}
 
-# Keep the legacy payload at the package root as a fallback for older install scripts.
-Copy-PayloadFromOutput -SourceDir $buildOutputDir -DestinationDir $distDir
+# Keep the Revit 2020 legacy payload at the package root as a fallback for older install scripts.
+Copy-PayloadFromOutput -SourceDir (Get-LegacyOutputDir -RevitVersion 2020) -DestinationDir $distDir
 
 foreach ($revitVersion in $modernRevitVersions) {
     $modernOutputDir = Join-Path $repoRoot "src\bin\Modern\$revitVersion\$Configuration"
@@ -220,7 +233,7 @@ Write-Host ""
 Write-Host "Package prepared successfully."
 Write-Host "Payload folder: $packageRootPath"
 Write-Host "Release zip   : $zipPath"
-Write-Host "Revit payloads: 2020-2024 (.NET Framework), 2025 (.NET 8), 2026 (.NET 8), 2027 (.NET 10)"
+Write-Host "Revit payloads: 2020 (.NET Framework 4.7.2), 2021-2024 (.NET Framework 4.8), 2025 (.NET 8), 2026 (.NET 8), 2027 (.NET 10)"
 if ($IncludeSymbols) {
     Write-Host "Symbols       : included (.pdb)"
 } else {

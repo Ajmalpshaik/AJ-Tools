@@ -396,7 +396,7 @@ namespace AJTools.Utils
             }
         }
 
-#if REVIT2024_OR_GREATER
+#if REVIT2023_OR_GREATER
         public static ForgeTypeId DefaultDataGroup => GroupTypeId.Data;
 
         public static ForgeTypeId TextParameterType => SpecTypeId.String.Text;
