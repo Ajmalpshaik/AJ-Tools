@@ -21,15 +21,33 @@ namespace AJTools.Services.DuctStandards
 
         public static DuctStandardsConfig Load()
         {
+            return Load(out _);
+        }
+
+        /// <summary>
+        /// Loads the saved config. <paramref name="configWasInvalid"/> is true when the saved file
+        /// existed but could not be read/parsed, so the caller can warn the modeller that their
+        /// customized rules/materials were NOT used and generic defaults were substituted instead.
+        /// </summary>
+        public static DuctStandardsConfig Load(out bool configWasInvalid)
+        {
+            configWasInvalid = false;
             EnsureDefault();
             try
             {
                 string json = File.ReadAllText(ConfigPath);
                 var config = JsonConvert.DeserializeObject<DuctStandardsConfig>(json);
-                return config ?? CreateDefault();
+                if (config == null)
+                {
+                    configWasInvalid = true;
+                    return CreateDefault();
+                }
+
+                return config;
             }
             catch
             {
+                configWasInvalid = true;
                 return CreateDefault();
             }
         }

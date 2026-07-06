@@ -51,33 +51,52 @@ namespace AJTools.Services.DimensionByLine
                 if (!IsSectionOrElevation(view))
                     return Fail(title, "This tool only works in Section or Elevation views.");
 
-                if (!PrepareSketchPlane(doc, view))
-                    return Fail(title, "Could not prepare the view for selection.");
-
-                if (!PickDimensionLinePoints(uidoc, out var p1, out var p2))
-                    return Result.Cancelled;
-
-                var levelsToDim = GetLevelsToDimension(doc, view, p1, p2);
-                if (levelsToDim.Count < 2)
-                    return Fail(title, "Fewer than two levels were found within the picked range.");
-
-                using (Transaction t = new Transaction(doc, title))
+                // The sketch-plane setup and the final dimension are wrapped in one TransactionGroup so a
+                // cancelled or failed run rolls back the sketch-plane change too, instead of leaving a
+                // stray "Set Sketch Plane" undo entry with no dimension created.
+                using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
-                    try
-                    {
-                        t.Start();
-                        CreateLevelDimension(doc, view, levelsToDim, p1);
-                        t.Commit();
-                    }
-                    catch (Exception ex)
-                    {
-                        if (t.HasStarted() && !t.HasEnded())
-                            t.RollBack();
-                        return Fail(title, $"Failed to create level dimensions: {ex.Message}");
-                    }
-                }
+                    group.Start();
 
-                return Result.Succeeded;
+                    if (!PrepareSketchPlane(doc, view))
+                    {
+                        group.RollBack();
+                        return Fail(title, "Could not prepare the view for selection.");
+                    }
+
+                    if (!PickDimensionLinePoints(uidoc, out var p1, out var p2))
+                    {
+                        group.RollBack();
+                        return Result.Cancelled;
+                    }
+
+                    var levelsToDim = GetLevelsToDimension(doc, view, p1, p2);
+                    if (levelsToDim.Count < 2)
+                    {
+                        group.RollBack();
+                        return Fail(title, "Fewer than two levels were found within the picked range.");
+                    }
+
+                    using (Transaction t = new Transaction(doc, title))
+                    {
+                        try
+                        {
+                            t.Start();
+                            CreateLevelDimension(doc, view, levelsToDim, p1);
+                            t.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (t.HasStarted() && !t.HasEnded())
+                                t.RollBack();
+                            group.RollBack();
+                            return Fail(title, $"Failed to create level dimensions: {ex.Message}");
+                        }
+                    }
+
+                    group.Assimilate();
+                    return Result.Succeeded;
+                }
             }
             catch (Exception ex)
             {
@@ -110,40 +129,65 @@ namespace AJTools.Services.DimensionByLine
                 if (!isPlan && !isSection)
                     return Fail(title, "This tool only works in Plan, Section, or Elevation views.");
 
-                if (isSection && !PrepareSketchPlane(doc, view))
-                    return Fail(title, "Could not prepare the view for selection.");
-
-                if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
-                    return Result.Cancelled;
-
-                var gridLines = GetGridLinesInView(doc, view);
-                if (gridLines.Count < 2)
-                    return Fail(title, "Need at least two visible grids in this view.");
-
-                if (p1.DistanceTo(p2) < Constants.MIN_DISTANCE_TOLERANCE)
-                    return Result.Cancelled;
-
-                var gridsToDim = FilterGridLines(gridLines, view, p1, p2);
-                if (gridsToDim.Count < 2)
-                    return Fail(title, "Pick a line that crosses at least two visible grids in this view direction.");
-
-                using (Transaction t = new Transaction(doc, title))
+                // The sketch-plane setup (section/elevation only) and the final dimension are wrapped in
+                // one TransactionGroup so a cancelled or failed run rolls back the sketch-plane change
+                // too, instead of leaving a stray "Set Sketch Plane" undo entry with nothing dimensioned.
+                using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
-                    try
-                    {
-                        t.Start();
-                        CreateGridDimension(doc, view, gridsToDim, p1);
-                        t.Commit();
-                    }
-                    catch (Exception ex)
-                    {
-                        if (t.HasStarted() && !t.HasEnded())
-                            t.RollBack();
-                        return Fail(title, $"Failed to create grid dimensions: {ex.Message}");
-                    }
-                }
+                    group.Start();
 
-                return Result.Succeeded;
+                    if (isSection && !PrepareSketchPlane(doc, view))
+                    {
+                        group.RollBack();
+                        return Fail(title, "Could not prepare the view for selection.");
+                    }
+
+                    if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
+                    {
+                        group.RollBack();
+                        return Result.Cancelled;
+                    }
+
+                    var gridLines = GetGridLinesInView(doc, view);
+                    if (gridLines.Count < 2)
+                    {
+                        group.RollBack();
+                        return Fail(title, "Need at least two visible grids in this view.");
+                    }
+
+                    if (p1.DistanceTo(p2) < Constants.MIN_DISTANCE_TOLERANCE)
+                    {
+                        group.RollBack();
+                        return Result.Cancelled;
+                    }
+
+                    var gridsToDim = FilterGridLines(gridLines, view, p1, p2);
+                    if (gridsToDim.Count < 2)
+                    {
+                        group.RollBack();
+                        return Fail(title, "Pick a line that crosses at least two visible grids in this view direction.");
+                    }
+
+                    using (Transaction t = new Transaction(doc, title))
+                    {
+                        try
+                        {
+                            t.Start();
+                            CreateGridDimension(doc, view, gridsToDim, p1);
+                            t.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (t.HasStarted() && !t.HasEnded())
+                                t.RollBack();
+                            group.RollBack();
+                            return Fail(title, $"Failed to create grid dimensions: {ex.Message}");
+                        }
+                    }
+
+                    group.Assimilate();
+                    return Result.Succeeded;
+                }
             }
             catch (Exception ex)
             {
@@ -184,8 +228,9 @@ namespace AJTools.Services.DimensionByLine
 
                 return p1.DistanceTo(p2) >= Constants.MIN_DISTANCE_TOLERANCE;
             }
-            catch
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
+                // ESC is a normal cancel - a real failure must not be hidden the same way.
                 return false;
             }
         }
@@ -254,8 +299,9 @@ namespace AJTools.Services.DimensionByLine
                 p2 = uidoc.Selection.PickPoint(ObjectSnapTypes.None, "Pick the END point of the selection line");
                 return true;
             }
-            catch
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
+                // ESC is a normal cancel - a real failure must not be hidden the same way.
                 return false;
             }
         }

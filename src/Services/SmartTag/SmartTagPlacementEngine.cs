@@ -865,7 +865,10 @@ namespace AJTools.Services.SmartTag
                     ? new double[] { 0.5, 0.25, 0.75 } 
                     : new double[] { 0.5 };
 
-                bool[] leaderPasses = new bool[] { true, false };
+                // No-leader (normal offset) is tried FIRST, matching this method's own documented intent
+                // ("Tries the 4 cardinal positions at the configured offset"); the 3x leader offset is only
+                // used as a fallback when the no-leader pass scores lower or finds nothing at all.
+                bool[] leaderPasses = new bool[] { false, true };
 
                 foreach (bool tryLeader in leaderPasses)
                 {

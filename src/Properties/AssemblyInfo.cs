@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.0
+ * Version       : 1.10.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-03
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,34 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.10.0 (2026-07-03) - Added Opening split button in the MEP panel: Opening Settings
+ *                        saves element-specific shape and buffer rules, insulation handling,
+ *                        and merge distance; Create Openings generates direct openings for
+ *                        selected pipes, ducts, cable trays, and conduits in current-model
+ *                        walls, floors/slabs, and beams.
+ * v1.9.1 (2026-07-02) - Colorize follow-up fixes: Shuffle Colors no longer closes the window (it
+ *                       applies immediately, its own undo step, so it can be clicked repeatedly to
+ *                       keep re-shuffling until Close is pressed — matches Filter Pro's own action
+ *                       buttons); removed the Rule Type step entirely (Colorize now always matches
+ *                       selected values with Equals); fixed BuildOverrideSettings never turning on
+ *                       SetSurfaceForegroundPatternVisible/SetCutForegroundPatternVisible, which made
+ *                       the Projection/Cut Fill Pattern checkboxes silently do nothing in both Colorize
+ *                       and Filter Pro's own Shuffle Colors.
+ * v1.9.0 (2026-07-02) - Added Colorize tool (View panel): colorizes elements by category or by
+ *                       Filter-Pro-style parameter/rule/value matching directly in the active view (or
+ *                       any selected views) via per-element OverrideGraphicSettings — no
+ *                       ParameterFilterElement is ever created, unlike Filter Pro. UI mirrors Filter
+ *                       Pro's own Selection and Apply tabs (search/sort, rule types, multi-view apply
+ *                       scope) minus the Naming Convention tab and Create/Apply-To-View buttons, since
+ *                       Colorize has nothing persistent to name or save; a single Shuffle Colors action
+ *                       colorizes and applies in one step. Reuses Filter Pro's category/parameter/value
+ *                       data provider and colour palette; extracted FilterCreator's rule-building logic
+ *                       into shared FilterRuleBuilder and FilterApplier's override-construction logic
+ *                       into shared BuildOverrideSettings so both tools use the same engine. Ports and
+ *                       fixes the retired pyRevit Colorize tool (no view-type guard, no transaction
+ *                       rollback handling, and an O(categories x elements) counting loop in the old
+ *                       version).
+ *                       Filter Pro's own behaviour is unchanged.
  * v1.8.0 (2026-07-01) - Full project audit pass: added Pipe Sizing tool (MEP panel) with its own metadata,
  *                       report, and CSV export; hardened the AJ AI shell with GeneratedCodeSafetyValidator
  *                       (blocks process/registry/network/reflection/file-delete calls, flags destructive
@@ -82,5 +110,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.8.0.0")]
-[assembly: AssemblyFileVersion("1.8.0.0")]
+[assembly: AssemblyVersion("1.10.0.0")]
+[assembly: AssemblyFileVersion("1.10.0.0")]

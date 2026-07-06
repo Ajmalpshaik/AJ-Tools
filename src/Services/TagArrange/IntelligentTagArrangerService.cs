@@ -84,7 +84,7 @@ namespace AJTools.Services.TagArrange
             double verticalOffset = spacingMm * Constants.MM_TO_FEET * viewScale;
 
             bool hadCommit = false;
-            using (TransactionGroup tg = new TransactionGroup(doc, "Arrange Tags"))
+            using (TransactionGroup tg = new TransactionGroup(doc, "AJ Tools - Arrange Tags"))
             {
                 tg.Start();
 

@@ -110,7 +110,7 @@ namespace AJTools.Commands
 
             int centeredCount = 0;
 
-            using (Transaction transaction = new Transaction(doc, "Center Text/Label"))
+            using (Transaction transaction = new Transaction(doc, "AJ Tools - Center Text/Label"))
             {
                 transaction.Start();
 
@@ -271,6 +271,10 @@ namespace AJTools.Commands
             {
                 // Annotation family views normally have a crop box.
                 box = view.CropBox;
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            {
+                // Revit throws its own InvalidOperationException for view types with no crop box.
             }
             catch (InvalidOperationException)
             {

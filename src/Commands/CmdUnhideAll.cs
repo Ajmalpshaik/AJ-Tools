@@ -53,8 +53,8 @@ namespace AJTools.Commands
     [Regeneration(RegenerationOption.Manual)]
     public class CmdUnhideAll : IExternalCommand
     {
-        private const string ToolTitle = "AJ-Tools";
-        private const string TransactionName = "AJ-Tools: Unhide All";
+        private const string ToolTitle = "AJ Tools";
+        private const string TransactionName = "AJ Tools - Unhide All";
 
         public Result Execute(
             ExternalCommandData commandData,

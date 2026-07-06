@@ -32,6 +32,9 @@
  * v1.1.0 (2025-12-11) - Replaced shared Random with ThreadLocal<Random> for thread safety;
  *                        added unchecked Math.Abs guard for int.MinValue ElementIds.
  * v1.1.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ * v1.2.0 (2026-07-02) - Added GetColorAt(index) so the new Colorize tool can assign a distinct,
+ *                        stable palette colour per selected value by list position, without needing
+ *                        a real Revit ElementId to key off (it has no saved filter to key by).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -99,6 +102,16 @@ namespace AJTools.Models
         {
             int idx = _rand.Value.Next(Palette.Length);
             return Palette[idx];
+        }
+
+        /// <summary>
+        /// Returns a stable palette color by position (e.g. a value's index in a selection list).
+        /// Same index → same color, with no dependency on a Revit ElementId.
+        /// </summary>
+        public static Color GetColorAt(int index)
+        {
+            int safeIndex = unchecked(Math.Abs(index)) & 0x7FFFFFFF;
+            return Palette[safeIndex % Palette.Length];
         }
     }
 }

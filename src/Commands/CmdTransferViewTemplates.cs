@@ -120,9 +120,14 @@ namespace AJTools.Commands
             var selectedNamesSet = new HashSet<string>(selectedTemplateNames, StringComparer.OrdinalIgnoreCase);
             var replacedAssignments = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
 
+            // Capture which selected names already exist in the target BEFORE copying, so the summary
+            // can tell genuinely-new templates apart from ones reused from the target in non-override mode.
+            var existingTargetTemplateNames = new HashSet<string>(
+                CollectViewTemplates(targetDoc).Select(v => v.Name), StringComparer.OrdinalIgnoreCase);
+
             try
             {
-                using (var tg = new TransactionGroup(targetDoc, ToolTitle))
+                using (var tg = new TransactionGroup(targetDoc, "AJ Tools - Transfer View Templates"))
                 {
                     tg.Start();
 
@@ -178,7 +183,14 @@ namespace AJTools.Commands
             }
 
             int updatedCount = selectedTemplateNames.Count(name => replacedAssignments.ContainsKey(name));
-            int addedCount = selectedTemplateNames.Count - updatedCount;
+
+            // In non-override mode a selected template whose name already existed in the target is reused
+            // from the target (the duplicate-name handler keeps the destination copy), not added as new.
+            int reusedCount = overrideExisting
+                ? 0
+                : selectedTemplateNames.Count(name => !replacedAssignments.ContainsKey(name)
+                                                      && existingTargetTemplateNames.Contains(name));
+            int addedCount = selectedTemplateNames.Count - updatedCount - reusedCount;
 
             string summary = string.Format(
                 "{0} view template(s) transferred.\n\nFrom: {1}\nTo: {2}\n\nUpdated: {3}\nAdded New: {4}",
@@ -187,6 +199,11 @@ namespace AJTools.Commands
                 targetDoc.Title,
                 updatedCount,
                 addedCount);
+
+            if (reusedCount > 0)
+            {
+                summary += string.Format("\nAlready existed (kept target's): {0}", reusedCount);
+            }
 
             if (overrideExisting)
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -43,8 +44,19 @@ namespace AJTools.UI.DuctStandards
 
         private void LoadConfigAndPopulateUI()
         {
-            _config = DuctStandardsConfigService.Load();
+            _config = DuctStandardsConfigService.Load(out bool configWasInvalid);
             PopulateUI();
+
+            if (configWasInvalid)
+            {
+                MessageBox.Show(
+                    "Your saved Duct Standards configuration could not be read (it may be corrupted or was edited outside this tool). " +
+                    "Generic default rules and materials were loaded instead - your customized standard was NOT used.\n\n" +
+                    "Review the settings below and Save Config again once you're happy with them.",
+                    "Duct Standards Manager",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
 
         private void PopulateUI()
@@ -690,8 +702,33 @@ namespace AJTools.UI.DuctStandards
             if (!string.IsNullOrEmpty(pressureFilter) && pressureFilter != "All")
                 filtered = filtered.Where(r => string.Equals(r.Pressure, pressureFilter, StringComparison.OrdinalIgnoreCase));
 
+            if (_filteredRules != null)
+            {
+                _filteredRules.CollectionChanged -= FilteredRules_CollectionChanged;
+            }
+
             _filteredRules = new ObservableCollection<DuctRule>(filtered);
+            _filteredRules.CollectionChanged += FilteredRules_CollectionChanged;
             dgRules.ItemsSource = _filteredRules;
+        }
+
+        // The DataGrid's built-in new-row feature (CanUserAddRows) adds new rows directly to the bound
+        // _filteredRules collection, not to _allRules - without this, a rule typed straight into the grid
+        // would silently disappear on Save/Run or the moment a filter combo changes.
+        private void FilteredRules_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null || _allRules == null)
+            {
+                return;
+            }
+
+            foreach (DuctRule rule in e.NewItems)
+            {
+                if (rule != null && !_allRules.Contains(rule))
+                {
+                    _allRules.Add(rule);
+                }
+            }
         }
 
         // -------------------------------------------------------------------

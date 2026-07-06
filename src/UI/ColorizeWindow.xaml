@@ -1,0 +1,449 @@
+<!--
+  Tool Name     : Colorize
+  File Name     : ColorizeWindow.xaml
+  Purpose       : WPF layout for the Colorize window — mirrors Filter Pro's Selection and Apply tabs
+                  (same ModernStyles.xaml look, same category/parameter/value engine, same apply-scope
+                  + colour override options) but drops the Naming Convention section and the rule-type
+                  step entirely, and reduces the footer to a single "Shuffle Colors" action that
+                  colorizes and applies to the target view(s) on every click — there is no separate
+                  "Create" or "Apply To View" step because there is nothing persistent to create.
+  Author        : Ajmal P.S.
+  Version       : 2.2.0
+  Created Date  : 2026-07-02
+  Last Updated  : 2026-07-02
+  Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
+  Framework     : .NET Fx 4.7.2 (2020-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+  Dependencies  : ModernStyles.xaml (shared with Filter Pro)
+  Changelog     :
+    v1.0.0 (2026-07-02) - Initial release (custom dark-chrome layout).
+    v2.0.0 (2026-07-02) - Rebuilt to mirror FilterProWindow.xaml exactly (same ModernStyles.xaml,
+                          same Selection/Apply tab structure, category+parameter+value engine,
+                          multi-view apply scope). Dropped the Naming Convention section (filter-only
+                          concept) and reduced the footer to a single Shuffle Colors action.
+    v2.1.0 (2026-07-02) - Shuffle Colors applies on every click instead of closing the window.
+    v2.2.0 (2026-07-02) - Removed the Rule Type column entirely (Selection tab back to 3 columns:
+                          Categories | Parameter | Values); selected values always match with Equals.
+  License       : All Rights Reserved
+  Repo          : AJ-Tools
+-->
+<Window x:Class="AJTools.UI.ColorizeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Colorize"
+        Width="1360"
+        Height="860"
+        MinHeight="680"
+        MinWidth="1020"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section -->
+        <Border Grid.Row="0" Background="{StaticResource BackgroundMedium}" Padding="20,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Colorize"
+                               FontSize="26"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                               FontSize="12"
+                               Foreground="{StaticResource TextSecondary}"
+                               Margin="0,2,0,0"/>
+                    <TextBlock Text="Colorize elements directly by category or parameter value — no filters are created"
+                               FontSize="13"
+                               Foreground="{StaticResource TextSecondary}"
+                               Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <!-- Scope Section -->
+                <Border Grid.Column="2"
+                        Background="{StaticResource BackgroundLight}"
+                        CornerRadius="4"
+                        Padding="15,10"
+                        MinWidth="250">
+                    <StackPanel>
+                        <TextBlock Text="Apply Scope"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                        <TextBlock x:Name="apply_scope_text"
+                                   Text="Apply: Active View"
+                                   FontSize="14"
+                                   FontWeight="Medium"
+                                   Foreground="{StaticResource AccentGreen}"
+                                   Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1">
+            <TabControl Margin="20"
+                        Background="{StaticResource BackgroundMedium}"
+                        BorderBrush="{StaticResource AccentBlue}"
+                        BorderThickness="1">
+
+                <!-- Selection Tab -->
+                <TabItem Header="Selection">
+                    <Grid Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Categories -->
+                        <GroupBox Header="1. Select Categories"
+                                  Grid.Column="0"
+                                  Style="{StaticResource ModernGroupBox}"
+                                  Margin="0,0,5,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           Text="Choose element categories to colorize"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Margin="0,0,0,5"/>
+
+                                <Grid Grid.Row="1" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBox x:Name="category_search_textbox"
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 ToolTip="Filter the category list"/>
+                                    </Grid>
+
+                                    <ComboBox x:Name="category_sort_combobox"
+                                              Grid.Column="1"
+                                              SelectedIndex="0">
+                                        <ComboBoxItem Content="A to Z" Tag="az"/>
+                                        <ComboBoxItem Content="Z to A" Tag="za"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <ListBox x:Name="categories_listbox"
+                                         Grid.Row="2"
+                                         Style="{StaticResource ModernListBox}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                         SelectionMode="Extended" />
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Parameters -->
+                        <GroupBox Header="2. Select Parameter"
+                                  Grid.Column="1"
+                                  Style="{StaticResource ModernGroupBox}"
+                                  Margin="5,0,5,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           Text="Optional — leave unselected to colorize whole categories"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,5"/>
+
+                                <Grid Grid.Row="1" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBox x:Name="parameter_search_textbox"
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 ToolTip="Filter the parameter list"/>
+                                    </Grid>
+
+                                    <ComboBox x:Name="parameter_sort_combobox"
+                                              Grid.Column="1"
+                                              SelectedIndex="0">
+                                        <ComboBoxItem Content="A to Z" Tag="az"/>
+                                        <ComboBoxItem Content="Z to A" Tag="za"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <ListBox x:Name="parameters_listbox"
+                                         Grid.Row="2"
+                                         Style="{StaticResource ModernListBox}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                         SelectionMode="Single" />
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Values -->
+                        <GroupBox Header="3. Select Values"
+                                  Grid.Column="2"
+                                  Style="{StaticResource ModernGroupBox}"
+                                  Margin="5,0,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           Text="Choose values to colorize — each value gets its own color"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,5"/>
+
+                                <Grid Grid.Row="1" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBox x:Name="value_search_textbox"
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 ToolTip="Filter the value list"/>
+                                    </Grid>
+
+                                    <ComboBox x:Name="value_sort_combobox"
+                                              Grid.Column="1"
+                                              SelectedIndex="0">
+                                        <ComboBoxItem Content="A to Z" Tag="az"/>
+                                        <ComboBoxItem Content="Z to A" Tag="za"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <ListBox x:Name="values_listbox"
+                                         Grid.Row="2"
+                                         Style="{StaticResource ModernListBox}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItemSuccess}"
+                                         SelectionMode="Extended"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True" />
+                            </Grid>
+                        </GroupBox>
+                    </Grid>
+                </TabItem>
+
+                <!-- Apply Tab -->
+                <TabItem x:Name="apply_tab" Header="Apply (Active View)">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Margin="0,0,0,6" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Apply Scope:" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="apply_active_radio"
+                                     Grid.Column="1"
+                                     Content="Active View"
+                                     IsChecked="True"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Margin="8,0,0,0"/>
+                            <RadioButton x:Name="apply_multiple_radio"
+                                     Grid.Column="2"
+                                     Content="Selected Views"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Margin="8,0,0,0"/>
+                            <Button x:Name="refresh_views_button"
+                                    Grid.Column="4"
+                                    Style="{StaticResource ModernButton}"
+                                    MinWidth="130"
+                                    Margin="0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Content="Refresh Views"/>
+                        </Grid>
+
+                        <Grid Grid.Row="1">
+                            <GroupBox Header="Graphics Options" Style="{StaticResource ModernGroupBox}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0">
+                                        <CheckBox x:Name="color_proj_lines_checkbox"
+                                              Content="Projection / Surface Lines"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              IsChecked="True"/>
+                                        <CheckBox x:Name="color_cut_lines_checkbox"
+                                              Content="Cut Lines"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              IsChecked="True"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="1">
+                                        <CheckBox x:Name="color_proj_patterns_checkbox"
+                                              Content="Projection / Surface Patterns"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              IsChecked="True"/>
+                                        <CheckBox x:Name="color_cut_patterns_checkbox"
+                                              Content="Cut Patterns"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              IsChecked="True"/>
+                                        <CheckBox x:Name="color_halftone_checkbox"
+                                              Content="Halftone"
+                                              Style="{StaticResource ModernCheckBox}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,6,0,0">
+                                        <TextBlock Text="Pattern:" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="pattern_combo"
+                                              Width="240"
+                                              IsEditable="False"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="Id"
+                                              ToolTip="Fill pattern to use when pattern overrides are enabled (defaults to Solid Fill)."/>
+                                    </StackPanel>
+                                </Grid>
+                            </GroupBox>
+                        </Grid>
+
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <GroupBox Header="Active View" Grid.Column="0" Style="{StaticResource ModernGroupBox}">
+                                <StackPanel>
+                                    <TextBlock Text="Current active view:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="active_view_name_text"
+                                           Text="(none)"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimary}"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <GroupBox Header="Select Views to Colorize" Grid.Column="1" Style="{StaticResource ModernGroupBox}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0"
+                                           Text="Choose one or more views when 'Selected Views' is enabled."
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Margin="0,0,0,6"/>
+                                    <ListBox x:Name="views_listbox"
+                                         Grid.Row="1"
+                                         Style="{StaticResource ModernListBox}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                         SelectionMode="Extended"
+                                         IsEnabled="False"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True"
+                                         DisplayMemberPath="Display"/>
+                                </Grid>
+                            </GroupBox>
+                        </Grid>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+
+            <Border x:Name="loading_indicator"
+                    Grid.Row="0"
+                    Background="{StaticResource OverlayBackground}"
+                    Visibility="Collapsed">
+                <TextBlock Text="Loading, please wait..."
+                           Foreground="{StaticResource TextPrimary}"
+                           FontSize="18"
+                           FontWeight="Medium"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Border>
+        </Grid>
+
+        <!-- Footer Section -->
+        <Border Grid.Row="2" Background="{StaticResource BackgroundMedium}" Padding="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status Text -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Status: "
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextSecondary}"
+                               FontSize="12"/>
+                    <TextBlock x:Name="status_text"
+                               Text="Ready"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontSize="12"/>
+                </StackPanel>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="shuffle_colors_button"
+                            Style="{StaticResource SuccessButton}"
+                            MinWidth="160"
+                            Margin="0,0,20,0"
+                            Content="Shuffle Colors"/>
+
+                    <Button x:Name="close_button"
+                            Style="{StaticResource DangerButton}"
+                            MinWidth="110"
+                            IsCancel="True"
+                            Margin="10,0,0,0"
+                            Content="Close"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -470,7 +470,7 @@ namespace AJTools.UI
             {
                 SetBusy(true, "Creating parameters...");
                 int count;
-                using (var t = new Transaction(_doc, "Create Location Data Parameters"))
+                using (var t = new Transaction(_doc, "AJ Tools - Create Location Data Parameters"))
                 {
                     t.Start();
                     count = CreateParameters(specs, _allCategories.Where(c => c.IsChecked).ToList());
@@ -824,7 +824,7 @@ namespace AJTools.UI
             ProcessProgressBar.Maximum = Math.Max(1, elements.Count);
             ProcessProgressBar.Value = 0;
 
-            using (var t = new Transaction(_doc, "Assign Location Data"))
+            using (var t = new Transaction(_doc, "AJ Tools - Assign Location Data"))
             {
                 t.Start();
 
@@ -1054,8 +1054,8 @@ namespace AJTools.UI
                     return wrote;
                 }
 
-                bool e = SetDoubleOnElementAndType(el, map.Easting, c.X, true, out bool _);
-                bool n = SetDoubleOnElementAndType(el, map.Northing, c.Y, true, out bool _);
+                bool e = SetDoubleOnElementAndType(el, map.Easting, c.X, options.OverwriteText, out bool _);
+                bool n = SetDoubleOnElementAndType(el, map.Northing, c.Y, options.OverwriteText, out bool _);
                 wrote |= e || n;
                 if (!e || !n)
                     AddReason(result, options.Debug, "Coordinate write");
@@ -1069,7 +1069,7 @@ namespace AJTools.UI
                     return wrote;
                 }
 
-                bool a = SetDoubleOnElementAndType(el, map.Altitude, c.Z, true, out bool _);
+                bool a = SetDoubleOnElementAndType(el, map.Altitude, c.Z, options.OverwriteText, out bool _);
                 wrote |= a;
                 if (!a)
                     AddReason(result, options.Debug, "Coordinate write");

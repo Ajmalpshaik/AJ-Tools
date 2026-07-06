@@ -30,14 +30,14 @@ namespace AJTools.GeminiShell.Services
 
         private string _cachedModelName = null;
 
-        private async Task<string> GetBestGeminiModelAsync(string apiKey)
+        private async Task<string> GetBestGeminiModelAsync(string apiKey, CancellationToken cancellationToken = default)
         {
             if (_cachedModelName != null) return _cachedModelName;
 
             string url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
             try
             {
-                var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
+                var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
                     return "gemini-1.5-flash"; // fallback
@@ -74,16 +74,31 @@ namespace AJTools.GeminiShell.Services
 
                 if (selectedModel == null)
                 {
-                     throw new Exception("No Gemini models supporting generateContent were found for your API key.");
+                     throw new NoGeminiModelsFoundException("No Gemini models supporting generateContent were found for your API key.");
                 }
 
                 _cachedModelName = selectedModel;
                 return selectedModel;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw; // user pressed Stop - let cancellation propagate instead of hiding it behind the fallback
+            }
+            catch (NoGeminiModelsFoundException)
+            {
+                // The API key genuinely has no usable model - the user needs to see this specific
+                // message, not have it silently replaced by a fallback model that will fail the same way.
+                throw;
+            }
             catch (Exception)
             {
-                return "gemini-1.5-flash"; // fallback on any error
+                return "gemini-1.5-flash"; // fallback on transport/parsing errors only
             }
+        }
+
+        private sealed class NoGeminiModelsFoundException : Exception
+        {
+            public NoGeminiModelsFoundException(string message) : base(message) { }
         }
 
         public async Task<string> SendMessageAsync(List<GeminiMessage> history, string systemPrompt = null, CancellationToken cancellationToken = default)
@@ -95,7 +110,7 @@ namespace AJTools.GeminiShell.Services
             }
 
             // Dynamically select the best available model for this API key
-            string modelName = await GetBestGeminiModelAsync(apiKey).ConfigureAwait(false);
+            string modelName = await GetBestGeminiModelAsync(apiKey, cancellationToken).ConfigureAwait(false);
             string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={apiKey}";
 
             var requestBody = new GeminiRequest();

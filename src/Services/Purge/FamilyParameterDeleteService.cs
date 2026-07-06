@@ -36,7 +36,7 @@ namespace AJTools.Services.Purge
                 return result;
             }
 
-            using (var group = new TransactionGroup(_doc, "Purge Unused Family Parameters"))
+            using (var group = new TransactionGroup(_doc, "AJ Tools - Purge Unused Family Parameters"))
             {
                 group.Start();
                 bool hasCommit = false;

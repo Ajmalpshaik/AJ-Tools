@@ -102,10 +102,11 @@ namespace AJTools.Commands
 
                 const string targetPrompt = "Select TARGET dimension (ESC to finish)";
                 int pastedCount = 0;
+                int skippedCount = 0;
 
                 // 2) Loop: pick TARGET dimensions until ESC. The whole session is grouped so a single
                 //    Ctrl+Z reverses every pasted dimension.
-                using (TransactionGroup group = new TransactionGroup(doc, "AJ-Tools: Copy Dimension Text"))
+                using (TransactionGroup group = new TransactionGroup(doc, "AJ Tools - Copy Dimension Text"))
                 {
                     group.Start();
 
@@ -131,19 +132,29 @@ namespace AJTools.Commands
 
                         using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
                         {
-                            t.Start();
-                            ApplyDimensionText(
-                                targetDim,
-                                textAbove,
-                                textBelow,
-                                textPrefix,
-                                textSuffix,
-                                copyValueOverride,
-                                valueOverride);
-                            t.Commit();
+                            try
+                            {
+                                t.Start();
+                                ApplyDimensionText(
+                                    targetDim,
+                                    textAbove,
+                                    textBelow,
+                                    textPrefix,
+                                    textSuffix,
+                                    copyValueOverride,
+                                    valueOverride);
+                                t.Commit();
+                                pastedCount++;
+                            }
+                            catch (Exception)
+                            {
+                                // One unsupported target (e.g. a multi-segment dimension) must not roll back
+                                // every dimension already pasted earlier in this session - skip it and continue.
+                                if (t.HasStarted() && !t.HasEnded())
+                                    t.RollBack();
+                                skippedCount++;
+                            }
                         }
-
-                        pastedCount++;
                     }
 
                     if (pastedCount > 0)
@@ -159,7 +170,13 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                // No final success popup (as per your style) – just silent success
+                if (skippedCount > 0)
+                {
+                    DialogHelper.ShowInfo(
+                        "Copy Dim Text",
+                        $"Pasted to {pastedCount} dimension(s). Skipped {skippedCount} unsupported target(s) (e.g. multi-segment dimensions).");
+                }
+
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
