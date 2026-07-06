@@ -5,8 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$supportedNetFrameworkVersions = @(2020, 2021, 2022, 2023, 2024)
-$modernNetRequiredVersions = @(2025, 2026, 2027)
+$needsModernNetReviewVersions = @(2025, 2026, 2027)
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -100,27 +99,17 @@ if ($AllUsers) {
 
 $installTargets = Get-InstallTargets -Versions $RevitVersions -IncludeAllUsers:$AllUsers
 $installedVersions = New-Object System.Collections.Generic.List[int]
-$skippedVersions = New-Object System.Collections.Generic.List[int]
+$needsReviewVersions = New-Object System.Collections.Generic.List[int]
 
 foreach ($target in $installTargets) {
     $version = [int]$target.Version
 
-    if ($modernNetRequiredVersions -contains $version) {
-        if (-not $skippedVersions.Contains($version)) {
-            $skippedVersions.Add($version)
+    if ($needsModernNetReviewVersions -contains $version) {
+        if (-not $needsReviewVersions.Contains($version)) {
+            $needsReviewVersions.Add($version)
         }
 
-        Write-Warning "Skipping Revit $version. This package is a .NET Framework/Revit 2020-2024 build. Revit $version requires a separate modern .NET build."
-        continue
-    }
-
-    if (-not ($supportedNetFrameworkVersions -contains $version)) {
-        if (-not $skippedVersions.Contains($version)) {
-            $skippedVersions.Add($version)
-        }
-
-        Write-Warning "Skipping Revit $version. AJ Tools has not been configured for this Revit version."
-        continue
+        Write-Warning "Installing AJ Tools files for Revit $version as requested. NEEDS_REVIEW: update this package with the matching modern .NET/Revit API build before relying on Revit $version."
     }
 
     $addinRoot = $target.AddinRoot
@@ -180,8 +169,8 @@ if ($installedVersions.Count -gt 0) {
     Write-Host "Installed Revit versions: $installedVersionText"
 }
 
-if ($skippedVersions.Count -gt 0) {
-    $skippedVersionText = [string]::Join(", ", @($skippedVersions | Sort-Object | ForEach-Object { $_.ToString() }))
-    Write-Host "Skipped Revit versions: $skippedVersionText"
-    Write-Host "NEEDS_REVIEW: Revit 2025-2027 require separate modern .NET build outputs before they can be installed."
+if ($needsReviewVersions.Count -gt 0) {
+    $needsReviewVersionText = [string]::Join(", ", @($needsReviewVersions | Sort-Object | ForEach-Object { $_.ToString() }))
+    Write-Host "Compatibility review needed for Revit versions: $needsReviewVersionText"
+    Write-Host "NEEDS_REVIEW: Revit 2025-2027 are staged by this installer, but still require the next modern .NET/Revit API package update."
 }

@@ -29,7 +29,7 @@ The package script builds the add-in, stages the install payload in `dist\`, and
 
 - `dist\release\AJ-Tools-vX.Y.Z.zip`
 
-The current package installs for Revit 2020-2024. The installer script contains Revit 2025-2027 entries, but skips those versions with a `NEEDS_REVIEW` message because they require a separate modern .NET build.
+The current package stages AJ Tools for Revit 2020-2027. Revit 2025-2027 are installed as requested, but the installer prints a `NEEDS_REVIEW` message because those versions still require the next modern .NET/Revit API build.
 
 ## Install From GitHub Release
 
@@ -38,7 +38,7 @@ The current package installs for Revit 2020-2024. The installer script contains 
 3. Run one of these scripts from the extracted `AJ-Tools-vX.Y.Z` folder:
    - `install.cmd` for current user
    - `install-all-users.cmd` for current user + all users (run as Administrator)
-4. Start Revit 2020, 2021, 2022, 2023, or 2024 and confirm the `AJ Tools` tab is visible.
+4. Start Revit 2020-2027 and confirm the `AJ Tools` tab is visible.
 
 The installer unblocks downloaded files automatically to avoid Revit `0x80131515` / `FileLoadException` errors.
 
@@ -59,7 +59,7 @@ The installer unblocks downloaded files automatically to avoid Revit `0x80131515
 ## Manual Install
 
 1. Build Release in Visual Studio or run `dist\package.ps1`.
-2. Create add-in payload directory for each supported version you need:
+2. Create add-in payload directory for each version you need:
    - Current user: `%APPDATA%\Autodesk\Revit\Addins\<version>\AJ Tools`
    - All users: `%PROGRAMDATA%\Autodesk\Revit\Addins\<version>\AJ Tools`
 3. Copy these into that `AJ Tools` folder:
