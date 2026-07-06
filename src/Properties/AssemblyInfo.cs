@@ -5,13 +5,13 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.11.0
+ * Version       : 1.11.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-06
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
- * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
+ * Framework     : .NET Fx 4.7.2 (2020) / .NET Fx 4.8 (2021-2024) | .NET 8 (2025-2026) | .NET 10 (2027)
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : System.Reflection, System.Runtime.InteropServices
@@ -24,6 +24,9 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.11.1 (2026-07-06) - Split Revit 2020-2024 packaging into separate
+ *                        API-specific legacy builds using matching Revit SDK
+ *                        reference packages.
  * v1.11.0 (2026-07-06) - Added modern Revit builds: Revit 2025-2026 target
  *                        .NET 8 and Revit 2027 targets .NET 10, with
  *                        versioned installer payloads for 2020-2027.
@@ -116,5 +119,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.11.0.0")]
-[assembly: AssemblyFileVersion("1.11.0.0")]
+[assembly: AssemblyVersion("1.11.1.0")]
+[assembly: AssemblyFileVersion("1.11.1.0")]

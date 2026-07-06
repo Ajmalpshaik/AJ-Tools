@@ -2,7 +2,7 @@
 
 AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit.
 
-Current suite version: **1.11.0**
+Current suite version: **1.11.1**
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
@@ -10,7 +10,7 @@ This repository owns the source code, build and packaging scripts, internal rele
 
 - C# Revit add-in source repository
 - WPF/XAML user interfaces
-- Revit 2020 API target for the .NET Framework package
+- Revit 2020-2024 API-specific .NET Framework package targets
 - Revit 2025-2026 modern .NET 8 package target
 - Revit 2027 modern .NET 10 package target
 - No pyRevit `.extension`, `.tab`, `.panel`, or `.pushbutton` structure is present in this repository
@@ -18,18 +18,19 @@ This repository owns the source code, build and packaging scripts, internal rele
 ## Compatibility
 
 - Autodesk Revit 2020-2027 installer support
-- .NET Framework 4.7.2 for Revit 2020-2024
+- .NET Framework 4.7.2 for Revit 2020
+- .NET Framework 4.8 for Revit 2021-2024
 - .NET 8 for Revit 2025-2026
 - .NET 10 for Revit 2027
 - Windows x64
 
-The release package contains versioned payloads so the installer deploys the matching AJ Tools build for each Revit runtime.
+The release package contains versioned payloads so the installer deploys the matching AJ Tools build for each Revit runtime and API generation.
 
 ## Technology Stack
 
 - C#
-- .NET Framework 4.7.2, .NET 8, and .NET 10
-- Autodesk Revit API references for Revit 2020, 2025, 2026, and 2027 package builds
+- .NET Framework 4.7.2, .NET Framework 4.8, .NET 8, and .NET 10
+- Autodesk Revit API references for Revit 2020-2027 package builds
 - WPF/XAML
 - `Newtonsoft.Json`
 - `AvalonEdit`, `CommunityToolkit.Mvvm`, and Roslyn scripting for the AI shell
@@ -94,11 +95,9 @@ The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab pl
 
 ## Build From Source
 
-1. Install Autodesk Revit 2020 on the build machine.
-2. Open `AJ Tools.sln` in Visual Studio 2019 or 2022.
-3. Confirm the Revit API DLLs exist at:
-   - `C:\Program Files\Autodesk\Revit 2020\RevitAPI.dll`
-   - `C:\Program Files\Autodesk\Revit 2020\RevitAPIUI.dll`
+1. Install Visual Studio 2022 with the .NET Framework 4.7.2 and 4.8 targeting packs.
+2. Install the .NET 8 SDK and .NET 10 SDK, or keep the local `.dotnet-sdk` folder populated for packaging.
+3. Install Autodesk Revit 2027, or provide `RevitInstallDir` for Revit 2027 API references.
 4. Package the release payload:
 
 ```powershell

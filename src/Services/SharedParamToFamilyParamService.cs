@@ -13,7 +13,7 @@ using Autodesk.Revit.DB;
 using AJTools.Models;
 using AJTools.Utils;
 
-#if REVIT2024_OR_GREATER
+#if REVIT2023_OR_GREATER
 using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
 #else
 using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;

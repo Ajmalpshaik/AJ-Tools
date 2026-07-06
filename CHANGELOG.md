@@ -7,6 +7,19 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.11.1] - 2026-07-06
+
+- Split Revit 2020-2024 into separate .NET Framework package payloads built against matching Revit API reference packages.
+- Revit 2020 now targets .NET Framework 4.7.2, while Revit 2021-2024 target .NET Framework 4.8.
+- The installer now prefers exact per-year payload folders before the old shared `2020-2024` fallback.
+- Release packaging now produces API-specific payloads for all supported Revit versions from 2020 through 2027.
+
+## [1.11.0] - 2026-07-06
+
+- Added modern Revit builds for Revit 2025-2026 on .NET 8 and Revit 2027 on .NET 10.
+- Added versioned installer payload folders for the modern Revit runtimes.
+- Updated installer packaging to deploy the matching payload for Revit 2020-2027.
+
 ## [1.10.1] - 2026-07-06
 
 - Updated the installer to stage AJ Tools folders and `.addin` manifests for Revit 2020-2027.

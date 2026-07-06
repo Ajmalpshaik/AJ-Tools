@@ -657,7 +657,7 @@ namespace AJTools.Services.HvacSchematic
                 return string.Empty;
             }
 
-#if REVIT2024_OR_GREATER
+#if REVIT2022_OR_GREATER
             return UnitFormatUtils.Format(_document.GetUnits(), SpecTypeId.AirFlow, bestMagnitude, false);
 #else
             return UnitFormatUtils.Format(_document.GetUnits(), UnitType.UT_HVAC_Airflow, bestMagnitude, false, false);
