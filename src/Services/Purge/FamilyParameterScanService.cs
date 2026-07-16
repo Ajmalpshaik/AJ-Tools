@@ -174,8 +174,8 @@ namespace AJTools.Services.Purge
             {
                 ParameterIdValue = parameterId,
                 ParameterName = parameter.Definition.Name ?? string.Empty,
-                ParameterTypeText = SharedParamUtils.GetParameterTypeLabel(SharedParamUtils.GetDefinitionDataType(parameter.Definition)),
-                ParameterGroupText = SharedParamUtils.GetGroupLabel(SharedParamUtils.GetDefinitionGroupId(parameter.Definition)),
+                ParameterTypeText = SharedParamUtils.GetParameterTypeLabel(RevitCompat.GetDataType(parameter.Definition)),
+                ParameterGroupText = SharedParamUtils.GetGroupLabel(RevitCompat.GetGroup(parameter.Definition)),
                 StorageTypeText = parameter.StorageType.ToString(),
                 IsInstance = parameter.IsInstance,
                 IsShared = parameter.IsShared,
@@ -229,8 +229,8 @@ namespace AJTools.Services.Purge
         {
             var lines = new List<string>
             {
-                "Group: " + SharedParamUtils.GetGroupLabel(SharedParamUtils.GetDefinitionGroupId(parameter.Definition)),
-                "Parameter Type: " + SharedParamUtils.GetParameterTypeLabel(SharedParamUtils.GetDefinitionDataType(parameter.Definition)),
+                "Group: " + SharedParamUtils.GetGroupLabel(RevitCompat.GetGroup(parameter.Definition)),
+                "Parameter Type: " + SharedParamUtils.GetParameterTypeLabel(RevitCompat.GetDataType(parameter.Definition)),
                 "Storage: " + parameter.StorageType,
                 "Shared GUID: " + (parameter.IsShared ? SafeGetGuid(parameter).ToString() : "N/A"),
                 "Formula: " + (string.IsNullOrWhiteSpace(formula) ? "None" : formula),
@@ -350,7 +350,7 @@ namespace AJTools.Services.Purge
                     continue;
                 }
 
-                if (AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(id))
+                if (parameter.Id.IntValue() == id.IntValue())
                 {
                     return parameter;
                 }
@@ -428,7 +428,7 @@ namespace AJTools.Services.Purge
                 return int.MinValue;
             }
 
-            return AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id);
+            return parameter.Id.IntValue();
         }
     }
 }

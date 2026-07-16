@@ -2,11 +2,11 @@
 /*
  * Tool Name     : AJ Annotation Ribbon Manager
  * File Name     : AnnotationRibbonManager.cs
- * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimension, Dimensions,
- *                 Annotation, Family, Tags) and every dimension, tag, flow, revision-cloud, and text tool.
+ * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimention, Dimensions,
+ *                 Annotation, Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-05-10
  * Last Updated  : 2026-07-01
@@ -27,6 +27,7 @@
  * Changelog     :
  * v1.0.0 (2026-05-10) - Initial AJ Annotation tab with dimension, tag, flow, cloud, and text tools.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block. Ribbon layout unchanged.
+ * v1.2.0 (2026-07-05) - Added the "Text" panel with the Arrange Text in Box tool.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -34,7 +35,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using Autodesk.Revit.UI;
 using AJTools.Commands;
@@ -49,7 +49,7 @@ namespace AJTools.App
     internal sealed class AnnotationRibbonManager
     {
         private const string TabName = "AJ Annotation";
-        private const string DimensionPanelName = "Auto Dimension";
+        private const string DimensionPanelName = "Auto Dimention";
         private const string QuickDimensionIcon = "Dimensions by Line.png";
 
         private readonly UIControlledApplication _app;
@@ -88,6 +88,26 @@ namespace AJTools.App
 
             RibbonPanel tagsPanel = GetOrCreatePanel("Tags");
             AddTagsPanelTools(tagsPanel);
+
+            RibbonPanel textPanel = GetOrCreatePanel("Text");
+            AddTextPanelTools(textPanel);
+        }
+
+        private void AddTextPanelTools(RibbonPanel panel)
+        {
+            if (panel == null)
+                return;
+
+            PushButtonData arrangeTextData = new PushButtonData("cmdArrangeTextInBox", "Arrange Text\nin Box", _assemblyPath, typeof(CmdArrangeTextInBox).FullName)
+            {
+                ToolTip = "Fit selected text notes into a box you drag: each note is resized to the box width and the notes are spread evenly top-to-bottom with left edges aligned. Pick the top-left corner once, then pick bottom-right corners to re-fit live. Press Esc to finish."
+            };
+            var largeIcon = _iconLoader.LoadLarge("copyswaptext.png");
+            if (largeIcon != null) arrangeTextData.LargeImage = largeIcon;
+            var smallIcon = _iconLoader.LoadSmall("copyswaptext.png");
+            if (smallIcon != null) arrangeTextData.Image = smallIcon;
+
+            panel.AddItem(arrangeTextData);
         }
 
         private void AddTagsPanelTools(RibbonPanel panel)
@@ -185,23 +205,7 @@ namespace AJTools.App
             var textToolsSmallIcon = _iconLoader.LoadSmall("copyswaptext.png");
             if (textToolsSmallIcon != null) textToolsData.Image = textToolsSmallIcon;
 
-            IList<RibbonItem> stackedItems;
-            try
-            {
-                stackedItems = panel.AddStackedItems(ductFlowData, revisionCloudData, textToolsData);
-            }
-            catch (Exception)
-            {
-                // Some Revit versions reject a SplitButton stacked alongside pulldown buttons.
-                // Fall back to adding each item on its own so the ribbon (and the whole add-in) still loads.
-                stackedItems = new List<RibbonItem>();
-                RibbonItem ductFlowItem = panel.AddItem(ductFlowData);
-                if (ductFlowItem != null) stackedItems.Add(ductFlowItem);
-                RibbonItem revisionCloudItem = panel.AddItem(revisionCloudData);
-                if (revisionCloudItem != null) stackedItems.Add(revisionCloudItem);
-                RibbonItem textToolsItem = panel.AddItem(textToolsData);
-                if (textToolsItem != null) stackedItems.Add(textToolsItem);
-            }
+            var stackedItems = panel.AddStackedItems(ductFlowData, revisionCloudData, textToolsData);
 
             if (stackedItems.Count >= 3)
             {
@@ -287,7 +291,7 @@ namespace AJTools.App
 
             PulldownButtonData pulldownData = new PulldownButtonData(
                 "cmdAutoDuctDimensionPulldown",
-                "Auto Duct\nDimension");
+                "Auto Duct\nDimention");
 
             var largeIcon = _iconLoader.LoadLarge(QuickDimensionIcon);
             if (largeIcon != null)

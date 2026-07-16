@@ -40,6 +40,7 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using AJTools.Models;
 
+using AJTools.Utils;
 namespace AJTools.Services.FilterPro
 {
     /// <summary>
@@ -182,7 +183,7 @@ namespace AJTools.Services.FilterPro
 
                         ElementId eid = item.ElementId ?? item.RawValue as ElementId ?? ElementId.InvalidElementId;
                         return eid != null && eid != ElementId.InvalidElementId &&
-                               AJTools.Utils.ElementIdHelper.GetIntegerValue(eid) == key.ElementIdValue.Value;
+                               eid.IntValue() == key.ElementIdValue.Value;
                     }
 
                 default:

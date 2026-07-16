@@ -206,10 +206,7 @@ namespace AJTools.Services.LevelExtents
             IEnumerable<View> candidates = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(v => !v.IsTemplate &&
-                            (v.ViewType == ViewType.Elevation ||
-                             v.ViewType == ViewType.Section ||
-                             v.ViewType == ViewType.ThreeD));
+                .Where(v => !v.IsTemplate);
 
             foreach (View v in candidates)
             {

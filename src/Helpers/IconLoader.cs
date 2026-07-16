@@ -63,24 +63,15 @@ namespace AJTools.Utils
                 return null;
             }
 
-            try
-            {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.UriSource = new Uri(path, UriKind.Absolute);
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.DecodePixelWidth = decodePixels;
-                bmp.DecodePixelHeight = decodePixels;
-                bmp.EndInit();
-                bmp.Freeze();
-                return NormalizeDpi(bmp);
-            }
-            catch (Exception)
-            {
-                // A corrupt, unsupported, or locked icon file must not abort ribbon creation
-                // (and therefore the whole add-in load). Fall back to the no-icon contract.
-                return null;
-            }
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri(path, UriKind.Absolute);
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.DecodePixelWidth = decodePixels;
+            bmp.DecodePixelHeight = decodePixels;
+            bmp.EndInit();
+            bmp.Freeze();
+            return NormalizeDpi(bmp);
         }
 
         private static BitmapSource NormalizeDpi(BitmapSource source)

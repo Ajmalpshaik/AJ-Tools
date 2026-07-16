@@ -1,4 +1,4 @@
-// Tool Name: Smart Connect - Route Builder
+﻿// Tool Name: Smart Connect - Route Builder
 // Description: Creates Smart Connect routing geometry and fittings between two MEP elements.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -25,8 +25,8 @@ namespace AJTools.Services.SmartConnect
         private const double AngleToleranceDegrees = 2.5;
         private const double SizeComparisonTolerance = 1e-8;
         private const double QuarterTurnRadians = Math.PI * 0.5;
-        private static readonly double MinSegmentLength = ConvertMillimetersToInternal(10.0);
-        private static readonly double MinRunLength = ConvertMillimetersToInternal(50.0);
+        private static readonly double MinSegmentLength = RevitCompat.MmToInternal(10.0);
+        private static readonly double MinRunLength = RevitCompat.MmToInternal(50.0);
 
         private readonly Document _document;
 
@@ -1305,16 +1305,7 @@ namespace AJTools.Services.SmartConnect
 
         private static bool IsInvalidId(ElementId value)
         {
-            return value == null || value == ElementId.InvalidElementId || ElementIdHelper.GetIntegerValue(value) <= 0;
-        }
-
-        private static double ConvertMillimetersToInternal(double value)
-        {
-#if REVIT2022_OR_GREATER
-            return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
-#else
-            return UnitUtils.ConvertToInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
-#endif
+            return value == null || value == ElementId.InvalidElementId || value.IntValue() <= 0;
         }
 
         private static double DegreesToRadians(double degrees)

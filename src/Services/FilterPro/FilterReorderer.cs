@@ -48,18 +48,8 @@ namespace AJTools.Services.FilterPro
     internal static class FilterReorderer
     {
         // Cache last known UI order per view to avoid relying on Revit 2020 GetFilters ordering.
-        // Keyed by a document-qualified string because view ids are only unique within one document,
-        // so two open projects could otherwise cross-contaminate each other's cached filter order.
-        private static readonly Dictionary<string, List<ElementId>> _lastKnownOrderByView
-            = new Dictionary<string, List<ElementId>>();
-
-        private static string BuildViewKey(Document doc, View view)
-        {
-            string docKey = doc?.PathName;
-            if (string.IsNullOrEmpty(docKey))
-                docKey = doc?.Title ?? "unknown";
-            return docKey + "|" + AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id);
-        }
+        private static readonly Dictionary<int, List<ElementId>> _lastKnownOrderByView
+            = new Dictionary<int, List<ElementId>>();
 
         internal static void ReorderFiltersInView(Document doc,
                                                   View view,
@@ -85,13 +75,13 @@ namespace AJTools.Services.FilterPro
                 if (!newFilters.Any() && !liveClean.Any())
                     return;
 
-                var baseline = BuildBaseline(doc, view, liveClean);
+                var baseline = BuildBaseline(view, liveClean);
                 var desiredOrder = BuildDesiredOrder(newFilters, baseline);
 
                 if (IsOrderIdentical(baseline, desiredOrder))
                 {
                     UpdateGraphicsForNewFilters(doc, view, newFilters, selection, solidFillId, skipped);
-                    _lastKnownOrderByView[BuildViewKey(doc, view)] = desiredOrder.ToList();
+                    _lastKnownOrderByView[view.Id.IntValue()] = desiredOrder.ToList();
                     return;
                 }
 
@@ -100,7 +90,7 @@ namespace AJTools.Services.FilterPro
                 RemoveAllFilters(view, liveClean);
                 ReapplyFilters(doc, view, desiredOrder, newFilters, selection, solidFillId, overridesMap, visibilityMap, skipped);
 
-                _lastKnownOrderByView[BuildViewKey(doc, view)] = desiredOrder.ToList();
+                _lastKnownOrderByView[view.Id.IntValue()] = desiredOrder.ToList();
             }
             catch (Exception ex)
             {
@@ -127,19 +117,19 @@ namespace AJTools.Services.FilterPro
                 .ToList();
         }
 
-        private static List<ElementId> BuildBaseline(Document doc, View view, List<ElementId> liveClean)
+        private static List<ElementId> BuildBaseline(View view, List<ElementId> liveClean)
         {
-            var key = BuildViewKey(doc, view);
+            var key = view.Id.IntValue();
             if (_lastKnownOrderByView.TryGetValue(key, out var snapshot) && snapshot != null)
             {
-                var snapIds = new HashSet<int>(liveClean.Select(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x)));
+                var snapIds = new HashSet<int>(liveClean.Select(x => x.IntValue()));
                 var baseline = snapshot
-                    .Where(id => snapIds.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
+                    .Where(id => snapIds.Contains(id.IntValue()))
                     .ToList();
 
                 foreach (var id in liveClean)
                 {
-                    if (!baseline.Any(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x) == AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
+                    if (!baseline.Any(x => x.IntValue() == id.IntValue()))
                         baseline.Add(id);
                 }
 
@@ -151,19 +141,19 @@ namespace AJTools.Services.FilterPro
 
         private static List<ElementId> BuildDesiredOrder(List<ElementId> newFilters, List<ElementId> baseline)
         {
-            var newSet = new HashSet<int>(newFilters.Select(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x)));
+            var newSet = new HashSet<int>(newFilters.Select(x => x.IntValue()));
             var desiredOrder = new List<ElementId>();
 
             foreach (var id in newFilters)
             {
-                if (!desiredOrder.Any(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x) == AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
+                if (!desiredOrder.Any(x => x.IntValue() == id.IntValue()))
                     desiredOrder.Add(id);
             }
 
             foreach (var id in baseline)
             {
-                if (!newSet.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(id)) &&
-                    !desiredOrder.Any(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x) == AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
+                if (!newSet.Contains(id.IntValue()) &&
+                    !desiredOrder.Any(x => x.IntValue() == id.IntValue()))
                 {
                     desiredOrder.Add(id);
                 }
@@ -179,7 +169,7 @@ namespace AJTools.Services.FilterPro
 
             for (int i = 0; i < baseline.Count; i++)
             {
-                if (AJTools.Utils.ElementIdHelper.GetIntegerValue(baseline[i]) != AJTools.Utils.ElementIdHelper.GetIntegerValue(desiredOrder[i]))
+                if (baseline[i].IntValue() != desiredOrder[i].IntValue())
                     return false;
             }
 
@@ -202,7 +192,7 @@ namespace AJTools.Services.FilterPro
                 }
                 catch (Exception ex)
                 {
-                    skipped?.Add($"Error updating filter {AJTools.Utils.ElementIdHelper.GetIntegerValue(id)} in view '{view.Name}': {ex.Message}");
+                    skipped?.Add($"Error updating filter {id.IntValue()} in view '{view.Name}': {ex.Message}");
                 }
             }
         }
@@ -265,9 +255,9 @@ namespace AJTools.Services.FilterPro
                                            Dictionary<ElementId, bool> visibilityMap,
                                            IList<string> skipped)
         {
-            var newSet = new HashSet<int>(newFilters.Select(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x)));
+            var newSet = new HashSet<int>(newFilters.Select(x => x.IntValue()));
             var appliedIds = new HashSet<int>(
-                (view.GetFilters() ?? new List<ElementId>()).Select(x => AJTools.Utils.ElementIdHelper.GetIntegerValue(x)));
+                (view.GetFilters() ?? new List<ElementId>()).Select(x => x.IntValue()));
 
             foreach (var id in desiredOrder)
             {
@@ -276,13 +266,13 @@ namespace AJTools.Services.FilterPro
                     if (doc.GetElement(id) == null)
                         continue;
 
-                    if (!appliedIds.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
+                    if (!appliedIds.Contains(id.IntValue()))
                     {
                         view.AddFilter(id);
-                        appliedIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
+                        appliedIds.Add(id.IntValue());
                     }
 
-                    if (newSet.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(id)))
+                    if (newSet.Contains(id.IntValue()))
                     {
                         // Newly created/updated filters: apply fresh graphics and make visible.
                         FilterApplier.ApplyGraphicsToFilter(doc, view, id, selection, solidFillId, skipped);
@@ -325,7 +315,7 @@ namespace AJTools.Services.FilterPro
                 }
                 catch (Exception ex)
                 {
-                    skipped?.Add($"Error reapplying filter {AJTools.Utils.ElementIdHelper.GetIntegerValue(id)} in view '{view.Name}': {ex.Message}");
+                    skipped?.Add($"Error reapplying filter {id.IntValue()} in view '{view.Name}': {ex.Message}");
                 }
             }
         }

@@ -24,6 +24,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.Purge;
 
+using AJTools.Utils;
 namespace AJTools.Services.Purge
 {
     internal sealed class UnplacedViewPurgeService
@@ -215,7 +216,7 @@ namespace AJTools.Services.Purge
                 return null;
             }
 
-            var viewId = new ElementId(item.ViewIdValue);
+            var viewId = ElementIdHelper.FromInt(item.ViewIdValue);
             View view = _doc.GetElement(viewId) as View;
             if (view == null)
             {
@@ -283,8 +284,8 @@ namespace AJTools.Services.Purge
                 return false;
             }
 
-            int target = AJTools.Utils.ElementIdHelper.GetIntegerValue(targetId);
-            return ids.Any(id => id != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(id) == target);
+            int target = targetId.IntValue();
+            return ids.Any(id => id != null && id.IntValue() == target);
         }
 
         private static bool IsDefault3DView(View view)
@@ -300,7 +301,7 @@ namespace AJTools.Services.Purge
                    second != null &&
                    first != ElementId.InvalidElementId &&
                    second != ElementId.InvalidElementId &&
-                   AJTools.Utils.ElementIdHelper.GetIntegerValue(first) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second);
+                   first.IntValue() == second.IntValue();
         }
 
         private static void RollBackIfStarted(Transaction transaction)

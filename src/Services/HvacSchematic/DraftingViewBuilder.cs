@@ -23,6 +23,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.HvacSchematic;
 
+using AJTools.Utils;
 namespace AJTools.Services.HvacSchematic
 {
     internal sealed class DraftingViewBuilder
@@ -77,7 +78,7 @@ namespace AJTools.Services.HvacSchematic
             view.Name = "HVAC Schematic " + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
 
             ElementId textTypeId = _document.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
-            Dictionary<int, SchematicNode> nodeById = nodes.ToDictionary(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId));
+            Dictionary<int, SchematicNode> nodeById = nodes.ToDictionary(node => node.ElementId.IntValue());
             BuildResult result = new BuildResult { View = view };
 
             DrawLevelBands(view, textTypeId, nodes, result);
@@ -269,29 +270,29 @@ namespace AJTools.Services.HvacSchematic
 
             SchematicNode first;
             SchematicNode second;
-            if (!nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId), out first) ||
-                !nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId), out second))
+            if (!nodeById.TryGetValue(edge.FromElementId.IntValue(), out first) ||
+                !nodeById.TryGetValue(edge.ToElementId.IntValue(), out second))
             {
                 return false;
             }
 
             if (edge.HasDirectionHint)
             {
-                if (nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.PreferredParentElementId), out parent) &&
-                    nodeById.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.PreferredChildElementId), out child))
+                if (nodeById.TryGetValue(edge.PreferredParentElementId.IntValue(), out parent) &&
+                    nodeById.TryGetValue(edge.PreferredChildElementId.IntValue(), out child))
                 {
                     return true;
                 }
             }
 
-            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(first.ParentElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second.ElementId))
+            if (first.ParentElementId.IntValue() == second.ElementId.IntValue())
             {
                 parent = second;
                 child = first;
                 return true;
             }
 
-            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(second.ParentElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(first.ElementId))
+            if (second.ParentElementId.IntValue() == first.ElementId.IntValue())
             {
                 parent = first;
                 child = second;

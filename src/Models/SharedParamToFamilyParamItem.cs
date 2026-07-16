@@ -10,12 +10,13 @@ using System;
 using Autodesk.Revit.DB;
 using AJTools.Utils;
 
-#if REVIT2023_OR_GREATER
-using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
-using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+// Version-safe token types: legacy enums on Revit 2020-2021, ForgeTypeId on Revit 2022+.
+#if REVIT2022_OR_GREATER
+using AjSpec = Autodesk.Revit.DB.ForgeTypeId;
+using AjGroup = Autodesk.Revit.DB.ForgeTypeId;
 #else
-using ParameterDataTypeId = Autodesk.Revit.DB.ParameterType;
-using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+using AjSpec = Autodesk.Revit.DB.ParameterType;
+using AjGroup = Autodesk.Revit.DB.BuiltInParameterGroup;
 #endif
 
 namespace AJTools.Models
@@ -37,8 +38,8 @@ namespace AJTools.Models
 
             ParameterId = parameter.Id;
             Name = definition.Name ?? string.Empty;
-            ParameterGroup = SharedParamUtils.GetDefinitionGroupId(definition);
-            ParameterType = SharedParamUtils.GetDefinitionDataType(definition);
+            ParameterGroup = RevitCompat.GetGroup(definition);
+            ParameterType = RevitCompat.GetDataType(definition);
             StorageType = parameter.StorageType;
             IsInstance = parameter.IsInstance;
             IsReporting = SharedParamUtils.IsReporting(parameter);
@@ -53,9 +54,9 @@ namespace AJTools.Models
 
         public string Name { get; }
 
-        public ParameterGroupId ParameterGroup { get; }
+        public AjGroup ParameterGroup { get; }
 
-        public ParameterDataTypeId ParameterType { get; }
+        public AjSpec ParameterType { get; }
 
         public StorageType StorageType { get; }
 

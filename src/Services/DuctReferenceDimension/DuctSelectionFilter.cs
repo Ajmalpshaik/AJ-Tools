@@ -9,6 +9,7 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI.Selection;
 
+using AJTools.Utils;
 namespace AJTools.Services.DuctReferenceDimension
 {
     /// <summary>
@@ -33,7 +34,7 @@ namespace AJTools.Services.DuctReferenceDimension
             if (category == null)
                 return false;
 
-            return AJTools.Utils.ElementIdHelper.GetIntegerValue(category.Id) == (int)BuiltInCategory.OST_DuctCurves;
+            return category.Id.IntValue() == (int)BuiltInCategory.OST_DuctCurves;
         }
     }
 }

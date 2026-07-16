@@ -8,10 +8,10 @@
  *                 failed run with the AI's help up to a fixed attempt limit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -19,7 +19,7 @@
  *                 RevitContextExtractionService / RevitExecutionService via ExternalEvent)
  *
  * Dependencies  : IAiProviderService (Gemini/OpenAI), RevitExecutionService, RevitContextExtractionService,
- *                 GeneratedCodeSafetyValidator, ErrorCorrectionService
+ *                 GeneratedCodeSafetyValidator, ErrorCorrectionService, McpBridgeService
  *
  * Input         : User prompt text, live Revit selection context, saved script history
  * Output        : Generated/edited C# script, execution results, saved .cs script files
@@ -34,18 +34,20 @@
  *   of burning all remaining attempts on a fix that isn't working.
  * - IsBusy is checked at the top of every command method as a defensive re-entrancy guard, in
  *   addition to the XAML now disabling the action buttons while a request is in flight.
- * - Generate Code is now stateful: if the editor already has code, the next prompt is sent as an
- *   incremental change request ([EXISTING CODE TO UPDATE] + the new instruction) so the AI edits
- *   only the requested part instead of rewriting the whole script. Clearing the editor first is
- *   how the user starts a fresh, unrelated request.
  *
  * Changelog     :
  * v1.0.0 (2026-01-01) - Initial release.
  * v1.1.0 (2026-07-01) - Safety-hardening pass: deduped system prompt, added pre-execution safety
  *                       scan + confirmation, repeat-error detection, IsBusy guards, provider/key
  *                       status text, saved-script provider metadata, activity logging.
- * v1.2.0 (2026-07-01) - Generate Code now sends the existing script as context for incremental
- *                       edits when the editor is non-empty, instead of always starting fresh.
+ * v1.2.0 (2026-07-07) - Added the AutoDebugger MCP bridge Connect/Disconnect toggle (IsMcpConnected,
+ *                       McpStatusText, ToggleMcpBridgeCommand) so an external MCP server can drive
+ *                       RevitExecutionService for automated tool debugging.
+ * v1.2.1 (2026-07-16) - Fixed the execution progress bar never updating: the ReportProgress callback
+ *                       reached the UI dispatcher via System.Windows.Application.Current, which is
+ *                       null inside Revit (crashed any script calling ReportProgress). Now uses the
+ *                       dispatcher captured at construction, plus a Render-priority pump so the bar
+ *                       visibly repaints while the script blocks Revit's UI thread.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -58,6 +60,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Linq;
@@ -85,7 +88,6 @@ HARD RULES:
 6. Use a Transaction only when the model is actually being modified. Read-only code (counting, checking, reporting) must NOT open a Transaction.
 7. Do not use TaskDialog for routine success messages — return a plain summary string instead so it shows in the tool's own output panel.
 8. Keep code short, safe, and focused on exactly what was asked.
-9. If the user's message contains a block labeled [EXISTING CODE TO UPDATE], that is the script currently in the editor. Treat the instruction that follows it as a small addition or change to that exact script — NOT a new request. Change only the part needed for the new instruction and keep every other part of that script exactly as given, including its structure. Return the complete script with the change applied, not just the changed lines.
 
 REQUIRED STRUCTURE (read carefully — this prevents a common mistake):
 1. The very first line of your response MUST be a comment with a name: // Name: YourPascalCaseName
@@ -106,6 +108,11 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         private readonly IAiProviderService _openAiService;
         private readonly RevitExecutionService _executionService;
         private readonly RevitContextExtractionService _contextService;
+        private readonly McpBridgeService _mcpBridge;
+        // Captured at construction on Revit's UI thread — System.Windows.Application.Current is
+        // null inside Revit, so it can never be used to reach the UI dispatcher (same root cause
+        // as the AiTaskWarningBarService v1.2.0 fix).
+        private readonly Dispatcher _uiDispatcher;
         private CancellationTokenSource _cts;
 
         public GeminiShellViewModel(
@@ -113,13 +120,16 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             IAiProviderService geminiService,
             IAiProviderService openAiService,
             RevitExecutionService executionService,
-            RevitContextExtractionService contextService)
+            RevitContextExtractionService contextService,
+            McpBridgeService mcpBridge)
         {
             _config = config;
             _geminiService = geminiService;
             _openAiService = openAiService;
             _executionService = executionService;
             _contextService = contextService;
+            _mcpBridge = mcpBridge;
+            _uiDispatcher = Dispatcher.CurrentDispatcher;
 
             History = new ObservableCollection<GeminiMessage>();
 
@@ -142,6 +152,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             StopCommand = new RelayCommand(StopProcess);
             RunFromHistoryCommand = new RelayCommand<HistoryItem>(RunFromHistory);
             BrowseFolderCommand = new RelayCommand(BrowseFolder);
+            ToggleMcpBridgeCommand = new RelayCommand(ToggleMcpBridge);
         }
 
         private IAiProviderService GetActiveService()
@@ -249,6 +260,27 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             set => SetProperty(ref _openAiModel, value);
         }
 
+        // --- AutoDebugger MCP Bridge ---
+        private bool _isMcpConnected;
+        public bool IsMcpConnected
+        {
+            get => _isMcpConnected;
+            set
+            {
+                SetProperty(ref _isMcpConnected, value);
+                OnPropertyChanged(nameof(McpToggleButtonText));
+            }
+        }
+
+        private string _mcpStatusText = "AutoDebugger: Disconnected";
+        public string McpStatusText
+        {
+            get => _mcpStatusText;
+            set => SetProperty(ref _mcpStatusText, value);
+        }
+
+        public string McpToggleButtonText => IsMcpConnected ? "🔌 Disconnect AutoDebugger" : "🔌 Connect AutoDebugger";
+
         private string _scriptsFolderPath;
         public string ScriptsFolderPath
         {
@@ -277,6 +309,31 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         public ICommand StopCommand { get; }
         public ICommand RunFromHistoryCommand { get; }
         public ICommand BrowseFolderCommand { get; }
+        public ICommand ToggleMcpBridgeCommand { get; }
+
+        private void ToggleMcpBridge()
+        {
+            if (_mcpBridge == null) return;
+
+            if (IsMcpConnected)
+            {
+                _mcpBridge.Stop();
+                IsMcpConnected = false;
+                McpStatusText = "AutoDebugger: Disconnected";
+                return;
+            }
+
+            if (_mcpBridge.Start(out string error))
+            {
+                IsMcpConnected = true;
+                McpStatusText = "AutoDebugger: Connected - waiting for the MCP server to attach.";
+            }
+            else
+            {
+                IsMcpConnected = false;
+                McpStatusText = "AutoDebugger: " + error;
+            }
+        }
 
         private void RunFromHistory(HistoryItem item)
         {
@@ -487,43 +544,22 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                     contextString = await _contextService.ExtractContextAsync();
                 }
 
-                // If the editor already has code, this request is an incremental change to it
-                // (e.g. "filter for supply duct", "make it red") rather than a brand new script.
-                // Clearing the editor is how the user signals "start a new, unrelated request".
-                bool isIncrementalUpdate = !string.IsNullOrWhiteSpace(CodeEditorContent);
-                string existingCode = CodeEditorContent;
-
-                StatusText = isIncrementalUpdate
-                    ? $"Updating existing code using {activeService.ProviderName}..."
-                    : $"Generating code using {activeService.ProviderName}...";
+                StatusText = $"Generating code using {activeService.ProviderName}...";
 
                 var messages = new System.Collections.Generic.List<GeminiMessage>();
                 if (!string.IsNullOrWhiteSpace(contextString) && contextString != "No active document." && contextString != "No elements currently selected.")
                 {
                     messages.Add(new GeminiMessage { Role = "user", Content = $"[SYSTEM CONTEXT INJECTION]\n{contextString}\nPlease consider this current context if my request implies operating on selected elements." });
                 }
-
-                if (isIncrementalUpdate)
-                {
-                    messages.Add(new GeminiMessage
-                    {
-                        Role = "user",
-                        Content = $"[EXISTING CODE TO UPDATE]\n{existingCode}\n\n[NEW INSTRUCTION]\n{PromptInput}"
-                    });
-                }
-                else
-                {
-                    messages.Add(new GeminiMessage { Role = "user", Content = PromptInput });
-                }
+                messages.Add(new GeminiMessage { Role = "user", Content = PromptInput });
 
                 string response = await activeService.SendMessageAsync(messages, SystemPrompt, _cts.Token);
                 CodeEditorContent = Helpers.CodeExtractionHelper.ExtractCSharpCode(response);
 
                 var safety = GeneratedCodeSafetyValidator.Validate(CodeEditorContent);
-                string resultStatus = isIncrementalUpdate ? "Code updated successfully." : "Code generated successfully.";
                 StatusText = safety.HighestLevel == CodeRiskLevel.Safe
-                    ? resultStatus
-                    : $"{(isIncrementalUpdate ? "Code updated." : "Code generated.")} Note: {safety.Findings.First().Reason} Review before running.";
+                    ? "Code generated successfully."
+                    : $"Code generated. Note: {safety.Findings.First().Reason} Review before running.";
 
                 History.Add(new GeminiMessage { Role = "user", Content = PromptInput });
                 History.Add(new GeminiMessage { Role = "model", Content = response });
@@ -561,16 +597,32 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 bool success = false;
                 bool blocked = false;
                 bool userCancelledConfirmation = false;
-                bool confirmedThisRun = false;
                 string previousErrorMessage = null;
 
                 Action<int, string> progressCallback = (percent, message) =>
                 {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    Dispatcher dispatcher = _uiDispatcher;
+                    if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished) return;
+
+                    if (dispatcher.CheckAccess())
                     {
                         ExecutionProgress = percent;
                         ExecutionProgressText = message;
-                    });
+                        // The script runs ON Revit's UI thread (RevitExecutionService blocks it in
+                        // task.Wait()), so WPF gets no chance to repaint on its own until the script
+                        // finishes — the bar would stay frozen at 0% even with correct values. Pumping
+                        // at Render priority repaints now without processing user input (Input priority
+                        // is below Render), so no re-entrancy risk.
+                        dispatcher.Invoke(DispatcherPriority.Render, new Action(() => { }));
+                    }
+                    else
+                    {
+                        dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            ExecutionProgress = percent;
+                            ExecutionProgressText = message;
+                        }), DispatcherPriority.Normal);
+                    }
                 };
 
                 while (attempt < maxAttempts && !success && !_cts.IsCancellationRequested)
@@ -587,7 +639,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                         break;
                     }
 
-                    if (safety.RequiresConfirmation && !confirmedThisRun)
+                    if (safety.RequiresConfirmation && attempt == 1)
                     {
                         string reasons = string.Join("\n - ", safety.Findings.Select(f => f.Reason));
                         var confirm = System.Windows.MessageBox.Show(
@@ -603,10 +655,6 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                             StatusText = "Cancelled: destructive operation not confirmed.";
                             break;
                         }
-
-                        // Confirmed once for this run - matches the tool's "once per run" design even if a
-                        // later auto-fix attempt introduces a different destructive operation.
-                        confirmedThisRun = true;
                     }
 
                     var result = await _executionService.ExecuteAsync(CodeEditorContent, progressCallback, _cts.Token);

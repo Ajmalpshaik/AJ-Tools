@@ -136,7 +136,7 @@ namespace AJTools.Commands
 
                 processedCount++;
 
-                using (Transaction t = new Transaction(doc, "AJ Tools - Place Duct Flow Annotations"))
+                using (Transaction t = new Transaction(doc, "Place Duct Flow Annotations"))
                 {
                     t.Start();
                     bool placed = FlowDirectionAnnotationService.TryPlaceFlowAnnotations(

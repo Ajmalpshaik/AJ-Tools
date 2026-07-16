@@ -11,6 +11,7 @@ namespace AJTools.GeminiShell.DockablePane
     {
         public static readonly DockablePaneId PaneId = new DockablePaneId(new Guid("d4a8e32d-1a8c-4f9e-a89e-4a6c4b2d3c1d"));
         private readonly GeminiShellView _view;
+        private readonly McpBridgeService _mcpBridge;
 
         public GeminiShellPaneProvider()
         {
@@ -21,10 +22,17 @@ namespace AJTools.GeminiShell.DockablePane
             var roslynService = new RoslynService();
             var revitExecService = new RevitExecutionService(roslynService);
             var contextService = new RevitContextExtractionService();
+            _mcpBridge = new McpBridgeService(revitExecService);
 
-            var vm = new GeminiShellViewModel(config, geminiService, openAiService, revitExecService, contextService);
-            
+            var vm = new GeminiShellViewModel(config, geminiService, openAiService, revitExecService, contextService, _mcpBridge);
+
             _view = new GeminiShellView { DataContext = vm };
+        }
+
+        /// <summary>Stops the AutoDebugger bridge and clears its discovery file on Revit shutdown.</summary>
+        public void Shutdown()
+        {
+            _mcpBridge?.Stop();
         }
 
         public void SetupDockablePane(DockablePaneProviderData data)

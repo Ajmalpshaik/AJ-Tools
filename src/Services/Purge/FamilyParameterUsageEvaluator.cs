@@ -85,8 +85,11 @@ namespace AJTools.Services.Purge
         {
             var map = new Dictionary<int, int>();
 
+            // Category-based filter (not OfClass(typeof(Dimension))): Revit 2025+ returns linear
+            // dimensions as the LinearDimension subclass, which an exact-type OfClass filter misses.
             var dimensions = new FilteredElementCollector(_doc)
-                .OfClass(typeof(Dimension))
+                .OfCategory(BuiltInCategory.OST_Dimensions)
+                .WhereElementIsNotElementType()
                 .Cast<Dimension>()
                 .ToList();
 
@@ -290,7 +293,7 @@ namespace AJTools.Services.Purge
                     case StorageType.Integer:
                     {
                         int value = familyType.AsInteger(parameter) ?? 0;
-                        bool isYesNo = SharedParamUtils.IsYesNoParameter(parameter.Definition);
+                        bool isYesNo = RevitCompat.IsYesNo(parameter.Definition);
                         if (isYesNo)
                         {
                             return value != 0 ? ValueStrength.Meaningful : ValueStrength.DefaultLike;
@@ -356,7 +359,7 @@ namespace AJTools.Services.Purge
                 return int.MinValue;
             }
 
-            return AJTools.Utils.ElementIdHelper.GetIntegerValue(parameter.Id);
+            return parameter.Id.IntValue();
         }
 
         private static bool IsSameParameter(FamilyParameter first, FamilyParameter second)

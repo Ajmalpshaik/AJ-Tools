@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -16,51 +17,78 @@ namespace AJTools.GeminiShell.Services
 {
     public class RoslynService
     {
+        // Cache compiled, already-rewritten scripts only. Never cache Revit elements or model-query
+        // results: the document can change between calls and every script must see live model state.
+        private const int MaxCompiledScriptCacheEntries = 64;
+
+        private static readonly ScriptOptions SharedScriptOptions = ScriptOptions.Default
+            .WithReferences(
+                typeof(object).Assembly,                            // mscorlib
+                typeof(Enumerable).Assembly,                        // System.Core
+                typeof(System.Collections.Generic.List<>).Assembly,  // mscorlib
+                typeof(System.IO.File).Assembly,                     // mscorlib (System.IO)
+                typeof(System.Text.StringBuilder).Assembly,          // mscorlib (System.Text)
+                typeof(System.Text.RegularExpressions.Regex).Assembly, // System
+                typeof(System.Net.WebClient).Assembly,               // System
+                typeof(Document).Assembly,                          // RevitAPI
+                typeof(UIDocument).Assembly                         // RevitAPIUI
+            )
+            .WithImports(
+                "System",
+                "System.Collections.Generic",
+                "System.Linq",
+                "System.IO",
+                "System.Text",
+                "System.Math",
+                "Autodesk.Revit.DB",
+                "Autodesk.Revit.UI",
+                "Autodesk.Revit.ApplicationServices"
+            );
+
+        private static readonly CSharpParseOptions ScriptParseOptions = new CSharpParseOptions(kind: SourceCodeKind.Script);
+
+        private readonly ConcurrentDictionary<string, Script<object>> _compiledScriptCache =
+            new ConcurrentDictionary<string, Script<object>>(StringComparer.Ordinal);
+
+        private readonly ConcurrentQueue<string> _compiledScriptCacheOrder = new ConcurrentQueue<string>();
+
         public async Task<CodeExecutionResult> ExecuteAsync(string code, RevitScriptGlobals globals)
         {
             var result = new CodeExecutionResult();
 
             try
             {
-                var options = ScriptOptions.Default
-                    .WithReferences(
-                        typeof(object).Assembly,                            // mscorlib
-                        typeof(Enumerable).Assembly,                        // System.Core
-                        typeof(System.Collections.Generic.List<>).Assembly,  // mscorlib
-                        typeof(System.IO.File).Assembly,                     // mscorlib (System.IO)
-                        typeof(System.Text.StringBuilder).Assembly,          // mscorlib (System.Text)
-                        typeof(System.Text.RegularExpressions.Regex).Assembly, // System
-                        typeof(System.Net.WebClient).Assembly,               // System
-                        typeof(Document).Assembly,                          // RevitAPI
-                        typeof(UIDocument).Assembly                         // RevitAPIUI
-                    )
-                    .WithImports(
-                        "System",
-                        "System.Collections.Generic",
-                        "System.Linq",
-                        "System.IO",
-                        "System.Text",
-                        "System.Math",
-                        "Autodesk.Revit.DB",
-                        "Autodesk.Revit.UI",
-                        "Autodesk.Revit.ApplicationServices"
-                    );
-
-                // Apply Infinite Loop Protection
-                var parseOptions = new CSharpParseOptions(kind: SourceCodeKind.Script);
-                var syntaxTree = CSharpSyntaxTree.ParseText(code, parseOptions);
-                var rewriter = new LoopProtectionRewriter();
-                var safeRoot = rewriter.Visit(syntaxTree.GetRoot());
-                var safeCode = safeRoot.ToFullString();
-
-                var script = CSharpScript.Create(safeCode, options, typeof(RevitScriptGlobals));
-                
-                var diagnostics = script.Compile();
-                if (diagnostics.Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error))
+                Script<object> script;
+                if (!_compiledScriptCache.TryGetValue(code, out script))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = string.Join("\n", diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error).Select(d => d.ToString()));
-                    return result;
+                    // Apply Infinite Loop Protection before the first compile. Subsequent identical
+                    // requests reuse this safe compiled script, but each still receives fresh globals.
+                    var syntaxTree = CSharpSyntaxTree.ParseText(code, ScriptParseOptions);
+                    var rewriter = new LoopProtectionRewriter();
+                    var safeRoot = rewriter.Visit(syntaxTree.GetRoot());
+                    var safeCode = safeRoot.ToFullString();
+
+                    var compiledScript = CSharpScript.Create(safeCode, SharedScriptOptions, typeof(RevitScriptGlobals));
+                    var diagnostics = compiledScript.Compile();
+                    if (diagnostics.Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error))
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = string.Join("\n", diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error).Select(d => d.ToString()));
+                        return result;
+                    }
+
+                    if (_compiledScriptCache.TryAdd(code, compiledScript))
+                    {
+                        _compiledScriptCacheOrder.Enqueue(code);
+                        TrimCompiledScriptCache();
+                        script = compiledScript;
+                    }
+                    else if (!_compiledScriptCache.TryGetValue(code, out script))
+                    {
+                        // The cache is an optimization only; execute the verified script even if a
+                        // competing request evicted it before this call observed the cached entry.
+                        script = compiledScript;
+                    }
                 }
 
                 var scriptState = await script.RunAsync(globals).ConfigureAwait(false);
@@ -82,6 +110,18 @@ namespace AJTools.GeminiShell.Services
             }
 
             return result;
+        }
+
+        private void TrimCompiledScriptCache()
+        {
+            while (_compiledScriptCache.Count > MaxCompiledScriptCacheEntries)
+            {
+                string oldestCode;
+                if (!_compiledScriptCacheOrder.TryDequeue(out oldestCode)) return;
+
+                Script<object> discarded;
+                _compiledScriptCache.TryRemove(oldestCode, out discarded);
+            }
         }
     }
 }

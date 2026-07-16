@@ -4,13 +4,14 @@
  * File Name     : CmdPinElements.cs
  * Purpose       : Opens the Pin Elements window where the user picks Sheet groups (title blocks, placed
  *                 views, legends, schedules) or Model groups (duct, pipe, cable tray, generic models,
- *                 mechanical equipment, plumbing fixtures, electrical equipment) and pins or unpins them.
+ *                 mechanical equipment, plumbing fixtures, electrical equipment, grids, levels) and pins
+ *                 or unpins them.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.3.0
  *
  * Created Date  : 2026-04-10
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-13
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +31,8 @@
  * Changelog     :
  * v1.1.0 (2026-04-18) - Sheet/Model group selection with active-sheet and all-sheets modes.
  * v1.2.0 (2026-07-01) - Refactor/audit: added full metadata block. Pin behaviour unchanged.
+ * v1.3.0 (2026-07-13) - Added Grids and Levels as additional Model groups (datum elements, same
+ *                       category-collection pattern as the existing groups).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

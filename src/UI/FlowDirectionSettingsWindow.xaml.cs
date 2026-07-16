@@ -12,6 +12,13 @@ using System.Linq;
 using System.Windows;
 using Autodesk.Revit.DB;
 using AJTools.Models;
+using AJTools.Utils;
+// Version-safe unit token: DisplayUnitType on Revit 2020-2021, ForgeTypeId (UnitTypeId) on Revit 2022+.
+#if REVIT2022_OR_GREATER
+using AjUnit = Autodesk.Revit.DB.ForgeTypeId;
+#else
+using AjUnit = Autodesk.Revit.DB.DisplayUnitType;
+#endif
 
 namespace AJTools.UI
 {
@@ -20,11 +27,7 @@ namespace AJTools.UI
     /// </summary>
     public partial class FlowDirectionSettingsWindow : Window
     {
-#if REVIT2022_OR_GREATER
-        private readonly ForgeTypeId _displayUnitType;
-#else
-        private readonly DisplayUnitType _displayUnitType;
-#endif
+        private readonly AjUnit _displayUnitType;
 
         public FamilySymbol SelectedSymbol { get; private set; }
 
@@ -139,46 +142,19 @@ namespace AJTools.UI
             return family.FamilyPlacementType == FamilyPlacementType.ViewBased;
         }
 
-        private static
-#if REVIT2022_OR_GREATER
-            ForgeTypeId
-#else
-            DisplayUnitType
-#endif
-            ResolveLengthDisplayUnit(Document doc)
+        private static AjUnit ResolveLengthDisplayUnit(Document doc)
         {
-#if REVIT2022_OR_GREATER
             if (doc == null)
-                return UnitTypeId.Meters;
+                return RevitCompat.UnitMeters;
 
-            Units units = doc.GetUnits();
-            FormatOptions options = units.GetFormatOptions(SpecTypeId.Length);
-            return options?.GetUnitTypeId() ?? UnitTypeId.Meters;
-#else
-            if (doc == null)
-                return DisplayUnitType.DUT_METERS;
-
-            Units units = doc.GetUnits();
-            FormatOptions options = units.GetFormatOptions(UnitType.UT_Length);
-            return options.DisplayUnits;
-#endif
+            return RevitCompat.LengthDisplayUnit(doc);
         }
 
-        private static string SafeUnitLabel(
-#if REVIT2022_OR_GREATER
-            ForgeTypeId unitType
-#else
-            DisplayUnitType unitType
-#endif
-            )
+        private static string SafeUnitLabel(AjUnit unitType)
         {
             try
             {
-#if REVIT2022_OR_GREATER
-                return LabelUtils.GetLabelForUnit(unitType);
-#else
-                return LabelUtils.GetLabelFor(unitType);
-#endif
+                return RevitCompat.UnitLabel(unitType);
             }
             catch
             {

@@ -7,6 +7,40 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.13.5] - 2026-07-16
+
+Catch-up release: everything built in the working source tree since v1.11.3, pushed to GitHub in one
+batch (nothing here was released one version at a time — the working folder had moved on to 1.13.5
+before this sync).
+
+- **Multi-version build**: one codebase now builds Revit **2020 through 2027** from a single project,
+  via root `Directory.Build.props`/`.targets` (configs `Release`/`Debug` for 2020 through `Release
+  R27`/`Debug R27`, frameworks net472 / net48 / net8.0-windows / net10.0-windows, per-version `obj`
+  isolation so builds don't clash). 2020 remains the tested baseline.
+- **AJ AI (GeminiShell) can now run live against Revit**: a local named-pipe bridge
+  (`mcp-server/`, `tools/invoke-revit-bridge.ps1`) lets an AI session run C# directly against the open
+  Revit document, with reflection/assembly-loading and destructive operations blocked by design.
+  Includes a non-modal "AJ AI is working" activity banner, an append-only audit log of every request
+  at `%AppData%/AJTools/autodebugger-audit.jsonl`, a compiled-script cache, connection speed-ups
+  (persistent pipe, Roslyn pre-warm), an instant handoff so a second chat window can take over from an
+  idle one instead of waiting out a timeout, and locked-DLL-safe deployment (each build publishes to a
+  fresh AppData payload folder so it can deploy while Revit still has the previous build loaded).
+- Fixed two frozen progress bars in the AI shell: the pane's own execution bar (was bound to
+  `Application.Current`, always null inside Revit) and the floating activity popup's bar (was a static
+  fixed-width element with nothing driving it) — both now genuinely animate while a script runs.
+- **Version-safe API hardening** for 2024+/2026+/2027 builds: `ElementIdHelper.FromInt` (the
+  `ElementId(int)` constructor is gone in real Revit 2027), `IsDefinedBuiltInCategory` /
+  `IsDefinedBuiltInParameter` (Int64 enum widening in 2024+), and category-based dimension collectors
+  (2025+ `LinearDimension`).
+- Ceiling Magnet: on Revit 2025.3+ now reads the ceiling's real grid lines
+  (`Ceiling.GetCeilingGridLines`) for exact tile size and anchor, with a safe fallback to the original
+  pattern-based method everywhere else.
+- Added the **Arrange Text in Box** tool (AJ Annotation tab, new "Text" panel), ported from the pyRevit
+  "Text Box Arrange Loop" script.
+- The version-numbering mismatch noted in earlier entries (working tree at 1.10.0 vs GitHub tag
+  v1.11.3) is resolved as of this release — the working tree's own version (1.13.5) is now the
+  reconciled number going forward.
+
 ## [1.11.3] - 2026-07-07
 
 - Fixed Revit startup dependency resolution so bundled DLLs such as `CommunityToolkit.Mvvm.dll` load from the AJ Tools install folder.

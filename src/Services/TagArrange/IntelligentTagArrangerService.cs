@@ -84,7 +84,7 @@ namespace AJTools.Services.TagArrange
             double verticalOffset = spacingMm * Constants.MM_TO_FEET * viewScale;
 
             bool hadCommit = false;
-            using (TransactionGroup tg = new TransactionGroup(doc, "AJ Tools - Arrange Tags"))
+            using (TransactionGroup tg = new TransactionGroup(doc, "Arrange Tags"))
             {
                 tg.Start();
 
@@ -425,7 +425,7 @@ namespace AJTools.Services.TagArrange
 
             try
             {
-                XYZ direct = IndependentTagCompat.GetLeaderEnd(tag);
+                XYZ direct = TagCompat.GetLeaderEnd(tag);
                 if (direct != null)
                     return direct;
             }
@@ -451,7 +451,7 @@ namespace AJTools.Services.TagArrange
 
             try
             {
-                Reference taggedReference = IndependentTagCompat.GetTaggedReference(tag);
+                Reference taggedReference = TagCompat.GetTaggedReference(tag);
                 if (taggedReference == null)
                     return null;
 
@@ -601,7 +601,8 @@ namespace AJTools.Services.TagArrange
 
             try
             {
-                return IndependentTagCompat.SetLeaderElbow(tag, elbow);
+                TagCompat.SetLeaderElbow(tag, elbow);
+                return true;
             }
             catch
             {

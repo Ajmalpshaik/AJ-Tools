@@ -35,6 +35,24 @@
             <ProgressBar IsIndeterminate="True" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" Width="50" Height="5" Margin="10,0,0,0"/>
         </StackPanel>
 
+        <!-- AutoDebugger MCP Bridge -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+            <TextBlock Text="{Binding McpStatusText}" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#AAAAAA" FontSize="11"/>
+            <Button Content="{Binding McpToggleButtonText}" Command="{Binding ToggleMcpBridgeCommand}"
+                    Padding="10,5" Foreground="White" BorderThickness="0" Cursor="Hand">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="#333"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMcpConnected}" Value="True">
+                                <Setter Property="Background" Value="#0F9D58"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </StackPanel>
+
         <!-- Settings Panel -->
         <Border Grid.Row="1" Background="#252526" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="3" Margin="0,0,0,10" 
                 Visibility="{Binding IsSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">

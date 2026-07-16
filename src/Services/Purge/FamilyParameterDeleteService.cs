@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.Purge;
 
+using AJTools.Utils;
 namespace AJTools.Services.Purge
 {
     internal sealed class FamilyParameterDeleteService
@@ -36,7 +37,7 @@ namespace AJTools.Services.Purge
                 return result;
             }
 
-            using (var group = new TransactionGroup(_doc, "AJ Tools - Purge Unused Family Parameters"))
+            using (var group = new TransactionGroup(_doc, "Purge Unused Family Parameters"))
             {
                 group.Start();
                 bool hasCommit = false;
@@ -103,7 +104,7 @@ namespace AJTools.Services.Purge
                 p != null &&
                 p.Id != null &&
                 p.Id != ElementId.InvalidElementId &&
-                AJTools.Utils.ElementIdHelper.GetIntegerValue(p.Id) == item.ParameterIdValue);
+                p.Id.IntValue() == item.ParameterIdValue);
 
             if (byId != null)
             {

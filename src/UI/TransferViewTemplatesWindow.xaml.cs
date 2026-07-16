@@ -1,8 +1,8 @@
 // Tool Name: Transfer View Templates UI
 // Description: Code-behind for selecting source/target projects and view templates to transfer.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-14
+// Version: 1.1.0
+// Last Updated: 2026-07-13
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, System.Windows
 
@@ -19,6 +19,13 @@ namespace AJTools.UI
 {
     public partial class TransferViewTemplatesWindow : Window
     {
+        // In-memory only, cleared when Revit closes - same convention as FilterProStateTracker.
+        // Remembered by Document.Title (not a Document reference, which doesn't survive re-opening
+        // the tool with a different set of open documents) only after a successful Transfer, so an
+        // accidental browse-around selection never overwrites what was last actually used.
+        private static string _lastSourceDocTitle;
+        private static string _lastTargetDocTitle;
+
         private readonly ObservableCollection<DocumentOption> _documents = new ObservableCollection<DocumentOption>();
         private readonly ObservableCollection<ViewTemplateItem> _allTemplates = new ObservableCollection<ViewTemplateItem>();
         private readonly ObservableCollection<ViewTemplateItem> _filteredTemplates = new ObservableCollection<ViewTemplateItem>();
@@ -49,19 +56,7 @@ namespace AJTools.UI
 
             WireEvents();
 
-            if (_documents.Count > 0)
-            {
-                SourceDocCombo.SelectedIndex = 0;
-            }
-
-            if (_documents.Count > 1)
-            {
-                TargetDocCombo.SelectedIndex = 1;
-            }
-            else if (_documents.Count > 0)
-            {
-                TargetDocCombo.SelectedIndex = 0;
-            }
+            RestoreLastDocumentSelection();
 
             SourceDocument = (SourceDocCombo.SelectedItem as DocumentOption)?.Document;
             TargetDocument = (TargetDocCombo.SelectedItem as DocumentOption)?.Document;
@@ -83,6 +78,47 @@ namespace AJTools.UI
                 DialogResult = false;
                 Close();
             };
+        }
+
+        private void RestoreLastDocumentSelection()
+        {
+            DocumentOption source = FindDocumentOptionByTitle(_lastSourceDocTitle);
+            DocumentOption target = FindDocumentOptionByTitle(_lastTargetDocTitle);
+
+            if (source != null)
+            {
+                SourceDocCombo.SelectedItem = source;
+            }
+            else if (_documents.Count > 0)
+            {
+                SourceDocCombo.SelectedIndex = 0;
+            }
+
+            if (target != null && target != SourceDocCombo.SelectedItem)
+            {
+                TargetDocCombo.SelectedItem = target;
+                return;
+            }
+
+            if (_documents.Count > 1)
+            {
+                TargetDocCombo.SelectedIndex = SourceDocCombo.SelectedIndex == 0 ? 1 : 0;
+            }
+            else if (_documents.Count > 0)
+            {
+                TargetDocCombo.SelectedIndex = 0;
+            }
+        }
+
+        private DocumentOption FindDocumentOptionByTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return null;
+            }
+
+            return _documents.FirstOrDefault(option =>
+                string.Equals(option.Document?.Title, title, StringComparison.OrdinalIgnoreCase));
         }
 
         private void OnDocumentSelectionChanged()
@@ -186,6 +222,9 @@ namespace AJTools.UI
 
             SelectedTemplateIds = selected.Select(item => item.TemplateId).ToList();
             SelectedTemplateNames = selected.Select(item => item.Name).ToList();
+
+            _lastSourceDocTitle = SourceDocument.Title;
+            _lastTargetDocTitle = TargetDocument.Title;
 
             DialogResult = true;
             Close();
