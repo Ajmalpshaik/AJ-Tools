@@ -112,25 +112,24 @@ namespace AJTools.UI
 
             try
             {
-                // Worksharing setup (EnableWorksharing / Workset.Create) is a document-level
-                // operation that Revit forbids inside an open transaction, so it must happen first.
-                if (!_doc.IsWorkshared)
-                {
-                    _doc.EnableWorksharing("Shared Levels and Grids", "Workset1");
-                }
-
-                Workset targetWorkset = FindOrCreateWorkset(_doc, targetWorksetName);
-
-                using (var t = new Transaction(_doc, "AJ Tools - Assign Links to Workset"))
+                using (var t = new Transaction(_doc, "Assign Links to Workset"))
                 {
                     t.Start();
+
+                    if (!_doc.IsWorkshared)
+                    {
+                        _doc.EnableWorksharing("Shared Levels and Grids", "Workset1");
+                    }
+
+                    Workset targetWorkset = FindOrCreateWorkset(_doc, targetWorksetName);
 
                     foreach (Element link in linksToMove)
                     {
                         Parameter worksetParam = link.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                         if (worksetParam != null && !worksetParam.IsReadOnly)
                         {
-                            // The workset parameter expects an integer Workset id value
+                            // The workset parameter expects an integer Workset id value.
+                            // WorksetId.IntegerValue is unrelated to ElementId and is valid in all versions.
                             worksetParam.Set(targetWorkset.Id.IntegerValue);
                         }
                     }

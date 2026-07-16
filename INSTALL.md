@@ -11,8 +11,8 @@ AJ Tools is a C# Revit add-in. It is not a pyRevit extension and does not instal
 ## Prerequisites
 
 - Windows x64
-- Autodesk Revit 2020 installed in the default path for build references
-- Visual Studio 2019 or 2022 with .NET desktop build tools
+- Visual Studio 2022 with .NET desktop build tools (no local Revit install is needed to *build* — the
+  Revit API is restored from NuGet; Revit is only needed to *run* the add-in)
 - Access to restore NuGet packages
 - Windows user account with permission to write to `%APPDATA%`
 - Administrator rights only if you want all-users install
@@ -29,16 +29,19 @@ The package script builds the add-in, stages the install payload in `dist\`, and
 
 - `dist\release\AJ-Tools-vX.Y.Z.zip`
 
-The current package stages AJ Tools for Revit 2020-2027. Revit 2025-2027 are installed as requested, but the installer prints a `NEEDS_REVIEW` message because those versions still require the next modern .NET/Revit API build.
+The packaged zip is the **Revit 2020** build (`Release` configuration) — that is what the public
+installer ships today. The source also builds Revit 2021–2027 via the `Release R21` … `R27`
+configurations (see [README.md](README.md) Compatibility), but those builds are not yet packaged or
+published; building one of them auto-deploys it locally to that Revit version's Addins folder unless
+you pass `-p:SkipAjToolsAutoDeploy=true`.
 
 ## Install From GitHub Release
 
 1. Download `AJ-Tools-vX.Y.Z.zip` from the public installer repository releases page.
 2. Extract the zip.
-3. Run one of these scripts from the extracted `AJ-Tools-vX.Y.Z` folder:
+3. Run one of these scripts from the extracted folder:
    - `install.cmd` for current user
    - `install-all-users.cmd` for current user + all users (run as Administrator)
-4. Start Revit 2020-2027 and confirm the `AJ Tools` tab is visible.
 
 The installer unblocks downloaded files automatically to avoid Revit `0x80131515` / `FileLoadException` errors.
 
@@ -59,23 +62,24 @@ The installer unblocks downloaded files automatically to avoid Revit `0x80131515
 ## Manual Install
 
 1. Build Release in Visual Studio or run `dist\package.ps1`.
-2. Create add-in payload directory for each version you need:
-   - Current user: `%APPDATA%\Autodesk\Revit\Addins\<version>\AJ Tools`
-   - All users: `%PROGRAMDATA%\Autodesk\Revit\Addins\<version>\AJ Tools`
+2. Create add-in payload directory (paths below say `2020` — use the matching year folder if you
+   built a different version's configuration):
+   - Current user: `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools`
+   - All users: `%PROGRAMDATA%\Autodesk\Revit\Addins\2020\AJ Tools`
 3. Copy these into that `AJ Tools` folder:
    - `AJ Tools.dll`
    - dependency DLLs, for example `Newtonsoft.Json.dll`
    - `Resources` folder
 4. Create manifest file:
-   - Current user path: `%APPDATA%\Autodesk\Revit\Addins\<version>\AJ Tools.addin`
-   - All users path: `%PROGRAMDATA%\Autodesk\Revit\Addins\<version>\AJ Tools.addin`
+   - Current user path: `%APPDATA%\Autodesk\Revit\Addins\2020\AJ Tools.addin`
+   - All users path: `%PROGRAMDATA%\Autodesk\Revit\Addins\2020\AJ Tools.addin`
    - Use `Addin\AJ Tools.addin` as the template
    - Ensure `<Assembly>` points to the DLL path you copied
 5. If files were downloaded from the internet, unblock copied files before launching Revit:
 
 ```powershell
-Get-ChildItem "$env:APPDATA\Autodesk\Revit\Addins\<version>\AJ Tools" -Recurse -File | Unblock-File
-Unblock-File "$env:APPDATA\Autodesk\Revit\Addins\<version>\AJ Tools.addin"
+Get-ChildItem "$env:APPDATA\Autodesk\Revit\Addins\2020\AJ Tools" -Recurse -File | Unblock-File
+Unblock-File "$env:APPDATA\Autodesk\Revit\Addins\2020\AJ Tools.addin"
 ```
 
 ## Uninstall

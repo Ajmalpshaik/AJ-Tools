@@ -8,21 +8,15 @@
                   colorizes and applies to the target view(s) on every click — there is no separate
                   "Create" or "Apply To View" step because there is nothing persistent to create.
   Author        : Ajmal P.S.
-  Version       : 2.2.0
-  Created Date  : 2026-07-02
-  Last Updated  : 2026-07-02
+  Version       : 1.0.0
+  Created Date  : 2026-07-13
+  Last Updated  : 2026-07-13
   Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
   Framework     : .NET Fx 4.7.2 (2020-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
   Dependencies  : ModernStyles.xaml (shared with Filter Pro)
   Changelog     :
-    v1.0.0 (2026-07-02) - Initial release (custom dark-chrome layout).
-    v2.0.0 (2026-07-02) - Rebuilt to mirror FilterProWindow.xaml exactly (same ModernStyles.xaml,
-                          same Selection/Apply tab structure, category+parameter+value engine,
-                          multi-view apply scope). Dropped the Naming Convention section (filter-only
-                          concept) and reduced the footer to a single Shuffle Colors action.
-    v2.1.0 (2026-07-02) - Shuffle Colors applies on every click instead of closing the window.
-    v2.2.0 (2026-07-02) - Removed the Rule Type column entirely (Selection tab back to 3 columns:
-                          Categories | Parameter | Values); selected values always match with Equals.
+    v1.0.0 (2026-07-13) - Ported from the standalone AJ Tools tree into the live multi-version src/
+                          project so the Colorize tool actually gets built and deployed. Layout unchanged.
   License       : All Rights Reserved
   Repo          : AJ-Tools
 -->

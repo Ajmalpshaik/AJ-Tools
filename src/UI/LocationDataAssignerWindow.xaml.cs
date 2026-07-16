@@ -8,6 +8,13 @@
 using AJTools.Utils;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
+#if REVIT2022_OR_GREATER
+using AjSpec = Autodesk.Revit.DB.ForgeTypeId;
+using AjGroup = Autodesk.Revit.DB.ForgeTypeId;
+#else
+using AjSpec = Autodesk.Revit.DB.ParameterType;
+using AjGroup = Autodesk.Revit.DB.BuiltInParameterGroup;
+#endif
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
@@ -21,14 +28,6 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-
-#if REVIT2023_OR_GREATER
-using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
-using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
-#else
-using ParameterDataTypeId = Autodesk.Revit.DB.ParameterType;
-using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
-#endif
 
 namespace AJTools.UI
 {
@@ -478,7 +477,7 @@ namespace AJTools.UI
             {
                 SetBusy(true, "Creating parameters...");
                 int count;
-                using (var t = new Transaction(_doc, "AJ Tools - Create Location Data Parameters"))
+                using (var t = new Transaction(_doc, "Create Location Data Parameters"))
                 {
                     t.Start();
                     count = CreateParameters(specs, _allCategories.Where(c => c.IsChecked).ToList());
@@ -502,33 +501,33 @@ namespace AJTools.UI
         {
             map = map ?? CreateDefaultParameterMap();
             var specs = new List<ParamSpec>();
-            AddSpec(specs, map.RoomName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.RoomNumber, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.RoomName, RevitCompat.SpecText, RevitCompat.GroupData);
+            AddSpec(specs, map.RoomNumber, RevitCompat.SpecText, RevitCompat.GroupData);
 
             if (includeLevels)
             {
-                AddSpec(specs, map.LevelName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+                AddSpec(specs, map.LevelName, RevitCompat.SpecText, RevitCompat.GroupData);
             }
 
             if (includeCoords)
             {
-                AddSpec(specs, map.Easting, SharedParamUtils.LengthParameterType, SharedParamUtils.DefaultDataGroup);
-                AddSpec(specs, map.Northing, SharedParamUtils.LengthParameterType, SharedParamUtils.DefaultDataGroup);
+                AddSpec(specs, map.Easting, RevitCompat.SpecLength, RevitCompat.GroupData);
+                AddSpec(specs, map.Northing, RevitCompat.SpecLength, RevitCompat.GroupData);
             }
 
             if (includeAltitude)
-                AddSpec(specs, map.Altitude, SharedParamUtils.LengthParameterType, SharedParamUtils.DefaultDataGroup);
+                AddSpec(specs, map.Altitude, RevitCompat.SpecLength, RevitCompat.GroupData);
 
             if (includeHvac)
             {
-                AddSpec(specs, map.HvacZoneName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
-                AddSpec(specs, map.HvacZoneNumber, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+                AddSpec(specs, map.HvacZoneName, RevitCompat.SpecText, RevitCompat.GroupData);
+                AddSpec(specs, map.HvacZoneNumber, RevitCompat.SpecText, RevitCompat.GroupData);
             }
 
             return specs;
         }
 
-        private static void AddSpec(ICollection<ParamSpec> specs, string name, ParameterDataTypeId type, ParameterGroupId group)
+        private static void AddSpec(ICollection<ParamSpec> specs, string name, AjSpec type, AjGroup group)
         {
             if (specs == null || string.IsNullOrWhiteSpace(name))
                 return;
@@ -582,13 +581,13 @@ namespace AJTools.UI
                     Binding binding = app.Create.NewInstanceBinding(categorySet);
                     bool hasExisting = FindDefinition(map, spec.Name) != null;
                     bool ok = hasExisting
-                        ? map.ReInsert(definition, binding, spec.ParameterGroup)
-                        : map.Insert(definition, binding, spec.ParameterGroup);
+                        ? RevitCompat.ReInsertBinding(map, definition, binding, spec.ParameterGroup)
+                        : RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
 
                     if (!ok && hasExisting)
                     {
                         try { map.Remove(definition); } catch (Exception) { }
-                        ok = map.Insert(definition, binding, spec.ParameterGroup);
+                        ok = RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
                     }
 
                     if (ok)
@@ -617,7 +616,7 @@ namespace AJTools.UI
                     if (c == null || c.CategoryType != CategoryType.Model || !c.AllowsBoundParameters)
                         continue;
 
-                    if (ids.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(c.Id)))
+                    if (ids.Add(c.Id.IntValue()))
                     {
                         set.Insert(c);
                         count++;
@@ -636,7 +635,7 @@ namespace AJTools.UI
                 if (!defaults.Contains(c.Name))
                     continue;
 
-                if (ids.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(c.Id)))
+                if (ids.Add(c.Id.IntValue()))
                 {
                     set.Insert(c);
                     count++;
@@ -653,7 +652,7 @@ namespace AJTools.UI
             return group ?? file.Groups.Create(name);
         }
 
-        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, ParameterDataTypeId type)
+        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, AjSpec type)
         {
             foreach (DefinitionGroup group in file.Groups)
             {
@@ -662,11 +661,9 @@ namespace AJTools.UI
                     return existing;
             }
 
-            var options = new ExternalDefinitionCreationOptions(name, type)
-            {
-                UserModifiable = true,
-                Visible = true
-            };
+            var options = RevitCompat.CreateDefinitionOptions(name, type);
+            options.UserModifiable = true;
+            options.Visible = true;
 
             try { return preferredGroup.Definitions.Create(options); }
             catch (Exception) { return TryGetDefinition(preferredGroup, name); }
@@ -832,7 +829,7 @@ namespace AJTools.UI
             ProcessProgressBar.Maximum = Math.Max(1, elements.Count);
             ProcessProgressBar.Value = 0;
 
-            using (var t = new Transaction(_doc, "AJ Tools - Assign Location Data"))
+            using (var t = new Transaction(_doc, "Assign Location Data"))
             {
                 t.Start();
 
@@ -1062,8 +1059,8 @@ namespace AJTools.UI
                     return wrote;
                 }
 
-                bool e = SetDoubleOnElementAndType(el, map.Easting, c.X, options.OverwriteText, out bool _);
-                bool n = SetDoubleOnElementAndType(el, map.Northing, c.Y, options.OverwriteText, out bool _);
+                bool e = SetDoubleOnElementAndType(el, map.Easting, c.X, true, out bool _);
+                bool n = SetDoubleOnElementAndType(el, map.Northing, c.Y, true, out bool _);
                 wrote |= e || n;
                 if (!e || !n)
                     AddReason(result, options.Debug, "Coordinate write");
@@ -1077,7 +1074,7 @@ namespace AJTools.UI
                     return wrote;
                 }
 
-                bool a = SetDoubleOnElementAndType(el, map.Altitude, c.Z, options.OverwriteText, out bool _);
+                bool a = SetDoubleOnElementAndType(el, map.Altitude, c.Z, true, out bool _);
                 wrote |= a;
                 if (!a)
                     AddReason(result, options.Debug, "Coordinate write");
@@ -1410,7 +1407,7 @@ namespace AJTools.UI
 
         private sealed class ParamSpec
         {
-            public ParamSpec(string name, ParameterDataTypeId parameterType, ParameterGroupId parameterGroup)
+            public ParamSpec(string name, AjSpec parameterType, AjGroup parameterGroup)
             {
                 Name = name;
                 ParameterType = parameterType;
@@ -1418,8 +1415,8 @@ namespace AJTools.UI
             }
 
             public string Name { get; }
-            public ParameterDataTypeId ParameterType { get; }
-            public ParameterGroupId ParameterGroup { get; }
+            public AjSpec ParameterType { get; }
+            public AjGroup ParameterGroup { get; }
         }
 
         private sealed class ProcessOptions

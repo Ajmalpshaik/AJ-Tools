@@ -20,7 +20,7 @@ namespace AJTools.Services.DuctReferenceDimension
     {
         private const string Title = "Duct Reference Dimension";
         private const string ActiveViewTitle = "Duct Reference Dimension - Active View";
-        private const string TransactionName = "AJ Tools - Duct Reference Dimension";
+        private const string TransactionName = "AJ Annotation - Duct Reference Dimension";
         private const double ExistingLineToleranceFactor = 1.25;
         private const double MinimumBatchDuctLength = 1000.0 * Constants.MM_TO_FEET;
         private const double VerticalDuctDotTolerance = 0.90;
@@ -109,7 +109,6 @@ namespace AJTools.Services.DuctReferenceDimension
 
                 if (report.HasActivity)
                 {
-                    DialogHelper.ShowInfo(Title, report.BuildSummary());
                     return report.TotalDimensionsCreated > 0 ? Result.Succeeded : Result.Cancelled;
                 }
 
@@ -146,7 +145,7 @@ namespace AJTools.Services.DuctReferenceDimension
                     .OfCategory(BuiltInCategory.OST_DuctCurves)
                     .WhereElementIsNotElementType()
                     .Where(DuctSelectionFilter.IsDuct)
-                    .OrderBy(e => AJTools.Utils.ElementIdHelper.GetIntegerValue(e.Id))
+                    .OrderBy(e => e.Id.IntValue())
                     .ToList();
 
                 foreach (Element duct in ducts)
@@ -185,11 +184,6 @@ namespace AJTools.Services.DuctReferenceDimension
                         processedDuctIds,
                         createdDimensionRecords,
                         report);
-                }
-
-                if (report.HasActivity)
-                {
-                    DialogHelper.ShowInfo(ActiveViewTitle, report.BuildSummary());
                 }
 
                 return report.TotalDimensionsCreated > 0 ? Result.Succeeded : Result.Cancelled;
@@ -403,7 +397,7 @@ namespace AJTools.Services.DuctReferenceDimension
                 foreach (Reference reference in EnumerateDimensionReferences(dimension))
                 {
                     ElementId referenceElementId = reference?.ElementId;
-                    if (referenceElementId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(referenceElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(elementId))
+                    if (referenceElementId != null && referenceElementId.IntValue() == elementId.IntValue())
                         return true;
                 }
             }
@@ -596,8 +590,11 @@ namespace AJTools.Services.DuctReferenceDimension
 
         private static IEnumerable<Dimension> GetDimensionsInView(Document doc, View view)
         {
+            // Category-based filter (not OfClass(typeof(Dimension))): Revit 2025+ returns linear
+            // dimensions as the LinearDimension subclass, which an exact-type OfClass filter misses.
             return new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Dimension))
+                .OfCategory(BuiltInCategory.OST_Dimensions)
+                .WhereElementIsNotElementType()
                 .Cast<Dimension>();
         }
 

@@ -532,9 +532,11 @@ namespace AJTools.Services.SmartTag
                 foreach (Element elem in texts)
                     AddAnnotationBox(elem, view, boxes, viewRight, viewUp);
 
-                // Collect Dimensions.
+                // Collect Dimensions. Category-based filter (not OfClass(typeof(Dimension))):
+                // Revit 2025+ returns linear dimensions as the LinearDimension subclass, which an
+                // exact-type OfClass filter misses.
                 var dims = new FilteredElementCollector(doc, view.Id)
-                    .OfClass(typeof(Dimension))
+                    .OfCategory(BuiltInCategory.OST_Dimensions)
                     .WhereElementIsNotElementType();
 
                 foreach (Element elem in dims)
@@ -671,7 +673,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                ElementId taggedId = IndependentTagCompat.GetTaggedLocalElementId(tag);
+                ElementId taggedId = TagCompat.GetTaggedLocalElementId(tag);
                 if (taggedId == null || taggedId == ElementId.InvalidElementId)
                     return false;
 
@@ -679,7 +681,7 @@ namespace AJTools.Services.SmartTag
                 if (tagged?.Category == null)
                     return false;
 
-                category = (BuiltInCategory)ElementIdHelper.GetIntegerValue(tagged.Category.Id);
+                category = (BuiltInCategory)tagged.Category.Id.IntValue();
                 return true;
             }
             catch (Exception)
@@ -865,10 +867,7 @@ namespace AJTools.Services.SmartTag
                     ? new double[] { 0.5, 0.25, 0.75 } 
                     : new double[] { 0.5 };
 
-                // No-leader (normal offset) is tried FIRST, matching this method's own documented intent
-                // ("Tries the 4 cardinal positions at the configured offset"); the 3x leader offset is only
-                // used as a fallback when the no-leader pass scores lower or finds nothing at all.
-                bool[] leaderPasses = new bool[] { false, true };
+                bool[] leaderPasses = new bool[] { true, false };
 
                 foreach (bool tryLeader in leaderPasses)
                 {
@@ -1364,7 +1363,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                XYZ direct = IndependentTagCompat.GetLeaderEnd(tag);
+                XYZ direct = TagCompat.GetLeaderEnd(tag);
                 if (direct != null)
                     return direct;
             }
@@ -1390,7 +1389,7 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                Reference taggedReference = IndependentTagCompat.GetTaggedReference(tag);
+                Reference taggedReference = TagCompat.GetTaggedReference(tag);
                 if (taggedReference == null)
                     return null;
 
@@ -1677,7 +1676,8 @@ namespace AJTools.Services.SmartTag
 
             try
             {
-                return IndependentTagCompat.SetLeaderElbow(tag, elbow);
+                TagCompat.SetLeaderElbow(tag, elbow);
+                return true;
             }
             catch (Exception)
             {

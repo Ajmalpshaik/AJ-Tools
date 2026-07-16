@@ -38,6 +38,7 @@
 
 using Autodesk.Revit.DB;
 
+using AJTools.Utils;
 namespace AJTools.Models
 {
     internal class FilterValueKey
@@ -82,7 +83,7 @@ namespace AJTools.Models
             return new FilterValueKey
             {
                 StorageType = StorageType.ElementId,
-                ElementIdValue = id == null ? (int?)null : AJTools.Utils.ElementIdHelper.GetIntegerValue(id)
+                ElementIdValue = id?.IntValue()
             };
         }
     }

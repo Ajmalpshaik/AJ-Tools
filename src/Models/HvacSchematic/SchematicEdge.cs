@@ -20,6 +20,7 @@
 using System;
 using Autodesk.Revit.DB;
 
+using AJTools.Utils;
 namespace AJTools.Models.HvacSchematic
 {
     internal sealed class SchematicEdge
@@ -49,8 +50,8 @@ namespace AJTools.Models.HvacSchematic
             {
                 return PreferredParentElementId != null &&
                        PreferredChildElementId != null &&
-                       AJTools.Utils.ElementIdHelper.GetIntegerValue(PreferredParentElementId) != AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId) &&
-                       AJTools.Utils.ElementIdHelper.GetIntegerValue(PreferredChildElementId) != AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
+                       PreferredParentElementId.IntValue() != ElementId.InvalidElementId.IntValue() &&
+                       PreferredChildElementId.IntValue() != ElementId.InvalidElementId.IntValue();
             }
         }
 
@@ -61,8 +62,8 @@ namespace AJTools.Models.HvacSchematic
                 return false;
             }
 
-            return (AJTools.Utils.ElementIdHelper.GetIntegerValue(FromElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(first) && AJTools.Utils.ElementIdHelper.GetIntegerValue(ToElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second)) ||
-                   (AJTools.Utils.ElementIdHelper.GetIntegerValue(FromElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second) && AJTools.Utils.ElementIdHelper.GetIntegerValue(ToElementId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(first));
+            return (FromElementId.IntValue() == first.IntValue() && ToElementId.IntValue() == second.IntValue()) ||
+                   (FromElementId.IntValue() == second.IntValue() && ToElementId.IntValue() == first.IntValue());
         }
 
         public int GetHierarchyPreference(int parentElementId, int childElementId)
@@ -72,14 +73,14 @@ namespace AJTools.Models.HvacSchematic
                 return 0;
             }
 
-            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(PreferredParentElementId) == parentElementId &&
-                AJTools.Utils.ElementIdHelper.GetIntegerValue(PreferredChildElementId) == childElementId)
+            if (PreferredParentElementId.IntValue() == parentElementId &&
+                PreferredChildElementId.IntValue() == childElementId)
             {
                 return Math.Max(1, DirectionConfidence);
             }
 
-            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(PreferredParentElementId) == childElementId &&
-                AJTools.Utils.ElementIdHelper.GetIntegerValue(PreferredChildElementId) == parentElementId)
+            if (PreferredParentElementId.IntValue() == childElementId &&
+                PreferredChildElementId.IntValue() == parentElementId)
             {
                 return -Math.Max(1, DirectionConfidence);
             }

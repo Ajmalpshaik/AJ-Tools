@@ -854,7 +854,7 @@ namespace AJTools.Services.ViewCrop
             hidden = false;
             try
             {
-                ElementId categoryElementId = new ElementId(categoryId);
+                ElementId categoryElementId = ElementIdHelper.FromInt(categoryId);
                 if (view.CanCategoryBeHidden(categoryElementId))
                     hidden = view.GetCategoryHidden(categoryElementId);
             }

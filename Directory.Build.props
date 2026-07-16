@@ -1,17 +1,90 @@
 <Project>
+
+  <!-- ================================================================
+       AJ-Tools multi-version build backbone  (Revit 2020 -> 2027)
+
+       RevitVersion comes from the build configuration name:
+         Debug / Release          -> 2020  (baseline, the tested build)
+         Debug R21 / Release R21  -> 2021 ... Debug R27 / Release R27 -> 2027
+
+       Framework families (verified 2026-07-06):
+         2020        net472            (.NET Framework 4.7.2)
+         2021-2024   net48             (.NET Framework 4.8)
+         2025-2026   net8.0-windows    (.NET 8)
+         2027        net10.0-windows   (.NET 10 - verified from the local
+                                        Revit 2027 RevitAPI.runtimeconfig.json)
+
+       Future Revit versions: verify the required .NET target against the
+       official Autodesk SDK before adding a new configuration here.
+       ================================================================ -->
+
+  <!-- Revit version from the active configuration name -->
   <PropertyGroup>
-    <RevitAddinDeployDir>$(MSBuildProjectDirectory)\bin\AddinDeploy\</RevitAddinDeployDir>
-    <SkipRevitAddinDeploy>false</SkipRevitAddinDeploy>
-    <SkipAjToolsAutoDeploy Condition="'$(SkipAjToolsAutoDeploy)'==''">false</SkipAjToolsAutoDeploy>
-    <BaseOutputPath>bin\</BaseOutputPath>
-    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R21'))">2021</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R22'))">2022</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R23'))">2023</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R24'))">2024</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R25'))">2025</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R26'))">2026</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'=='' and $(Configuration.Contains('R27'))">2027</RevitVersion>
+    <RevitVersion Condition="'$(RevitVersion)'==''">2020</RevitVersion>
   </PropertyGroup>
 
+  <!-- Target framework per Revit version (build families A / B / C) -->
   <PropertyGroup>
-    <RevitVersion Condition="'$(RevitVersion)'==''">2020</RevitVersion>
-    <RevitAddinsPath Condition="'$(RevitAddinsPath)'==''">$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)\AJ Tools\</RevitAddinsPath>
+    <TargetFramework>net472</TargetFramework>
+    <TargetFramework Condition="'$(RevitVersion)' &gt;= '2021'">net48</TargetFramework>
+    <TargetFramework Condition="'$(RevitVersion)' &gt;= '2025'">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(RevitVersion)' &gt;= '2027'">net10.0-windows</TargetFramework>
   </PropertyGroup>
+
+  <!-- REVITxxxx conditional-compilation constants.
+       Use exact (#if REVIT2024) or cumulative (#if REVIT2024_OR_GREATER)
+       switches in code; version-specific code lives ONLY inside helpers. -->
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion);REVIT2020_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2021'">$(DefineConstants);REVIT2021_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2022'">$(DefineConstants);REVIT2022_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2023'">$(DefineConstants);REVIT2023_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2024'">$(DefineConstants);REVIT2024_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2025'">$(DefineConstants);REVIT2025_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2026'">$(DefineConstants);REVIT2026_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2027'">$(DefineConstants);REVIT2027_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Build output; intermediate files isolated per Revit version so each
+       version restores its own Revit API package without clashing -->
+  <PropertyGroup>
+    <BaseOutputPath>bin\</BaseOutputPath>
+    <OutputPath Condition="'$(Configuration)'!=''">bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <BaseIntermediateOutputPath>obj\R$(RevitVersion)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <!-- CRITICAL for multi-version builds: each Revit version writes its own
+       obj\R20xx\ and bin\<Config>\ folders under the project. The SDK only
+       auto-excludes the ACTIVE version's obj folder from source globbing, so
+       without this every OTHER version's generated files (*.g.cs,
+       AssemblyAttributes.cs, GeneratedInternalTypeHelper.g.cs) get pulled into
+       the compile and explode with "already contains a definition" /
+       "Duplicate TargetFrameworkAttribute". Excluding all obj\ and bin\
+       subtrees from the default globs keeps each version's build isolated. -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- Auto-deploy settings (targets live in Directory.Build.targets).
+       Disable with -p:SkipAjToolsAutoDeploy=true -->
+  <PropertyGroup>
+    <SkipAjToolsAutoDeploy Condition="'$(SkipAjToolsAutoDeploy)'==''">false</SkipAjToolsAutoDeploy>
+    <RevitAddinsPath Condition="'$(RevitAddinsPath)'==''">$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)\AJ Tools\</RevitAddinsPath>
+    <!-- A running Revit process locks the current DLL. Deploy every build into a fresh payload folder,
+         then repoint the root manifest for the next Revit start. -->
+    <AutoDeployStamp Condition="'$(AutoDeployStamp)'==''">$([System.DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff'))</AutoDeployStamp>
+    <RevitAddinsRootPath Condition="'$(RevitAddinsRootPath)'==''">$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)\</RevitAddinsRootPath>
+    <RevitAddinPayloadPath Condition="'$(RevitAddinPayloadPath)'==''">$(RevitAddinsRootPath)AJ Tools.$(AutoDeployStamp)\</RevitAddinPayloadPath>
+    <RevitAddinManifestPath Condition="'$(RevitAddinManifestPath)'==''">$(RevitAddinsRootPath)AJ Tools.addin</RevitAddinManifestPath>
+  </PropertyGroup>
+
 </Project>

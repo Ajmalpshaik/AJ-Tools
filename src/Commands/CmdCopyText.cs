@@ -86,7 +86,7 @@ namespace AJTools.Commands
                 int pastedCount = 0;
 
                 // Group the whole pick session so a single Ctrl+Z reverses every pasted note.
-                using (TransactionGroup group = new TransactionGroup(doc, "AJ Tools - Copy Text Notes"))
+                using (TransactionGroup group = new TransactionGroup(doc, "AJ-Tools: Copy Text Notes"))
                 {
                     group.Start();
 

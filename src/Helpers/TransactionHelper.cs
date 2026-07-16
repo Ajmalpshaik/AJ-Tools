@@ -31,7 +31,8 @@ namespace AJTools.Utils
                 {
                     t.Start();
                     action();
-                    return t.Commit() == TransactionStatus.Committed;
+                    t.Commit();
+                    return true;
                 }
                 catch
                 {
@@ -60,11 +61,8 @@ namespace AJTools.Utils
                 {
                     t.Start();
                     action();
-                    if (t.Commit() == TransactionStatus.Committed)
-                        return true;
-
-                    errorMessage = "Revit rolled back the change during commit.";
-                    return false;
+                    t.Commit();
+                    return true;
                 }
                 catch (Exception ex)
                 {
@@ -95,11 +93,8 @@ namespace AJTools.Utils
                 {
                     t.Start();
                     result = func();
-                    if (t.Commit() == TransactionStatus.Committed)
-                        return true;
-
-                    result = default(T);
-                    return false;
+                    t.Commit();
+                    return true;
                 }
                 catch
                 {

@@ -2,14 +2,14 @@
 /*
  * Tool Name     : Colorize
  * File Name     : CmdColorizeAvailability.cs
- * Purpose       : Controls ribbon button availability — enabled only in the same views where
+ * Purpose       : Controls ribbon button availability - enabled only in the same views where
  *                 Filter Pro can operate (Plan, Section, Elevation, 3D, with overrides allowed).
  *
  * Author        : Ajmal P.S.
  * Version       : 1.0.0
  *
- * Created Date  : 2026-07-02
- * Last Updated  : 2026-07-02
+ * Created Date  : 2026-07-13
+ * Last Updated  : 2026-07-13
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,7 +26,8 @@
  * - Runs continuously while Revit is open; kept fast and exception-safe (returns false on any issue).
  *
  * Changelog     :
- * v1.0.0 (2026-07-02) - Initial release, built for the Colorize tool.
+ * v1.0.0 (2026-07-13) - Ported from the standalone AJ Tools tree into the live multi-version src/
+ *                       project so the Colorize tool actually gets built and deployed. Unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

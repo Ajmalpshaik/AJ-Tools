@@ -87,7 +87,8 @@ namespace AJTools.Services.LeaderLogic
             if (tag == null || !tag.HasLeader)
                 return null;
 
-            return IndependentTagCompat.GetLeaderEnd(tag);
+            try { return TagCompat.GetLeaderEnd(tag); }
+            catch { return null; }
         }
 
         // ─────────────────────────────────────────
@@ -193,7 +194,7 @@ namespace AJTools.Services.LeaderLogic
             tag.TagHeadPosition = t1;
 
             if (e1 != null)
-                IndependentTagCompat.SetLeaderElbow(tag, e1);
+                TagCompat.SetLeaderElbow(tag, e1);
         }
 
         /// <summary>

@@ -36,6 +36,10 @@ dist/Payload/
 dist/release/
 dist/*.zip
 
+# Node (mcp-server AutoDebugger bridge)
+node_modules/
+mcp-server/node_modules/
+
 # Local cleanup quarantine
 _backup_review/
 

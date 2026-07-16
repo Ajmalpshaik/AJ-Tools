@@ -23,12 +23,12 @@
  *
  * Notes         :
  * - Every Revit API read is individually try/caught so one odd element or missing level never
- *   drops the whole context â€” it just omits that one detail.
+ *   drops the whole context — it just omits that one detail.
  * - Per-element detail (type/level) is capped at AiShellConstants.MaxContextElementDetails so a
  *   huge selection doesn't blow up the AI request size; the category-count summary still covers
  *   the full selection either way.
  * - "No active document." and "No elements currently selected." are checked verbatim by
- *   GeminiShellViewModel.GenerateCodeAsync to decide whether to inject context â€” do not change
+ *   GeminiShellViewModel.GenerateCodeAsync to decide whether to inject context — do not change
  *   this exact wording without updating that check too.
  *
  * Changelog     :
@@ -50,6 +50,7 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using AJTools.GeminiShell.Helpers;
 
+using AJTools.Utils;
 namespace AJTools.GeminiShell.Services
 {
     public class RevitContextExtractionService : IExternalEventHandler
@@ -124,7 +125,7 @@ namespace AJTools.GeminiShell.Services
             }
             catch
             {
-                // Document title is informational only â€” safe to skip if unavailable.
+                // Document title is informational only — safe to skip if unavailable.
             }
         }
 
@@ -135,12 +136,12 @@ namespace AJTools.GeminiShell.Services
                 var view = doc.ActiveView;
                 if (view != null)
                 {
-                    sb.AppendLine($"Active View: \"{view.Name}\" ({view.ViewType}), Id {AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id)}");
+                    sb.AppendLine($"Active View: \"{view.Name}\" ({view.ViewType}), Id {view.Id.IntValue()}");
                 }
             }
             catch
             {
-                // Active view can be unavailable in some document states â€” skip rather than fail.
+                // Active view can be unavailable in some document states — skip rather than fail.
             }
         }
 
@@ -174,7 +175,7 @@ namespace AJTools.GeminiShell.Services
             }
 
             string summary = string.Join(", ", categoryCounts.Select(kv => $"{kv.Value} {kv.Key}"));
-            string idList = string.Join(", ", selectedIds.Select(id => AJTools.Utils.ElementIdHelper.GetIntegerValue(id)));
+            string idList = string.Join(", ", selectedIds.Select(id => id.IntValue()));
             sb.AppendLine($"Selected Elements: {summary}. IDs: [{idList}]");
 
             if (detailLines.Count == 0) return;
@@ -202,7 +203,7 @@ namespace AJTools.GeminiShell.Services
 
                 string levelName = GetLevelName(doc, elem);
 
-                var parts = new List<string> { $"Id {AJTools.Utils.ElementIdHelper.GetIntegerValue(elem.Id)}: {categoryName}" };
+                var parts = new List<string> { $"Id {elem.Id.IntValue()}: {categoryName}" };
                 if (!string.IsNullOrWhiteSpace(typeName)) parts.Add($"Type: {typeName}");
                 if (!string.IsNullOrWhiteSpace(levelName)) parts.Add($"Level: {levelName}");
 
@@ -228,7 +229,7 @@ namespace AJTools.GeminiShell.Services
             }
             catch
             {
-                // Not every element type exposes a meaningful LevelId â€” that's expected, not an error.
+                // Not every element type exposes a meaningful LevelId — that's expected, not an error.
             }
             return null;
         }

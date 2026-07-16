@@ -24,6 +24,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.Purge;
 
+using AJTools.Utils;
 namespace AJTools.Services.Purge
 {
     internal sealed class UnplacedViewCollector
@@ -73,7 +74,7 @@ namespace AJTools.Services.Purge
                 return false;
             }
 
-            return GetPlacedViewIds().Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(viewId));
+            return GetPlacedViewIds().Contains(viewId.IntValue());
         }
 
         private void AddUnplaced3DViews(ICollection<UnplacedViewPurgeItem> items, ISet<int> placedViewIds)
@@ -124,14 +125,14 @@ namespace AJTools.Services.Purge
 
             return view.Id != null &&
                    view.Id != ElementId.InvalidElementId &&
-                   !placedViewIds.Contains(AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id));
+                   !placedViewIds.Contains(view.Id.IntValue());
         }
 
         private UnplacedViewPurgeItem CreateItem(View view, string viewKind)
         {
             var item = new UnplacedViewPurgeItem
             {
-                ViewIdValue = AJTools.Utils.ElementIdHelper.GetIntegerValue(view.Id),
+                ViewIdValue = view.Id.IntValue(),
                 ViewName = SafeGetName(view),
                 ViewKind = viewKind,
                 ViewTypeText = view.ViewType.ToString(),
@@ -180,7 +181,7 @@ namespace AJTools.Services.Purge
                     continue;
                 }
 
-                placedViewIds.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(viewport.ViewId));
+                placedViewIds.Add(viewport.ViewId.IntValue());
             }
 
             return placedViewIds;
@@ -199,7 +200,7 @@ namespace AJTools.Services.Purge
                    second != null &&
                    first != ElementId.InvalidElementId &&
                    second != ElementId.InvalidElementId &&
-                   AJTools.Utils.ElementIdHelper.GetIntegerValue(first) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second);
+                   first.IntValue() == second.IntValue();
         }
 
         private static string SafeGetName(View view)

@@ -1,8 +1,8 @@
 // Tool Name: Pin Elements Service
 // Description: Collects target groups and applies pin/unpin state in bulk.
 // Author: Ajmal P.S.
-// Version: 1.2.0
-// Last Updated: 2026-04-18
+// Version: 1.3.0
+// Last Updated: 2026-07-13
 // Revit Version: 2020
 
 using System;
@@ -12,6 +12,7 @@ using System.Reflection;
 using Autodesk.Revit.DB;
 using AJTools.Models.PinTools;
 
+using AJTools.Utils;
 namespace AJTools.Services.PinTools
 {
     /// <summary>
@@ -116,6 +117,16 @@ namespace AJTools.Services.PinTools
                     PinTargetGroup.ElectricalEquipment,
                     "Electrical Equipment",
                     "Elements in Electrical Equipment category.",
+                    false),
+                new PinTargetDefinition(
+                    PinTargetGroup.Grids,
+                    "Grids",
+                    "Grid datum elements.",
+                    false),
+                new PinTargetDefinition(
+                    PinTargetGroup.Levels,
+                    "Levels",
+                    "Level datum elements.",
                     false)
             };
 
@@ -182,7 +193,7 @@ namespace AJTools.Services.PinTools
 
                 foreach (int idValue in candidateIds)
                 {
-                    Element element = doc.GetElement(new ElementId(idValue));
+                    Element element = doc.GetElement(ElementIdHelper.FromInt(idValue));
                     if (element == null)
                     {
                         summary.SkippedCount++;
@@ -267,6 +278,8 @@ namespace AJTools.Services.PinTools
                 case PinTargetGroup.MechanicalEquipment:
                 case PinTargetGroup.PlumbingFixtures:
                 case PinTargetGroup.ElectricalEquipment:
+                case PinTargetGroup.Grids:
+                case PinTargetGroup.Levels:
                     return true;
                 default:
                     return false;
@@ -384,6 +397,14 @@ namespace AJTools.Services.PinTools
 
                 case PinTargetGroup.ElectricalEquipment:
                     AddElementsByBuiltInCategoryNames(doc, sink, "OST_ElectricalEquipment");
+                    break;
+
+                case PinTargetGroup.Grids:
+                    AddElementsByBuiltInCategoryNames(doc, sink, "OST_Grids");
+                    break;
+
+                case PinTargetGroup.Levels:
+                    AddElementsByBuiltInCategoryNames(doc, sink, "OST_Levels");
                     break;
             }
         }
@@ -506,7 +527,7 @@ namespace AJTools.Services.PinTools
 
             ElementId id = viewport.Id;
             if (id != null && id != ElementId.InvalidElementId)
-                sink.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
+                sink.Add(id.IntValue());
         }
 
         private static void AddSheetSchedules(Document doc, ViewSheet sheet, ISet<int> sink)
@@ -573,7 +594,7 @@ namespace AJTools.Services.PinTools
 
                 ElementId id = scheduleInstance.Id;
                 if (id != null && id != ElementId.InvalidElementId)
-                    sink.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
+                    sink.Add(id.IntValue());
             }
         }
 
@@ -634,7 +655,7 @@ namespace AJTools.Services.PinTools
             foreach (ElementId id in ids)
             {
                 if (id != null && id != ElementId.InvalidElementId)
-                    sink.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(id));
+                    sink.Add(id.IntValue());
             }
         }
 

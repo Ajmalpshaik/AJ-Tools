@@ -52,8 +52,8 @@ namespace AJTools.Commands
     [Regeneration(RegenerationOption.Manual)]
     public class CmdToggleRevitLinks : IExternalCommand
     {
-        private const string ToolTitle = "AJ Tools";
-        private const string TransactionName = "AJ Tools - Toggle Link";
+        private const string ToolTitle = "AJ-Tools";
+        private const string TransactionName = "AJ-Tools: Toggle Link";
         private static readonly ElementId RevitLinksCategoryId = new ElementId(BuiltInCategory.OST_RvtLinks);
 
         public Result Execute(

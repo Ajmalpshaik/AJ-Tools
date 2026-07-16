@@ -13,10 +13,11 @@ using Autodesk.Revit.DB;
 using AJTools.Models;
 using AJTools.Utils;
 
-#if REVIT2023_OR_GREATER
-using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+// Version-safe token type: BuiltInParameterGroup on Revit 2020-2021, ForgeTypeId on Revit 2022+.
+#if REVIT2022_OR_GREATER
+using AjGroup = Autodesk.Revit.DB.ForgeTypeId;
 #else
-using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+using AjGroup = Autodesk.Revit.DB.BuiltInParameterGroup;
 #endif
 
 namespace AJTools.Services
@@ -66,7 +67,7 @@ namespace AJTools.Services
                 return result;
             }
 
-            using (var group = new TransactionGroup(_doc, "AJ Tools - Shared Parameter to Family Parameter"))
+            using (var group = new TransactionGroup(_doc, "Shared Parameter to Family Parameter"))
             {
                 group.Start();
 
@@ -84,18 +85,8 @@ namespace AJTools.Services
                         {
                             if (TryConvertSingle(item, result))
                             {
-                                // Only record success if Revit actually commits; an auto-rollback
-                                // during commit must not be reported to the user as a conversion.
-                                TransactionStatus commitStatus = transaction.Commit();
-                                if (commitStatus == TransactionStatus.Committed)
-                                {
-                                    result.AddSuccess(parameterName);
-                                    hasCommittedChanges = true;
-                                }
-                                else
-                                {
-                                    result.AddFailure(parameterName, "Revit rolled back the change during commit.");
-                                }
+                                transaction.Commit();
+                                hasCommittedChanges = true;
                             }
                             else
                             {
@@ -155,7 +146,7 @@ namespace AJTools.Services
             }
 
             string parameterName = definition.Name;
-            ParameterGroupId parameterGroup = SharedParamUtils.GetDefinitionGroupId(definition);
+            AjGroup parameterGroup = RevitCompat.GetGroup(definition);
             bool isInstance = sourceParameter.IsInstance;
             bool wasReporting = SharedParamUtils.IsReporting(sourceParameter);
             string formula = SharedParamUtils.GetFormula(sourceParameter);
@@ -220,7 +211,7 @@ namespace AJTools.Services
                 wasReporting,
                 warnings);
 
-            // Success is recorded by the caller only after the transaction actually commits.
+            result.AddSuccess(parameterName);
             for (int i = 0; i < warnings.Count; i++)
             {
                 result.AddWarning(parameterName, warnings[i]);
@@ -232,7 +223,7 @@ namespace AJTools.Services
         private bool TryReplaceSharedParameter(
             FamilyParameter sourceParameter,
             string targetName,
-            ParameterGroupId parameterGroup,
+            AjGroup parameterGroup,
             bool isInstance,
             IList<string> warnings,
             out FamilyParameter convertedParameter,
@@ -243,7 +234,8 @@ namespace AJTools.Services
 
             try
             {
-                convertedParameter = _familyManager.ReplaceParameter(
+                convertedParameter = RevitCompat.ReplaceParameter(
+                    _familyManager,
                     sourceParameter,
                     targetName,
                     parameterGroup,
@@ -396,7 +388,7 @@ namespace AJTools.Services
 
             if (first.Id != null && second.Id != null && first.Id != ElementId.InvalidElementId && second.Id != ElementId.InvalidElementId)
             {
-                return AJTools.Utils.ElementIdHelper.GetIntegerValue(first.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(second.Id);
+                return first.Id.IntValue() == second.Id.IntValue();
             }
 
             return ReferenceEquals(first, second);

@@ -23,6 +23,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.HvacSchematic;
 
+using AJTools.Utils;
 namespace AJTools.Services.HvacSchematic
 {
     internal sealed class SchematicLayoutEngine
@@ -44,7 +45,7 @@ namespace AJTools.Services.HvacSchematic
                 return;
             }
 
-            var nodeById = nodes.ToDictionary(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId));
+            var nodeById = nodes.ToDictionary(node => node.ElementId.IntValue());
             var adjacency = BuildAdjacency(nodes, edges);
             var bandIndices = BuildGlobalBandIndices(nodes);
 
@@ -63,7 +64,7 @@ namespace AJTools.Services.HvacSchematic
             {
                 List<SchematicNode> networkNodes = nodes
                     .Where(node => node.NetworkIndex == networkIndex)
-                    .OrderBy(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId))
+                    .OrderBy(node => node.ElementId.IntValue())
                     .ToList();
                 if (networkNodes.Count == 0)
                 {
@@ -78,13 +79,13 @@ namespace AJTools.Services.HvacSchematic
 
                 Dictionary<int, int> parentById = BuildDirectedTree(root, adjacency, nodeById, edges);
                 Dictionary<int, List<int>> childrenByParent = BuildChildrenMap(networkNodes, parentById);
-                AssignDepths(AJTools.Utils.ElementIdHelper.GetIntegerValue(root.ElementId), 0, childrenByParent, nodeById);
+                AssignDepths(root.ElementId.IntValue(), 0, childrenByParent, nodeById);
 
                 Dictionary<int, int> subtreeScores = new Dictionary<int, int>();
-                CalculateSubtreeScore(AJTools.Utils.ElementIdHelper.GetIntegerValue(root.ElementId), childrenByParent, nodeById, subtreeScores);
+                CalculateSubtreeScore(root.ElementId.IntValue(), childrenByParent, nodeById, subtreeScores);
 
                 Dictionary<int, int> leafCounts = new Dictionary<int, int>();
-                CalculateLeafCount(AJTools.Utils.ElementIdHelper.GetIntegerValue(root.ElementId), childrenByParent, leafCounts);
+                CalculateLeafCount(root.ElementId.IntValue(), childrenByParent, leafCounts);
 
                 Dictionary<string, SchematicEdge> edgeByKey = BuildEdgeLookup(edges);
                 Dictionary<int, int> continuationChildByParent = new Dictionary<int, int>();
@@ -97,7 +98,7 @@ namespace AJTools.Services.HvacSchematic
                         subtreeScores,
                         leafCounts,
                         edgeByKey);
-                    if (continuationChildId != AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
+                    if (continuationChildId != ElementId.InvalidElementId.IntValue())
                     {
                         continuationChildByParent[pair.Key] = continuationChildId;
                     }
@@ -117,13 +118,13 @@ namespace AJTools.Services.HvacSchematic
 
                 foreach (KeyValuePair<int, int> pair in parentById)
                 {
-                    nodeById[pair.Key].ParentElementId = pair.Value == AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId)
+                    nodeById[pair.Key].ParentElementId = pair.Value == ElementId.InvalidElementId.IntValue()
                         ? ElementId.InvalidElementId
-                        : new ElementId(pair.Value);
+                        : ElementIdHelper.FromInt(pair.Value);
                 }
 
                 int maxColumn = AssignTreePositions(
-                    AJTools.Utils.ElementIdHelper.GetIntegerValue(root.ElementId),
+                    root.ElementId.IntValue(),
                     0,
                     0,
                     childrenByParent,
@@ -154,15 +155,15 @@ namespace AJTools.Services.HvacSchematic
         {
             Dictionary<string, SchematicEdge> edgeByKey = BuildEdgeLookup(edges);
             Dictionary<int, int> parentById = new Dictionary<int, int>();
-            parentById[AJTools.Utils.ElementIdHelper.GetIntegerValue(root.ElementId)] = AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
+            parentById[root.ElementId.IntValue()] = ElementId.InvalidElementId.IntValue();
             Dictionary<int, double> costById = new Dictionary<int, double>();
-            costById[AJTools.Utils.ElementIdHelper.GetIntegerValue(root.ElementId)] = 0;
+            costById[root.ElementId.IntValue()] = 0;
             var settled = new HashSet<int>();
 
             while (settled.Count < adjacency.Count)
             {
                 int currentId = SelectLowestCostNode(costById, settled);
-                if (currentId == AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
+                if (currentId == ElementId.InvalidElementId.IntValue())
                 {
                     break;
                 }
@@ -185,7 +186,7 @@ namespace AJTools.Services.HvacSchematic
                     if (!costById.TryGetValue(neighborId, out existingCost) ||
                         candidateCost < existingCost - 1e-6 ||
                         (Math.Abs(candidateCost - existingCost) < 1e-6 &&
-                         IsBetterParent(currentId, parentById.ContainsKey(neighborId) ? parentById[neighborId] : AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId), nodeById, edgeByKey, neighborId)))
+                         IsBetterParent(currentId, parentById.ContainsKey(neighborId) ? parentById[neighborId] : ElementId.InvalidElementId.IntValue(), nodeById, edgeByKey, neighborId)))
                     {
                         costById[neighborId] = candidateCost;
                         parentById[neighborId] = currentId;
@@ -195,7 +196,7 @@ namespace AJTools.Services.HvacSchematic
 
             foreach (KeyValuePair<int, int> pair in parentById)
             {
-                if (pair.Value == AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
+                if (pair.Value == ElementId.InvalidElementId.IntValue())
                 {
                     continue;
                 }
@@ -213,12 +214,12 @@ namespace AJTools.Services.HvacSchematic
             Dictionary<int, List<int>> childrenByParent = new Dictionary<int, List<int>>();
             foreach (SchematicNode node in networkNodes)
             {
-                childrenByParent[AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)] = new List<int>();
+                childrenByParent[node.ElementId.IntValue()] = new List<int>();
             }
 
             foreach (KeyValuePair<int, int> pair in parentById)
             {
-                if (pair.Value == AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
+                if (pair.Value == ElementId.InvalidElementId.IntValue())
                 {
                     continue;
                 }
@@ -234,13 +235,13 @@ namespace AJTools.Services.HvacSchematic
             Dictionary<int, List<int>> adjacency = new Dictionary<int, List<int>>();
             foreach (SchematicNode node in nodes)
             {
-                adjacency[AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)] = new List<int>();
+                adjacency[node.ElementId.IntValue()] = new List<int>();
             }
 
             foreach (SchematicEdge edge in edges)
             {
-                int fromId = AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId);
-                int toId = AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId);
+                int fromId = edge.FromElementId.IntValue();
+                int toId = edge.ToElementId.IntValue();
 
                 List<int> fromNeighbors;
                 if (adjacency.TryGetValue(fromId, out fromNeighbors) && !fromNeighbors.Contains(toId))
@@ -307,9 +308,9 @@ namespace AJTools.Services.HvacSchematic
                 .OrderBy(node => GetRootOrder(node))
                 .ThenBy(node => GetIncomingPreference(node, adjacency, edgeByKey))
                 .ThenByDescending(node => GetOutgoingPreference(node, adjacency, edgeByKey))
-                .ThenByDescending(node => adjacency[AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)].Count)
+                .ThenByDescending(node => adjacency[node.ElementId.IntValue()].Count)
                 .ThenByDescending(node => node.LevelElevation ?? double.MinValue)
-                .ThenBy(node => AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId))
+                .ThenBy(node => node.ElementId.IntValue())
                 .First();
         }
 
@@ -362,7 +363,7 @@ namespace AJTools.Services.HvacSchematic
             node.ColumnIndex = Math.Max(0, startColumn);
 
             List<int> children = childrenByParent[nodeId];
-            int continuationChildId = AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
+            int continuationChildId = ElementId.InvalidElementId.IntValue();
             continuationChildByParent.TryGetValue(nodeId, out continuationChildId);
             int nextColumn = node.ColumnIndex + 1;
             int maxColumn = node.ColumnIndex;
@@ -388,7 +389,7 @@ namespace AJTools.Services.HvacSchematic
                 nextColumn = childMaxColumn + 1 + SiblingGapColumns;
             }
 
-            if (continuationChildId != AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
+            if (continuationChildId != ElementId.InvalidElementId.IntValue())
             {
                 SchematicNode continuationChild = nodeById[continuationChildId];
                 int continuationRow = ResolveChildRow(node, continuationChild, true, clampedRow);
@@ -467,7 +468,7 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<int, int> leafCounts,
             IDictionary<string, SchematicEdge> edgeByKey)
         {
-            int bestChildId = AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
+            int bestChildId = ElementId.InvalidElementId.IntValue();
             double bestScore = double.MinValue;
             SchematicNode parent = nodeById[parentId];
 
@@ -516,7 +517,7 @@ namespace AJTools.Services.HvacSchematic
         {
             for (int i = 0; i < edges.Count; i++)
             {
-                if (edges[i].Connects(new ElementId(firstId), new ElementId(secondId)))
+                if (edges[i].Connects(ElementIdHelper.FromInt(firstId), ElementIdHelper.FromInt(secondId)))
                 {
                     edges[i].IsTreeEdge = true;
                     return;
@@ -556,26 +557,26 @@ namespace AJTools.Services.HvacSchematic
                 return leftOrder.CompareTo(rightOrder);
             }
 
-            int leftLeafCount = leafCounts.ContainsKey(AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId)) ? leafCounts[AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId)] : 1;
-            int rightLeafCount = leafCounts.ContainsKey(AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId)) ? leafCounts[AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId)] : 1;
+            int leftLeafCount = leafCounts.ContainsKey(left.ElementId.IntValue()) ? leafCounts[left.ElementId.IntValue()] : 1;
+            int rightLeafCount = leafCounts.ContainsKey(right.ElementId.IntValue()) ? leafCounts[right.ElementId.IntValue()] : 1;
             int leafComparison = rightLeafCount.CompareTo(leftLeafCount);
             if (leafComparison != 0)
             {
                 return leafComparison;
             }
 
-            int leftScore = subtreeScores.ContainsKey(AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId)) ? subtreeScores[AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId)] : 0;
-            int rightScore = subtreeScores.ContainsKey(AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId)) ? subtreeScores[AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId)] : 0;
+            int leftScore = subtreeScores.ContainsKey(left.ElementId.IntValue()) ? subtreeScores[left.ElementId.IntValue()] : 0;
+            int rightScore = subtreeScores.ContainsKey(right.ElementId.IntValue()) ? subtreeScores[right.ElementId.IntValue()] : 0;
             int scoreComparison = rightScore.CompareTo(leftScore);
             if (scoreComparison != 0)
             {
                 return scoreComparison;
             }
 
-            SchematicEdge leftEdge = GetEdge(edgeByKey, AJTools.Utils.ElementIdHelper.GetIntegerValue(parent.ElementId), AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId));
-            SchematicEdge rightEdge = GetEdge(edgeByKey, AJTools.Utils.ElementIdHelper.GetIntegerValue(parent.ElementId), AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId));
-            int leftDirection = leftEdge != null ? leftEdge.GetHierarchyPreference(AJTools.Utils.ElementIdHelper.GetIntegerValue(parent.ElementId), AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId)) : 0;
-            int rightDirection = rightEdge != null ? rightEdge.GetHierarchyPreference(AJTools.Utils.ElementIdHelper.GetIntegerValue(parent.ElementId), AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId)) : 0;
+            SchematicEdge leftEdge = GetEdge(edgeByKey, parent.ElementId.IntValue(), left.ElementId.IntValue());
+            SchematicEdge rightEdge = GetEdge(edgeByKey, parent.ElementId.IntValue(), right.ElementId.IntValue());
+            int leftDirection = leftEdge != null ? leftEdge.GetHierarchyPreference(parent.ElementId.IntValue(), left.ElementId.IntValue()) : 0;
+            int rightDirection = rightEdge != null ? rightEdge.GetHierarchyPreference(parent.ElementId.IntValue(), right.ElementId.IntValue()) : 0;
             int directionComparison = rightDirection.CompareTo(leftDirection);
             if (directionComparison != 0)
             {
@@ -594,7 +595,7 @@ namespace AJTools.Services.HvacSchematic
                 return labelComparison;
             }
 
-            return AJTools.Utils.ElementIdHelper.GetIntegerValue(left.ElementId).CompareTo(AJTools.Utils.ElementIdHelper.GetIntegerValue(right.ElementId));
+            return left.ElementId.IntValue().CompareTo(right.ElementId.IntValue());
         }
 
         private static int GetChildOrder(
@@ -603,8 +604,8 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<int, int> continuationChildByParent)
         {
             int continuationChildId;
-            bool isContinuation = continuationChildByParent.TryGetValue(AJTools.Utils.ElementIdHelper.GetIntegerValue(parent.ElementId), out continuationChildId) &&
-                                  continuationChildId == AJTools.Utils.ElementIdHelper.GetIntegerValue(child.ElementId);
+            bool isContinuation = continuationChildByParent.TryGetValue(parent.ElementId.IntValue(), out continuationChildId) &&
+                                  continuationChildId == child.ElementId.IntValue();
             bool crossesLevel = IsLevelTransition(parent, child);
 
             if (isContinuation)
@@ -631,7 +632,7 @@ namespace AJTools.Services.HvacSchematic
             for (int i = 0; i < edges.Count; i++)
             {
                 SchematicEdge edge = edges[i];
-                edgeByKey[CreateEdgeKey(AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.FromElementId), AJTools.Utils.ElementIdHelper.GetIntegerValue(edge.ToElementId))] = edge;
+                edgeByKey[CreateEdgeKey(edge.FromElementId.IntValue(), edge.ToElementId.IntValue())] = edge;
             }
 
             return edgeByKey;
@@ -652,7 +653,7 @@ namespace AJTools.Services.HvacSchematic
         private static int SelectLowestCostNode(IDictionary<int, double> costById, ISet<int> settled)
         {
             double bestCost = double.MaxValue;
-            int bestNodeId = AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId);
+            int bestNodeId = ElementId.InvalidElementId.IntValue();
 
             foreach (KeyValuePair<int, double> pair in costById)
             {
@@ -698,7 +699,7 @@ namespace AJTools.Services.HvacSchematic
 
             if (edge != null)
             {
-                int directionPreference = edge.GetHierarchyPreference(AJTools.Utils.ElementIdHelper.GetIntegerValue(parent.ElementId), AJTools.Utils.ElementIdHelper.GetIntegerValue(child.ElementId));
+                int directionPreference = edge.GetHierarchyPreference(parent.ElementId.IntValue(), child.ElementId.IntValue());
                 if (directionPreference > 0)
                 {
                     cost -= 35.0 + Math.Min(20.0, directionPreference * 4.0);
@@ -724,7 +725,7 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<string, SchematicEdge> edgeByKey,
             int childId)
         {
-            if (currentParentId == AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId.InvalidElementId))
+            if (currentParentId == ElementId.InvalidElementId.IntValue())
             {
                 return true;
             }
@@ -753,7 +754,7 @@ namespace AJTools.Services.HvacSchematic
                 return candidateOrder < currentOrder;
             }
 
-            return AJTools.Utils.ElementIdHelper.GetIntegerValue(candidateParent.ElementId) < AJTools.Utils.ElementIdHelper.GetIntegerValue(currentParent.ElementId);
+            return candidateParent.ElementId.IntValue() < currentParent.ElementId.IntValue();
         }
 
         private static int GetIncomingPreference(
@@ -762,16 +763,16 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<string, SchematicEdge> edgeByKey)
         {
             int score = 0;
-            List<int> neighbors = adjacency[AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)];
+            List<int> neighbors = adjacency[node.ElementId.IntValue()];
             for (int i = 0; i < neighbors.Count; i++)
             {
-                SchematicEdge edge = GetEdge(edgeByKey, AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId), neighbors[i]);
+                SchematicEdge edge = GetEdge(edgeByKey, node.ElementId.IntValue(), neighbors[i]);
                 if (edge == null)
                 {
                     continue;
                 }
 
-                int preference = edge.GetHierarchyPreference(AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId), neighbors[i]);
+                int preference = edge.GetHierarchyPreference(node.ElementId.IntValue(), neighbors[i]);
                 if (preference < 0)
                 {
                     score += -preference;
@@ -787,16 +788,16 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<string, SchematicEdge> edgeByKey)
         {
             int score = 0;
-            List<int> neighbors = adjacency[AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId)];
+            List<int> neighbors = adjacency[node.ElementId.IntValue()];
             for (int i = 0; i < neighbors.Count; i++)
             {
-                SchematicEdge edge = GetEdge(edgeByKey, AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId), neighbors[i]);
+                SchematicEdge edge = GetEdge(edgeByKey, node.ElementId.IntValue(), neighbors[i]);
                 if (edge == null)
                 {
                     continue;
                 }
 
-                int preference = edge.GetHierarchyPreference(AJTools.Utils.ElementIdHelper.GetIntegerValue(node.ElementId), neighbors[i]);
+                int preference = edge.GetHierarchyPreference(node.ElementId.IntValue(), neighbors[i]);
                 if (preference > 0)
                 {
                     score += preference;

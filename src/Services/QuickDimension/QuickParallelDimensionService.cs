@@ -66,97 +66,70 @@ namespace AJTools.Services.QuickDimension
                 if (view == null || view.IsTemplate)
                     return Fail(title, "Please run this tool in a normal project view.");
 
-                // The whole workflow (sketch-plane setup + the final dimension) is wrapped in one
-                // TransactionGroup so a cancelled/failed run rolls back the sketch-plane change too,
-                // instead of leaving a stray "Set Sketch Plane" undo entry with nothing dimensioned.
-                using (TransactionGroup group = new TransactionGroup(doc, title))
+                if (!EnsureSketchPlane(doc, view))
+                    return Fail(title, "Could not prepare the active view for point picking.");
+
+                IList<Element> selected = GetOrPickElements(uidoc, doc, mode);
+                if (selected == null || selected.Count == 0)
+                    return Result.Cancelled;
+
+                if (mode == QuickDimensionReferenceMode.Centerline && selected.Count < 2)
+                    return Fail(title, "Select at least two parallel elements.");
+
+                if (mode == QuickDimensionReferenceMode.FaceEdge && selected.Count < 1)
+                    return Fail(title, "Select at least one element.");
+
+                if (!TryResolveLeadDirection(uidoc, doc, selected, out XYZ leadDirection))
+                    return Result.Cancelled;
+
+                XYZ placementPoint = uidoc.Selection.PickPoint(
+                    ObjectSnapTypes.None,
+                    "Pick a point to place the quick dimension line");
+
+                if (!TryBuildDimensionLine(
+                    view,
+                    placementPoint,
+                    selected,
+                    leadDirection,
+                    out Line dimLine,
+                    out XYZ sortDirection))
                 {
-                    group.Start();
-
-                    if (!EnsureSketchPlane(doc, view))
-                    {
-                        group.RollBack();
-                        return Fail(title, "Could not prepare the active view for point picking.");
-                    }
-
-                    IList<Element> selected = GetOrPickElements(uidoc, doc, mode);
-                    if (selected == null || selected.Count == 0)
-                    {
-                        group.RollBack();
-                        return Result.Cancelled;
-                    }
-
-                    if (mode == QuickDimensionReferenceMode.Centerline && selected.Count < 2)
-                    {
-                        group.RollBack();
-                        return Fail(title, "Select at least two parallel elements.");
-                    }
-
-                    if (mode == QuickDimensionReferenceMode.FaceEdge && selected.Count < 1)
-                    {
-                        group.RollBack();
-                        return Fail(title, "Select at least one element.");
-                    }
-
-                    if (!TryResolveLeadDirection(uidoc, doc, selected, out XYZ leadDirection))
-                    {
-                        group.RollBack();
-                        return Result.Cancelled;
-                    }
-
-                    XYZ placementPoint = uidoc.Selection.PickPoint(
-                        ObjectSnapTypes.None,
-                        "Pick a point to place the quick dimension line");
-
-                    if (!TryBuildDimensionLine(
-                        view,
-                        placementPoint,
-                        selected,
-                        leadDirection,
-                        out Line dimLine,
-                        out XYZ sortDirection))
-                    {
-                        group.RollBack();
-                        return Fail(title, "Failed to create a valid dimension line from the picked point.");
-                    }
-
-                    if (!TryBuildReferenceArray(
-                        doc,
-                        view,
-                        selected,
-                        leadDirection,
-                        sortDirection,
-                        placementPoint,
-                        mode,
-                        out ReferenceArray referenceArray,
-                        out int skippedCount))
-                    {
-                        group.RollBack();
-                        return Fail(
-                            title,
-                            mode == QuickDimensionReferenceMode.FaceEdge
-                                ? "Could not find two opposite face/edge references on enough elements. Try straight ducts/pipes or simpler linear geometry."
-                                : "Could not extract valid references. Try selecting simple parallel line-based elements.");
-                    }
-
-                    using (Transaction tx = new Transaction(doc, title))
-                    {
-                        tx.Start();
-                        doc.Create.NewDimension(view, dimLine, referenceArray);
-                        tx.Commit();
-                    }
-
-                    group.Assimilate();
-
-                    if (skippedCount > 0)
-                    {
-                        DialogHelper.ShowInfo(
-                            title,
-                            $"Dimension created. {skippedCount} selected element(s) were skipped because valid references were not found for {GetModeLabel(mode)}.");
-                    }
-
-                    return Result.Succeeded;
+                    return Fail(title, "Failed to create a valid dimension line from the picked point.");
                 }
+
+                if (!TryBuildReferenceArray(
+                    doc,
+                    view,
+                    selected,
+                    leadDirection,
+                    sortDirection,
+                    placementPoint,
+                    mode,
+                    out ReferenceArray referenceArray,
+                    out int skippedCount))
+                {
+                    return Fail(
+                        title,
+                        mode == QuickDimensionReferenceMode.FaceEdge
+                            ? "Could not find two opposite face/edge references on enough elements. Try straight ducts/pipes or simpler linear geometry."
+                            : "Could not extract valid references. Try selecting simple parallel line-based elements.");
+                }
+
+                using (Transaction tx = new Transaction(doc, title))
+                {
+                    tx.Start();
+                    doc.Create.NewDimension(view, dimLine, referenceArray);
+                    tx.Commit();
+                }
+
+                if (skippedCount > 0)
+                {
+                    DialogHelper.ShowInfo(
+                        title,
+                        $"Dimension created. {skippedCount} selected element(s) were skipped because valid references were not found for {GetModeLabel(mode)}.");
+                }
+
+                return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
@@ -956,7 +929,7 @@ namespace AJTools.Services.QuickDimension
             }
             catch
             {
-                return AJTools.Utils.ElementIdHelper.GetIntegerValue(reference.ElementId).ToString();
+                return reference.ElementId.IntValue().ToString();
             }
         }
 

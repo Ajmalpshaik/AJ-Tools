@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
+using AJTools.Utils;
 namespace AJTools.Services.HvacSchematic
 {
     internal sealed class LevelResolverService
@@ -186,7 +187,7 @@ namespace AJTools.Services.HvacSchematic
                 return false;
             }
 
-            if (!visited.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(host.Id)))
+            if (!visited.Add(host.Id.IntValue()))
             {
                 return false;
             }
@@ -290,12 +291,12 @@ namespace AJTools.Services.HvacSchematic
                     }
 
                     Element owner = referenceConnector.Owner;
-                    if (owner == null || AJTools.Utils.ElementIdHelper.GetIntegerValue(owner.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id))
+                    if (owner == null || owner.Id.IntValue() == element.Id.IntValue())
                     {
                         continue;
                     }
 
-                    if (!visited.Add(AJTools.Utils.ElementIdHelper.GetIntegerValue(owner.Id)))
+                    if (!visited.Add(owner.Id.IntValue()))
                     {
                         continue;
                     }

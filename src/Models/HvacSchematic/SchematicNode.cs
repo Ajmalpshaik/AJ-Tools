@@ -19,6 +19,7 @@
 // ==================================================
 using Autodesk.Revit.DB;
 
+using AJTools.Utils;
 namespace AJTools.Models.HvacSchematic
 {
     internal enum SchematicNodeType
@@ -69,7 +70,7 @@ namespace AJTools.Models.HvacSchematic
 
         public override string ToString()
         {
-            return NodeType + ":" + AJTools.Utils.ElementIdHelper.GetIntegerValue(ElementId);
+            return NodeType + ":" + ElementId.IntValue();
         }
     }
 }

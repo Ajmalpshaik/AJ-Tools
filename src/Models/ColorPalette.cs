@@ -2,14 +2,14 @@
 /*
  * Tool Name     : Filter Pro
  * File Name     : ColorPalette.cs
- * Purpose       : Provides a 20-colour neon palette for filter graphic overrides â€” deterministic
+ * Purpose       : Provides a 20-colour neon palette for filter graphic overrides — deterministic
  *                 colour by ElementId and thread-safe random colour selection.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-07-13
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,9 +32,9 @@
  * v1.1.0 (2025-12-11) - Replaced shared Random with ThreadLocal<Random> for thread safety;
  *                        added unchecked Math.Abs guard for int.MinValue ElementIds.
  * v1.1.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
- * v1.2.0 (2026-07-02) - Added GetColorAt(index) so the new Colorize tool can assign a distinct,
- *                        stable palette colour per selected value by list position, without needing
- *                        a real Revit ElementId to key off (it has no saved filter to key by).
+ * v1.2.0 (2026-07-13) - Added GetColorAt(index) so the Colorize tool can assign a distinct, stable
+ *                       palette colour per selected value by list position, without needing a real
+ *                       Revit ElementId to key off.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -45,6 +45,7 @@ using Autodesk.Revit.DB;
 using System;
 using System.Threading;
 
+using AJTools.Utils;
 namespace AJTools.Models
 {
     internal static class ColorPalette
@@ -83,15 +84,15 @@ namespace AJTools.Models
 
         /// <summary>
         /// Returns a consistent color for an ElementId.
-        /// Same ID â†’ same color.
+        /// Same ID → same color.
         /// </summary>
         public static Color GetColorFor(ElementId id)
         {
-            if (id == null || id == ElementId.InvalidElementId || AJTools.Utils.ElementIdHelper.GetIntegerValue(id) == 0)
+            if (id == null || id == ElementId.InvalidElementId || id.IntValue() == 0)
                 return Palette[0];
 
             // Use unchecked to prevent OverflowException when IntegerValue is int.MinValue.
-            int index = unchecked(Math.Abs(AJTools.Utils.ElementIdHelper.GetIntegerValue(id))) & 0x7FFFFFFF;
+            int index = unchecked(Math.Abs(id.IntValue())) & 0x7FFFFFFF;
             return Palette[index % Palette.Length];
         }
 
@@ -106,7 +107,7 @@ namespace AJTools.Models
 
         /// <summary>
         /// Returns a stable palette color by position (e.g. a value's index in a selection list).
-        /// Same index â†’ same color, with no dependency on a Revit ElementId.
+        /// Same index -> same color, with no dependency on a Revit ElementId.
         /// </summary>
         public static Color GetColorAt(int index)
         {

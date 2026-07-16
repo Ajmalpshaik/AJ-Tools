@@ -16,6 +16,7 @@ using System.Windows.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models;
+using AJTools.Utils;
 using RevitColor = Autodesk.Revit.DB.Color;
 using WpfControl = System.Windows.Controls.Control;
 using RevitTransform = Autodesk.Revit.DB.Transform;
@@ -329,7 +330,7 @@ namespace AJTools.UI
         }
         private bool TryFindInHost(int elementId)
         {
-            ElementId id = new ElementId(elementId);
+            ElementId id = ElementIdHelper.FromInt(elementId);
             Element element = _hostDoc.GetElement(id);
             if (element == null)
                 return false;
@@ -360,7 +361,7 @@ namespace AJTools.UI
             if (item?.Instance == null || item.LinkDocument == null)
                 return false;
 
-            ElementId id = new ElementId(elementId);
+            ElementId id = ElementIdHelper.FromInt(elementId);
             Element element = item.LinkDocument.GetElement(id);
             if (element == null)
                 return false;

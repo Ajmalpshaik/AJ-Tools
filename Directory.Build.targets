@@ -1,10 +1,27 @@
 <Project>
-  <Target Name="OverrideRevitDeployDir" BeforeTargets="AfterBuild">
-    <PropertyGroup>
-      <RevitAddinDeployDir>$(MSBuildProjectDirectory)\bin\AddinDeploy\</RevitAddinDeployDir>
-    </PropertyGroup>
-  </Target>
 
+  <!-- ================================================================
+       Debug/Release behaviour for the version configurations.
+       The .NET SDK only recognises the exact names "Debug"/"Release";
+       ours include "Debug R24", "Release R27", etc.
+       ================================================================ -->
+  <PropertyGroup Condition="$(Configuration.StartsWith('Debug'))">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(Configuration.StartsWith('Release'))">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineConstants>$(DefineConstants);TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <!-- ================================================================
+       Auto-deploy 1: all-users payload + manifest under ProgramData for
+       the Revit version being built. Same behaviour as the original
+       2020-only build, now parameterised by $(RevitVersion).
+       ================================================================ -->
   <Target Name="DeployAjToolsAddin"
           AfterTargets="Build"
           Condition="'$(SkipAjToolsAutoDeploy)' != 'true' and '@(DeployRoots)' != '' and '$(RevitAddinDeployName)' != ''">
@@ -45,28 +62,37 @@
                       Encoding="UTF-8" />
   </Target>
 
-  <Target Name="AutoDeployRevit2020"
+  <!-- ================================================================
+       Auto-deploy 2: current-user payload copy under AppData for the
+       Revit version being built. Each build gets its own payload folder;
+       the top-level manifest points to that folder on the next Revit start.
+       ================================================================ -->
+  <Target Name="AutoDeployRevitAddin"
           AfterTargets="Build"
           Condition="'$(SkipAjToolsAutoDeploy)' != 'true'">
-    <Message Text="Deploying Add-in to Revit $(RevitVersion)..." Importance="high" />
+    <Message Text="Deploying Add-in payload for Revit $(RevitVersion)..." Importance="high" />
 
     <ItemGroup>
       <AddinFiles Include="$(OutputPath)**\*.*" />
     </ItemGroup>
 
-    <MakeDir Directories="$(RevitAddinsPath);@(AddinFiles->'$(RevitAddinsPath)%(RecursiveDir)')" />
+    <MakeDir Directories="$(RevitAddinsRootPath);$(RevitAddinPayloadPath);@(AddinFiles->'$(RevitAddinPayloadPath)%(RecursiveDir)')" />
 
     <!-- Rename locked DLL/PDB files in destination to allow copying while Revit is open -->
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$dll = '$(RevitAddinsPath)AJ Tools.dll'; $pdb = '$(RevitAddinsPath)AJ Tools.pdb'; if (Test-Path $dll) { $oldDll = [System.IO.Path]::ChangeExtension($dll, 'dll.' + [System.DateTime]::Now.Ticks + '.old'); try { Get-ChildItem '$(RevitAddinsPath)' -Filter '*.old' | Remove-Item -Force -ErrorAction SilentlyContinue; Rename-Item -Path $dll -NewName ([System.IO.Path]::GetFileName($oldDll)) -Force; Write-Host 'SUCCESS: Renamed locked DLL to allow compilation while Revit is open.'; } catch { } }; if (Test-Path $pdb) { $oldPdb = [System.IO.Path]::ChangeExtension($pdb, 'pdb.' + [System.DateTime]::Now.Ticks + '.old'); try { Rename-Item -Path $pdb -NewName ([System.IO.Path]::GetFileName($oldPdb)) -Force; } catch { } }&quot;" IgnoreExitCode="true" />
 
     <Copy SourceFiles="@(AddinFiles)"
-          DestinationFiles="@(AddinFiles->'$(RevitAddinsPath)%(RecursiveDir)%(Filename)%(Extension)')"
+          DestinationFiles="@(AddinFiles->'$(RevitAddinPayloadPath)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"
           OverwriteReadOnlyFiles="true" />
 
-    <Message Text="SUCCESS: Copied add-in files to $(RevitAddinsPath)" Importance="high" />
+    <WriteLinesToFile File="$(RevitAddinManifestPath)"
+                      Lines="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;&#x0D;&#x0A;&lt;RevitAddIns&gt;&#x0D;&#x0A;  &lt;AddIn Type=&quot;Application&quot;&gt;&#x0D;&#x0A;    &lt;Name&gt;AJ Tools&lt;/Name&gt;&#x0D;&#x0A;    &lt;AddInId&gt;{C14A253D-96C6-42B7-889A-CFE737556BA9}&lt;/AddInId&gt;&#x0D;&#x0A;    &lt;FullClassName&gt;AJTools.App.App&lt;/FullClassName&gt;&#x0D;&#x0A;    &lt;Assembly&gt;$(RevitAddinPayloadPath)AJ Tools.dll&lt;/Assembly&gt;&#x0D;&#x0A;    &lt;VendorId&gt;AJT&lt;/VendorId&gt;&#x0D;&#x0A;    &lt;VendorDescription&gt;Ajmal P.S - ajmalnattika@gmail.com&lt;/VendorDescription&gt;&#x0D;&#x0A;  &lt;/AddIn&gt;&#x0D;&#x0A;&lt;/RevitAddIns&gt;"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true"
+                      Encoding="UTF-8" />
+
+    <Message Text="SUCCESS: Copied add-in payload to $(RevitAddinPayloadPath) and updated $(RevitAddinManifestPath)" Importance="high" />
   </Target>
 
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WindowsXaml\v4.0\Microsoft.Xaml.targets"
-          Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\WindowsXaml\v4.0\Microsoft.Xaml.targets')" />
 </Project>

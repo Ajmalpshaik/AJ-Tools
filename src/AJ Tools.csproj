@@ -1,584 +1,75 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ================================================================
+       AJ Tools - multi-version Revit add-in (Revit 2020 -> 2027).
+       RevitVersion / TargetFramework / REVITxxxx constants come from
+       Directory.Build.props at the repo root.
+
+       Build "Release" for Revit 2020, "Release R21".."Release R27" for
+       2021-2027, or run build-all.ps1 at the repo root to build every
+       version in one go.
+
+       All 271 .cs files and 25 .xaml pages are auto-included by the SDK
+       (verified 2026-07-06: disk contents exactly match the old
+       hand-maintained list).
+       ================================================================ -->
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FE1F581F-9EA0-4752-B870-7192AE828B82}</ProjectGuid>
+    <Configurations>Debug;Release;Debug R21;Release R21;Debug R22;Release R22;Debug R23;Release R23;Debug R24;Release R24;Debug R25;Release R25;Debug R26;Release R26;Debug R27;Release R27</Configurations>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AJ_Tools</RootNamespace>
     <AssemblyName>AJ Tools</AssemblyName>
-    <RevitVersion Condition="'$(RevitVersion)' == ''">2020</RevitVersion>
-    <TargetFrameworkVersion Condition="'$(TargetFrameworkVersion)' == '' and '$(RevitVersion)' == '2020'">v4.7.2</TargetFrameworkVersion>
-    <TargetFrameworkVersion Condition="'$(TargetFrameworkVersion)' == ''">v4.8</TargetFrameworkVersion>
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
     <PlatformTarget>x64</PlatformTarget>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <Prefer32Bit>false</Prefer32Bit>
-    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\$(RevitVersion)\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\$(RevitVersion)\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup>
-    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
-    <DefineConstants Condition="'$(RevitVersion)' == '2022' or '$(RevitVersion)' == '2023' or '$(RevitVersion)' == '2024'">$(DefineConstants);REVIT2022_OR_GREATER</DefineConstants>
-    <DefineConstants Condition="'$(RevitVersion)' == '2023' or '$(RevitVersion)' == '2024'">$(DefineConstants);REVIT2023_OR_GREATER</DefineConstants>
-    <DefineConstants Condition="'$(RevitVersion)' == '2024'">$(DefineConstants);REVIT2024_OR_GREATER</DefineConstants>
-  </PropertyGroup>
+
+  <!-- Revit API references: version follows the active configuration.
+       ExcludeAssets=runtime keeps RevitAPI/RevitAPIUI out of the output
+       folder (Copy Local = false) - Revit provides them at run time. -->
   <ItemGroup>
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>$(NuGetPackageRoot)newtonsoft.json\13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Security" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="System.Xaml" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
-    <PackageReference Include="Autodesk.Revit.Sdk.Refs.2020" Version="1.2.0" PrivateAssets="all" Condition="'$(RevitVersion)' == '2020'" />
-    <PackageReference Include="Autodesk.Revit.Sdk.Refs.2021" Version="1.2.0" PrivateAssets="all" Condition="'$(RevitVersion)' == '2021'" />
-    <PackageReference Include="Autodesk.Revit.Sdk.Refs.2022" Version="1.2.0" PrivateAssets="all" Condition="'$(RevitVersion)' == '2022'" />
-    <PackageReference Include="Autodesk.Revit.Sdk.Refs.2023" Version="1.2.0" PrivateAssets="all" Condition="'$(RevitVersion)' == '2023'" />
-    <PackageReference Include="Autodesk.Revit.Sdk.Refs.2024" Version="1.2.0" PrivateAssets="all" Condition="'$(RevitVersion)' == '2024'" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" Condition="$(TargetFramework.StartsWith('net4'))" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Core\App.cs" />
-    <Compile Include="Core\AnnotationRibbonManager.cs" />
-    <Compile Include="Core\RibbonManager.cs" />
-    <Compile Include="Commands\AboutCommand.cs" />
-    <Compile Include="Commands\Annotation\DuctReferenceDimensionCommand.cs" />
-    <Compile Include="Commands\Cmd3DViewsAsPerWorkset.cs" />
-    <Compile Include="Commands\CmdAutoDimensions.cs" />
-    <Compile Include="Commands\CmdCopyDimensionText.cs" />
-    <Compile Include="Commands\CmdCeilingMagnet.cs" />
-    <Compile Include="Commands\CmdCenterRoomTags.cs" />
-    <Compile Include="Commands\CmdCopyText.cs" />
-    <Compile Include="Commands\CmdDimensionByLine.cs" />
-    <Compile Include="Commands\CmdExtendLevelsBySelected.cs" />
-    <Compile Include="Commands\CmdMaximizeLevelsBySectionBox.cs" />
-    <Compile Include="Commands\CmdColorize.cs" />
-    <Compile Include="Commands\CmdColorizeAvailability.cs" />
-    <Compile Include="Commands\CmdFilterPro.cs" />
-    <Compile Include="Commands\CmdFilterProAvailability.cs" />
-    <Compile Include="Commands\CmdGraphicalViewAvailability.cs" />
-    <Compile Include="Commands\CmdPlanViewAvailability.cs" />
-    <Compile Include="Commands\CmdRevitLinkToggleAvailability.cs" />
-    <Compile Include="Commands\CmdFlipGridBubble.cs" />
-    <Compile Include="Commands\CmdForceTagLeaderLShape.cs" />
-    <Compile Include="Commands\CmdFlowDirectionAnnotations.cs" />
-    <Compile Include="Commands\CmdFlowDirectionSettings.cs" />
-    <Compile Include="Commands\CmdIntelligentTagArranger.cs" />
-    <Compile Include="Commands\CmdIntelligentTagArrangerSettings.cs" />
-    <Compile Include="Commands\CmdLinkedElementIdViewer.cs" />
-    <Compile Include="Commands\CmdLinkedElementSearch.cs" />
-    <Compile Include="Commands\CmdLocationDataAssigner.cs" />
-    <Compile Include="Commands\CmdMepOpeningSettings.cs" />
-    <Compile Include="Commands\CmdCreateMepOpenings.cs" />
-    <Compile Include="Commands\CmdPinElements.cs" />
-    <Compile Include="Commands\CmdPipeSizing.cs" />
-    <Compile Include="Commands\CmdMatchElevation.cs" />
-    <Compile Include="Commands\CmdReassignLevel.cs" />
-    <Compile Include="Commands\CmdTransferViewTemplates.cs" />
-    <Compile Include="Commands\CmdQuickParallelDimension.cs" />
-    <Compile Include="Commands\CmdResetDatums.cs" />
-    <Compile Include="Commands\CmdResetOverrides.cs" />
-    <Compile Include="Commands\CmdResetTextPosition.cs" />
-    <Compile Include="Commands\CmdSetLinkWorkset.cs" />
-    <Compile Include="Commands\SharedParamToFamilyParamCommand.cs" />
-    <Compile Include="Commands\SmartConnectCommand.cs" />
-    <Compile Include="Commands\HvacSchematicCommand.cs" />
-    <Compile Include="Commands\CmdSwapText.cs" />
-    <Compile Include="Commands\CmdToggleRevitLinks.cs" />
-    <Compile Include="Commands\CmdUnhideAll.cs" />
-    <Compile Include="Commands\CmdSmartMepTag.cs" />
-    <Compile Include="Commands\CmdSmartMepTagSettings.cs" />
-    <Compile Include="Commands\CmdSectionMarkVisibility.cs" />
-    <Compile Include="Commands\ViewCrop\CmdViewCrop3DExtents.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdApplyGraphics.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdMatchCategoryGraphics.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdResetCategoryGraphics.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdResetCategoryGraphicsAllElements.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdMatchElementGraphics.cs" />
-    <Compile Include="Commands\GraphicsTools\CmdClearSelectedElementGraphics.cs" />
-    <Compile Include="Models\ApplyViewItem.cs" />
-    <Compile Include="Models\ColorPalette.cs" />
-    <Compile Include="Models\FilterCategoryItem.cs" />
-    <Compile Include="Models\FilterParameterItem.cs" />
-    <Compile Include="Models\FilterProState.cs" />
-    <Compile Include="Models\FilterSelection.cs" />
-    <Compile Include="Models\FlowDirectionSettingsState.cs" />
-    <Compile Include="Models\FilterValueItem.cs" />
-    <Compile Include="Models\FilterValueKey.cs" />
-    <Compile Include="Models\LinkDisplayItem.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningElementKind.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningElementRule.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningCreationMode.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningHostKind.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningRunResult.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningSettings.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningSelectionMethod.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningShape.cs" />
-    <Compile Include="Models\MepOpenings\MepOpeningSourceElement.cs" />
-    <Compile Include="Models\PatternItem.cs" />
-    <Compile Include="Models\PinTools\PinTargetGroup.cs" />
-    <Compile Include="Models\PinTools\PinCategoryItem.cs" />
-    <Compile Include="Models\PinTools\PinOperationSummary.cs" />
-    <Compile Include="Models\PipeSizing\PipeFixtureData.cs" />
-    <Compile Include="Models\PipeSizing\PipeSizeOption.cs" />
-    <Compile Include="Models\PipeSizing\PipeSizingResult.cs" />
-    <Compile Include="Models\PipeSizing\PipeSizingState.cs" />
-    <Compile Include="Models\ResetDatumMode.cs" />
-    <Compile Include="Models\RuleTypeItem.cs" />
-    <Compile Include="Models\RuleTypes.cs" />
-    <Compile Include="Models\SharedParamToFamilyParamItem.cs" />
-    <Compile Include="Models\SpecialParameterIds.cs" />
-    <Compile Include="Models\SmartConnectSettings.cs" />
-    <Compile Include="Models\HvacSchematic\SchematicNode.cs" />
-    <Compile Include="Models\HvacSchematic\SchematicEdge.cs" />
-    <Compile Include="Models\SmartTag\TagPriority.cs" />
-    <Compile Include="Models\SmartTag\ElementOrientation.cs" />
-    <Compile Include="Models\SmartTag\TagSkipReason.cs" />
-    <Compile Include="Models\SmartTag\TagCandidate.cs" />
-    <Compile Include="Models\SmartTag\TagPlacementResult.cs" />
-    <Compile Include="Models\SmartTag\PreFlightResult.cs" />
-    <Compile Include="Models\SmartTag\SmartTagSettingsState.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsIdOption.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsLineWeightOption.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsColorValue.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsCategoryOption.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsOverrideMemoryState.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsOverrideInput.cs" />
-    <Compile Include="Models\GraphicsTools\GraphicsOperationSummary.cs" />
-    <Compile Include="Models\ViewCrop\ViewCropBatchResult.cs" />
-    <Compile Include="Models\ViewCrop\ViewCropEnums.cs" />
-    <Compile Include="Models\ViewCrop\ViewCropAnnotationSettings.cs" />
-    <Compile Include="Models\ViewCrop\ViewCropSettings.cs" />
-    <Compile Include="Models\ViewCrop\ViewCropTargetViewItem.cs" />
-    <Compile Include="Models\SectionMarkVisibility\SectionMarkVisibilitySettings.cs" />
-    <Compile Include="Models\SectionMarkVisibility\SectionMarkVisibilityViewItem.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Services\SmartTag\SmartMepTagService.cs" />
-    <Compile Include="Services\SmartTag\AnnotationBox.cs" />
-    <Compile Include="Services\SmartTag\AnnotationSpatialIndex.cs" />
-    <Compile Include="Services\SmartTag\SmartTagPlacementEngine.cs" />
-    <Compile Include="Services\SmartTag\SmartTagReportGenerator.cs" />
-    <Compile Include="Services\SmartTag\SmartTagSettingsTracker.cs" />
-    <Compile Include="Services\SmartTag\SmartTagTelemetryTracker.cs" />
-    <Compile Include="Services\AutoDimension\AutoDimensionService.cs" />
-    <Compile Include="Services\DimensionByLine\DimensionByLineService.cs" />
-    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionCollector.cs" />
-    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionGeometry.cs" />
-    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionModels.cs" />
-    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionReport.cs" />
-    <Compile Include="Services\DuctReferenceDimension\DuctReferenceDimensionService.cs" />
-    <Compile Include="Services\DuctReferenceDimension\DuctSelectionFilter.cs" />
-    <Compile Include="Services\Colorize\ColorizeElementMatcher.cs" />
-    <Compile Include="Services\Colorize\ColorizeApplier.cs" />
-    <Compile Include="Services\FilterPro\FilterApplier.cs" />
-    <Compile Include="Services\FilterPro\FilterCreator.cs" />
-    <Compile Include="Services\FilterPro\FilterRuleBuilder.cs" />
-    <Compile Include="Services\FilterPro\FilterProDataProvider.cs" />
-    <Compile Include="Services\FilterPro\FilterProHelper.cs" />
-    <Compile Include="Services\FilterPro\FilterProStateTracker.cs" />
-    <Compile Include="Services\FilterPro\FilterReorderer.cs" />
-    <Compile Include="Services\FilterPro\FilterValueKeyMatcher.cs" />
-    <Compile Include="Services\FlowDirection\FlowDirectionAnnotationService.cs" />
-    <Compile Include="Services\FlowDirection\FlowDirectionSettingsTracker.cs" />
-    <Compile Include="Services\PinTools\PinElementsService.cs" />
-    <Compile Include="Services\PipeSizing\PipeSizingCalculator.cs" />
-    <Compile Include="Services\PipeSizing\PipeSizingCsvExporter.cs" />
-    <Compile Include="Services\PipeSizing\PipeSizingData.cs" />
-    <Compile Include="Services\PipeSizing\PipeSizingStateService.cs" />
-    <Compile Include="Services\ViewCrop\SettingsTrackerBase.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropAnnotationCommandService.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropAnnotationService.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropAnnotationSettingsTracker.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropCommandService.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropExtentsService.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropGeometryProjectionHelper.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropReportPresenter.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropSettingsTracker.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropTargetViewCollector.cs" />
-    <Compile Include="Services\ViewCrop\ViewCropViewSupport.cs" />
-    <Compile Include="Services\SectionMarkVisibility\SectionMarkVisibilityService.cs" />
-    <Compile Include="Services\QuickDimension\QuickParallelDimensionService.cs" />
-    <Compile Include="Services\SmartConnect\SmartConnectConnectorUtils.cs" />
-    <Compile Include="Services\SmartConnect\SmartConnectRouteBuilder.cs" />
-    <Compile Include="Services\SmartConnect\SmartConnectSettingsService.cs" />
-    <Compile Include="Services\HvacSchematic\LevelResolverService.cs" />
-    <Compile Include="Services\HvacSchematic\NetworkAnalysisService.cs" />
-    <Compile Include="Services\HvacSchematic\SchematicLayoutEngine.cs" />
-    <Compile Include="Services\HvacSchematic\DraftingViewBuilder.cs" />
-    <Compile Include="Services\LeaderLogic\LeaderLogicService.cs" />
-    <Compile Include="Services\RoomTags\RoomTagCenteringService.cs" />
-    <Compile Include="Services\TagArrange\IntelligentTagArrangerService.cs" />
-    <Compile Include="Services\LevelExtents\LevelExtentsService.cs" />
-    <Compile Include="Services\LevelExtents\LevelExtentsBySectionBoxService.cs" />
-    <Compile Include="Services\MepOpenings\MepOpeningSelectionFilter.cs" />
-    <Compile Include="Services\MepOpenings\MepOpeningService.cs" />
-    <Compile Include="Services\MepOpenings\MepOpeningHostSelectionFilter.cs" />
-    <Compile Include="Services\MepOpenings\MepOpeningSourceSelectionFilter.cs" />
-    <Compile Include="Services\MepOpenings\MepOpeningSettingsService.cs" />
-    <Compile Include="Services\ResetDatums\ResetDatumService.cs" />
-    <Compile Include="Services\SharedParamToFamilyParamService.cs" />
-    <Compile Include="Services\WorksetViews\Workset3DViewService.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsSelectionFilters.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsSelectionService.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsDataProvider.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsOverrideMemoryService.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsOverrideBuilder.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsCategoryService.cs" />
-    <Compile Include="Services\GraphicsTools\GraphicsElementService.cs" />
-    <Compile Include="GeminiShell\Commands\ShowGeminiShellCommand.cs" />
-    <Compile Include="GeminiShell\Configuration\GeminiShellConfig.cs" />
-    <Compile Include="GeminiShell\DockablePane\GeminiShellPaneProvider.cs" />
-    <Compile Include="GeminiShell\Helpers\AiShellActivityLogger.cs" />
-    <Compile Include="GeminiShell\Helpers\AiShellConstants.cs" />
-    <Compile Include="GeminiShell\Helpers\CodeExtractionHelper.cs" />
-    <Compile Include="GeminiShell\Helpers\Converters.cs" />
-    <Compile Include="GeminiShell\Helpers\LoopProtectionRewriter.cs" />
-    <Compile Include="GeminiShell\Helpers\TextMarkerService.cs" />
-    <Compile Include="GeminiShell\Models\CodeExecutionResult.cs" />
-    <Compile Include="GeminiShell\Models\GeminiMessage.cs" />
-    <Compile Include="GeminiShell\Models\HistoryItem.cs" />
-    <Compile Include="GeminiShell\Models\RevitScriptGlobals.cs" />
-    <Compile Include="GeminiShell\Services\ErrorCorrectionService.cs" />
-    <Compile Include="GeminiShell\Services\GeminiApiService.cs" />
-    <Compile Include="GeminiShell\Services\GeneratedCodeSafetyValidator.cs" />
-    <Compile Include="GeminiShell\Services\IAiProviderService.cs" />
-    <Compile Include="GeminiShell\Services\OpenAiApiService.cs" />
-    <Compile Include="GeminiShell\Services\RevitContextExtractionService.cs" />
-    <Compile Include="GeminiShell\Services\RevitExecutionService.cs" />
-    <Compile Include="GeminiShell\Services\RoslynService.cs" />
-    <Compile Include="GeminiShell\ViewModels\GeminiShellViewModel.cs" />
-    <Compile Include="GeminiShell\Views\GeminiShellView.xaml.cs">
-      <DependentUpon>GeminiShellView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\FilterProWindow.xaml.cs">
-      <DependentUpon>FilterProWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\ColorizeWindow.xaml.cs">
-      <DependentUpon>ColorizeWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\AboutWindow.xaml.cs">
-      <DependentUpon>AboutWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\FlowDirectionSettingsWindow.xaml.cs">
-      <DependentUpon>FlowDirectionSettingsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\LinkedIdViewerWindow.xaml.cs">
-      <DependentUpon>LinkedIdViewerWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\LinkedSearchWindow.xaml.cs">
-      <DependentUpon>LinkedSearchWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\LocationDataAssignerWindow.xaml.cs">
-      <DependentUpon>LocationDataAssignerWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\PinElementsWindow.xaml.cs">
-      <DependentUpon>PinElementsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\ReassignLevelWindow.xaml.cs">
-      <DependentUpon>ReassignLevelWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\PipeSizing\PipeSizingWindow.xaml.cs">
-      <DependentUpon>PipeSizingWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\MepOpenings\MepOpeningSettingsWindow.xaml.cs">
-      <DependentUpon>MepOpeningSettingsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\TransferViewTemplatesWindow.xaml.cs">
-      <DependentUpon>TransferViewTemplatesWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\SetLinkWorksetWindow.xaml.cs">
-      <DependentUpon>SetLinkWorksetWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\SharedParamToFamilyParamWindow.xaml.cs">
-      <DependentUpon>SharedParamToFamilyParamWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\SmartConnectWindow.xaml.cs">
-      <DependentUpon>SmartConnectWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\GraphicsTools\GraphicsOverrideWindow.xaml.cs">
-      <DependentUpon>GraphicsOverrideWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\ViewCrop\ViewCropAnnotationOptionsWindow.xaml.cs">
-      <DependentUpon>ViewCropAnnotationOptionsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\ViewCrop\ViewCropOptionsWindow.xaml.cs">
-      <DependentUpon>ViewCropOptionsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\ViewCrop\ViewCropDiagnosticsWindow.xaml.cs">
-      <DependentUpon>ViewCropDiagnosticsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\ViewCrop\ViewCropTargetViewsWindow.xaml.cs">
-      <DependentUpon>ViewCropTargetViewsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\SectionMarkVisibility\SectionMarkVisibilityViewsWindow.xaml.cs">
-      <DependentUpon>SectionMarkVisibilityViewsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\SectionMarkVisibility\SectionMarkVisibilityWindow.xaml.cs">
-      <DependentUpon>SectionMarkVisibilityWindow.xaml</DependentUpon>
-    </Compile>
 
-    <Compile Include="Helpers\Constants.cs" />
-    <Compile Include="Helpers\DialogHelper.cs" />
-    <Compile Include="Helpers\ElementIdHelper.cs" />
-    <Compile Include="Helpers\ElementIdIntegerComparer.cs" />
-    <Compile Include="Helpers\GeometryExtensions.cs" />
-    <Compile Include="Helpers\IconLoader.cs" />
-    <Compile Include="Helpers\IndependentTagCompat.cs" />
-    <Compile Include="Helpers\LinkWorksetSettings.cs" />
-    <Compile Include="Helpers\TagArrangeSettings.cs" />
-    <Compile Include="Helpers\ViewCropConfigStore.cs" />
-    <Compile Include="Helpers\SectionMarkVisibilityConfigStore.cs" />
-    <Compile Include="Helpers\SelectionFilters.cs" />
-    <Compile Include="Helpers\SharedParamUtils.cs" />
-    <Compile Include="Helpers\SmartConnectSelectionFilter.cs" />
-    <Compile Include="Helpers\TransactionHelper.cs" />
-    <Compile Include="Helpers\ValidationHelper.cs" />
-    <Compile Include="Helpers\WindowChromeHelper.cs" />
-    <Compile Include="Commands\CmdRevisionCloudByElements.cs" />
-    <Compile Include="Commands\CmdRevisionCloudByElementsSettings.cs" />
-    <Compile Include="Commands\CmdDuctStandardsManager.cs" />
-    <Compile Include="Commands\CmdPurgeUnplaced3DViews.cs" />
-    <Compile Include="Commands\CmdPurgeUnplacedSections.cs" />
-    <Compile Include="Commands\CmdPurgeUnplacedViews.cs" />
-    <Compile Include="Commands\CmdPurgeUnplacedViewsAvailability.cs" />
-    <Compile Include="Commands\CmdPurgeUnusedFamilyParameters.cs" />
-    <Compile Include="Commands\CmdPurgeUnusedFamilyParametersAvailability.cs" />
-    <Compile Include="Models\RevisionCloud\RevisionCloudSettings.cs" />
-    <Compile Include="Models\DuctStandards\GeneralSettings.cs" />
-    <Compile Include="Models\DuctStandards\MaterialInfo.cs" />
-    <Compile Include="Models\DuctStandards\DuctRule.cs" />
-    <Compile Include="Models\DuctStandards\AllowanceSettings.cs" />
-    <Compile Include="Models\DuctStandards\ParameterMap.cs" />
-    <Compile Include="Models\DuctStandards\DuctStandardsConfig.cs" />
-    <Compile Include="Models\DuctStandards\DuctCalculationResult.cs" />
-    <Compile Include="Models\DuctStandards\DuctProcessingReport.cs" />
-    <Compile Include="Models\Purge\ParameterPurgeStatus.cs" />
-    <Compile Include="Models\Purge\FamilyParameterPurgeItem.cs" />
-    <Compile Include="Models\Purge\FamilyParameterPurgeScanResult.cs" />
-    <Compile Include="Models\Purge\FamilyParameterPurgeDeleteResult.cs" />
-    <Compile Include="Models\Purge\UnplacedViewPurgeItem.cs" />
-    <Compile Include="Models\Purge\UnplacedViewPurgeMode.cs" />
-    <Compile Include="Models\Purge\UnplacedViewPurgeResult.cs" />
-    <Compile Include="Models\Purge\UnplacedViewPurgeStatus.cs" />
-    <Compile Include="Services\RevisionCloud\GeometryProjectionService.cs" />
-    <Compile Include="Services\RevisionCloud\OrthogonalOutlineBuilder.cs" />
-    <Compile Include="Services\RevisionCloud\RevisionCloudCreator.cs" />
-    <Compile Include="Services\DuctStandards\DuctStandardsConfigService.cs" />
-    <Compile Include="Services\DuctStandards\DuctCollectorService.cs" />
-    <Compile Include="Services\DuctStandards\DuctShapeService.cs" />
-    <Compile Include="Services\DuctStandards\DuctSizeService.cs" />
-    <Compile Include="Services\DuctStandards\DuctRuleEngine.cs" />
-    <Compile Include="Services\DuctStandards\DuctWeightService.cs" />
-    <Compile Include="Services\DuctStandards\DuctParameterWriter.cs" />
-    <Compile Include="Services\DuctStandards\DuctStandardsProcessor.cs" />
-    <Compile Include="Services\Purge\FamilyParameterUsageEvaluator.cs" />
-    <Compile Include="Services\Purge\FamilyParameterScanService.cs" />
-    <Compile Include="Services\Purge\FamilyParameterDeleteService.cs" />
-    <Compile Include="Services\Purge\UnplacedViewCollector.cs" />
-    <Compile Include="Services\Purge\UnplacedViewPurgeService.cs" />
-    <Compile Include="UI\RevisionCloud\RevisionCloudSettingsWindow.xaml.cs">
-      <DependentUpon>RevisionCloudSettingsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\DuctStandards\DuctStandardsManagerWindow.xaml.cs">
-      <DependentUpon>DuctStandardsManagerWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\Purge\PurgeUnusedFamilyParametersWindow.xaml.cs">
-      <DependentUpon>PurgeUnusedFamilyParametersWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="UI\Purge\PurgeUnplacedViewsWindow.xaml.cs">
-      <DependentUpon>PurgeUnplacedViewsWindow.xaml</DependentUpon>
-    </Compile>
+  <!-- Framework assemblies that are not implicit on .NET Framework builds -->
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
-  <ItemGroup>
-    <Page Include="UI\AboutWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\FilterProWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ColorizeWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\FlowDirectionSettingsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\LinkedIdViewerWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\LinkedSearchWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\LocationDataAssignerWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\PinElementsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ReassignLevelWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\PipeSizing\PipeSizingWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\MepOpenings\MepOpeningSettingsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\TransferViewTemplatesWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\SetLinkWorksetWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\SharedParamToFamilyParamWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\SmartConnectWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\GraphicsTools\GraphicsOverrideWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ViewCrop\ViewCropAnnotationOptionsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ViewCrop\ViewCropOptionsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ViewCrop\ViewCropDiagnosticsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\ViewCrop\ViewCropTargetViewsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\SectionMarkVisibility\SectionMarkVisibilityViewsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\SectionMarkVisibility\SectionMarkVisibilityWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
 
-    <Page Include="UI\ModernStyles.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\RevisionCloud\RevisionCloudSettingsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\DuctStandards\DuctStandardsManagerWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\Purge\PurgeUnusedFamilyParametersWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\Purge\PurgeUnplacedViewsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="GeminiShell\Views\GeminiShellView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <PropertyGroup>
-    <RevitAddinUserRoot>$(APPDATA)\Autodesk\Revit\Addins\2020</RevitAddinUserRoot>
-    <RevitAddinAllUsersRoot>$(ProgramData)\Autodesk\Revit\Addins\2020</RevitAddinAllUsersRoot>
-    <RevitAddinDeployName>AJ Tools</RevitAddinDeployName>
-    <SkipRevitAddinDeploy Condition="'$(SkipRevitAddinDeploy)'==''">false</SkipRevitAddinDeploy>
-  </PropertyGroup>
+  <!-- Ribbon icons and other resources, copied beside the DLL -->
   <ItemGroup>
+    <None Remove="Resources\**\*.*" />
     <Content Include="Resources\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <!-- Auto-deploy destinations (targets in Directory.Build.targets) -->
+  <PropertyGroup>
+    <RevitAddinDeployName>AJ Tools</RevitAddinDeployName>
+  </PropertyGroup>
   <ItemGroup>
-    <DeployRoots Include="$(RevitAddinAllUsersRoot)" />
+    <DeployRoots Include="$(ProgramData)\Autodesk\Revit\Addins\$(RevitVersion)\" />
   </ItemGroup>
-  <Target Name="DeployRevitAddin" AfterTargets="Build" Condition=" '$(SkipRevitAddinDeploy)' != 'true' ">
-    <ItemGroup>
-      <DeployDirs Include="@(DeployRoots->'%(FullPath)$(RevitAddinDeployName)')" />
-    </ItemGroup>
-    <RemoveDir Directories="@(DeployDirs)" />
-    <MakeDir Directories="@(DeployDirs);@(DeployDirs->'%(FullPath)Resources')" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFiles="@(DeployDirs->'%(FullPath)AJ Tools.dll')" OverwriteReadOnlyFiles="true" />
-    <Copy Condition="Exists('$(TargetDir)AJ Tools.pdb')" SourceFiles="$(TargetDir)AJ Tools.pdb" DestinationFiles="@(DeployDirs->'%(FullPath)AJ Tools.pdb')" OverwriteReadOnlyFiles="true" />
-    <Copy SourceFiles="@(Content)" DestinationFolder="%(DeployDirs.FullPath)Resources" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" Condition="@(Content) != ''" />
-    <PropertyGroup>
-      <AddinTemplate><![CDATA[<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<RevitAddIns>
-  <AddIn Type="Application">
-    <Name>AJ Tools</Name>
-    <AddInId>{C14A253D-96C6-42B7-889A-CFE737556BA9}</AddInId>
-    <FullClassName>AJTools.App.App</FullClassName>
-    <Assembly>%(DeployDirs.FullPath)AJ Tools.dll</Assembly>
-    <VendorId>AJT</VendorId>
-    <VendorDescription>Ajmal P.S - ajmalnattika@gmail.com</VendorDescription>
-  </AddIn>
-</RevitAddIns>]]></AddinTemplate>
-    </PropertyGroup>
-    <WriteLinesToFile File="%(DeployDirs.FullPath)AJ Tools.addin" Lines="$(AddinTemplate)" Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
-  </Target>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 
 </Project>

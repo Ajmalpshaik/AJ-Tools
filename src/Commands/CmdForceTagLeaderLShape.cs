@@ -130,7 +130,7 @@ namespace AJTools.Commands
                     continue;
 
                 bool ok;
-                using (Transaction t = new Transaction(doc, "AJ Tools - Force L-Shaped Tag Leader"))
+                using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leader"))
                 {
                     t.Start();
                     ok = TryForceLShape(tag, activeView, leaderLogic);
@@ -197,7 +197,7 @@ namespace AJTools.Commands
             updated = 0;
             skipped = 0;
 
-            using (Transaction t = new Transaction(doc, "AJ Tools - Force L-Shaped Tag Leaders"))
+            using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leaders"))
             {
                 t.Start();
 
@@ -232,7 +232,7 @@ namespace AJTools.Commands
             if (!EnsureLeaderEnabled(tag))
                 return false;
 
-            if (!CanEditLeaderElbow(tag))
+            if (!HasWritableProperty(tag, "LeaderElbow"))
                 return false;
 
             // Determine if horizontal or vertical
@@ -276,10 +276,10 @@ namespace AJTools.Commands
 
         private static bool TryApplyComputedElbowHorizontal(Element tag, View activeView, LeaderLogicService leaderLogic)
         {
-            if (!TryGetTagHeadPosition(tag, out XYZ head))
+            if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
 
-            if (!TryGetLeaderEnd(tag, out XYZ end))
+            if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
                 return false;
 
             XYZ elbow = leaderLogic.ComputeElbow(head, end);
@@ -288,7 +288,7 @@ namespace AJTools.Commands
                 return true;
 
             elbow = AdjustElbowOutsideTextBoundsRight(tag, activeView, leaderLogic, elbow);
-            return TrySetLeaderElbow(tag, elbow);
+            return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
         private static XYZ AdjustElbowOutsideTextBoundsRight(
@@ -334,10 +334,10 @@ namespace AJTools.Commands
 
         private static bool TryApplyComputedElbowVertical(Element tag, View activeView, LeaderLogicService leaderLogic)
         {
-            if (!TryGetTagHeadPosition(tag, out XYZ head))
+            if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
 
-            if (!TryGetLeaderEnd(tag, out XYZ end))
+            if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
                 return false;
 
             // Always use Top/Bottom attachment for vertical text, shifted outside the bounding box,
@@ -349,7 +349,7 @@ namespace AJTools.Commands
 
             elbow = AdjustElbowTopBottom(tag, activeView, leaderLogic, elbow, head, end);
 
-            return TrySetLeaderElbow(tag, elbow);
+            return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
         private static XYZ AdjustElbowSide(
@@ -493,7 +493,7 @@ namespace AJTools.Commands
 
             // Bounding boxes may include leader geometry. Re-center around TagHeadPosition
             // to better represent text extents when one side is heavily skewed.
-            if (TryGetTagHeadPosition(tag, out XYZ headPoint))
+            if (TryGetXYZProperty(tag, "TagHeadPosition", out XYZ headPoint))
             {
                 UV headUv = leaderLogic.ProjectToView(headPoint);
                 bool headInside = headUv != null
@@ -573,21 +573,6 @@ namespace AJTools.Commands
 
         private static bool EnsureLeaderEnabled(Element tag)
         {
-            if (tag is IndependentTag independentTag)
-            {
-                try
-                {
-                    if (independentTag.HasLeader)
-                        return true;
-
-                    independentTag.HasLeader = true;
-                    return true;
-                }
-                catch
-                {
-                }
-            }
-
             if (!TryGetBoolProperty(tag, "HasLeader", out bool hasLeader))
                 return true;
 
@@ -595,56 +580,6 @@ namespace AJTools.Commands
                 return true;
 
             return TrySetBoolProperty(tag, "HasLeader", true);
-        }
-
-        private static bool CanEditLeaderElbow(Element tag)
-        {
-            if (tag is IndependentTag)
-                return true;
-
-            return HasWritableProperty(tag, "LeaderElbow");
-        }
-
-        private static bool TryGetTagHeadPosition(Element tag, out XYZ head)
-        {
-            head = null;
-
-            if (tag is IndependentTag independentTag)
-            {
-                try
-                {
-                    head = independentTag.TagHeadPosition;
-                    if (head != null)
-                        return true;
-                }
-                catch
-                {
-                }
-            }
-
-            return TryGetXYZProperty(tag, "TagHeadPosition", out head);
-        }
-
-        private static bool TryGetLeaderEnd(Element tag, out XYZ end)
-        {
-            end = null;
-
-            if (tag is IndependentTag independentTag)
-            {
-                end = IndependentTagCompat.GetLeaderEnd(independentTag);
-                if (end != null)
-                    return true;
-            }
-
-            return TryGetXYZProperty(tag, "LeaderEnd", out end);
-        }
-
-        private static bool TrySetLeaderElbow(Element tag, XYZ elbow)
-        {
-            if (tag is IndependentTag independentTag)
-                return IndependentTagCompat.SetLeaderElbow(independentTag, elbow);
-
-            return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
         private static bool TryGetProperty(Element tag, string propertyName, out object value)
@@ -667,18 +602,6 @@ namespace AJTools.Commands
         private static bool TryGetLeaderEndCondition(Element tag, out object value)
         {
             value = null;
-            if (tag is IndependentTag independentTag)
-            {
-                try
-                {
-                    value = independentTag.LeaderEndCondition;
-                    return true;
-                }
-                catch
-                {
-                }
-            }
-
             PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
             if (prop == null)
                 return false;
@@ -697,15 +620,6 @@ namespace AJTools.Commands
         {
             if (string.IsNullOrWhiteSpace(targetConditionName))
                 return false;
-
-            if (tag is IndependentTag independentTag)
-            {
-                LeaderEndCondition target = string.Equals(targetConditionName, "Attached", StringComparison.OrdinalIgnoreCase)
-                    ? LeaderEndCondition.Attached
-                    : LeaderEndCondition.Free;
-                return TrySetIndependentTagLeaderEndCondition(independentTag, target);
-            }
-
             PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
             if (prop == null || !prop.CanWrite)
                 return false;
@@ -755,21 +669,6 @@ namespace AJTools.Commands
             if (value == null)
                 return false;
 
-            if (tag is IndependentTag independentTag)
-            {
-                try
-                {
-                    if (value is LeaderEndCondition condition)
-                        return TrySetIndependentTagLeaderEndCondition(independentTag, condition);
-
-                    if (Enum.TryParse(value.ToString(), true, out LeaderEndCondition parsed))
-                        return TrySetIndependentTagLeaderEndCondition(independentTag, parsed);
-                }
-                catch
-                {
-                }
-            }
-
             PropertyInfo prop = GetProperty(tag, "LeaderEndCondition");
             if (prop == null || !prop.CanWrite)
                 return false;
@@ -813,28 +712,6 @@ namespace AJTools.Commands
             if (value == null || string.IsNullOrWhiteSpace(conditionName))
                 return false;
             return string.Equals(value.ToString(), conditionName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool TrySetIndependentTagLeaderEndCondition(IndependentTag tag, LeaderEndCondition condition)
-        {
-            if (tag == null)
-                return false;
-
-            try
-            {
-                if (tag.LeaderEndCondition == condition)
-                    return true;
-
-                if (!tag.CanLeaderEndConditionBeAssigned(condition))
-                    return false;
-
-                tag.LeaderEndCondition = condition;
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         #region Reflection Helpers

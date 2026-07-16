@@ -2,15 +2,15 @@
 /*
  * Tool Name     : Colorize
  * File Name     : CmdColorize.cs
- * Purpose       : Entry point command — validates context and opens the Colorize window. The window
+ * Purpose       : Entry point command - validates context and opens the Colorize window. The window
  *                 itself applies each Shuffle Colors click directly (its own transaction, same as
  *                 Filter Pro), so this command only reports whether any click made changes.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.0.0
  *
- * Created Date  : 2026-07-02
- * Last Updated  : 2026-07-02
+ * Created Date  : 2026-07-13
+ * Last Updated  : 2026-07-13
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -18,25 +18,22 @@
  *
  * Dependencies  : Autodesk Revit API
  *
- * Input         : Active View (must be a Filter Pro-capable view type — Plan, Section, Elevation, 3D).
+ * Input         : Active View (must be a Filter Pro-capable view type - Plan, Section, Elevation, 3D).
  * Output        : Result.Succeeded if at least one Shuffle Colors click applied changes before Close.
  *
  * Notes         :
  * - Reuses CmdFilterProAvailability.CanViewHaveFilters for validation, matching the same gate already
- *   enforced on the ribbon button by CmdColorizeAvailability — no separate/looser validation path.
+ *   enforced on the ribbon button by CmdColorizeAvailability - no separate/looser validation path.
  * - The window (not this command) owns each apply's Transaction via
  *   GraphicsCommandService.ExecuteSummaryTransaction + ColorizeApplier.ApplyColorizeToViews, exactly
- *   like FilterProWindow owns its own Create/Apply/Shuffle transactions — so Shuffle Colors can be
+ *   like FilterProWindow owns its own Create/Apply/Shuffle transactions - so Shuffle Colors can be
  *   clicked repeatedly without the window closing, each click its own undo step.
  *
  * Changelog     :
- * v1.0.0 (2026-07-02) - Initial release, built for the Colorize tool.
- * v1.1.0 (2026-07-02) - Applies across every window-selected target view (Apply tab: Active View or
- *                       Selected Views), matching Filter Pro's own apply-scope option.
- * v1.2.0 (2026-07-02) - Moved the apply/transaction into ColorizeWindow itself (Shuffle Colors no
- *                       longer closes the window — it can be clicked repeatedly to keep re-shuffling,
- *                       matching Filter Pro's own action-button behavior); this command now only
- *                       checks window.HasChanges after Close.
+ * v1.0.0 (2026-07-13) - Ported from the standalone AJ Tools tree into the live multi-version src/
+ *                       project so the Colorize tool actually gets built and deployed (it previously
+ *                       existed only in the stale pre-multiversion copy and could never appear on the
+ *                       ribbon no matter how many times the add-in was rebuilt). Behaviour unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

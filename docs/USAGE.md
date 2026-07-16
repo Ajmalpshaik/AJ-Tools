@@ -2,32 +2,34 @@
 
 ## Ribbon Groups
 
+The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonManager.cs` and
+`Core/AnnotationRibbonManager.cs`):
+
 ### AJ Tools
 
-- View: View Crop, Unhide All, Toggle Links, Filter Pro
+- View: View Crop, Unhide All, Toggle Link, Filter Pro, Section Mark Visibility
 - Graphics: Apply Graphics, Match Graphics, Reset Graphics
-- Datums: Reset Datums, Level Extents, Flip Grid Bubble
-- Dimensions: Auto Dims, Dim By Line, Copy Dim Text
-- Annotation: Duct Flow Annotations, Revision Clouds, Copy/Swap Text Notes
-- Tags: Smart MEP Tags, Rearrange Tags, L-Shape Leader
-- Modify: Match Elevation, Reassign Level, Pin / Unpin Elements
-- MEP: Smart Connect, Elements to Ceiling Grid, HVAC Schematic
-- Coordination: Linked ID of Selection, 3D Views as per Workset, Set Link Workset
-- Data: Location Data, Duct Standard
-- Manage: Transfer View Templates, Purge
-- Family: Shared Parameters to Family, Center Annotations
+- Datums: Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
+- Modify: Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements
+- MEP: Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
+- Coordination: Element ID lookup, 3D Views by Workset, Link Workset
+- Data: Assign Location, Duct Standard
+- Manage: Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)
+- Family: Shared to Family
+- AI Assistant: AJ AI (Gemini C# Shell, with a dockable pane)
 - About: About
 
 ### AJ Annotation
 
-- Dimension: Duct Reference Dimension, Active View Duct Dimensions
-
-### AJ AI
-
-- AI Assistant: Gemini Shell
+- Auto Dimention: Auto Duct Dimension (single duct to wall, all duct to wall)
+- Dimensions: Automatic Dimension, Quick Dimension, Copy Dimension Text
+- Annotation: Duct Flow Annotations, Revision Clouds, Copy/Swap Text Notes
+- Family: Center Annotation
+- Tags: Smart MEP Tags, Rearrange Tags, L-Shape Leader
+- Text: Arrange Text in Box
 
 ## Typical Workflow
-1. Open a Revit 2020 project (non-template view).
+1. Open a Revit project (non-template view). Revit 2020 is the validated version; 2021–2027 builds exist but need Revit-side validation.
 2. Use AJ Tools commands from the AJ Tools ribbon tab.
 3. For model cleanup, start with View, Graphics, and Datums tools.
 4. For annotation consistency, use Dimensions, Annotation, and Tags tools.

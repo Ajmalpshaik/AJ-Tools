@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using AJTools.Models.DuctStandards;
 
+using AJTools.Utils;
 namespace AJTools.Services.DuctStandards
 {
     internal static class DuctStandardsProcessor
@@ -32,7 +33,7 @@ namespace AJTools.Services.DuctStandards
                 {
                     result = new DuctCalculationResult
                     {
-                        ElementId = AJTools.Utils.ElementIdHelper.GetIntegerValue(duct.Id),
+                        ElementId = duct.Id.IntValue(),
                         Success = false,
                         ErrorMessage = ex.Message
                     };
@@ -80,7 +81,7 @@ namespace AJTools.Services.DuctStandards
         {
             var result = new DuctCalculationResult
             {
-                ElementId = AJTools.Utils.ElementIdHelper.GetIntegerValue(duct.Id)
+                ElementId = duct.Id.IntValue()
             };
 
             // Shape

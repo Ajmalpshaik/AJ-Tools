@@ -105,11 +105,6 @@ namespace AJTools.Utils
                             if (bool.TryParse(val, out bool includeCoord))
                                 settings.IncludeCoordinationModels = includeCoord;
                             break;
-                        case "extentsource":
-                            if (Enum.TryParse(val, true, out ViewCropExtentSource extentSource)
-                                && Enum.IsDefined(typeof(ViewCropExtentSource), extentSource))
-                                settings.ExtentSource = extentSource;
-                            break;
                     }
                 }
             }
@@ -143,7 +138,6 @@ namespace AJTools.Utils
                     writer.WriteLine($"AnnotationOffsetMm={settings.AnnotationOffsetMm.ToString("0.###", CultureInfo.InvariantCulture)}");
                     writer.WriteLine($"ShowDiagnostics={settings.ShowDiagnostics}");
                     writer.WriteLine($"IncludeCoordinationModels={settings.IncludeCoordinationModels}");
-                    writer.WriteLine($"ExtentSource={settings.ExtentSource}");
                 }
             }
             catch

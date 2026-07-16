@@ -5,13 +5,13 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.11.3
+ * Version       : 1.13.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-06
+ * Last Updated  : 2026-07-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
- * Framework     : .NET Fx 4.7.2 (2020) / .NET Fx 4.8 (2021-2024) | .NET 8 (2025-2026) | .NET 10 (2027)
+ * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : System.Reflection, System.Runtime.InteropServices
@@ -24,49 +24,35 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
- * v1.11.3 (2026-07-07) - Fixed Revit startup dependency resolution for
- *                        bundled DLLs such as CommunityToolkit.Mvvm and
- *                        included modern payload dependency files.
- * v1.11.2 (2026-07-06) - Optimized IndependentTag API compatibility so
- *                        Revit 2022+ uses reference-based tag/leader APIs
- *                        while Revit 2020-2021 keep the legacy path.
- * v1.11.1 (2026-07-06) - Split Revit 2020-2024 packaging into separate
- *                        API-specific legacy builds using matching Revit SDK
- *                        reference packages.
- * v1.11.0 (2026-07-06) - Added modern Revit builds: Revit 2025-2026 target
- *                        .NET 8 and Revit 2027 targets .NET 10, with
- *                        versioned installer payloads for 2020-2027.
- * v1.10.1 (2026-07-06) - Installer now stages AJ Tools add-in folders and manifests
- *                        for Revit 2020-2027. Revit 2025-2027 remain NEEDS_REVIEW
- *                        until the separate modern .NET/Revit API build is completed.
- * v1.10.0 (2026-07-03) - Added Opening split button in the MEP panel: Opening Settings
- *                        saves element-specific shape and buffer rules, insulation handling,
- *                        and merge distance; Create Openings generates direct openings for
- *                        selected pipes, ducts, cable trays, and conduits in current-model
- *                        walls, floors/slabs, and beams.
- * v1.9.1 (2026-07-02) - Colorize follow-up fixes: Shuffle Colors no longer closes the window (it
- *                       applies immediately, its own undo step, so it can be clicked repeatedly to
- *                       keep re-shuffling until Close is pressed — matches Filter Pro's own action
- *                       buttons); removed the Rule Type step entirely (Colorize now always matches
- *                       selected values with Equals); fixed BuildOverrideSettings never turning on
- *                       SetSurfaceForegroundPatternVisible/SetCutForegroundPatternVisible, which made
- *                       the Projection/Cut Fill Pattern checkboxes silently do nothing in both Colorize
- *                       and Filter Pro's own Shuffle Colors.
- * v1.9.0 (2026-07-02) - Added Colorize tool (View panel): colorizes elements by category or by
- *                       Filter-Pro-style parameter/rule/value matching directly in the active view (or
- *                       any selected views) via per-element OverrideGraphicSettings — no
- *                       ParameterFilterElement is ever created, unlike Filter Pro. UI mirrors Filter
- *                       Pro's own Selection and Apply tabs (search/sort, rule types, multi-view apply
- *                       scope) minus the Naming Convention tab and Create/Apply-To-View buttons, since
- *                       Colorize has nothing persistent to name or save; a single Shuffle Colors action
- *                       colorizes and applies in one step. Reuses Filter Pro's category/parameter/value
- *                       data provider and colour palette; extracted FilterCreator's rule-building logic
- *                       into shared FilterRuleBuilder and FilterApplier's override-construction logic
- *                       into shared BuildOverrideSettings so both tools use the same engine. Ports and
- *                       fixes the retired pyRevit Colorize tool (no view-type guard, no transaction
- *                       rollback handling, and an O(categories x elements) counting loop in the old
- *                       version).
- *                       Filter Pro's own behaviour is unchanged.
+ * v1.13.1 (2026-07-15) - Fixed Transfer View Templates: the Filter textbox had a hard-coded Height="30",
+ *                        shorter than what the shared ModernTextBox style's Padding="8,6" needs at
+ *                        MinHeight="34" - typed characters were getting clipped at the bottom. Changed to
+ *                        MinHeight="34" to match every other filter box in the app. No other window affected
+ *                        (only this one had an explicit Height override on a ModernTextBox).
+ * v1.12.0 (2026-07-13) - Transfer View Templates now remembers the last-used Copy From / Copy To
+ *                        projects (in-memory for the current Revit session, matched by document
+ *                        title) and pre-selects them next time the tool opens, saved only after a
+ *                        successful Transfer - same convention as Filter Pro's own state memory.
+ * v1.11.2 (2026-07-13) - Fixed Pin / Unpin Elements: mouse-wheel scrolling did nothing over the category
+ *                        lists (only dragging the scrollbar thumb worked) - the window's outer ScrollViewer
+ *                        (added so both list groups can scroll once they exceed MaxHeight) was having its
+ *                        mouse wheel input silently swallowed by each ListBox's own internal ScrollViewer.
+ * v1.11.1 (2026-07-13) - Pin / Unpin Elements: added Grids and Levels as two more pinnable/unpinnable
+ *                        Model groups, same pattern as the existing category groups.
+ * v1.11.0 (2026-07-13) - Added the Colorize tool (View panel, next to Filter Pro) to this live project.
+ *                        It previously existed only in the stale pre-multiversion "AJ Tools\" tree
+ *                        (hand-ported there on 2026-07-02 and never carried into root src/), so it
+ *                        could never appear on the ribbon no matter how many times the add-in was
+ *                        rebuilt - this fixes that by porting it here properly, wired into the ribbon.
+ * v1.10.5 (2026-07-12) - Restyled the AI activity banner to match the AJ Tools dark theme.
+ * v1.10.4 (2026-07-12) - Fixed the AI activity banner to use Revit's UI dispatcher.
+ * v1.10.3 (2026-07-12) - Ensured the AI activity banner remains visible long enough for fast tasks.
+ * v1.10.2 (2026-07-12) - Added a temporary, non-blocking AI activity banner for AutoDebugger tasks.
+ * v1.10.1 (2026-07-11) - AutoDebugger performance pass: persistent authenticated named-pipe requests
+ *                         and a bounded cache for compiled safe Roslyn scripts. Live Revit model data
+ *                         is intentionally never cached.
+ * v1.9.0 (2026-07-05) - Added the Arrange Text in Box tool on a new "Text" panel (AJ Annotation tab);
+ *                       ported from the pyRevit "Text Box Arrange Loop" script. No other tool changed.
  * v1.8.0 (2026-07-01) - Full project audit pass: added Pipe Sizing tool (MEP panel) with its own metadata,
  *                       report, and CSV export; hardened the AJ AI shell with GeneratedCodeSafetyValidator
  *                       (blocks process/registry/network/reflection/file-delete calls, flags destructive
@@ -125,5 +111,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.11.3.0")]
-[assembly: AssemblyFileVersion("1.11.3.0")]
+[assembly: AssemblyVersion("1.13.5.0")]
+[assembly: AssemblyFileVersion("1.13.5.0")]

@@ -6,10 +6,10 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.4.0
+ * Version       : 1.4.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-04
+ * Last Updated  : 2026-07-13
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,15 +26,16 @@
  * - Production-ready implementation.
  *
  * Changelog     :
- * v1.4.1 (2026-07-04) - Moved the Opening split button from the MEP panel into its
- *                       own Opening panel for future opening tools.
- * v1.4.0 (2026-07-03) - Added Opening split button in the MEP panel with Settings and
- *                       Create Openings commands.
  * v1.2.0 (2026-05-07) - Reorganized ribbon panels; added HVAC schematic registration.
  * v1.3.0 (2026-07-01) - Refactor/audit: standardized metadata block. Ribbon layout unchanged.
  * v1.3.1 (2026-07-01) - Full audit fixes: wired CmdPurgeUnusedFamilyParametersAvailability into the
  *                       Purge Family Parameters button (was defined but never assigned); renamed the
  *                       "Aj tool" panel label to "About" for consistent casing.
+ * v1.4.0 (2026-07-13) - Wired the Colorize tool (View panel, next to Filter Pro) - it previously
+ *                       existed only in the stale pre-multiversion "AJ Tools\" tree and was never
+ *                       part of this live project, so it could never appear on the ribbon.
+ * v1.4.1 (2026-07-13) - Updated the Pin / Unpin Elements tooltip to mention the new Grids and Levels
+ *                       groups (actual collection logic lives in PinElementsService).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -328,7 +329,7 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "Pin / Unpin\nElements",
-                "Pin/unpin separated Sheet groups (Title Blocks, Placed Views, Legends, Schedules) with Active Sheet Only or All Sheets mode, and Model groups (Duct, Pipe, Cable Tray, Generic Models, Mechanical Equipment, Plumbing Fixtures, Electrical Equipment).",
+                "Pin/unpin separated Sheet groups (Title Blocks, Placed Views, Legends, Schedules) with Active Sheet Only or All Sheets mode, and Model groups (Duct, Pipe, Cable Tray, Generic Models, Mechanical Equipment, Plumbing Fixtures, Electrical Equipment, Grids, Levels).",
                 typeof(CmdPinElements),
                 "apply.png",
                 "apply.png");
@@ -349,13 +350,13 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "Colorize",
-                "Colorize elements by category or by parameter value directly in the active view (or selected views) — no view filter is created.",
+                "Colorize elements by category or by parameter value directly in the active view (or selected views) - no view filter is created.",
                 typeof(CmdColorize),
                 "Colorize.png",
                 "Colorize.png",
                 pushButton =>
                 {
-                    pushButton.LongDescription = "Pick categories (and optionally a parameter and values, using the same category/parameter/value engine as Filter Pro), choose graphics options, then Shuffle Colors applies the overrides directly to matched elements in the active view or selected views — click it again anytime to re-shuffle.";
+                    pushButton.LongDescription = "Pick categories (and optionally a parameter and values, using the same category/parameter/value engine as Filter Pro), choose graphics options, then Shuffle Colors applies the overrides directly to matched elements in the active view or selected views - click it again anytime to re-shuffle.";
                     pushButton.AvailabilityClassName = typeof(CmdColorizeAvailability).FullName;
                 });
         }

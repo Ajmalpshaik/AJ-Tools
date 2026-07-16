@@ -36,6 +36,7 @@
 #endregion
 
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.Models
 {
@@ -51,6 +52,6 @@ namespace AJTools.Models
         /// Uses a very low negative number to avoid collision with real ElementIds.
         /// </summary>
         public static readonly ElementId FamilyAndType =
-            new ElementId(int.MinValue + 100);
+            ElementIdHelper.FromInt(int.MinValue + 100);
     }
 }

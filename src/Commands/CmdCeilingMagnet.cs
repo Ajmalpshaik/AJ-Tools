@@ -2,14 +2,16 @@
 /*
  * Tool Name     : Elements to Ceiling Grid (Ceiling Magnet)
  * File Name     : CmdCeilingMagnet.cs
- * Purpose       : Snaps point-based elements to the nearest ceiling grid tile centers, using the picked
- *                 ceiling's surface pattern (or a 600x600 fallback) and one clicked grid intersection.
+ * Purpose       : Snaps point-based elements to the nearest ceiling grid tile centers. On Revit 2025.3+
+ *                 reads the ceiling's real grid line geometry directly (exact, no click needed). On
+ *                 older versions, falls back to the ceiling's surface pattern (or a 600x600 fallback)
+ *                 plus one clicked grid intersection - unchanged from the original behaviour.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-04-12
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-07
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,12 +29,21 @@
  * - Reads linked-model ceilings for reference only; never modifies linked elements.
  * - The whole session (pre-selected batch + each pick) is one TransactionGroup assimilated into a single undo step.
  * - Esc during a pick ends the session silently; pinned / non-point elements are skipped and counted.
+ * - Real-grid path (2025.3+, see CeilingGridApiCompat): clusters the ceiling's actual grid lines into
+ *   two perpendicular families, derives tile size/angle from each family's own inter-line spacing (median,
+ *   for robustness against clipped boundary segments), and derives the anchor point by intersecting one
+ *   line from each family - so the manual PickAnchorPoint click is skipped entirely on those versions.
+ *   Falls back to the original type-pattern-or-fallback + manual-click method on any version, or any
+ *   ceiling, where the real grid data is unavailable or ambiguous (never guesses on ambiguous data).
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2026-04-12) - Initial C# port of the pyRevit ceiling-snap logic.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block; ceiling selection, grid resolution
  *                       and transaction flow reviewed. Snap behaviour unchanged.
+ * v1.2.0 (2026-07-07) - Added a Revit 2025.3+ real-grid detection path (Ceiling.GetCeilingGridLines):
+ *                       exact tile size/angle/anchor from the ceiling's actual grid, no manual click
+ *                       needed. 2020-2024 (and any ceiling without usable grid data) behaviour unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -57,9 +68,19 @@ namespace AJTools.Commands
         private const string ToolTitle = "Ceiling Magnet";
         private const double FallbackTileMm = 600.0;
         private const double MoveTolerance = 1e-9;
-        private const string TransactionGroupName = "AJ Tools - Ceiling Magnet";
+        private const string TransactionGroupName = "Ceiling Magnet";
         private const string SnapPreselectedTransactionName = "Snap Preselected";
         private const string SnapElementTransactionName = "Snap Element";
+
+        // Real-grid detection (Revit 2025.3+, see TryGetGridFromRealGeometry) tuning constants.
+        private const int MinTotalGridLines = 4;
+        private const double FamilyAngleCosTolerance = 0.9962; // ~5 degrees
+        private const double PerpendicularityCosTolerance = 0.15; // ~8.6 degrees from perpendicular
+        private const double DuplicatePositionTolerance = 0.01; // feet (~3mm) - merges clipped duplicate lines
+        private const double MinPlausibleTileFeet = 0.05; // ~15mm
+        private const double MaxPlausibleTileFeet = 33.0; // ~10m
+        private const double SpacingConsistencyTolerance = 0.2; // 20% deviation from median allowed
+        private const double MinSpacingConsistencyRatio = 0.6; // 60% of gaps must be consistent
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -80,15 +101,19 @@ namespace AJTools.Commands
                 }
 
                 CeilingGridDefinition grid;
-                if (!TryCreateGridDefinition(ceilingSelection, out grid))
+                XYZ originPoint;
+                if (!TryGetGridFromRealGeometry(ceilingSelection, out grid, out originPoint))
                 {
-                    return Result.Cancelled;
-                }
+                    if (!TryCreateGridDefinition(ceilingSelection, out grid))
+                    {
+                        return Result.Cancelled;
+                    }
 
-                XYZ originPoint = PickAnchorPoint(uidoc);
-                if (originPoint == null)
-                {
-                    return Result.Cancelled;
+                    originPoint = PickAnchorPoint(uidoc);
+                    if (originPoint == null)
+                    {
+                        return Result.Cancelled;
+                    }
                 }
 
                 SnapSummary summary = SnapElementsToGrid(uidoc, doc, originPoint, grid);
@@ -147,7 +172,7 @@ namespace AJTools.Commands
 
             if (usedFallback)
             {
-                tileU = ConvertMillimetersToInternal(FallbackTileMm);
+                tileU = RevitCompat.MmToInternal(FallbackTileMm);
                 tileV = tileU;
                 gridAngle = 0.0;
             }
@@ -166,7 +191,232 @@ namespace AJTools.Commands
                 return false;
             }
 
-            grid = new CeilingGridDefinition(tileU, tileV, axisU, axisV, usedFallback);
+            CeilingGridSource source = usedFallback ? CeilingGridSource.Fallback600 : CeilingGridSource.TypePattern;
+            grid = new CeilingGridDefinition(tileU, tileV, axisU, axisV, source);
+            return true;
+        }
+
+        /// <summary>
+        /// Revit 2025.3+: derives the grid definition and anchor point directly from the ceiling's real
+        /// grid line geometry (Ceiling.GetCeilingGridLines), skipping the manual anchor click entirely.
+        /// Returns false on any older version, or whenever the real grid data is missing/ambiguous - the
+        /// caller then falls back to TryCreateGridDefinition + PickAnchorPoint, unchanged.
+        /// </summary>
+        private static bool TryGetGridFromRealGeometry(
+            CeilingSelection ceilingSelection,
+            out CeilingGridDefinition grid,
+            out XYZ originPoint)
+        {
+            grid = null;
+            originPoint = null;
+
+            IList<Curve> curves;
+            if (!CeilingGridApiCompat.TryGetGridLines(ceilingSelection.Ceiling, out curves))
+            {
+                return false;
+            }
+
+            List<Line> lines = new List<Line>();
+            foreach (Curve curve in curves)
+            {
+                Line line = curve as Line;
+                if (line != null && line.Length > MoveTolerance)
+                {
+                    lines.Add(line);
+                }
+            }
+
+            if (lines.Count < MinTotalGridLines)
+            {
+                return false;
+            }
+
+            List<Line> familyA;
+            List<Line> familyB;
+            if (!TryClusterIntoTwoFamilies(lines, out familyA, out familyB))
+            {
+                return false;
+            }
+
+            XYZ localAxisV = familyA[0].Direction;
+            XYZ localAxisU = new XYZ(-localAxisV.Y, localAxisV.X, 0);
+
+            double tileU;
+            double tileV;
+            if (!TryGetFamilySpacing(familyA, localAxisU, out tileU) ||
+                !TryGetFamilySpacing(familyB, localAxisV, out tileV))
+            {
+                return false;
+            }
+
+            XYZ localOrigin;
+            if (!TryIntersect2D(familyA[0], familyB[0], out localOrigin))
+            {
+                return false;
+            }
+
+            Transform transform = ceilingSelection.TransformToHost ?? Transform.Identity;
+
+            XYZ axisU;
+            XYZ axisV;
+            if (!TryProjectAndNormalize(transform.OfVector(localAxisU), out axisU) ||
+                !TryProjectAndNormalize(transform.OfVector(localAxisV), out axisV))
+            {
+                return false;
+            }
+
+            originPoint = transform.OfPoint(localOrigin);
+            grid = new CeilingGridDefinition(tileU, tileV, axisU, axisV, CeilingGridSource.ExactApi);
+            return true;
+        }
+
+        /// <summary>
+        /// Groups near-parallel lines (mod-pi angle) into exactly two roughly-perpendicular families.
+        /// Returns false if the lines don't cleanly form two such families - ambiguous data is never
+        /// guessed at, the caller falls back to the existing detection method instead.
+        /// </summary>
+        private static bool TryClusterIntoTwoFamilies(IList<Line> lines, out List<Line> familyA, out List<Line> familyB)
+        {
+            familyA = new List<Line> { lines[0] };
+            familyB = new List<Line>();
+            XYZ refA = ToModPiDirection(lines[0].Direction);
+            XYZ refB = null;
+
+            for (int i = 1; i < lines.Count; i++)
+            {
+                XYZ dir = ToModPiDirection(lines[i].Direction);
+                if (dir.DotProduct(refA) >= FamilyAngleCosTolerance)
+                {
+                    familyA.Add(lines[i]);
+                }
+                else if (refB == null)
+                {
+                    refB = dir;
+                    familyB.Add(lines[i]);
+                }
+                else if (dir.DotProduct(refB) >= FamilyAngleCosTolerance)
+                {
+                    familyB.Add(lines[i]);
+                }
+                else
+                {
+                    // A third distinct direction - the grid isn't a clean two-family orthogonal
+                    // pattern. Don't guess; fall back to the existing detection method.
+                    return false;
+                }
+            }
+
+            if (refB == null || familyA.Count < 2 || familyB.Count < 2)
+            {
+                return false;
+            }
+
+            // Families must be roughly perpendicular (within ~8.6 degrees of 90) - a standard ceiling
+            // grid always is; anything looser isn't reliable enough to snap against automatically.
+            return Math.Abs(refA.DotProduct(refB)) <= PerpendicularityCosTolerance;
+        }
+
+        /// <summary>
+        /// Normalizes a direction to a stable mod-pi representative so a line and its reverse cluster
+        /// together (flips sign so X is non-negative, or Y is non-negative when X is ~0).
+        /// </summary>
+        private static XYZ ToModPiDirection(XYZ direction)
+        {
+            if (direction.X < -MoveTolerance || (Math.Abs(direction.X) <= MoveTolerance && direction.Y < 0))
+            {
+                return new XYZ(-direction.X, -direction.Y, 0);
+            }
+
+            return new XYZ(direction.X, direction.Y, 0);
+        }
+
+        /// <summary>
+        /// Computes a family's own inter-line spacing: projects each line's midpoint onto
+        /// <paramref name="perpendicularAxis"/>, de-duplicates near-identical positions (clipped/duplicate
+        /// segments on the same grid line), then takes the median consecutive difference. Rejects the
+        /// result if the spacing is implausible or the family's spacing isn't consistent enough to trust.
+        /// </summary>
+        private static bool TryGetFamilySpacing(IList<Line> family, XYZ perpendicularAxis, out double spacing)
+        {
+            spacing = 0;
+
+            List<double> positions = new List<double>();
+            foreach (Line line in family)
+            {
+                XYZ midpoint = line.Evaluate(0.5, true);
+                positions.Add(midpoint.DotProduct(perpendicularAxis));
+            }
+
+            positions.Sort();
+
+            List<double> distinct = new List<double>();
+            foreach (double position in positions)
+            {
+                if (distinct.Count == 0 || position - distinct[distinct.Count - 1] > DuplicatePositionTolerance)
+                {
+                    distinct.Add(position);
+                }
+            }
+
+            if (distinct.Count < 2)
+            {
+                return false;
+            }
+
+            List<double> deltas = new List<double>();
+            for (int i = 1; i < distinct.Count; i++)
+            {
+                deltas.Add(distinct[i] - distinct[i - 1]);
+            }
+
+            deltas.Sort();
+            double median = deltas[deltas.Count / 2];
+
+            if (median < MinPlausibleTileFeet || median > MaxPlausibleTileFeet)
+            {
+                return false;
+            }
+
+            int consistent = 0;
+            foreach (double delta in deltas)
+            {
+                if (Math.Abs(delta - median) <= median * SpacingConsistencyTolerance)
+                {
+                    consistent++;
+                }
+            }
+
+            if (consistent < deltas.Count * MinSpacingConsistencyRatio)
+            {
+                return false;
+            }
+
+            spacing = median;
+            return true;
+        }
+
+        /// <summary>
+        /// Intersects the infinite carrier lines of <paramref name="lineA"/> and <paramref name="lineB"/>
+        /// in the XY plane. Used only as a reference anchor for the conceptual infinite snap grid, so the
+        /// intersection does not need to fall within either line's drawn extents.
+        /// </summary>
+        private static bool TryIntersect2D(Line lineA, Line lineB, out XYZ intersection)
+        {
+            intersection = null;
+
+            XYZ p1 = lineA.GetEndPoint(0);
+            XYZ d1 = lineA.Direction;
+            XYZ p2 = lineB.GetEndPoint(0);
+            XYZ d2 = lineB.Direction;
+
+            double denom = (d1.X * d2.Y) - (d1.Y * d2.X);
+            if (Math.Abs(denom) <= MoveTolerance)
+            {
+                return false;
+            }
+
+            double t = (((p2.X - p1.X) * d2.Y) - ((p2.Y - p1.Y) * d2.X)) / denom;
+            intersection = new XYZ(p1.X + (d1.X * t), p1.Y + (d1.Y * t), 0);
             return true;
         }
 
@@ -232,12 +482,22 @@ namespace AJTools.Commands
 
         private static void ShowSummary(CeilingGridDefinition grid, SnapSummary summary)
         {
-            double tileUmm = ConvertInternalToMillimeters(grid.TileU);
-            double tileVmm = ConvertInternalToMillimeters(grid.TileV);
+            double tileUmm = RevitCompat.InternalToMm(grid.TileU);
+            double tileVmm = RevitCompat.InternalToMm(grid.TileV);
             double angleDeg = Math.Atan2(grid.AxisV.Y, grid.AxisV.X) * 180.0 / Math.PI;
-            string source = grid.UsedFallback
-                ? "fallback 600x600 (no model pattern on ceiling)"
-                : string.Format("ceiling pattern {0:0.#} x {1:0.#} mm @ {2:0.##} deg", tileUmm, tileVmm, angleDeg);
+            string source;
+            switch (grid.Source)
+            {
+                case CeilingGridSource.ExactApi:
+                    source = string.Format("exact ceiling grid {0:0.#} x {1:0.#} mm @ {2:0.##} deg (from model, no click needed)", tileUmm, tileVmm, angleDeg);
+                    break;
+                case CeilingGridSource.Fallback600:
+                    source = "fallback 600x600 (no model pattern on ceiling)";
+                    break;
+                default:
+                    source = string.Format("ceiling pattern {0:0.#} x {1:0.#} mm @ {2:0.##} deg", tileUmm, tileVmm, angleDeg);
+                    break;
+            }
 
             DialogHelper.ShowInfo(
                 ToolTitle,
@@ -496,24 +756,6 @@ namespace AJTools.Commands
             return false;
         }
 
-        private static double ConvertMillimetersToInternal(double value)
-        {
-#if REVIT2022_OR_GREATER
-            return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
-#else
-            return UnitUtils.ConvertToInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
-#endif
-        }
-
-        private static double ConvertInternalToMillimeters(double value)
-        {
-#if REVIT2022_OR_GREATER
-            return UnitUtils.ConvertFromInternalUnits(value, UnitTypeId.Millimeters);
-#else
-            return UnitUtils.ConvertFromInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
-#endif
-        }
-
         private sealed class PointElementSelectionFilter : ISelectionFilter
         {
             public bool AllowElement(Element elem)
@@ -543,15 +785,28 @@ namespace AJTools.Commands
             public Transform TransformToHost { get; }
         }
 
+        /// <summary>Where the ceiling grid definition came from, for the summary report.</summary>
+        private enum CeilingGridSource
+        {
+            /// <summary>Real grid geometry read from Ceiling.GetCeilingGridLines (Revit 2025.3+).</summary>
+            ExactApi,
+
+            /// <summary>Read from the ceiling type's surface fill pattern (all versions).</summary>
+            TypePattern,
+
+            /// <summary>No usable pattern found; used the 600x600mm default (all versions).</summary>
+            Fallback600
+        }
+
         private sealed class CeilingGridDefinition
         {
-            public CeilingGridDefinition(double tileU, double tileV, XYZ axisU, XYZ axisV, bool usedFallback)
+            public CeilingGridDefinition(double tileU, double tileV, XYZ axisU, XYZ axisV, CeilingGridSource source)
             {
                 TileU = tileU;
                 TileV = tileV;
                 AxisU = axisU;
                 AxisV = axisV;
-                UsedFallback = usedFallback;
+                Source = source;
             }
 
             public double TileU { get; }
@@ -562,7 +817,7 @@ namespace AJTools.Commands
 
             public XYZ AxisV { get; }
 
-            public bool UsedFallback { get; }
+            public CeilingGridSource Source { get; }
         }
 
         private sealed class SnapSummary

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,13 +12,12 @@ using Microsoft.Win32;
 using AJTools.Models.DuctStandards;
 using AJTools.Services.DuctStandards;
 using AJTools.Utils;
-
-#if REVIT2023_OR_GREATER
-using ParameterDataTypeId = Autodesk.Revit.DB.ForgeTypeId;
-using ParameterGroupId = Autodesk.Revit.DB.ForgeTypeId;
+#if REVIT2022_OR_GREATER
+using AjSpec = Autodesk.Revit.DB.ForgeTypeId;
+using AjGroup = Autodesk.Revit.DB.ForgeTypeId;
 #else
-using ParameterDataTypeId = Autodesk.Revit.DB.ParameterType;
-using ParameterGroupId = Autodesk.Revit.DB.BuiltInParameterGroup;
+using AjSpec = Autodesk.Revit.DB.ParameterType;
+using AjGroup = Autodesk.Revit.DB.BuiltInParameterGroup;
 #endif
 
 namespace AJTools.UI.DuctStandards
@@ -52,19 +50,8 @@ namespace AJTools.UI.DuctStandards
 
         private void LoadConfigAndPopulateUI()
         {
-            _config = DuctStandardsConfigService.Load(out bool configWasInvalid);
+            _config = DuctStandardsConfigService.Load();
             PopulateUI();
-
-            if (configWasInvalid)
-            {
-                MessageBox.Show(
-                    "Your saved Duct Standards configuration could not be read (it may be corrupted or was edited outside this tool). " +
-                    "Generic default rules and materials were loaded instead - your customized standard was NOT used.\n\n" +
-                    "Review the settings below and Save Config again once you're happy with them.",
-                    "Duct Standards Manager",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            }
         }
 
         private void PopulateUI()
@@ -299,14 +286,14 @@ namespace AJTools.UI.DuctStandards
             var specs = new List<DuctParamSpec>();
             var map = config?.ParameterMap ?? new DuctParameterMap();
 
-            AddSpec(specs, map.SheetThickness, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.Gauge, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.WeightPerMeter, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.TotalWeight, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.SheetArea, SharedParamUtils.NumberParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.RuleSource, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.PressureClass, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
-            AddSpec(specs, map.MaterialName, SharedParamUtils.TextParameterType, SharedParamUtils.DefaultDataGroup);
+            AddSpec(specs, map.SheetThickness, RevitCompat.SpecNumber, RevitCompat.GroupData);
+            AddSpec(specs, map.Gauge, RevitCompat.SpecText, RevitCompat.GroupData);
+            AddSpec(specs, map.WeightPerMeter, RevitCompat.SpecNumber, RevitCompat.GroupData);
+            AddSpec(specs, map.TotalWeight, RevitCompat.SpecNumber, RevitCompat.GroupData);
+            AddSpec(specs, map.SheetArea, RevitCompat.SpecNumber, RevitCompat.GroupData);
+            AddSpec(specs, map.RuleSource, RevitCompat.SpecText, RevitCompat.GroupData);
+            AddSpec(specs, map.PressureClass, RevitCompat.SpecText, RevitCompat.GroupData);
+            AddSpec(specs, map.MaterialName, RevitCompat.SpecText, RevitCompat.GroupData);
 
             return specs;
         }
@@ -325,7 +312,7 @@ namespace AJTools.UI.DuctStandards
                 .ToList();
         }
 
-        private static void AddSpec(List<DuctParamSpec> specs, string name, ParameterDataTypeId parameterType, ParameterGroupId group)
+        private static void AddSpec(List<DuctParamSpec> specs, string name, AjSpec parameterType, AjGroup group)
         {
             if (specs == null || string.IsNullOrWhiteSpace(name))
                 return;
@@ -378,13 +365,13 @@ namespace AJTools.UI.DuctStandards
                     Binding binding = app.Create.NewInstanceBinding(categorySet);
                     bool hasExisting = existing != null;
                     bool ok = hasExisting
-                        ? map.ReInsert(definition, binding, spec.ParameterGroup)
-                        : map.Insert(definition, binding, spec.ParameterGroup);
+                        ? RevitCompat.ReInsertBinding(map, definition, binding, spec.ParameterGroup)
+                        : RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
 
                     if (!ok && hasExisting)
                     {
                         try { map.Remove(definition); } catch (Exception) { }
-                        ok = map.Insert(definition, binding, spec.ParameterGroup);
+                        ok = RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
                     }
 
                     if (ok)
@@ -470,7 +457,7 @@ namespace AJTools.UI.DuctStandards
             return group ?? file.Groups.Create(name);
         }
 
-        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, ParameterDataTypeId type)
+        private static Definition GetOrCreateDefinition(DefinitionFile file, DefinitionGroup preferredGroup, string name, AjSpec type)
         {
             foreach (DefinitionGroup group in file.Groups)
             {
@@ -479,11 +466,9 @@ namespace AJTools.UI.DuctStandards
                     return existing;
             }
 
-            var options = new ExternalDefinitionCreationOptions(name, type)
-            {
-                UserModifiable = true,
-                Visible = true
-            };
+            var options = RevitCompat.CreateDefinitionOptions(name, type);
+            options.UserModifiable = true;
+            options.Visible = true;
 
             try { return preferredGroup.Definitions.Create(options); }
             catch (Exception) { return TryGetDefinition(preferredGroup, name); }
@@ -710,33 +695,8 @@ namespace AJTools.UI.DuctStandards
             if (!string.IsNullOrEmpty(pressureFilter) && pressureFilter != "All")
                 filtered = filtered.Where(r => string.Equals(r.Pressure, pressureFilter, StringComparison.OrdinalIgnoreCase));
 
-            if (_filteredRules != null)
-            {
-                _filteredRules.CollectionChanged -= FilteredRules_CollectionChanged;
-            }
-
             _filteredRules = new ObservableCollection<DuctRule>(filtered);
-            _filteredRules.CollectionChanged += FilteredRules_CollectionChanged;
             dgRules.ItemsSource = _filteredRules;
-        }
-
-        // The DataGrid's built-in new-row feature (CanUserAddRows) adds new rows directly to the bound
-        // _filteredRules collection, not to _allRules - without this, a rule typed straight into the grid
-        // would silently disappear on Save/Run or the moment a filter combo changes.
-        private void FilteredRules_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null || _allRules == null)
-            {
-                return;
-            }
-
-            foreach (DuctRule rule in e.NewItems)
-            {
-                if (rule != null && !_allRules.Contains(rule))
-                {
-                    _allRules.Add(rule);
-                }
-            }
         }
 
         // -------------------------------------------------------------------
@@ -878,7 +838,7 @@ namespace AJTools.UI.DuctStandards
 
         private sealed class DuctParamSpec
         {
-            public DuctParamSpec(string name, ParameterDataTypeId parameterType, ParameterGroupId parameterGroup)
+            public DuctParamSpec(string name, AjSpec parameterType, AjGroup parameterGroup)
             {
                 Name = name;
                 ParameterType = parameterType;
@@ -886,8 +846,8 @@ namespace AJTools.UI.DuctStandards
             }
 
             public string Name { get; }
-            public ParameterDataTypeId ParameterType { get; }
-            public ParameterGroupId ParameterGroup { get; }
+            public AjSpec ParameterType { get; }
+            public AjGroup ParameterGroup { get; }
         }
     }
 }

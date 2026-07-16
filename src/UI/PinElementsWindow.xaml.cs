@@ -1,8 +1,8 @@
 // Tool Name: Pin Elements UI
 // Description: Code-behind for grouped pin/unpin selection dialog.
 // Author: Ajmal P.S.
-// Version: 1.2.0
-// Last Updated: 2026-04-18
+// Version: 1.3.0
+// Last Updated: 2026-07-13
 // Revit Version: 2020
 
 using System;
@@ -11,6 +11,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using Autodesk.Revit.DB;
 using AJTools.Models.PinTools;
 using AJTools.Services.PinTools;
@@ -226,6 +228,28 @@ namespace AJTools.UI
         {
             DialogResult = HasExecutedOperation;
             Close();
+        }
+
+        /// <summary>
+        /// The category lists sit inside the window's own outer ScrollViewer (so the two group boxes
+        /// combined can scroll once they exceed MaxHeight), but ModernListBox's control template has
+        /// its own internal ScrollViewer too. WPF's ScrollViewer always marks a MouseWheel event as
+        /// handled once it processes it, even when there's nothing to scroll inside - so without this,
+        /// the outer scrollbar could only be dragged by hand, never scrolled with the mouse wheel while
+        /// hovering over a list. Re-raising the event sourced at the ListBox lets it bubble past the
+        /// ListBox (skipping its own template's ScrollViewer) up to the window's outer ScrollViewer.
+        /// </summary>
+        private void OnListBoxPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.Handled || !(sender is ListBox listBox))
+                return;
+
+            var forwarded = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+            {
+                RoutedEvent = UIElement.MouseWheelEvent
+            };
+            listBox.RaiseEvent(forwarded);
+            e.Handled = true;
         }
 
         private void UpdateUiState(string statusOverride = null)

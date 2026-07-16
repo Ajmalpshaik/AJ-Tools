@@ -6,10 +6,10 @@
  *                 assignment, halftone, and view-template protection checks.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.1
+ * Version       : 1.0.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-02
+ * Last Updated  : 2026-06-30
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -18,28 +18,18 @@
  * Dependencies  : Autodesk Revit API, System.Linq
  *
  * Input         : Active View, FilterSelection (graphics options), ElementId of filter and solid fill pattern
- * Output        : View filter graphics updated â€” colour, pattern, halftone, visibility
+ * Output        : View filter graphics updated — colour, pattern, halftone, visibility
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
  * - OverrideGraphicSettings surface/cut pattern API (SetSurfaceForegroundPatternId etc.) confirmed valid 2020-2026.
- * - Read-only service â€” all model writes occur inside a Transaction managed by the caller.
+ * - Read-only service — all model writes occur inside a Transaction managed by the caller.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
- * v1.1.0 (2026-07-02) - Extracted BuildOverrideSettings (pure colour/pattern/halftone construction)
- *                        out of ApplyGraphicsToFilter, and promoted ResolvePatternId and
- *                        HasAnyGraphicsToggleEnabled to internal, so the new Colorize tool can build
- *                        the same OverrideGraphicSettings and apply them directly to elements instead
- *                        of to a saved filter. No behavior change to Filter Pro's own apply path.
- * v1.1.1 (2026-07-02) - Fixed BuildOverrideSettings never calling SetSurfaceForegroundPatternVisible/
- *                        SetCutForegroundPatternVisible(true) â€” a fill pattern override in Revit needs
- *                        its own visibility flag turned on or it never renders even with a valid
- *                        pattern id and colour set. Line colour overrides were unaffected (no separate
- *                        visibility flag). Fixes both Filter Pro's and Colorize's pattern checkboxes.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -51,6 +41,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models;
 
+using AJTools.Utils;
 namespace AJTools.Services.FilterPro
 {
     internal static class FilterApplier
@@ -87,12 +78,12 @@ namespace AJTools.Services.FilterPro
             try
             {
                 var current = view.GetFilters() ?? new List<ElementId>();
-                // Must compare by IntegerValue â€” Revit may return new ElementId wrapper objects
+                // Must compare by IntegerValue — Revit may return new ElementId wrapper objects
                 // that are not reference-equal even when they represent the same filter.
                 bool alreadyAdded = false;
                 foreach (var existingId in current)
                 {
-                    if (existingId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(existingId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(filterId))
+                    if (existingId != null && existingId.IntValue() == filterId.IntValue())
                     {
                         alreadyAdded = true;
                         break;
@@ -103,7 +94,7 @@ namespace AJTools.Services.FilterPro
             }
             catch (Exception ex)
             {
-                skipped?.Add($"Failed to add filter {AJTools.Utils.ElementIdHelper.GetIntegerValue(filterId)} to view '{view.Name}': {ex.Message}");
+                skipped?.Add($"Failed to add filter {filterId.IntValue()} to view '{view.Name}': {ex.Message}");
                 return;
             }
 
@@ -153,7 +144,15 @@ namespace AJTools.Services.FilterPro
                 ? CloneOverrideGraphics(existing)
                 : new OverrideGraphicSettings();
 
-            if (!HasAnyGraphicsToggleEnabled(selection))
+            bool applyProjLines = selection.ColorProjectionLines;
+            bool applyProjPatterns = selection.ColorProjectionPatterns;
+            bool applyCutLines = selection.ColorCutLines;
+            bool applyCutPatterns = selection.ColorCutPatterns;
+            bool applyHalftone = selection.ColorHalftone;
+
+            if (!applyProjLines && !applyProjPatterns &&
+                !applyCutLines && !applyCutPatterns &&
+                !applyHalftone)
             {
                 return;
             }
@@ -163,76 +162,43 @@ namespace AJTools.Services.FilterPro
 
             try
             {
-                ogs = BuildOverrideSettings(selection, ogs, chosenColor, patternId);
+                if (applyProjLines)
+                {
+                    ogs.SetProjectionLineColor(chosenColor);
+                }
+
+                if (applyCutLines)
+                {
+                    ogs.SetCutLineColor(chosenColor);
+                }
+
+                if (applyProjPatterns)
+                {
+                    if (patternId != ElementId.InvalidElementId)
+                        ogs.SetSurfaceForegroundPatternId(patternId);
+
+                    ogs.SetSurfaceForegroundPatternColor(chosenColor);
+                }
+
+                if (applyCutPatterns)
+                {
+                    if (patternId != ElementId.InvalidElementId)
+                        ogs.SetCutForegroundPatternId(patternId);
+
+                    ogs.SetCutForegroundPatternColor(chosenColor);
+                }
+
+                if (applyHalftone)
+                {
+                    ogs.SetHalftone(true);
+                }
+
                 view.SetFilterOverrides(filterId, ogs);
             }
             catch (Exception ex)
             {
-                skipped?.Add($"Error applying graphics for filter {AJTools.Utils.ElementIdHelper.GetIntegerValue(filterId)} in view '{view.Name}': {ex.Message}");
+                skipped?.Add($"Error applying graphics for filter {filterId.IntValue()} in view '{view.Name}': {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// True when at least one graphics toggle (projection/cut lines or patterns, halftone) is enabled.
-        /// Shared with Colorize so it can skip a value group that would otherwise "apply" a no-op override.
-        /// </summary>
-        internal static bool HasAnyGraphicsToggleEnabled(FilterSelection selection)
-        {
-            return selection.ColorProjectionLines ||
-                   selection.ColorProjectionPatterns ||
-                   selection.ColorCutLines ||
-                   selection.ColorCutPatterns ||
-                   selection.ColorHalftone;
-        }
-
-        /// <summary>
-        /// Builds (or extends) an OverrideGraphicSettings from a FilterSelection's graphics toggles, a
-        /// resolved colour, and a resolved pattern id. Pure construction â€” does not touch any view or
-        /// filter. Shared by Filter Pro (applies the result to a saved filter) and Colorize (applies the
-        /// result directly to matched elements).
-        /// </summary>
-        internal static OverrideGraphicSettings BuildOverrideSettings(
-            FilterSelection selection,
-            OverrideGraphicSettings baseSettings,
-            Color color,
-            ElementId patternId)
-        {
-            var ogs = baseSettings ?? new OverrideGraphicSettings();
-
-            if (selection.ColorProjectionLines)
-            {
-                ogs.SetProjectionLineColor(color);
-            }
-
-            if (selection.ColorCutLines)
-            {
-                ogs.SetCutLineColor(color);
-            }
-
-            if (selection.ColorProjectionPatterns)
-            {
-                if (patternId != ElementId.InvalidElementId)
-                    ogs.SetSurfaceForegroundPatternId(patternId);
-
-                ogs.SetSurfaceForegroundPatternColor(color);
-                ogs.SetSurfaceForegroundPatternVisible(true);
-            }
-
-            if (selection.ColorCutPatterns)
-            {
-                if (patternId != ElementId.InvalidElementId)
-                    ogs.SetCutForegroundPatternId(patternId);
-
-                ogs.SetCutForegroundPatternColor(color);
-                ogs.SetCutForegroundPatternVisible(true);
-            }
-
-            if (selection.ColorHalftone)
-            {
-                ogs.SetHalftone(true);
-            }
-
-            return ogs;
         }
 
         /// <summary>
@@ -301,7 +267,7 @@ namespace AJTools.Services.FilterPro
                 : ColorPalette.GetColorFor(filterId);
         }
 
-        internal static ElementId ResolvePatternId(Document doc, ElementId requested, ElementId solidFillId)
+        private static ElementId ResolvePatternId(Document doc, ElementId requested, ElementId solidFillId)
         {
             try
             {

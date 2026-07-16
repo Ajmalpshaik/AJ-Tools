@@ -2,7 +2,7 @@
 /*
  * Tool Name     : Filter Pro
  * File Name     : FilterProDataProvider.cs
- * Purpose       : Read-only data provider â€” collects filterable categories, parameters, and
+ * Purpose       : Read-only data provider — collects filterable categories, parameters, and
  *                 unique parameter values from the project for the Filter Pro UI.
  *
  * Author        : Ajmal P.S.
@@ -25,8 +25,8 @@
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
  * - Element scan limited to Constants.ELEMENT_SCAN_LIMIT (default 10 000) to prevent UI freeze on large models.
  * - ParameterFilterUtilities.GetFilterableParametersInCommon confirmed valid 2020-2026.
- * - LabelUtils.GetLabelFor(BuiltInParameter) used for built-in parameter display names â€” valid 2020-2026.
- * - Production-ready implementation. No model changes â€” no Transaction required.
+ * - LabelUtils.GetLabelFor(BuiltInParameter) used for built-in parameter display names — valid 2020-2026.
+ * - Production-ready implementation. No model changes — no Transaction required.
  *
  * Changelog     :
  * v1.0.0 (2025-12-11) - Initial release.
@@ -98,8 +98,8 @@ namespace AJTools.Services.FilterPro
                 Parameter sample = GetSampleParameter(pid, categoryIds);
                 StorageType storage = sample?.StorageType ?? StorageType.None;
 
-                if (AJTools.Utils.ElementIdHelper.GetIntegerValue(pid) == (int)BuiltInParameter.ALL_MODEL_FAMILY_NAME ||
-                    AJTools.Utils.ElementIdHelper.GetIntegerValue(pid) == (int)BuiltInParameter.ALL_MODEL_TYPE_NAME)
+                if (pid.IntValue() == (int)BuiltInParameter.ALL_MODEL_FAMILY_NAME ||
+                    pid.IntValue() == (int)BuiltInParameter.ALL_MODEL_TYPE_NAME)
                 {
                     storage = StorageType.String;
                 }
@@ -124,7 +124,7 @@ namespace AJTools.Services.FilterPro
             if (param == null || categoryIds == null || categoryIds.Count == 0)
                 return new List<FilterValueItem>();
 
-            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(param.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(SpecialParameterIds.FamilyAndType))
+            if (param.Id.IntValue() == SpecialParameterIds.FamilyAndType.IntValue())
                 return LoadFamilyAndTypeValues(categoryIds);
 
             return LoadRegularParameterValues(param, categoryIds, out hitScanLimit);
@@ -178,8 +178,8 @@ namespace AJTools.Services.FilterPro
             var filter = new ElementMulticategoryFilter(catIds);
             var collector = new FilteredElementCollector(_doc).WherePasses(filter);
 
-            int paramIntId = AJTools.Utils.ElementIdHelper.GetIntegerValue(param.Id);
-            bool isBuiltIn = Enum.IsDefined(typeof(BuiltInParameter), paramIntId);
+            int paramIntId = param.Id.IntValue();
+            bool isBuiltIn = ElementIdHelper.IsDefinedBuiltInParameter(paramIntId);
             BuiltInParameter builtInParam = isBuiltIn ? (BuiltInParameter)paramIntId : 0;
 
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -211,7 +211,7 @@ namespace AJTools.Services.FilterPro
                 {
                     foreach (Parameter elemParam in elem.Parameters)
                     {
-                        if (AJTools.Utils.ElementIdHelper.GetIntegerValue(elemParam.Id) == paramIntId)
+                        if (elemParam.Id.IntValue() == paramIntId)
                         {
                             p = elemParam;
                             break;
@@ -279,7 +279,7 @@ namespace AJTools.Services.FilterPro
         private string ResolveElementName(Element element, ElementId id, string paramName)
         {
             if (element == null)
-                return "#" + AJTools.Utils.ElementIdHelper.GetIntegerValue(id);
+                return "#" + id.IntValue();
 
             // Prefer family + type when available for clarity
             string familyName = null;
@@ -344,16 +344,16 @@ namespace AJTools.Services.FilterPro
             if (!string.IsNullOrWhiteSpace(paramName) &&
                 paramName.IndexOf("System Type", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return "System " + AJTools.Utils.ElementIdHelper.GetIntegerValue(id);
+                return "System " + id.IntValue();
             }
 
-            return "#" + AJTools.Utils.ElementIdHelper.GetIntegerValue(id);
+            return "#" + id.IntValue();
         }
 
         private Parameter GetSampleParameter(ElementId paramId, IList<ElementId> categoryIds)
         {
-            int paramIntId = AJTools.Utils.ElementIdHelper.GetIntegerValue(paramId);
-            bool isBuiltIn = Enum.IsDefined(typeof(BuiltInParameter), paramIntId);
+            int paramIntId = paramId.IntValue();
+            bool isBuiltIn = ElementIdHelper.IsDefinedBuiltInParameter(paramIntId);
             BuiltInParameter builtIn = isBuiltIn ? (BuiltInParameter)paramIntId : 0;
 
             foreach (ElementId catId in categoryIds)
@@ -380,7 +380,7 @@ namespace AJTools.Services.FilterPro
                     {
                         foreach (Parameter elemParam in instance.Parameters)
                         {
-                            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(elemParam.Id) == paramIntId)
+                            if (elemParam.Id.IntValue() == paramIntId)
                             {
                                 p = elemParam;
                                 break;
@@ -410,7 +410,7 @@ namespace AJTools.Services.FilterPro
                     {
                         foreach (Parameter elemParam in typeElem.Parameters)
                         {
-                            if (AJTools.Utils.ElementIdHelper.GetIntegerValue(elemParam.Id) == paramIntId)
+                            if (elemParam.Id.IntValue() == paramIntId)
                             {
                                 p = elemParam;
                                 break;
@@ -434,12 +434,12 @@ namespace AJTools.Services.FilterPro
             if (_doc.GetElement(paramId) is ParameterElement paramElem)
                 return paramElem.Name;
 
-            if (Enum.IsDefined(typeof(BuiltInParameter), AJTools.Utils.ElementIdHelper.GetIntegerValue(paramId)))
+            if (ElementIdHelper.IsDefinedBuiltInParameter(paramId.IntValue()))
             {
                 try
                 {
                     return LabelUtils.GetLabelFor(
-                        (BuiltInParameter)AJTools.Utils.ElementIdHelper.GetIntegerValue(paramId));
+                        (BuiltInParameter)paramId.IntValue());
                 }
                 catch
                 {
@@ -447,7 +447,7 @@ namespace AJTools.Services.FilterPro
                 }
             }
 
-            return "Param " + AJTools.Utils.ElementIdHelper.GetIntegerValue(paramId);
+            return "Param " + paramId.IntValue();
         }
     }
 }

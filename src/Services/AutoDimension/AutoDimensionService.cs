@@ -450,22 +450,6 @@ namespace AJTools.Services.AutoDimension
             if (sortedLevels.Count < 2)
                 return false;
 
-            // Levels sharing an elevation would produce a zero-length dimension line (Line.CreateBound
-            // throws) and duplicate references, so collapse them to one level per distinct elevation.
-            List<Level> distinctLevels = new List<Level>();
-            foreach (Level level in sortedLevels)
-            {
-                if (distinctLevels.Count == 0 ||
-                    Math.Abs(level.Elevation - distinctLevels[distinctLevels.Count - 1].Elevation) > Constants.ELEVATION_EPSILON)
-                {
-                    distinctLevels.Add(level);
-                }
-            }
-            sortedLevels = distinctLevels;
-
-            if (sortedLevels.Count < 2)
-                return false;
-
             Transform transform = crop.Transform;
             Transform inverse = transform.Inverse;
 

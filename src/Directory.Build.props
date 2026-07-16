@@ -1,7 +1,0 @@
-<Project>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'AJ Tools.Modern'">
-    <RevitVersion Condition="'$(RevitVersion)' == ''">2025</RevitVersion>
-    <BaseIntermediateOutputPath>obj\Modern\$(RevitVersion)\</BaseIntermediateOutputPath>
-    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
-  </PropertyGroup>
-</Project>

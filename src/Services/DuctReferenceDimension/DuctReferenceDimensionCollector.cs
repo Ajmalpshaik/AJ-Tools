@@ -55,7 +55,7 @@ namespace AJTools.Services.DuctReferenceDimension
                 .ToList();
 
             DuctFacePair selectedPair = ductPairs.FirstOrDefault(
-                p => p.DuctId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(p.DuctId) == AJTools.Utils.ElementIdHelper.GetIntegerValue(selectedDuct.Id));
+                p => p.DuctId != null && p.DuctId.IntValue() == selectedDuct.Id.IntValue());
 
             if (selectedPair == null)
             {
@@ -227,7 +227,7 @@ namespace AJTools.Services.DuctReferenceDimension
 
             foreach (IGrouping<int, DuctReferenceCandidate> group in candidates
                 .Where(c => c.IsDuct && c.ElementId != null)
-                .GroupBy(c => AJTools.Utils.ElementIdHelper.GetIntegerValue(c.ElementId)))
+                .GroupBy(c => c.ElementId.IntValue()))
             {
                 List<DuctReferenceCandidate> ordered = group
                     .OrderBy(c => c.SortCoord)
@@ -343,7 +343,7 @@ namespace AJTools.Services.DuctReferenceDimension
                 results.Add(pair);
             }
 
-            if (results.All(p => AJTools.Utils.ElementIdHelper.GetIntegerValue(p.DuctId) != AJTools.Utils.ElementIdHelper.GetIntegerValue(selectedPair.DuctId)))
+            if (results.All(p => p.DuctId.IntValue() != selectedPair.DuctId.IntValue()))
                 results.Add(selectedPair);
 
             return referenceSide == ReferenceSide.Negative
@@ -415,7 +415,7 @@ namespace AJTools.Services.DuctReferenceDimension
             if (category == null)
                 return false;
 
-            int categoryId = AJTools.Utils.ElementIdHelper.GetIntegerValue(category.Id);
+            int categoryId = category.Id.IntValue();
             if (categoryId == (int)BuiltInCategory.OST_Walls)
             {
                 targetType = DuctReferenceTargetType.Wall;
@@ -484,7 +484,7 @@ namespace AJTools.Services.DuctReferenceDimension
             if (elementsById == null || element?.Id == null)
                 return;
 
-            int id = AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id);
+            int id = element.Id.IntValue();
             if (!elementsById.ContainsKey(id))
                 elementsById.Add(id, element);
         }

@@ -285,7 +285,7 @@ namespace AJTools.Services.DuctReferenceDimension
             catch
             {
                 ElementId elementId = reference.ElementId;
-                return elementId == null ? string.Empty : AJTools.Utils.ElementIdHelper.GetIntegerValue(elementId).ToString();
+                return elementId == null ? string.Empty : elementId.IntValue().ToString();
             }
         }
 
@@ -496,7 +496,7 @@ namespace AJTools.Services.DuctReferenceDimension
             if (string.IsNullOrWhiteSpace(stableKey))
                 return false;
 
-            bool isSelectedDuct = selectedDuctId != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(element.Id) == AJTools.Utils.ElementIdHelper.GetIntegerValue(selectedDuctId);
+            bool isSelectedDuct = selectedDuctId != null && element.Id.IntValue() == selectedDuctId.IntValue();
             candidate = new DuctReferenceCandidate
             {
                 ElementId = element.Id,
@@ -610,9 +610,7 @@ namespace AJTools.Services.DuctReferenceDimension
 
         private static double ResolveSearchHalfLength(View view, DuctDimensionAxis axis)
         {
-            // An inactive crop box still returns stale bounds that would wrongly shrink the search
-            // range, so only trust CropBox when the crop is actually active.
-            if (view == null || !view.CropBoxActive || view.CropBox == null || axis == null)
+            if (view?.CropBox == null || axis == null)
                 return DefaultSearchHalfLength;
 
             try

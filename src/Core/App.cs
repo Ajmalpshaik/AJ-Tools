@@ -6,10 +6,10 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.11.3
+ * Version       : 1.10.0
  *
  * Created Date  : 2025-01-01
- * Last Updated  : 2026-07-03
+ * Last Updated  : 2026-07-07
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,10 +27,6 @@
  * - Production-ready implementation.
  *
  * Changelog     :
- * v1.11.3 (2026-07-07) - Generalized bundled DLL resolution so Revit startup
- *                        can load CommunityToolkit.Mvvm and other package
- *                        dependencies from the AJ Tools install folder.
- * v1.10.0 (2026-07-03) - Suite bumped for the Opening split button and direct opening tools.
  * v1.5.1 (2026-06-30) - Added mandatory metadata block.
  * v1.5.2 (2026-06-30) - Section Mark Visibility tool cleanup (perf, worksharing safety,
  *                       correct result code, new ribbon icon).
@@ -38,6 +34,11 @@
  *                       panels refactor/audit. Ribbon registration unchanged.
  * v1.7.0 (2026-07-01) - Suite bumped for the AJ Annotation tab refactor/audit (Dimensions, Tags, Flow,
  *                       Revision Clouds, Text) plus About. Ribbon registration unchanged.
+ * v1.9.0 (2026-07-05) - Added the Arrange Text in Box tool on a new "Text" panel (AJ Annotation tab).
+ * v1.10.0 (2026-07-07) - Added the AutoDebugger MCP bridge: a Connect/Disconnect toggle in the AJ AI
+ *                        pane that starts a local named-pipe server (McpBridgeService) for an external
+ *                        MCP process to run C# against the live document through RevitExecutionService.
+ *                        Pane provider instance now retained so OnShutdown can stop the bridge cleanly.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -55,6 +56,7 @@ namespace AJTools.App
     public class App : IExternalApplication
     {
         private static string _addinFolder;
+        private GeminiShellPaneProvider _geminiShellPaneProvider;
 
         public Result OnStartup(UIControlledApplication app)
         {
@@ -80,7 +82,8 @@ namespace AJTools.App
                 var annotationRibbonManager = new AnnotationRibbonManager(app);
                 annotationRibbonManager.CreateRibbon();
 
-                app.RegisterDockablePane(GeminiShellPaneProvider.PaneId, "Gemini Shell", new GeminiShellPaneProvider());
+                _geminiShellPaneProvider = new GeminiShellPaneProvider();
+                app.RegisterDockablePane(GeminiShellPaneProvider.PaneId, "Gemini Shell", _geminiShellPaneProvider);
 
                 return Result.Succeeded;
             }
@@ -95,21 +98,24 @@ namespace AJTools.App
         {
             var assemblyName = new AssemblyName(args.Name).Name;
             
-            if (string.IsNullOrWhiteSpace(_addinFolder))
-                return null;
-
-            string assemblyPath = Path.Combine(_addinFolder, assemblyName + ".dll");
-
-            if (File.Exists(assemblyPath))
+            if (assemblyName == "System.Collections.Immutable" || 
+                assemblyName.StartsWith("Microsoft.CodeAnalysis") ||
+                assemblyName == "System.Runtime.CompilerServices.Unsafe" ||
+                assemblyName == "System.Memory")
             {
-                try
+                string assemblyPath = Path.Combine(_addinFolder, assemblyName + ".dll");
+
+                if (File.Exists(assemblyPath))
                 {
-                    return Assembly.LoadFrom(assemblyPath);
-                }
-                catch (Exception ex)
-                {
-                    string errLog = Path.Combine(Path.GetTempPath(), "AJTools_AssemblyResolve_Error.txt");
-                    File.AppendAllText(errLog, $"\nFailed to load {assemblyName}:\n{ex.ToString()}\n");
+                    try
+                    {
+                        return Assembly.LoadFrom(assemblyPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        string errLog = Path.Combine(Path.GetTempPath(), "AJTools_AssemblyResolve_Error.txt");
+                        File.AppendAllText(errLog, $"\nFailed to load {assemblyName}:\n{ex.ToString()}\n");
+                    }
                 }
             }
 
@@ -118,6 +124,7 @@ namespace AJTools.App
 
         public Result OnShutdown(UIControlledApplication app)
         {
+            _geminiShellPaneProvider?.Shutdown();
             AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
             return Result.Succeeded;
         }

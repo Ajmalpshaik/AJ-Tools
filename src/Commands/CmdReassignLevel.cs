@@ -6,16 +6,16 @@
  *                 from one level to another across the whole project without moving them physically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-04-14
- * Last Updated  : 2026-07-02
+ * Last Updated  : 2026-07-01
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, AJTools.UI, AJTools.Utils
+ * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, AJTools.Utils
  *
  * Input         : Full Project - FROM level and TO level chosen in a dialog.
  * Output        : Matching elements re-pointed to the TO level (host offset compensated so they stay put);
@@ -32,7 +32,6 @@
  * v1.0.0 (2026-04-14) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; added Full-Project bulk-edit confirmation;
  *                       version-safe ElementId access. Reassign behaviour unchanged.
- * v1.2.0 (2026-07-02) - Replaced inline WinForms level picker with ModernStyles-based WPF dialog.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -43,13 +42,13 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
-using AJTools.UI;
 using AJTools.Utils;
+using Drawing = System.Drawing;
+using WinForms = System.Windows.Forms;
 
 namespace AJTools.Commands
 {
@@ -85,7 +84,7 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            if (!TryPromptLevels(commandData.Application, allLevels, out Level fromLevel, out Level toLevel))
+            if (!TryPromptLevels(allLevels, out Level fromLevel, out Level toLevel))
             {
                 return Result.Cancelled;
             }
@@ -224,28 +223,121 @@ namespace AJTools.Commands
                    year >= 2020;
         }
 
-        private static bool TryPromptLevels(UIApplication uiApp, IList<Level> levels, out Level fromLevel, out Level toLevel)
+        private static bool TryPromptLevels(IList<Level> levels, out Level fromLevel, out Level toLevel)
         {
             fromLevel = null;
             toLevel = null;
 
-            var window = new ReassignLevelWindow(levels);
-            if (uiApp != null)
+            var levelItems = levels.Select(level => new LevelChoice(level)).ToList();
+
+            using (var form = new WinForms.Form())
+            using (var intro = new WinForms.Label())
+            using (var fromLabel = new WinForms.Label())
+            using (var fromCombo = new WinForms.ComboBox())
+            using (var toLabel = new WinForms.Label())
+            using (var toCombo = new WinForms.ComboBox())
+            using (var okButton = new WinForms.Button())
+            using (var cancelButton = new WinForms.Button())
             {
-                new WindowInteropHelper(window)
+                form.Text = ToolTitle;
+                form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
+                form.StartPosition = WinForms.FormStartPosition.CenterScreen;
+                form.ClientSize = new Drawing.Size(460, 225);
+                form.MaximizeBox = false;
+                form.MinimizeBox = false;
+                form.ShowInTaskbar = false;
+
+                intro.Text = "Switch the level reference of supported MEP elements from one level to another without moving them.";
+                intro.AutoSize = false;
+                intro.Size = new Drawing.Size(430, 32);
+                intro.Location = new Drawing.Point(15, 12);
+
+                fromLabel.Text = "FROM Level:";
+                fromLabel.AutoSize = true;
+                fromLabel.Font = new Drawing.Font(form.Font, Drawing.FontStyle.Bold);
+                fromLabel.ForeColor = Drawing.Color.FromArgb(192, 0, 0);
+                fromLabel.Location = new Drawing.Point(15, 56);
+
+                fromCombo.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
+                fromCombo.FormattingEnabled = true;
+                fromCombo.Width = 430;
+                fromCombo.Location = new Drawing.Point(15, 76);
+
+                toLabel.Text = "TO Level:";
+                toLabel.AutoSize = true;
+                toLabel.Font = new Drawing.Font(form.Font, Drawing.FontStyle.Bold);
+                toLabel.ForeColor = Drawing.Color.FromArgb(0, 102, 0);
+                toLabel.Location = new Drawing.Point(15, 112);
+
+                toCombo.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
+                toCombo.FormattingEnabled = true;
+                toCombo.Width = 430;
+                toCombo.Location = new Drawing.Point(15, 132);
+
+                foreach (LevelChoice item in levelItems)
                 {
-                    Owner = uiApp.MainWindowHandle
-                };
-            }
+                    fromCombo.Items.Add(item);
+                    toCombo.Items.Add(item);
+                }
 
-            if (window.ShowDialog() != true)
-            {
-                return false;
-            }
+                if (fromCombo.Items.Count > 0)
+                {
+                    fromCombo.SelectedIndex = 0;
+                }
 
-            fromLevel = window.SelectedFromLevel;
-            toLevel = window.SelectedToLevel;
-            return fromLevel != null && toLevel != null && fromLevel.Id != toLevel.Id;
+                if (toCombo.Items.Count > 1)
+                {
+                    toCombo.SelectedIndex = 1;
+                }
+                else if (toCombo.Items.Count > 0)
+                {
+                    toCombo.SelectedIndex = 0;
+                }
+
+                okButton.Text = "Reassign Elements";
+                okButton.DialogResult = WinForms.DialogResult.OK;
+                okButton.Width = 130;
+                okButton.Location = new Drawing.Point(235, 178);
+
+                cancelButton.Text = "Cancel";
+                cancelButton.DialogResult = WinForms.DialogResult.Cancel;
+                cancelButton.Width = 95;
+                cancelButton.Location = new Drawing.Point(350, 178);
+
+                form.Controls.Add(intro);
+                form.Controls.Add(fromLabel);
+                form.Controls.Add(fromCombo);
+                form.Controls.Add(toLabel);
+                form.Controls.Add(toCombo);
+                form.Controls.Add(okButton);
+                form.Controls.Add(cancelButton);
+                form.AcceptButton = okButton;
+                form.CancelButton = cancelButton;
+
+                if (form.ShowDialog() != WinForms.DialogResult.OK)
+                {
+                    return false;
+                }
+
+                LevelChoice fromChoice = fromCombo.SelectedItem as LevelChoice;
+                LevelChoice toChoice = toCombo.SelectedItem as LevelChoice;
+
+                if (fromChoice == null || toChoice == null)
+                {
+                    DialogHelper.ShowError(ToolTitle, "Please select both levels.");
+                    return false;
+                }
+
+                if (fromChoice.Level.Id == toChoice.Level.Id)
+                {
+                    DialogHelper.ShowError(ToolTitle, "FROM and TO levels must be different.");
+                    return false;
+                }
+
+                fromLevel = fromChoice.Level;
+                toLevel = toChoice.Level;
+                return true;
+            }
         }
 
         private static bool ElementOnFromLevel(Element element, ElementId fromId)
@@ -571,6 +663,32 @@ namespace AJTools.Commands
             }
 
             return false;
+        }
+
+        private static double FeetToMeters(double feet)
+        {
+            return feet * MetersPerFoot;
+        }
+
+        private sealed class LevelChoice
+        {
+            public LevelChoice(Level level)
+            {
+                Level = level;
+                Label = string.Format(
+                    CultureInfo.CurrentCulture,
+                    "{0} ({1:0.000} m)",
+                    level?.Name ?? "<Unnamed>",
+                    level == null ? 0 : FeetToMeters(level.Elevation));
+            }
+
+            public Level Level { get; }
+            public string Label { get; }
+
+            public override string ToString()
+            {
+                return Label;
+            }
         }
 
         private sealed class OffsetHelper

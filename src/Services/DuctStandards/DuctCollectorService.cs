@@ -3,6 +3,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
+using AJTools.Utils;
 namespace AJTools.Services.DuctStandards
 {
     internal static class DuctCollectorService
@@ -40,7 +41,7 @@ namespace AJTools.Services.DuctStandards
                 var elem = doc.GetElement(id);
                 if (elem == null) continue;
                 var cat = elem.Category;
-                if (cat != null && AJTools.Utils.ElementIdHelper.GetIntegerValue(cat.Id) == (int)BuiltInCategory.OST_DuctCurves)
+                if (cat != null && cat.Id.IntValue() == (int)BuiltInCategory.OST_DuctCurves)
                     ducts.Add(elem);
             }
 

@@ -2,8 +2,8 @@
   Tool Name: Pin Elements UI
   Description: WPF dialog for selecting groups and applying pin/unpin.
   Author: Ajmal P.S.
-  Version: 1.2.0
-  Last Updated: 2026-04-18
+  Version: 1.3.0
+  Last Updated: 2026-07-13
   Revit Version: 2020
 -->
 <Window x:Class="AJTools.UI.PinElementsWindow"
@@ -127,7 +127,8 @@
                         <ListBox x:Name="SheetCategoryListBox"
                                  Style="{StaticResource ModernListBox}"
                                  ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                                 ItemTemplate="{StaticResource CategoryItemTemplate}"/>
+                                 ItemTemplate="{StaticResource CategoryItemTemplate}"
+                                 PreviewMouseWheel="OnListBoxPreviewMouseWheel"/>
                     </GroupBox>
 
                     <GroupBox x:Name="ModelItemsGroupBox"
@@ -136,7 +137,8 @@
                         <ListBox x:Name="ModelCategoryListBox"
                                  Style="{StaticResource ModernListBox}"
                                  ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                                 ItemTemplate="{StaticResource CategoryItemTemplate}"/>
+                                 ItemTemplate="{StaticResource CategoryItemTemplate}"
+                                 PreviewMouseWheel="OnListBoxPreviewMouseWheel"/>
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>
