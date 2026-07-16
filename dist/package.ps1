@@ -11,10 +11,91 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $repoRoot = Split-Path -Parent $scriptDir
 $projectPath = Join-Path $repoRoot "src\AJ Tools.csproj"
-$buildOutputDir = Join-Path $repoRoot "src\bin\$Configuration"
 $distDir = $scriptDir
+$payloadRoot = Join-Path $distDir "Payload"
 $resourcesSource = Join-Path $repoRoot "src\Resources"
 $addinTemplate = Join-Path $repoRoot "Addin\AJ Tools.addin"
+$blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
+
+# Revit year -> build configuration name, per the root Directory.Build.props convention
+# (Debug/Release = 2020 baseline, Debug R21/Release R21 .. Debug R27/Release R27 = 2021-2027).
+# NOTE: this must be a plain Hashtable, not [ordered] - OrderedDictionary exposes a positional
+# int indexer (this[int index]) alongside the key indexer, and integer keys like 2020/2025 get
+# silently resolved as out-of-range POSITIONS instead of dictionary keys, returning $null.
+$configSuffixes = @{
+    2020 = ""
+    2021 = " R21"
+    2022 = " R22"
+    2023 = " R23"
+    2024 = " R24"
+    2025 = " R25"
+    2026 = " R26"
+    2027 = " R27"
+}
+$revitVersionsInOrder = 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027
+
+function Get-ConfigName {
+    param([Parameter(Mandatory = $true)][int]$RevitVersion)
+    return "$Configuration$($configSuffixes[$RevitVersion])"
+}
+
+function Get-OutputDir {
+    param([Parameter(Mandatory = $true)][int]$RevitVersion)
+    return (Join-Path $repoRoot "src\bin\$(Get-ConfigName -RevitVersion $RevitVersion)")
+}
+
+function Copy-PayloadFromOutput {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDir,
+        [Parameter(Mandatory = $true)][string]$DestinationDir
+    )
+
+    if (-not (Test-Path -LiteralPath (Join-Path $SourceDir "AJ Tools.dll"))) {
+        throw "Build output missing AJ Tools.dll in '$SourceDir'."
+    }
+
+    New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null
+
+    $dllPayload = Get-ChildItem -LiteralPath $SourceDir -Filter *.dll -File |
+        Where-Object { $blockedDllNames -notcontains $_.Name }
+    $companionPayload = Get-ChildItem -LiteralPath $SourceDir -File |
+        Where-Object { $_.Name -like "*.deps.json" -or $_.Name -like "*.runtimeconfig.json" }
+    $pdbPayload = Get-ChildItem -LiteralPath $SourceDir -Filter *.pdb -File -ErrorAction SilentlyContinue
+
+    if (-not ($dllPayload | Where-Object { $_.Name -eq "AJ Tools.dll" })) {
+        throw "AJ Tools.dll not found in payload source '$SourceDir'."
+    }
+
+    foreach ($dll in $dllPayload) {
+        Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $DestinationDir $dll.Name) -Force
+    }
+    foreach ($companion in $companionPayload) {
+        Copy-Item -LiteralPath $companion.FullName -Destination (Join-Path $DestinationDir $companion.Name) -Force
+    }
+    if ($IncludeSymbols) {
+        foreach ($pdb in $pdbPayload) {
+            Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $DestinationDir $pdb.Name) -Force
+        }
+    }
+}
+
+function Resolve-DotNetPath {
+    # The VS-bundled MSBuild.exe only sees the machine-wide .NET SDK (currently 9.x here), which
+    # cannot target net10.0-windows (Revit 2027). The user-local SDK install has .NET 10 - use its
+    # own dotnet.exe for that build so it resolves its own SDK correctly.
+    $localDotNet = Join-Path $env:LOCALAPPDATA "Microsoft\dotnet\dotnet.exe"
+    if (Test-Path -LiteralPath $localDotNet) {
+        return $localDotNet
+    }
+    $dotNetCmd = Get-Command dotnet.exe -ErrorAction SilentlyContinue
+    if (-not $dotNetCmd) {
+        $dotNetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
+    }
+    if ($dotNetCmd) {
+        return $dotNetCmd.Source
+    }
+    throw "dotnet SDK was not found for the .NET 10 (Revit 2027) build. Install the .NET 10 SDK, or build manually and rerun with -SkipBuild."
+}
 
 if (-not $SkipBuild) {
     $buildToolPath = $null
@@ -38,46 +119,44 @@ if (-not $SkipBuild) {
         throw "MSBuild was not found. Install Visual Studio Build Tools, or build manually and rerun with -SkipBuild."
     }
 
-    Write-Host "Building $Configuration configuration..."
-    $buildArgs = @(
-        $projectPath,
-        "/t:Restore;Build",
-        "/p:Configuration=$Configuration",
-        "/p:Platform=AnyCPU",
-        "/p:SkipRevitAddinDeploy=true",
-        "/p:SkipAjToolsAutoDeploy=true"
-    )
+    foreach ($revitVersion in $revitVersionsInOrder) {
+        $configName = Get-ConfigName -RevitVersion $revitVersion
+        Write-Host "Building Revit $revitVersion ($configName)..."
 
-    & $buildToolPath @buildArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Build failed with exit code $LASTEXITCODE."
+        if ($revitVersion -eq 2027) {
+            $dotNetPath = Resolve-DotNetPath
+            & $dotNetPath build $projectPath -c $configName "/p:Platform=x64" "/p:SkipAjToolsAutoDeploy=true"
+        } else {
+            $buildArgs = @(
+                $projectPath,
+                "/t:Restore;Build",
+                "/p:Configuration=$configName",
+                "/p:Platform=x64",
+                "/p:SkipAjToolsAutoDeploy=true"
+            )
+            & $buildToolPath @buildArgs
+        }
+        if ($LASTEXITCODE -ne 0) {
+            throw "Revit $revitVersion build ('$configName') failed with exit code $LASTEXITCODE."
+        }
     }
-}
-
-if (-not (Test-Path -LiteralPath (Join-Path $buildOutputDir "AJ Tools.dll"))) {
-    throw "Build output missing AJ Tools.dll in '$buildOutputDir'."
-}
-
-$blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
-$dllPayload = Get-ChildItem -LiteralPath $buildOutputDir -Filter *.dll -File |
-    Where-Object { $blockedDllNames -notcontains $_.Name }
-$pdbPayload = Get-ChildItem -LiteralPath $buildOutputDir -Filter *.pdb -File -ErrorAction SilentlyContinue
-
-if (-not ($dllPayload | Where-Object { $_.Name -eq "AJ Tools.dll" })) {
-    throw "AJ Tools.dll not found in payload."
 }
 
 Get-ChildItem -LiteralPath $distDir -File |
     Where-Object { $_.Extension -in @(".dll", ".pdb") } |
     Remove-Item -Force
+Remove-Item -LiteralPath $payloadRoot -Recurse -Force -ErrorAction SilentlyContinue
 
-foreach ($dll in $dllPayload) {
-    Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $distDir $dll.Name) -Force
+foreach ($revitVersion in $revitVersionsInOrder) {
+    $outputDir = Get-OutputDir -RevitVersion $revitVersion
+    Copy-PayloadFromOutput -SourceDir $outputDir -DestinationDir (Join-Path $payloadRoot $revitVersion)
 }
-if ($IncludeSymbols) {
-    foreach ($pdb in $pdbPayload) {
-        Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $distDir $pdb.Name) -Force
-    }
+
+# Keep the Revit 2020 payload at the package root too, as a fallback for older install scripts.
+Copy-PayloadFromOutput -SourceDir (Get-OutputDir -RevitVersion 2020) -DestinationDir $distDir
+
+if (-not (Test-Path -LiteralPath $payloadRoot)) {
+    throw "Payload folder was not created."
 }
 
 if (-not (Test-Path -LiteralPath $resourcesSource)) {
@@ -147,6 +226,7 @@ if ($IncludeSymbols) {
 }
 
 Copy-Item -LiteralPath (Join-Path $distDir "Resources") -Destination $packageRootPath -Recurse -Force
+Copy-Item -LiteralPath $payloadRoot -Destination $packageRootPath -Recurse -Force
 
 Compress-Archive -LiteralPath $packageRootPath -DestinationPath $zipPath -Force
 
@@ -154,6 +234,7 @@ Write-Host ""
 Write-Host "Package prepared successfully."
 Write-Host "Payload folder: $packageRootPath"
 Write-Host "Release zip   : $zipPath"
+Write-Host "Revit payloads: 2020 (.NET Framework 4.7.2), 2021-2024 (.NET Framework 4.8), 2025-2026 (.NET 8), 2027 (.NET 10)"
 if ($IncludeSymbols) {
     Write-Host "Symbols       : included (.pdb)"
 } else {
