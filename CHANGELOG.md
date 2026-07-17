@@ -7,6 +7,30 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.13.6] - 2026-07-17
+
+Full repo structure/cleanliness review plus a full code review pass (Core, Helpers, Commands, all
+Services, Models, UI, and the AJ AI/GeminiShell subsystem), then acted on the safe/verifiable
+findings. See `src/Properties/AssemblyInfo.cs` for the full itemized list. Summary:
+
+- **Fixed**: AJ Annotation ribbon typo ("Auto Dimention" -> "Auto Dimension", visible on the tab).
+- **Fixed**: AJ AI safety validator now blocks `#r`/`#load` script directives (previously a full,
+  undetected bypass of every other safety check) and reflection-based indirect member access, and
+  covers a few more dangerous APIs (SmtpClient, Dns, Ping, Process.Kill, Environment.FailFast).
+- **Fixed**: AJ AI script execution now always completes its Task even if the failure-path
+  transaction rollback itself throws (previously could hang the AJ AI pane on "busy" forever).
+- **Fixed**: a real null-reference risk in Revision Cloud By Elements when no view is active.
+- **Removed**: ~15 confirmed-unused classes/methods (verified unused repo-wide before deletion).
+- **Cleaned up**: a couple of small duplicated helpers (ribbon panel lookup, a ViewCrop geometry
+  check) consolidated into their existing shared helpers; 6 previously-silent empty catch blocks
+  now document why the failure is safe to ignore instead of swallowing it invisibly.
+- Not done this pass (needs a Revit/Visual Studio environment to verify safely, so left for a
+  follow-up rather than guessed at blind): the larger structural duplication in a few tools
+  (Ceiling Magnet, Force Tag Leader L-Shape, Reassign Level, Arrange Text in Box all still have
+  their full logic inline instead of in a Service), a couple of O(n^2) hot loops in Smart MEP Tag /
+  Intelligent Tag Arranger, and moving the AI safety validator from text-matching to a real
+  AST/semantic scan.
+
 ## [1.13.5] - 2026-07-16
 
 Catch-up release: everything built in the working source tree since v1.11.3, pushed to GitHub in one

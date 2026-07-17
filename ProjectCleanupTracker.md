@@ -1,6 +1,60 @@
 # Project Cleanup Tracker
 
-## 2026-07-01 Full Audit Pass (this session)
+## 2026-07-17 Structure/Cleanliness Review + Full Code Review Pass
+
+Ran on top of the 2026-07-01 pass below, on the now-multi-version (2020-2027) build. Scope: repo
+structure/cleanliness audit, then a full code review split across Core+Helpers, Commands, all
+Services (3 sub-passes), Models, UI, and the AJ AI/GeminiShell subsystem (security-focused).
+
+- **Repo structure/cleanliness**: found and fixed a 3-way version-number mismatch (README said
+  1.10.0, AssemblyInfo.cs's own header said 1.13.1, the real assembly version was 1.13.5) and a
+  stale file-count comment in the `.csproj`. Everything else checked out clean: no tracked build
+  artifacts, no orphaned icons, no leaked secrets, `.gitignore` solid. PR #11, merged.
+- **Code review - AJ AI safety net**: the `GeneratedCodeSafetyValidator` was found to have a full,
+  undetected bypass via Roslyn `#r`/`#load` script directives (never disabled by `RoslynService`),
+  plus gaps in reflection-invoke detection and a few missing dangerous APIs (SmtpClient, Dns, Ping,
+  Process.Kill, Environment.FailFast). Closed the `#r`/`#load` gap and the reflection-invoke gap,
+  added the missing API patterns. Still a text/regex scan, not an AST/semantic one - `using static`
+  and type-aliasing bypasses remain a known, documented limitation, not a security boundary.
+- **Fixed**: AJ Annotation ribbon typo ("Auto Dimention" -> "Auto Dimension"); a real null-deref
+  risk in Revision Cloud By Elements (`Document.ActiveView` can be null); AJ AI's
+  `RevitExecutionService` could hang the pane on IsBusy forever if a failure-path `RollBack()`
+  itself threw after a failed `Commit()` - now guaranteed to always complete.
+- **Removed** (cross-checked repo-wide as unused before deleting, none were referenced anywhere
+  else): `RuleTypeItem`, `DuctDimensionBuildResult`, `DuctPipeSelectionFilter`,
+  `ValidationHelper.ValidateViewType`/`ValidateCropBoxActive`, two unused
+  `TransactionHelper.ExecuteSafe` overloads, `CmdForceTagLeaderLShape.AdjustElbowSide`,
+  `CmdCreateMepOpenings.ShouldRunDirectOpenings`, `AutoDimensionService.GetCurveDirection`,
+  `LeaderLogicService.ComputeSideElbow`/`DetermineToggleState`,
+  `GraphicsSelectionService.GetValidPreselectedElementIds`, `QuickParallelDimensionService`'s dead
+  single-arg `Execute` overload, `MepOpeningSourceElement.SourceLabel`, `LinkedSearchWindow`'s dead
+  Identify/Reset/Close handlers and their now-orphaned helpers, `FilterProWindow.GetPatternItem`.
+- **Consolidated**: `RibbonManager`/`AnnotationRibbonManager`'s duplicate `GetOrCreatePanel` into a
+  new shared `RibbonPanelHelper`; `ViewCropExtentsService`'s duplicate `IsFinite` into the existing
+  `ViewCropGeometryProjectionHelper.IsFinite`; two duplicated "10mm in feet" literals now use
+  `Constants.MM_TO_FEET`.
+- **Documented, not silently swallowed**: 6 previously-empty `catch { }` blocks (App.cs's DLL
+  preload, `CmdSectionMarkVisibility`'s view refresh, 4 in `CmdForceTagLeaderLShape`'s reflection
+  helpers) now have a one-line comment explaining why the failure is safe to ignore there -
+  behaviour unchanged, but a future failure there is no longer invisible.
+- Version bump: suite version 1.13.5 -> 1.13.6 (patch: cleanup/fixes, no new tool).
+- **Explicitly NOT done this pass** - flagged for a follow-up rather than attempted blind (no
+  Windows/.NET SDK or Revit available in this environment to compile/test-verify a larger change):
+  `CmdCeilingMagnet`, `CmdForceTagLeaderLShape`, `CmdReassignLevel`, and `CmdArrangeTextInBox` still
+  have their full tool logic inline in the Command instead of a Service; two O(n^2) hot loops in
+  `SmartMepTagService.MarkDenseZones` / `SmartTagPlacementEngine.FindBestTagPosition`; the
+  `AnnotationRibbonManager` icon-loading duplication (~150 lines, separate from the small
+  `GetOrCreatePanel` fix already done); the four config-store classes' duplicated
+  Load/Save-to-AppData pattern; `LocationDataAssignerWindow.xaml.cs`'s embedded business logic;
+  `RevitExecutionService`'s `task.Wait()` has no independent hard timeout (needs the Roslyn
+  `RunAsync` threading model confirmed against the Revit API single-thread requirement first);
+  Gemini API key sent as a URL query param instead of a header (OpenAI's client already uses a
+  header); a naming collision between two unrelated `DuctSelectionFilter` classes in different
+  namespaces (not currently a bug, just a trap).
+- Revit was not launched or tested - this pass was source-only (no Windows/.NET SDK available).
+  Please test loading in Revit, especially the AJ AI pane, before relying on this build.
+
+## 2026-07-01 Full Audit Pass
 
 Ran on top of the 2026-06-24 pass below plus the panel-by-panel refactor work already completed
 this week (v1.5.2 through v1.7.0, see `CHANGELOG.md`). Scope: full file inventory, `.csproj`/`.addin`

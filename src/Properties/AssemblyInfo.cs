@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.5
+ * Version       : 1.13.6
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-15
+ * Last Updated  : 2026-07-17
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,45 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.13.6 (2026-07-17) - Full repo structure/cleanliness + code review pass. AJ Annotation ribbon
+ *                        typo fixed ("Auto Dimention" -> "Auto Dimension", visible on the tab/panel/
+ *                        button). Removed ~15 confirmed-unused classes/methods (cross-checked
+ *                        repo-wide before deletion): RuleTypeItem, DuctDimensionBuildResult,
+ *                        DuctPipeSelectionFilter, ValidationHelper.ValidateViewType/
+ *                        ValidateCropBoxActive, two unused TransactionHelper.ExecuteSafe overloads,
+ *                        CmdForceTagLeaderLShape.AdjustElbowSide, CmdCreateMepOpenings.
+ *                        ShouldRunDirectOpenings, AutoDimensionService.GetCurveDirection,
+ *                        LeaderLogicService.ComputeSideElbow/DetermineToggleState,
+ *                        GraphicsSelectionService.GetValidPreselectedElementIds,
+ *                        QuickParallelDimensionService's dead single-arg Execute overload,
+ *                        MepOpeningSourceElement.SourceLabel, LinkedSearchWindow's dead
+ *                        Identify/Reset override handlers, FilterProWindow.GetPatternItem.
+ *                        AJ AI safety hardening: GeneratedCodeSafetyValidator now blocks #r/#load
+ *                        script directives (previously a full, undetected bypass of every other
+ *                        check - RoslynService never disabled Roslyn's default directive resolver),
+ *                        blocks reflection-based indirect member access (GetMethod/GetProperty/
+ *                        GetField + Invoke/SetValue/GetValue), and adds SmtpClient/Dns/Ping/
+ *                        Process.Kill/Environment.FailFast to the blocklist. RevitExecutionService
+ *                        now guarantees its Task always completes even if TransactionGroup.RollBack()
+ *                        itself throws after a failed Commit() (previously could hang the AJ AI pane
+ *                        on IsBusy forever). Fixed a real null-deref risk in
+ *                        CmdRevisionCloudByElements (Document.ActiveView can be null). Consolidated
+ *                        the RibbonManager/AnnotationRibbonManager duplicate GetOrCreatePanel into a
+ *                        shared RibbonPanelHelper, and ViewCropExtentsService's duplicate IsFinite
+ *                        into the existing ViewCropGeometryProjectionHelper.IsFinite. Replaced two
+ *                        duplicated "10mm in feet" literals with Constants.MM_TO_FEET. Documented
+ *                        (rather than silently swallowed) 6 previously-empty catch blocks across
+ *                        App.cs, CmdSectionMarkVisibility, and CmdForceTagLeaderLShape's reflection
+ *                        helpers - behaviour unchanged, but a future failure there is no longer
+ *                        invisible. NOT done this pass (flagged for a follow-up, not attempted
+ *                        blind without a Revit/Visual Studio environment to verify against):
+ *                        larger structural refactors (CmdCeilingMagnet/CmdForceTagLeaderLShape/
+ *                        CmdReassignLevel/CmdArrangeTextInBox still have full algorithms inline
+ *                        instead of a Service; SmartTag/TagArrange's O(n^2) hot loops; the
+ *                        AnnotationRibbonManager icon-loading duplication; config-store base-class
+ *                        dedup), and the AI safety validator's deeper limitation (it is still text/
+ *                        regex matching, not an AST/semantic scan - ordinary idioms like `using
+ *                        static` or type aliasing can still bypass it).
  * v1.13.1 (2026-07-15) - Fixed Transfer View Templates: the Filter textbox had a hard-coded Height="30",
  *                        shorter than what the shared ModernTextBox style's Padding="8,6" needs at
  *                        MinHeight="34" - typed characters were getting clipped at the bottom. Changed to
@@ -111,5 +150,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.13.5.0")]
-[assembly: AssemblyFileVersion("1.13.5.0")]
+[assembly: AssemblyVersion("1.13.6.0")]
+[assembly: AssemblyFileVersion("1.13.6.0")]
