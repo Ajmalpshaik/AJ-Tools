@@ -72,7 +72,14 @@ namespace AJTools.App
                     Assembly.LoadFrom(immutablePath);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Not fatal - CurrentDomain_AssemblyResolve below is a fallback for this same DLL -
+                // but log it, since silently eating this is exactly the failure mode this preload
+                // exists to prevent (a Roslyn assembly resolution conflict).
+                string errLog = Path.Combine(Path.GetTempPath(), "AJTools_AssemblyResolve_Error.txt");
+                try { File.AppendAllText(errLog, $"\nFailed to preload System.Collections.Immutable.dll:\n{ex}\n"); } catch { }
+            }
 
             try
             {

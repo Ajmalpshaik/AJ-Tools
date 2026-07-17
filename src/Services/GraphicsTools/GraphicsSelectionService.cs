@@ -161,24 +161,6 @@ namespace AJTools.Services.GraphicsTools
     /// </summary>
     internal static class GraphicsSelectionService
     {
-        public static IList<ElementId> GetValidPreselectedElementIds(
-            UIDocument uidoc,
-            ISelectionFilter selectionFilter,
-            ICollection<ElementId> excludedElementIds = null)
-        {
-            if (uidoc == null || uidoc.Document == null)
-            {
-                return new List<ElementId>();
-            }
-
-            ICollection<ElementId> preselected = uidoc.Selection.GetElementIds();
-            return FilterDistinctElementIds(
-                uidoc.Document,
-                preselected,
-                selectionFilter,
-                BuildExcludedSet(excludedElementIds));
-        }
-
         public static SelectionCaptureResult GetPreselectedOrPromptElementIds(
             UIDocument uidoc,
             ISelectionFilter selectionFilter,

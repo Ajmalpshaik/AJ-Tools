@@ -44,6 +44,7 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using AJTools.Models.RevisionCloud;
 using AJTools.Services.RevisionCloud;
+using AJTools.Utils;
 
 namespace AJTools.Commands
 {
@@ -52,7 +53,7 @@ namespace AJTools.Commands
     {
         private const string ToolDisplayName = "Revision Cloud By Elements";
         private const string TransactionName = "AJ Tools - Revision Cloud By Elements";
-        private const double DefaultCellSizeFeet = 10.0 * 0.00328084; // 10 mm
+        private const double DefaultCellSizeFeet = 10.0 * Constants.MM_TO_FEET; // 10 mm
 
         private static readonly HashSet<ViewType> SupportedViewTypes = new HashSet<ViewType>
         {
@@ -77,6 +78,12 @@ namespace AJTools.Commands
 
                 Document doc = uidoc.Document;
                 View activeView = doc.ActiveView;
+
+                if (activeView == null)
+                {
+                    TaskDialog.Show(ToolDisplayName, "No active view.");
+                    return Result.Failed;
+                }
 
                 if (!SupportedViewTypes.Contains(activeView.ViewType))
                 {

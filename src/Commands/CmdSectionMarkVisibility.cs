@@ -153,11 +153,16 @@ namespace AJTools.Commands
                 SectionMarkVisibilityResult result = service.Process(targetViews, transactionLabel);
 
                 // Force graphics refresh on the active viewport so the hidden section marks disappear/appear instantly!
+                // The Process() call above already committed the real change; a refresh failure here is purely
+                // cosmetic (the view just won't repaint until the next redraw) and never affects the result below.
                 try
                 {
                     uidoc.RefreshActiveView();
                 }
-                catch { }
+                catch
+                {
+                    // Intentionally ignored - see comment above.
+                }
 
                 bool hasErrors = result.Errors != null && result.Errors.Count > 0;
 

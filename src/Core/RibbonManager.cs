@@ -926,17 +926,7 @@ namespace AJTools.App
         /// </summary>
         private RibbonPanel GetOrCreatePanel(string panelName)
         {
-            RibbonPanel existingPanel = null;
-            foreach (var p in _app.GetRibbonPanels(TabName))
-            {
-                if (p.Name == panelName)
-                {
-                    existingPanel = p;
-                    break;
-                }
-            }
-
-            return existingPanel ?? _app.CreateRibbonPanel(TabName, panelName);
+            return RibbonPanelHelper.GetOrCreatePanel(_app, TabName, panelName);
         }
 
         /// <summary>

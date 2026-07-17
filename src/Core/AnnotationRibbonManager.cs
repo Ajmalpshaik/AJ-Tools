@@ -2,7 +2,7 @@
 /*
  * Tool Name     : AJ Annotation Ribbon Manager
  * File Name     : AnnotationRibbonManager.cs
- * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimention, Dimensions,
+ * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimension, Dimensions,
  *                 Annotation, Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
@@ -49,7 +49,7 @@ namespace AJTools.App
     internal sealed class AnnotationRibbonManager
     {
         private const string TabName = "AJ Annotation";
-        private const string DimensionPanelName = "Auto Dimention";
+        private const string DimensionPanelName = "Auto Dimension";
         private const string QuickDimensionIcon = "Dimensions by Line.png";
 
         private readonly UIControlledApplication _app;
@@ -291,7 +291,7 @@ namespace AJTools.App
 
             PulldownButtonData pulldownData = new PulldownButtonData(
                 "cmdAutoDuctDimensionPulldown",
-                "Auto Duct\nDimention");
+                "Auto Duct\nDimension");
 
             var largeIcon = _iconLoader.LoadLarge(QuickDimensionIcon);
             if (largeIcon != null)
@@ -333,13 +333,7 @@ namespace AJTools.App
 
         private RibbonPanel GetOrCreatePanel(string panelName)
         {
-            foreach (RibbonPanel panel in _app.GetRibbonPanels(TabName))
-            {
-                if (panel.Name == panelName)
-                    return panel;
-            }
-
-            return _app.CreateRibbonPanel(TabName, panelName);
+            return RibbonPanelHelper.GetOrCreatePanel(_app, TabName, panelName);
         }
     }
 }

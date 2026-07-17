@@ -182,7 +182,7 @@ namespace AJTools.Services.ViewCrop
             return loop;
         }
 
-        private static bool IsFinite(XYZ point)
+        internal static bool IsFinite(XYZ point)
         {
             return point != null
                 && !double.IsNaN(point.X)

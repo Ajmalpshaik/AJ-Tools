@@ -352,44 +352,6 @@ namespace AJTools.Commands
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
-        private static XYZ AdjustElbowSide(
-            Element tag,
-            View activeView,
-            LeaderLogicService leaderLogic,
-            XYZ elbow,
-            XYZ head,
-            XYZ leaderEnd)
-        {
-            if (tag == null || leaderLogic == null || elbow == null)
-                return elbow;
-
-            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
-                return elbow;
-
-            UV elbowUv = leaderLogic.ProjectToView(elbow);
-            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
-                return elbow;
-
-            double marginFeet = GetScaledElbowOutsideMarginFeet(activeView);
-            UV headUv = leaderLogic.ProjectToView(head);
-            UV endUv = leaderLogic.ProjectToView(leaderEnd);
-
-            double targetX;
-            if (endUv.U < headUv.U)
-            {
-                // Element is to the left, push elbow to the left
-                targetX = minX - marginFeet;
-            }
-            else
-            {
-                // Element is to the right, push elbow to the right
-                targetX = maxX + marginFeet;
-            }
-
-            double deltaX = targetX - elbowUv.U;
-            return leaderLogic.OffsetInView(elbow, deltaX, 0);
-        }
-
         private static XYZ AdjustElbowTopBottom(
             Element tag,
             View activeView,
@@ -438,6 +400,7 @@ namespace AJTools.Commands
             }
             catch
             {
+                // Falls through to the scale = 1 default above - not worth failing the whole tool over.
             }
 
             return ElbowOutsideTextMarginMm * Constants.MM_TO_FEET * scale;
@@ -550,6 +513,7 @@ namespace AJTools.Commands
             }
             catch
             {
+                // Falls through to the null/model-bounds fallback below.
             }
 
             try
@@ -753,6 +717,8 @@ namespace AJTools.Commands
             }
             catch
             {
+                // Falls through to "return false" below - reflection against the Revit API tag
+                // properties, which can legitimately fail if a property is missing on some element.
             }
 
             return false;
@@ -793,6 +759,8 @@ namespace AJTools.Commands
             }
             catch
             {
+                // Falls through to "return false" below - same reflection-safety note as
+                // TryGetXYZProperty above.
             }
 
             return false;
