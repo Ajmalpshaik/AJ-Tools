@@ -6,10 +6,10 @@
  *                 Revit API thread via ExternalEvent, wrapped in a single-undo TransactionGroup.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-17
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,17 @@
  *   after a 60s hard timeout — a single long-running Revit API call cannot be cancelled mid-flight.
  *
  * Changelog     :
+ * v1.2.0 (2026-07-17) - Guarded the failure-path group.RollBack() call: if a script's own
+ *                       TransactionGroup.Commit() throws, the catch block used to call RollBack()
+ *                       unguarded - if that secondary call also threw (group already in a terminal
+ *                       state), the exception escaped before tcs.TrySetResult() ran, leaving the
+ *                       caller's Task pending forever and the AJ AI pane stuck on IsBusy until the
+ *                       add-in was restarted. Now the secondary failure is swallowed and the
+ *                       original error is still always reported. NOTE: this pass did not add a hard
+ *                       timeout to the `task.Wait()` call below - doing so safely would need to
+ *                       confirm Roslyn's CSharpScript.RunAsync threading model against the Revit API
+ *                       single-thread requirement first, which needs a real Revit/Visual Studio
+ *                       environment to verify; flagged for a follow-up, not guessed at here.
  * v1.0.0 (2026-01-01) - Initial release.
  * v1.1.0 (2026-07-01) - Added re-entrancy guard, wired Stop-button cancellation token through to
  *                       the script's CancellationToken, added mandatory metadata block.
@@ -173,7 +184,18 @@ namespace AJTools.GeminiShell.Services
                         }
                         catch (Exception ex)
                         {
-                            group.RollBack();
+                            try
+                            {
+                                group.RollBack();
+                            }
+                            catch
+                            {
+                                // The group may already be in a terminal state (e.g. Commit() itself
+                                // just failed) - nothing more can be done to it. Still fall through and
+                                // report the original error below so the caller's Task always completes;
+                                // swallowing it here would otherwise leave the AJ AI pane hung forever.
+                            }
+
                             tcs.TrySetResult(new CodeExecutionResult
                             {
                                 Success = false,
