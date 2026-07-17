@@ -9,9 +9,9 @@
        2021-2027, or run build-all.ps1 at the repo root to build every
        version in one go.
 
-       All 271 .cs files and 25 .xaml pages are auto-included by the SDK
-       (verified 2026-07-06: disk contents exactly match the old
-       hand-maintained list).
+       All .cs files and .xaml pages under src/ are auto-included by the SDK
+       (last count 2026-07-17: 300 .cs files, 27 .xaml pages — counts grow
+       as tools are added, don't rely on this comment for an exact number).
        ================================================================ -->
 
   <PropertyGroup>
