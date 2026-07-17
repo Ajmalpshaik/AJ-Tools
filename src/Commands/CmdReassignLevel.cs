@@ -6,16 +6,16 @@
  *                 from one level to another across the whole project without moving them physically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-04-14
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-17
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, AJTools.Utils
+ * Dependencies  : Autodesk Revit API, AJTools.Utils, AJTools.Services.ReassignLevel
  *
  * Input         : Full Project - FROM level and TO level chosen in a dialog.
  * Output        : Matching elements re-pointed to the TO level (host offset compensated so they stay put);
@@ -26,12 +26,17 @@
  * - Scope is Full Project, so a confirmation dialog states how many elements will change before any edit.
  * - Hosted family instances are intentionally skipped (their level follows the host) and reported.
  * - All reassignments run inside ONE transaction, so a single Ctrl+Z reverses the whole operation.
+ * - Thin command wrapper: context/selection validation, transaction handling, and result dialogs live
+ *   here; the level-reassignment algorithm itself lives in Services/ReassignLevel/ReassignLevelService.cs.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2026-04-14) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; added Full-Project bulk-edit confirmation;
  *                       version-safe ElementId access. Reassign behaviour unchanged.
+ * v1.2.0 (2026-07-17) - Extracted the level-reassignment algorithm (eligibility checks, host-offset
+ *                       compensation, space copy logic) into Services/ReassignLevel/ReassignLevelService.cs
+ *                       (code review cleanup pass) - no behavior change.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -44,8 +49,8 @@ using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
+using AJTools.Services.ReassignLevel;
 using AJTools.Utils;
 using Drawing = System.Drawing;
 using WinForms = System.Windows.Forms;
@@ -60,7 +65,6 @@ namespace AJTools.Commands
     {
         private const string ToolTitle = "Reassign Level";
         private const double MetersPerFoot = 0.3048;
-        private const double OneMeterInFeet = 1.0 / MetersPerFoot;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -91,47 +95,10 @@ namespace AJTools.Commands
 
             ElementId fromId = fromLevel.Id;
             ElementId toId = toLevel.Id;
-            bool isRevit2020OrAbove = IsRevit2020OrAbove(commandData.Application);
-            var offsetHelper = new OffsetHelper(doc, isRevit2020OrAbove);
+            bool isRevit2020OrAbove = ReassignLevelService.IsRevit2020OrAbove(commandData.Application);
+            var offsetHelper = new ReassignLevelService.OffsetHelper(doc, isRevit2020OrAbove);
 
-            var filter = new LogicalOrFilter(new List<ElementFilter>
-            {
-                new ElementClassFilter(typeof(MEPCurve)),
-                new ElementClassFilter(typeof(FamilyInstance)),
-                new ElementClassFilter(typeof(SpatialElement))
-            });
-
-            var allElements = new FilteredElementCollector(doc)
-                .WherePasses(filter)
-                .WhereElementIsNotElementType()
-                .ToElements();
-
-            var candidates = new List<Element>();
-            int skippedHosted = 0;
-
-            foreach (Element element in allElements)
-            {
-                if (element is Level)
-                {
-                    continue;
-                }
-
-                FamilyInstance hostedFamily = element as FamilyInstance;
-                if (hostedFamily != null && hostedFamily.Host != null)
-                {
-                    if (IsFamilyInstanceOnLevel(hostedFamily, fromId))
-                    {
-                        skippedHosted++;
-                    }
-
-                    continue;
-                }
-
-                if (ElementOnFromLevel(element, fromId))
-                {
-                    candidates.Add(element);
-                }
-            }
+            List<Element> candidates = ReassignLevelService.CollectCandidates(doc, fromId, out int skippedHosted);
 
             if (candidates.Count == 0)
             {
@@ -170,7 +137,7 @@ namespace AJTools.Commands
                     {
                         try
                         {
-                            if (ReassignElement(doc, element, fromLevel, toLevel, fromId, toId, offsetHelper))
+                            if (ReassignLevelService.ReassignElement(doc, element, fromLevel, toLevel, fromId, toId, offsetHelper))
                             {
                                 okCount++;
                             }
@@ -214,13 +181,6 @@ namespace AJTools.Commands
             resultMessage += "\n\nElements should stay in the same physical location.";
             DialogHelper.ShowInfo("Reassign Level - Complete", resultMessage);
             return Result.Succeeded;
-        }
-
-        private static bool IsRevit2020OrAbove(UIApplication uiApp)
-        {
-            int year;
-            return int.TryParse(uiApp?.Application?.VersionNumber, NumberStyles.Integer, CultureInfo.InvariantCulture, out year) &&
-                   year >= 2020;
         }
 
         private static bool TryPromptLevels(IList<Level> levels, out Level fromLevel, out Level toLevel)
@@ -340,331 +300,6 @@ namespace AJTools.Commands
             }
         }
 
-        private static bool ElementOnFromLevel(Element element, ElementId fromId)
-        {
-            if (element == null || fromId == null || fromId == ElementId.InvalidElementId)
-            {
-                return false;
-            }
-
-            if (element is MEPCurve mepCurve)
-            {
-                return IsMepCurveOnLevel(mepCurve, fromId);
-            }
-
-            FamilyInstance familyInstance = element as FamilyInstance;
-            if (familyInstance != null && familyInstance.Host == null)
-            {
-                return IsFamilyInstanceOnLevel(familyInstance, fromId);
-            }
-
-            Space space = element as Space;
-            if (space != null)
-            {
-                return space.LevelId == fromId;
-            }
-
-            return false;
-        }
-
-        private static bool IsMepCurveOnLevel(MEPCurve curve, ElementId levelId)
-        {
-            if (curve == null || levelId == null || levelId == ElementId.InvalidElementId)
-            {
-                return false;
-            }
-
-            try
-            {
-                if (curve.ReferenceLevel != null && curve.ReferenceLevel.Id == levelId)
-                {
-                    return true;
-                }
-            }
-            catch
-            {
-                // Ignore and continue with fallback checks.
-            }
-
-            if (curve.LevelId == levelId)
-            {
-                return true;
-            }
-
-            Parameter startLevel = curve.get_Parameter(BuiltInParameter.RBS_START_LEVEL_PARAM);
-            return startLevel != null &&
-                   startLevel.StorageType == StorageType.ElementId &&
-                   startLevel.AsElementId() == levelId;
-        }
-
-        private static bool IsFamilyInstanceOnLevel(FamilyInstance familyInstance, ElementId levelId)
-        {
-            if (familyInstance == null || levelId == null || levelId == ElementId.InvalidElementId)
-            {
-                return false;
-            }
-
-            Parameter levelParam = GetFamilyLevelParameter(familyInstance);
-            if (levelParam != null &&
-                levelParam.StorageType == StorageType.ElementId &&
-                levelParam.AsElementId() == levelId)
-            {
-                return true;
-            }
-
-            return familyInstance.LevelId == levelId;
-        }
-
-        private static Parameter GetFamilyLevelParameter(Element element)
-        {
-            Parameter levelParam = element?.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
-            if (levelParam != null && !levelParam.IsReadOnly)
-            {
-                return levelParam;
-            }
-
-            Parameter referenceLevelParam = element?.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM);
-            if (referenceLevelParam != null && !referenceLevelParam.IsReadOnly)
-            {
-                return referenceLevelParam;
-            }
-
-            return null;
-        }
-
-        private static bool ReassignElement(
-            Document doc,
-            Element element,
-            Level fromLevel,
-            Level toLevel,
-            ElementId fromId,
-            ElementId toId,
-            OffsetHelper offsetHelper)
-        {
-            MEPCurve mepCurve = element as MEPCurve;
-            if (mepCurve != null)
-            {
-                if (!IsMepCurveOnLevel(mepCurve, fromId))
-                {
-                    return false;
-                }
-
-                try
-                {
-                    mepCurve.ReferenceLevel = toLevel;
-                    return true;
-                }
-                catch
-                {
-                    Parameter startLevel = mepCurve.get_Parameter(BuiltInParameter.RBS_START_LEVEL_PARAM);
-                    if (startLevel == null ||
-                        startLevel.IsReadOnly ||
-                        startLevel.StorageType != StorageType.ElementId ||
-                        startLevel.AsElementId() != fromId)
-                    {
-                        return false;
-                    }
-
-                    return startLevel.Set(toId);
-                }
-            }
-
-            FamilyInstance familyInstance = element as FamilyInstance;
-            if (familyInstance != null && familyInstance.Host == null)
-            {
-                Parameter levelParam = GetFamilyLevelParameter(familyInstance);
-                if (levelParam == null || levelParam.StorageType != StorageType.ElementId)
-                {
-                    return false;
-                }
-
-                ElementId currentLevelId = levelParam.AsElementId();
-                if (currentLevelId != fromId)
-                {
-                    return false;
-                }
-
-                Level oldLevel = doc.GetElement(currentLevelId) as Level;
-                if (oldLevel == null)
-                {
-                    return false;
-                }
-
-                if (offsetHelper.IsRequired(familyInstance))
-                {
-                    Parameter offsetParam = familyInstance.get_Parameter(BuiltInParameter.INSTANCE_FREE_HOST_OFFSET_PARAM);
-                    if (offsetParam != null &&
-                        !offsetParam.IsReadOnly &&
-                        offsetParam.StorageType == StorageType.Double)
-                    {
-                        double newOffset = offsetParam.AsDouble() + oldLevel.Elevation - toLevel.Elevation;
-                        offsetParam.Set(newOffset);
-                    }
-                }
-
-                return levelParam.Set(toId);
-            }
-
-            Space sourceSpace = element as Space;
-            if (sourceSpace != null)
-            {
-                if (sourceSpace.LevelId != fromId)
-                {
-                    return false;
-                }
-
-                LocationPoint locationPoint = sourceSpace.Location as LocationPoint;
-                if (locationPoint?.Point == null)
-                {
-                    return false;
-                }
-
-                XYZ point = locationPoint.Point;
-                Space targetSpace = doc.Create.NewSpace(toLevel, new UV(point.X, point.Y));
-                if (targetSpace == null)
-                {
-                    return false;
-                }
-
-                CopySpaceParameters(sourceSpace, targetSpace, toId);
-                doc.Delete(sourceSpace.Id);
-                return true;
-            }
-
-            return false;
-        }
-
-        private static void CopySpaceParameters(Space sourceSpace, Space targetSpace, ElementId toId)
-        {
-            foreach (Parameter sourceParameter in sourceSpace.Parameters)
-            {
-                if (sourceParameter == null || sourceParameter.IsReadOnly || sourceParameter.Definition == null)
-                {
-                    continue;
-                }
-
-                object value = GetParameterValue(sourceParameter);
-                if (value == null)
-                {
-                    continue;
-                }
-
-                if (sourceParameter.StorageType == StorageType.String && string.IsNullOrEmpty(value as string))
-                {
-                    continue;
-                }
-
-                if (sourceParameter.StorageType == StorageType.Integer && value is int integerValue && integerValue == 0)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    Parameter targetParameter = targetSpace.LookupParameter(sourceParameter.Definition.Name);
-                    if (targetParameter == null || targetParameter.IsReadOnly)
-                    {
-                        continue;
-                    }
-
-                    TrySetParameterValue(targetParameter, value);
-                }
-                catch
-                {
-                    // Ignore per-parameter copy failures.
-                }
-            }
-
-            try
-            {
-                Parameter upperLevel = targetSpace.get_Parameter(BuiltInParameter.ROOM_UPPER_LEVEL);
-                if (upperLevel != null &&
-                    !upperLevel.IsReadOnly &&
-                    upperLevel.StorageType == StorageType.ElementId)
-                {
-                    upperLevel.Set(toId);
-                }
-            }
-            catch
-            {
-                // Ignore if parameter is unavailable.
-            }
-
-            try
-            {
-                Parameter upperOffset = targetSpace.get_Parameter(BuiltInParameter.ROOM_UPPER_OFFSET);
-                if (upperOffset != null &&
-                    !upperOffset.IsReadOnly &&
-                    upperOffset.StorageType == StorageType.Double &&
-                    upperOffset.AsDouble() <= 0)
-                {
-                    upperOffset.Set(OneMeterInFeet);
-                }
-            }
-            catch
-            {
-                // Ignore if parameter is unavailable.
-            }
-        }
-
-        private static object GetParameterValue(Parameter parameter)
-        {
-            switch (parameter.StorageType)
-            {
-                case StorageType.Double:
-                    return parameter.AsDouble();
-                case StorageType.ElementId:
-                    return parameter.AsElementId();
-                case StorageType.Integer:
-                    return parameter.AsInteger();
-                case StorageType.String:
-                    return parameter.AsString();
-                default:
-                    return null;
-            }
-        }
-
-        private static bool TrySetParameterValue(Parameter parameter, object value)
-        {
-            if (parameter == null || parameter.IsReadOnly)
-            {
-                return false;
-            }
-
-            try
-            {
-                switch (parameter.StorageType)
-                {
-                    case StorageType.Double:
-                        if (value is double doubleValue)
-                        {
-                            return parameter.Set(doubleValue);
-                        }
-                        break;
-                    case StorageType.ElementId:
-                        if (value is ElementId elementIdValue)
-                        {
-                            return parameter.Set(elementIdValue);
-                        }
-                        break;
-                    case StorageType.Integer:
-                        if (value is int intValue)
-                        {
-                            return parameter.Set(intValue);
-                        }
-                        break;
-                    case StorageType.String:
-                        return parameter.Set(value as string);
-                }
-            }
-            catch
-            {
-                return false;
-            }
-
-            return false;
-        }
-
         private static double FeetToMeters(double feet)
         {
             return feet * MetersPerFoot;
@@ -688,64 +323,6 @@ namespace AJTools.Commands
             public override string ToString()
             {
                 return Label;
-            }
-        }
-
-        private sealed class OffsetHelper
-        {
-            private readonly HashSet<int> _categoryIdsToOffset = new HashSet<int>();
-
-            public OffsetHelper(Document doc, bool isRevit2020OrAbove)
-            {
-                var toOffsetCategories = new HashSet<BuiltInCategory>
-                {
-                    BuiltInCategory.OST_DuctAccessory,
-                    BuiltInCategory.OST_DuctFitting,
-                    BuiltInCategory.OST_PipeAccessory,
-                    BuiltInCategory.OST_PipeFitting,
-                    BuiltInCategory.OST_CableTrayFitting,
-                    BuiltInCategory.OST_ConduitFitting,
-                    BuiltInCategory.OST_DuctTerminal,
-                    BuiltInCategory.OST_PlumbingFixtures,
-                    BuiltInCategory.OST_GenericModel,
-                    BuiltInCategory.OST_MechanicalEquipment
-                };
-
-                var noOffsetFrom2020Categories = new HashSet<BuiltInCategory>
-                {
-                    BuiltInCategory.OST_DuctAccessory,
-                    BuiltInCategory.OST_DuctFitting,
-                    BuiltInCategory.OST_PipeAccessory,
-                    BuiltInCategory.OST_PipeFitting,
-                    BuiltInCategory.OST_CableTrayFitting,
-                    BuiltInCategory.OST_ConduitFitting
-                };
-
-                IEnumerable<BuiltInCategory> categories = isRevit2020OrAbove
-                    ? toOffsetCategories.Where(c => !noOffsetFrom2020Categories.Contains(c))
-                    : toOffsetCategories;
-
-                foreach (BuiltInCategory categoryId in categories)
-                {
-                    Category category = Category.GetCategory(doc, categoryId);
-                    if (category != null)
-                    {
-                        _categoryIdsToOffset.Add(ElementIdHelper.GetIntegerValue(category.Id));
-                    }
-                }
-            }
-
-            public bool IsRequired(Element element)
-            {
-                try
-                {
-                    return element?.Category != null &&
-                           _categoryIdsToOffset.Contains(ElementIdHelper.GetIntegerValue(element.Category.Id));
-                }
-                catch
-                {
-                    return false;
-                }
             }
         }
     }
