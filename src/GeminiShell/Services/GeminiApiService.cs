@@ -34,16 +34,21 @@ namespace AJTools.GeminiShell.Services
         {
             if (_cachedModelName != null) return _cachedModelName;
 
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
+            const string url = "https://generativelanguage.googleapis.com/v1beta/models";
             try
             {
-                var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)
+                string json;
+                using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-                    return "gemini-1.5-flash"; // fallback
-                }
+                    request.Headers.Add("x-goog-api-key", apiKey);
+                    var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return "gemini-1.5-flash"; // fallback
+                    }
 
-                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
                 dynamic result = JsonConvert.DeserializeObject(json);
                 
                 string selectedModel = null;
@@ -96,7 +101,7 @@ namespace AJTools.GeminiShell.Services
 
             // Dynamically select the best available model for this API key
             string modelName = await GetBestGeminiModelAsync(apiKey).ConfigureAwait(false);
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={apiKey}";
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent";
 
             var requestBody = new GeminiRequest();
             
@@ -120,15 +125,20 @@ namespace AJTools.GeminiShell.Services
 
             var jsonContent = new StringContent(JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync(url, jsonContent, cancellationToken).ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
+            string responseJson;
+            using (var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = jsonContent })
             {
-                var err = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                throw new Exception($"Gemini API Error ({response.StatusCode}): {err}");
-            }
+                request.Headers.Add("x-goog-api-key", apiKey);
+                var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
-            var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var err = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    throw new Exception($"Gemini API Error ({response.StatusCode}): {err}");
+                }
+
+                responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
             var geminiResponse = JsonConvert.DeserializeObject<GeminiResponse>(responseJson);
 
             var reply = geminiResponse?.candidates?.FirstOrDefault()?.content?.parts?.FirstOrDefault()?.text;
