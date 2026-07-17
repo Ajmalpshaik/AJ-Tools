@@ -91,9 +91,11 @@ namespace AJTools.Utils
     }
 
     /// <summary>
-    /// Selection filter for duct curves only.
+    /// Selection filter for duct curves only. Named distinctly from
+    /// AJTools.Services.DuctReferenceDimension.DuctSelectionFilter (a different, more permissive
+    /// filter for a different tool) to avoid two same-named classes in different namespaces.
     /// </summary>
-    internal class DuctSelectionFilter : ISelectionFilter
+    internal class DuctCurveOnlySelectionFilter : ISelectionFilter
     {
         public bool AllowElement(Element elem)
         {
