@@ -1,12 +1,24 @@
 // Tool Name: Leader Logic Service
 // Description: Reusable L-shaped leader calculation logic for tag placement tools.
 // Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2026-04-07
+// Version: 1.2.0
+// Last Updated: 2026-07-18
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB
+// Dependencies: Autodesk.Revit.DB, System.Reflection
+//
+// v1.2.0 (2026-07-18) - GetL1 now includes the same tagged-reference/reflection fallback chain
+//   that SmartTagPlacementEngine.cs and IntelligentTagArrangerService.cs each independently
+//   reimplemented (~150 lines duplicated near-verbatim between the two); also added
+//   TrySetLeaderElbow/TryGetLeaderEndCondition/TrySetLeaderEndCondition, the other reflection
+//   helpers those two files also duplicated. Both files now call these instead of their own
+//   private copies. GetL1 changed from an instance method to static (it never touched instance
+//   state) - safe, since it had zero external callers before this change (only the also-unused
+//   ApplyLeaderLogic called it). Code review cleanup pass - the underlying reflection logic itself
+//   is unchanged from what both files already had, just centralized.
 
 using System;
+using System.Collections;
+using System.Reflection;
 using Autodesk.Revit.DB;
 using AJTools.Utils;
 
@@ -80,15 +92,216 @@ namespace AJTools.Services.LeaderLogic
         // ─────────────────────────────────────────
 
         /// <summary>
-        /// Returns the leader end point (L1) of a tag, or null if unavailable.
+        /// Returns the leader end point (L1) of a tag, or null if unavailable. Tries
+        /// TagCompat.GetLeaderEnd first, then falls back through the tag's tagged reference(s) and
+        /// finally raw reflection on a "LeaderEnd" property, since not every tag type resolves its
+        /// leader end the same way.
         /// </summary>
-        public XYZ GetL1(IndependentTag tag)
+        public static XYZ GetL1(IndependentTag tag)
         {
-            if (tag == null || !tag.HasLeader)
+            if (tag == null)
                 return null;
 
-            try { return TagCompat.GetLeaderEnd(tag); }
-            catch { return null; }
+            try
+            {
+                if (!tag.HasLeader)
+                    return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            try
+            {
+                XYZ direct = TagCompat.GetLeaderEnd(tag);
+                if (direct != null)
+                    return direct;
+            }
+            catch (Exception)
+            {
+            }
+
+            XYZ byTaggedReference = TryGetLeaderEndFromTaggedReference(tag);
+            if (byTaggedReference != null)
+                return byTaggedReference;
+
+            XYZ byTaggedReferences = TryGetLeaderEndFromTaggedReferences(tag);
+            if (byTaggedReferences != null)
+                return byTaggedReferences;
+
+            return TryGetXYZProperty(tag, "LeaderEnd");
+        }
+
+        private static XYZ TryGetLeaderEndFromTaggedReference(IndependentTag tag)
+        {
+            if (tag == null)
+                return null;
+
+            try
+            {
+                Reference taggedReference = TagCompat.GetTaggedReference(tag);
+                if (taggedReference == null)
+                    return null;
+
+                return InvokeGetLeaderEnd(tag, taggedReference);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static XYZ TryGetLeaderEndFromTaggedReferences(IndependentTag tag)
+        {
+            if (tag == null)
+                return null;
+
+            try
+            {
+                MethodInfo method = tag.GetType().GetMethod("GetTaggedReferences", BindingFlags.Instance | BindingFlags.Public);
+                if (method == null)
+                    return null;
+
+                object refsRaw = method.Invoke(tag, null);
+                IEnumerable refs = refsRaw as IEnumerable;
+                if (refs == null)
+                    return null;
+
+                foreach (object item in refs)
+                {
+                    Reference reference = item as Reference;
+                    if (reference == null)
+                        continue;
+
+                    XYZ end = InvokeGetLeaderEnd(tag, reference);
+                    if (end != null)
+                        return end;
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return null;
+        }
+
+        private static XYZ InvokeGetLeaderEnd(IndependentTag tag, Reference reference)
+        {
+            if (tag == null || reference == null)
+                return null;
+
+            try
+            {
+                MethodInfo[] methods = tag.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public);
+                foreach (MethodInfo method in methods)
+                {
+                    if (!string.Equals(method.Name, "GetLeaderEnd", StringComparison.Ordinal))
+                        continue;
+
+                    ParameterInfo[] parameters = method.GetParameters();
+                    if (parameters.Length != 1 || parameters[0].ParameterType != typeof(Reference))
+                        continue;
+
+                    object result = method.Invoke(tag, new object[] { reference });
+                    XYZ xyz = result as XYZ;
+                    if (xyz != null)
+                        return xyz;
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return null;
+        }
+
+        private static XYZ TryGetXYZProperty(object instance, string propertyName)
+        {
+            if (instance == null || string.IsNullOrWhiteSpace(propertyName))
+                return null;
+
+            try
+            {
+                PropertyInfo prop = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+                if (prop == null)
+                    return null;
+
+                object raw = prop.GetValue(instance, null);
+                return raw as XYZ;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Sets a tag's leader elbow point via TagCompat. Returns false (rather than throwing) if
+        /// the tag's current LeaderEndCondition rejects the elbow - see
+        /// SmartTagPlacementEngine.TrySetLeaderElbowPreserveCondition for the Free/restore fallback
+        /// some callers layer on top of this.
+        /// </summary>
+        public static bool TrySetLeaderElbow(IndependentTag tag, XYZ elbow)
+        {
+            if (tag == null || elbow == null)
+                return false;
+
+            try
+            {
+                TagCompat.SetLeaderElbow(tag, elbow);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static bool TryGetLeaderEndCondition(IndependentTag tag, out LeaderEndCondition condition)
+        {
+            condition = LeaderEndCondition.Attached;
+            if (tag == null)
+                return false;
+
+            try
+            {
+                condition = tag.LeaderEndCondition;
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static bool TrySetLeaderEndCondition(IndependentTag tag, LeaderEndCondition condition)
+        {
+            if (tag == null)
+                return false;
+
+            try
+            {
+                if (tag.LeaderEndCondition == condition)
+                    return true;
+            }
+            catch (Exception)
+            {
+            }
+
+            try
+            {
+                if (tag.CanLeaderEndConditionBeAssigned(condition))
+                {
+                    tag.LeaderEndCondition = condition;
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return false;
         }
 
         // ─────────────────────────────────────────
