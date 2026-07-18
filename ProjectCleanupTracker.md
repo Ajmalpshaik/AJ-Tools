@@ -1,5 +1,25 @@
 # Project Cleanup Tracker
 
+## 2026-07-18 GitHub Branch Review - What's Safe to Delete Later
+
+Ajmal asked to check all 5 non-master branches sitting on GitHub after the v1.13.8 catch-up sync, and
+mark whichever aren't needed so they can be deleted later (not deleting yet - just flagging).
+Verified each branch's actual file content against master (not just commit messages), by diffing the
+branch tip against the master commit immediately after its matching PR merged:
+
+**Confirmed 100% already merged - safe to delete whenever convenient, nothing would be lost:**
+- `claude/review-and-edit-iqigtr` - identical patch to PR #11 (0a98314), already in master.
+- `claude/code-review-cleanup-2` - `git diff e2255eb..branch -- src/` is empty; fully absorbed by PR #12.
+- `claude/deferred-items-followup` - `git diff 6d4a621..branch -- src/` is empty; fully absorbed by PR #13.
+- `claude/ui-readability-fixes` - `git diff master..branch -- src/` is empty; fully absorbed by PR #14.
+
+**Was open, now merged (PR #15, 2026-07-18) - see the Fourth Pass entry directly below for detail:**
+- `claude/ai-mcp-security-review` - 7 commits, v1.13.9. Reviewed each of its 6 fixes against the real
+  source (not just its own changelog claims) before recommending merge; Ajmal approved via the GitHub
+  web UI (PR was in Draft state, marked ready for review then merged with "No conflicts with base
+  branch" - clean fast-forward). GitHub is offering to delete the now-fully-merged source branch;
+  left alone for now, same as the other four, pending Ajmal's own cleanup pass.
+
 ## 2026-07-18 Fourth Pass - AJ AI (Gemini Shell) + AutoDebugger MCP Server Security Review
 
 Full code review + security hardening pass over the AJ AI subsystem, at Ajmal's request. Read
