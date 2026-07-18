@@ -55,6 +55,23 @@
                 <Setter Property="Padding" Value="4,2"/>
             </Style>
 
+            <Style x:Key="DgColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="{StaticResource DkBgLight}"/>
+                <Setter Property="Foreground" Value="{StaticResource DkFg}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource DkBorder}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="8,6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style x:Key="DuctManagerDataGridStyle" TargetType="DataGrid" BasedOn="{StaticResource DarkDataGrid}">
+                <Setter Property="AlternationCount" Value="2"/>
+                <Setter Property="RowBackground" Value="{StaticResource DkBgMed}"/>
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource DkBgLight}"/>
+                <Setter Property="ColumnHeaderStyle" Value="{StaticResource DgColumnHeaderStyle}"/>
+            </Style>
+
         </ResourceDictionary>
     </Window.Resources>
 
@@ -188,7 +205,7 @@
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="Define materials and their densities. These are used for weight calculations."
                                Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
-                    <DataGrid x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DarkDataGrid}">
+                    <DataGrid x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DuctManagerDataGridStyle}">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Material Name" Binding="{Binding Name}" Width="*" MinWidth="150"
                                                 ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
@@ -232,7 +249,7 @@
                             <ComboBoxItem Content="high"/>
                         </ComboBox>
                     </StackPanel>
-                    <DataGrid x:Name="dgRules" Grid.Row="2" Style="{StaticResource DarkDataGrid}">
+                    <DataGrid x:Name="dgRules" Grid.Row="2" Style="{StaticResource DuctManagerDataGridStyle}">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Shape" Binding="{Binding Shape}" Width="100"
                                                 ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
