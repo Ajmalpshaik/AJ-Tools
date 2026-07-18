@@ -1,5 +1,66 @@
 # Project Cleanup Tracker
 
+## 2026-07-18 Second Cleanup Pass - Acting on Deferred Items
+
+Follow-up to the 2026-07-17 pass below. That pass deliberately deferred a set of larger/riskier
+findings rather than guess at them without a Windows/.NET SDK or Revit available. This pass came
+back and did the ones that could be done safely from a source-only environment:
+
+- **AJ AI safety**: `RevitExecutionService.task.Wait()` now has a hard backstop (MaxLoopRuntime +
+  20s) instead of no timeout at all. Documented explicitly in the code that this narrows but does
+  not fully close the freeze risk for a script that never yields at a loop checkpoint (a goto-loop,
+  `Thread.Sleep`, or a single very long Revit API call) - confirming Roslyn's `CSharpScript.RunAsync`
+  threading model against the Revit API's single-thread requirement needs a real environment.
+- **Gemini API key**: now sent via the `x-goog-api-key` header instead of a URL query param, matching
+  `OpenAiApiService`'s existing approach. Moderate confidence only - not verified against a live key
+  from this environment; please confirm the AJ AI pane still connects to Gemini.
+- **Naming collision fixed**: `AJTools.Utils.DuctSelectionFilter` renamed to
+  `DuctCurveOnlySelectionFilter` to stop shadowing `AJTools.Services.DuctReferenceDimension.
+  DuctSelectionFilter` (different namespaces, so not a live bug today, but a real trap for a future
+  edit).
+- **Config-store dedup**: `LinkWorksetSettings`, `SectionMarkVisibilityConfigStore`,
+  `TagArrangeSettings`, `ViewCropConfigStore` all shared an identical `GetConfigPath()` - extracted
+  into a new `AppDataConfigStore.GetPath(fileName)` helper.
+- **Command -> Service extractions** (the four Commands flagged as having their full tool logic
+  inline instead of a Service, per this project's own convention):
+  - `CmdCeilingMagnet` (833 lines) -> `Services/CeilingMagnet/CeilingMagnetService.cs`
+  - `CmdReassignLevel` (752 lines) -> `Services/ReassignLevel/ReassignLevelService.cs`
+  - `CmdForceTagLeaderLShape` (~800 lines) -> `Services/ForceTagLeaderLShape/ForceTagLeaderLShapeService.cs`
+    (elbow math itself stays in the existing shared `LeaderLogicService`, untouched)
+  - `CmdArrangeTextInBox` (383 lines) -> `Services/ArrangeTextInBox/ArrangeTextInBoxService.cs`
+  - Each Command is now a thin wrapper: selection/picking, transaction handling, and result dialogs
+    stay in the Command; the algorithm moved to its Service. No behavior change in any of the four -
+    same tolerances, same constants, same order of operations, just relocated with a metadata header
+    matching this project's convention. One extraction (`ReassignLevelService`) was found already
+    half-done and left in a non-compiling state by an interrupted prior attempt (a duplicate
+    `OffsetHelper` type conflict) - this pass finished it properly rather than leaving it broken.
+  - **Deliberately NOT extracted this pass**: `CmdCeilingMagnet`'s `TryCreateGridDefinition` still
+    calls `DialogHelper` directly on its two failure paths (same as the original inline code) rather
+    than being restructured to return an error for the Command to show - kept as-is to avoid changing
+    its behavior/contract during the move.
+- **AnnotationRibbonManager icon dedup**: 28 repeated 4-line icon-loading blocks replaced with calls
+  to a new `RibbonPanelHelper.ApplyIcons` (three overloads, mirroring `RibbonManager`'s own already-
+  working icon-loading logic rather than guessing at a shared Revit API base type that couldn't be
+  verified without a compiler). `AddAutoDuctDimensionTool`'s icon loading was left alone since it
+  deliberately reuses one loaded icon across three buttons - a different pattern from the simple
+  repeated single-button blocks everywhere else.
+- Version bump: suite version 1.13.6 -> 1.13.7 (patch: cleanup/fixes, no new tool).
+- **Still deferred** (unchanged from the 2026-07-17 list below, not attempted this pass either): two
+  O(n^2) hot loops in `SmartMepTagService.MarkDenseZones` / `SmartTagPlacementEngine.
+  FindBestTagPosition`; the ~150-line duplicated reflection leader-probing block between
+  `SmartTagPlacementEngine` and `IntelligentTagArrangerService`; Colorize/FilterPro's duplicated
+  `LoadParameters`/`LoadValues` methods; `FilterProState`/`FilterSelection`'s ~20-property
+  duplication; `FilterCategoryItem`/`PatternItem`/`GraphicsIdOption`'s identical wrapper shape;
+  `LocationDataAssignerWindow.xaml.cs`'s embedded business logic (770-1300 lines); `SharedParamUtils.
+  cs` living in Helpers/ instead of Services/; `DuctShapeService`'s reflection use where a direct API
+  call might exist; a `PasswordBox` swap for the AJ AI API-key text inputs (skipped - WPF's
+  `PasswordBox.Password` isn't bindable the same way, higher implementation risk for a minor finding);
+  and the AI safety validator's core limitation (still text/regex matching, not an AST/semantic scan -
+  `using static` and type-aliasing bypasses remain a known, documented, but unclosed gap).
+- Revit was not launched or tested - this pass was source-only (no Windows/.NET SDK available).
+  Please test loading in Revit, especially the AJ AI pane, Ceiling Magnet, Reassign Level, Arrange
+  Text in Box, and Force Tag Leader L-Shape, before relying on this build.
+
 ## 2026-07-17 Structure/Cleanliness Review + Full Code Review Pass
 
 Ran on top of the 2026-07-01 pass below, on the now-multi-version (2020-2027) build. Scope: repo

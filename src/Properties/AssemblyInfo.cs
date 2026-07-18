@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.6
+ * Version       : 1.13.7
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,33 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.13.7 (2026-07-18) - Second cleanup pass, acting on items the first pass had deliberately
+ *                       deferred: (1) AJ AI's blocking task.Wait() now has a hard backstop
+ *                       (MaxLoopRuntime + 20s) instead of no timeout at all - narrows but does not
+ *                       fully close the freeze risk for a script that never yields (see
+ *                       RevitExecutionService.cs's own notes for why a full fix needs a real Revit/
+ *                       Visual Studio environment to verify). (2) Gemini API key now sent via the
+ *                       x-goog-api-key header instead of a URL query param, matching
+ *                       OpenAiApiService's existing approach - moderate confidence, not verified
+ *                       against a live key. (3) Renamed the AJTools.Utils.DuctSelectionFilter /
+ *                       AJTools.Services.DuctReferenceDimension.DuctSelectionFilter name collision
+ *                       (not a live bug, a future trap). (4) Deduped the four config-store classes'
+ *                       identical GetConfigPath() into a shared AppDataConfigStore. (5) Extracted
+ *                       the four outlier Commands that had their full tool logic inline instead of a
+ *                       Service - CmdReassignLevel, CmdArrangeTextInBox, CmdForceTagLeaderLShape,
+ *                       CmdCeilingMagnet - into ReassignLevelService, ArrangeTextInBoxService,
+ *                       ForceTagLeaderLShapeService, and CeilingMagnetService respectively; each
+ *                       Command is now a thin wrapper. (6) Deduped AnnotationRibbonManager's 28
+ *                       repeated icon-loading blocks into the shared RibbonPanelHelper.ApplyIcons.
+ *                       No behavior change in any of the above except (1) and (2), documented
+ *                       individually. Not done this pass either (still deferred): the two O(n^2) hot
+ *                       loops in SmartMepTagService/SmartTagPlacementEngine, the duplicated
+ *                       leader-probing block between SmartTagPlacementEngine and
+ *                       IntelligentTagArrangerService, Colorize/FilterPro's duplicated Load*
+ *                       methods, FilterProState/FilterSelection's ~20-property duplication,
+ *                       LocationDataAssignerWindow.xaml.cs's embedded business logic, and the AI
+ *                       safety validator's remaining text-matching limitation (still not an AST/
+ *                       semantic scan).
  * v1.13.6 (2026-07-17) - Full repo structure/cleanliness + code review pass. AJ Annotation ribbon
  *                        typo fixed ("Auto Dimention" -> "Auto Dimension", visible on the tab/panel/
  *                        button). Removed ~15 confirmed-unused classes/methods (cross-checked
@@ -150,5 +177,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.13.6.0")]
-[assembly: AssemblyFileVersion("1.13.6.0")]
+[assembly: AssemblyVersion("1.13.7.0")]
+[assembly: AssemblyFileVersion("1.13.7.0")]
