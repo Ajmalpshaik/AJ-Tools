@@ -1,5 +1,66 @@
 # Project Cleanup Tracker
 
+## 2026-07-18 Fourth Pass - AJ AI (Gemini Shell) + AutoDebugger MCP Server Security Review
+
+Full code review + security hardening pass over the AJ AI subsystem, at Ajmal's request. Read
+every one of the 24 C# files under `src/GeminiShell/`, plus `mcp-server/index.js` and
+`package.json` - the whole surface an AI agent touches to reach a live Revit document, whether
+from the in-Revit chat panel or an external MCP client connected through the AutoDebugger bridge.
+
+- **Security fix - process-kill bypass**: `GeneratedCodeSafetyValidator` only recognized one exact
+  call chain, `Process.GetCurrentProcess().Kill()`, as "kills a process". A script could still
+  reach `.Kill()` on *any other* running process on the machine (e.g.
+  `Process.GetProcessesByName("x")[0].Kill()`) - antivirus, backup tools, anything else open -
+  without tripping a single check, since neither `Process.Start` nor the narrow kill pattern
+  matched. Widened the pattern to block any `.Kill(` call, whatever object it's called on.
+- **Fixed - named-pipe handle leak**: `McpBridgeService.Start()` created its named pipe and stored
+  it in `_waitingPipe` *before* writing the discovery file. If that write failed (e.g. an AppData
+  permission problem) the method returned an error but never disposed the pipe it had already
+  created - every failed `Start()` attempt leaked one OS pipe instance for the life of the Revit
+  session. The catch block now disposes it and clears the field.
+- **Fixed - stale cross-language timeout**: the Node.js MCP server's own response timeout
+  (`RESPONSE_TIMEOUT_MS`, 65s) was calibrated against the *old* 60-second script timeout on the
+  Revit side. A previous pass added a 20-second grace period on top of that (bringing Revit's own
+  hard backstop to 80s total) but nothing updated the Node side to match - a script legitimately
+  still unwinding between 65s and 80s would get reported to the connected AI agent as "timed out"
+  even though Revit would have finished it normally a few seconds later. Raised to 90s with a
+  comment explaining the dependency, so the next person to change one side knows to check the
+  other.
+- **Fixed - black activity banner**: `AiTaskWarningBarService`'s "AJ AI is working" banner window
+  set `WindowStyle=None` and `Background=Transparent` (the standard pattern for a custom-chrome
+  floating card, used correctly everywhere else in this project) but also set
+  `AllowsTransparency=False` - which means WPF cannot actually render the alpha-transparent
+  background, so the banner almost certainly rendered as a solid black rectangle around its rounded
+  card instead of blending softly into Revit behind it (the drop shadow effect would not render
+  correctly either without real transparency). Changed to `True`, matching every other
+  transparent/custom-chrome window in the codebase.
+- **Fixed - Stop button gap**: `GeminiApiService.GetBestGeminiModelAsync` (the one-time call that
+  figures out which Gemini model to use) didn't accept or forward the cancellation token that every
+  other network call in this subsystem respects, so pressing Stop while it was in flight wouldn't
+  actually cancel it. Added the parameter and wired it through.
+- **Reviewed and left alone** (found already correct, not touched): `RoslynService`'s
+  `System.Net.WebClient` assembly reference looks redundant next to the `Regex` reference (both are
+  `System.dll` on .NET Framework), but on the .NET 8 build targets (Revit 2025-2026) they may not
+  be the same assembly - removing it can't be verified safe across every Revit-year build without a
+  compiler for each one, so it stays, with a comment explaining why. `RevitContextExtractionService`
+  lacks the same internal re-entrancy guard `RevitExecutionService` has, but it has exactly one
+  call site and that call site is already protected by the ViewModel's `IsBusy` flag plus a
+  disabled button in XAML - adding a guard against a race that can't currently happen would be
+  speculative, so left as-is.
+- **Confirmed already solid, no changes needed**: `RevitExecutionService`'s cancellation/backstop
+  chain (soft cancel at 60s, hard `task.Wait()` backstop at 80s, TransactionGroup rollback safety),
+  `LoopProtectionRewriter`'s injected cancellation checks in every loop type, `GeminiShellConfig`'s
+  use of Windows DPAPI (`ProtectedData`) to encrypt API keys at rest rather than storing them in
+  plain text, the `IsBusy` re-entrancy guards across every command in `GeminiShellViewModel`, and
+  `TextMarkerService` (the standard AvalonEdit sample pattern, used as-is).
+- Version bump: suite version 1.13.8 -> 1.13.9 (patch: security/bug fixes, no new tool).
+- Revit was not launched or tested - this pass was source-only (no Windows/.NET SDK available). The
+  MCP server's JS syntax was verified with `node --check` (available in this environment), which
+  the C# changes could not be. Please test the AJ AI pane and, if you use it, the AutoDebugger
+  MCP connection, before relying on this build - specifically: the activity banner should now show
+  as a clean floating card (not a black box), and a script that runs 65-80 seconds through the MCP
+  bridge should complete normally instead of erroring out.
+
 ## 2026-07-18 Third Cleanup Pass - Acting on Remaining Deferred Items
 
 Follow-up to the Second Cleanup Pass below. That pass deliberately deferred a further set of

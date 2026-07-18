@@ -6,10 +6,10 @@
  *                 request is executing against Revit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.4.0
+ * Version       : 1.5.0
  *
  * Created Date  : 2026-07-12
- * Last Updated  : 2026-07-16
+ * Last Updated  : 2026-07-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,13 @@
  * - The banner has no taskbar entry and remains visible long enough to paint before it closes.
  *
  * Changelog     :
+ * v1.5.0 (2026-07-18) - Fixed AllowsTransparency being False while Background is set to Transparent
+ *                       and WindowStyle to None — without AllowsTransparency, WPF cannot actually
+ *                       render an alpha-transparent window background, so the banner would show as a
+ *                       solid black rectangle around its rounded card instead of blending into Revit
+ *                       behind it (the drop shadow would not render correctly either). Every other
+ *                       custom-chrome window in this project already sets AllowsTransparency="True"
+ *                       for this exact combination; this file was the one inconsistent case.
  * v1.4.0 (2026-07-16) - The progress bar was a fixed-width static Border, never animated — fixed with
  *                       an indeterminate sweeping-highlight Storyboard (start on show, stop on close)
  *                       since BeginTask/EndTask carry no real percentage to display honestly.
@@ -315,7 +322,7 @@ namespace AJTools.GeminiShell.Services
                 ShowInTaskbar = false,
                 ShowActivated = false,
                 Topmost = true,
-                AllowsTransparency = false,
+                AllowsTransparency = true,
                 Background = Brushes.Transparent,
                 FontFamily = new FontFamily("Segoe UI"),
                 WindowStartupLocation = WindowStartupLocation.Manual

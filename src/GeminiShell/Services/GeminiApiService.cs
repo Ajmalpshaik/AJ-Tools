@@ -30,7 +30,7 @@ namespace AJTools.GeminiShell.Services
 
         private string _cachedModelName = null;
 
-        private async Task<string> GetBestGeminiModelAsync(string apiKey)
+        private async Task<string> GetBestGeminiModelAsync(string apiKey, CancellationToken cancellationToken)
         {
             if (_cachedModelName != null) return _cachedModelName;
 
@@ -41,7 +41,7 @@ namespace AJTools.GeminiShell.Services
                 using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
                     request.Headers.Add("x-goog-api-key", apiKey);
-                    var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+                    var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                     if (!response.IsSuccessStatusCode)
                     {
                         return "gemini-1.5-flash"; // fallback
@@ -85,6 +85,13 @@ namespace AJTools.GeminiShell.Services
                 _cachedModelName = selectedModel;
                 return selectedModel;
             }
+            catch (OperationCanceledException)
+            {
+                // Let Stop actually stop instead of silently continuing with a fallback model -
+                // this must be checked before the generic catch below, which would otherwise
+                // swallow the cancellation just like any other error.
+                throw;
+            }
             catch (Exception)
             {
                 return "gemini-1.5-flash"; // fallback on any error
@@ -100,7 +107,7 @@ namespace AJTools.GeminiShell.Services
             }
 
             // Dynamically select the best available model for this API key
-            string modelName = await GetBestGeminiModelAsync(apiKey).ConfigureAwait(false);
+            string modelName = await GetBestGeminiModelAsync(apiKey, cancellationToken).ConfigureAwait(false);
             string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent";
 
             var requestBody = new GeminiRequest();
