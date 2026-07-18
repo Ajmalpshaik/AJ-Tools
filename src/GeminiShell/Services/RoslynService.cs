@@ -29,7 +29,13 @@ namespace AJTools.GeminiShell.Services
                 typeof(System.IO.File).Assembly,                     // mscorlib (System.IO)
                 typeof(System.Text.StringBuilder).Assembly,          // mscorlib (System.Text)
                 typeof(System.Text.RegularExpressions.Regex).Assembly, // System
-                typeof(System.Net.WebClient).Assembly,               // System
+                typeof(System.Net.WebClient).Assembly,               // System (kept even though the safety
+                                                                      // validator blocks WebClient by name -
+                                                                      // on .NET 8 targets this may be a
+                                                                      // different assembly than Regex's, and
+                                                                      // removing it can't be verified safe
+                                                                      // across every Revit-year build without
+                                                                      // a compiler for each one)
                 typeof(Document).Assembly,                          // RevitAPI
                 typeof(UIDocument).Assembly                         // RevitAPIUI
             )
