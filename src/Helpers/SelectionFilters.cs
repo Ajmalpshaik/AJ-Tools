@@ -91,35 +91,11 @@ namespace AJTools.Utils
     }
 
     /// <summary>
-    /// Selection filter for duct and pipe curves only.
+    /// Selection filter for duct curves only. Named distinctly from
+    /// AJTools.Services.DuctReferenceDimension.DuctSelectionFilter (a different, more permissive
+    /// filter for a different tool) to avoid two same-named classes in different namespaces.
     /// </summary>
-    internal class DuctPipeSelectionFilter : ISelectionFilter
-    {
-        private readonly HashSet<BuiltInCategory> _categories = new HashSet<BuiltInCategory>
-        {
-            BuiltInCategory.OST_PipeCurves,
-            BuiltInCategory.OST_DuctCurves
-        };
-
-        public bool AllowElement(Element elem)
-        {
-            Category cat = elem?.Category;
-            if (cat == null)
-                return false;
-
-            return _categories.Contains((BuiltInCategory)cat.Id.IntValue());
-        }
-
-        public bool AllowReference(Reference reference, XYZ position)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Selection filter for duct curves only.
-    /// </summary>
-    internal class DuctSelectionFilter : ISelectionFilter
+    internal class DuctCurveOnlySelectionFilter : ISelectionFilter
     {
         public bool AllowElement(Element elem)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.Services.RevisionCloud
 {
@@ -79,7 +80,7 @@ namespace AJTools.Services.RevisionCloud
             if (minU > maxU || minV > maxV)
                 return null;
 
-            double cell = preferredCellSizeFeet > 1e-9 ? preferredCellSizeFeet : 10.0 * 0.00328084;
+            double cell = preferredCellSizeFeet > 1e-9 ? preferredCellSizeFeet : 10.0 * Constants.MM_TO_FEET;
             int cols = (int)Math.Ceiling((maxU - minU) / cell) + 1;
             int rows = (int)Math.Ceiling((maxV - minV) / cell) + 1;
 

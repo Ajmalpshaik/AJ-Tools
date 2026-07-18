@@ -17,7 +17,6 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models;
 using AJTools.Utils;
-using RevitColor = Autodesk.Revit.DB.Color;
 using WpfControl = System.Windows.Controls.Control;
 using RevitTransform = Autodesk.Revit.DB.Transform;
 
@@ -34,9 +33,6 @@ namespace AJTools.UI
         private RevitLinkInstance _lastLinkInstance;
         private ElementId _lastLinkedElementId = ElementId.InvalidElementId;
         private ElementId _lastOverrideTarget = ElementId.InvalidElementId;
-        // Thread-safe Random instance
-        private static readonly System.Threading.ThreadLocal<System.Random> _random = 
-            new System.Threading.ThreadLocal<System.Random>(() => new System.Random(System.Guid.NewGuid().GetHashCode()));
 
         public LinkedSearchWindow(UIDocument uiDoc, Document hostDoc, View activeView, IEnumerable<RevitLinkInstance> links)
         {
@@ -145,70 +141,6 @@ namespace AJTools.UI
             {
                 ErrorText.Text = "Element ID not found in the chosen model(s).";
             }
-        }
-
-        private void OnIdentify(object sender, RoutedEventArgs e)
-        {
-            ClearMessages();
-
-            if (_activeView == null || _activeView.IsTemplate)
-            {
-                ErrorText.Text = "Active view is not valid for overrides.";
-                return;
-            }
-
-            if (_lastOverrideTarget == ElementId.InvalidElementId)
-            {
-                ErrorText.Text = "Search for an element first.";
-                return;
-            }
-
-            ExecuteInTransaction("AJTools - Identify Element", () =>
-            {
-                OverrideGraphicSettings ogs = new OverrideGraphicSettings();
-                RevitColor projColor = RandomColor();
-                RevitColor fillColor = RandomColor();
-                ogs.SetProjectionLineColor(projColor);
-                ogs.SetCutLineColor(projColor);
-                ogs.SetSurfaceForegroundPatternColor(fillColor);
-                ElementId solidFill = GetSolidFillPatternId();
-                if (solidFill != ElementId.InvalidElementId)
-                {
-                    ogs.SetSurfaceForegroundPatternId(solidFill);
-                }
-                ogs.SetSurfaceTransparency(0);
-                ogs.SetProjectionLineWeight(8);
-                ogs.SetCutLineWeight(8);
-                ogs.SetHalftone(false);
-                _activeView.SetElementOverrides(_lastOverrideTarget, ogs);
-            });
-        }
-
-        private void OnReset(object sender, RoutedEventArgs e)
-        {
-            ClearMessages();
-
-            if (_lastOverrideTarget == ElementId.InvalidElementId)
-            {
-                ErrorText.Text = "Nothing to reset.";
-                return;
-            }
-
-            if (_activeView == null || _activeView.IsTemplate)
-            {
-                ErrorText.Text = "Active view is not valid for overrides.";
-                return;
-            }
-
-            ExecuteInTransaction("AJTools - Reset Overrides", () =>
-            {
-                _activeView.SetElementOverrides(_lastOverrideTarget, new OverrideGraphicSettings());
-            });
-        }
-
-        private void OnClose(object sender, RoutedEventArgs e)
-        {
-            Close();
         }
 
         // Cancel button handler from XAML
@@ -431,50 +363,6 @@ namespace AJTools.UI
             ErrorText.Text = string.Empty;
             // clear status
         }
-
-        private static RevitColor RandomColor()
-        {
-            byte r = (byte)_random.Value.Next(30, 256);
-            byte g = (byte)_random.Value.Next(30, 256);
-            byte b = (byte)_random.Value.Next(30, 256);
-            return new RevitColor(r, g, b);
-        }
-
-        private ElementId GetSolidFillPatternId()
-        {
-            try
-            {
-                FillPatternElement solid = new FilteredElementCollector(_hostDoc)
-                    .OfClass(typeof(FillPatternElement))
-                    .Cast<FillPatternElement>()
-                    .FirstOrDefault(f => f.GetFillPattern().IsSolidFill);
-
-                return solid != null ? solid.Id : ElementId.InvalidElementId;
-            }
-            catch
-            {
-                // Ignore errors if solid fill pattern cannot be found.
-                return ElementId.InvalidElementId;
-            }
-        }
-
-        private void ExecuteInTransaction(string transactionName, Action action)
-        {
-            try
-            {
-                using (Transaction t = new Transaction(_hostDoc, transactionName))
-                {
-                    t.Start();
-                    action();
-                    t.Commit();
-                }
-            }
-            catch (System.Exception ex)
-            {
-                ErrorText.Text = "Operation failed: " + ex.Message;
-            }
-        }
-
 
     }
 }

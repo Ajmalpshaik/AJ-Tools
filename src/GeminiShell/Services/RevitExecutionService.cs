@@ -6,10 +6,10 @@
  *                 Revit API thread via ExternalEvent, wrapped in a single-undo TransactionGroup.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.3.0
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-17
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,10 +23,34 @@
  * Notes         :
  * - Re-entrancy guarded: a second call while one is running returns a clear busy error instead
  *   of silently overwriting shared state (ExternalEvent.Raise() can coalesce rapid calls).
- * - A running script can only be interrupted at loop checkpoints (see LoopProtectionRewriter) or
- *   after a 60s hard timeout — a single long-running Revit API call cannot be cancelled mid-flight.
+ * - A running script can only be interrupted at loop checkpoints (see LoopProtectionRewriter),
+ *   after the 60s soft cancellation deadline, or the 80s hard task.Wait() backstop below - a
+ *   script that never yields at a loop checkpoint (a goto-loop, Thread.Sleep, or a single very
+ *   long Revit API call) cannot be forcibly killed; the hard backstop only stops the Revit UI
+ *   thread from waiting on it forever, it does not guarantee the runaway work actually stops.
  *
  * Changelog     :
+ * v1.3.0 (2026-07-17) - Added a hard backstop to the blocking task.Wait() call (MaxLoopRuntime +
+ *                       20s grace): previously this had no timeout of its own at all, so a script
+ *                       that never reached a LoopProtectionRewriter checkpoint (goto-loop,
+ *                       Thread.Sleep, a single long-running call) could hang the Revit UI thread
+ *                       indefinitely with no recovery short of killing Revit. On timeout, reports a
+ *                       clear error and returns without touching the TransactionGroup directly -
+ *                       letting its `using` block's Dispose() run the default roll-back-if-not-
+ *                       assimilated behavior is safer than this thread reaching into it if the
+ *                       script instance might still be executing. This narrows but does not fully
+ *                       close the freeze risk: if Roslyn's CSharpScript.RunAsync truly blocks the
+ *                       calling thread synchronously (the common case for non-async script code),
+ *                       task.Wait() itself is never reached until the script returns, so this
+ *                       backstop cannot help in that specific case - full isolation would need a
+ *                       separate process/AppDomain, already noted as out of scope for this file.
+ * v1.2.0 (2026-07-17) - Guarded the failure-path group.RollBack() call: if a script's own
+ *                       TransactionGroup.Commit() throws, the catch block used to call RollBack()
+ *                       unguarded - if that secondary call also threw (group already in a terminal
+ *                       state), the exception escaped before tcs.TrySetResult() ran, leaving the
+ *                       caller's Task pending forever and the AJ AI pane stuck on IsBusy until the
+ *                       add-in was restarted. Now the secondary failure is swallowed and the
+ *                       original error is still always reported.
  * v1.0.0 (2026-01-01) - Initial release.
  * v1.1.0 (2026-07-01) - Added re-entrancy guard, wired Stop-button cancellation token through to
  *                       the script's CancellationToken, added mandatory metadata block.
@@ -71,6 +95,14 @@ namespace AJTools.GeminiShell.Services
         // Loop-based scripts are auto-cancelled after this long even if the user never presses Stop
         // (backstop against an AI-generated infinite loop). See LoopProtectionRewriter.
         private static readonly TimeSpan MaxLoopRuntime = TimeSpan.FromSeconds(60);
+
+        // Hard backstop on the blocking Wait() below, on top of MaxLoopRuntime. Gives a script that
+        // DOES respect the CancellationToken (see LoopProtectionRewriter) time to actually unwind
+        // through nested calls before this gives up on it. A script that does NOT respect the token
+        // (a goto-loop, Thread.Sleep, or a single very long Revit API call) cannot be forcibly killed
+        // from here - .NET has no safe way to abort a running thread - so this only stops the Revit
+        // UI thread from waiting forever; it does not guarantee the runaway work actually stops.
+        private static readonly TimeSpan HardWaitTimeout = MaxLoopRuntime + TimeSpan.FromSeconds(20);
 
         private CancellationToken _externalCancellationToken;
 
@@ -155,7 +187,23 @@ namespace AJTools.GeminiShell.Services
                             // (see LoopProtectionRewriter) — a script stuck in a single long-running Revit API
                             // call cannot be cancelled and will run to completion or throw its own exception.
                             var task = _roslynService.ExecuteAsync(code, globals);
-                            task.Wait();
+                            bool completed = task.Wait(HardWaitTimeout);
+
+                            if (!completed)
+                            {
+                                // Deliberately not calling group.Commit()/RollBack() here: if the
+                                // script really is still running, touching the group from this thread
+                                // while it might still be touched by the script is not safe. Letting
+                                // the `using (group)` block below run Dispose()'s default roll-back
+                                // (matching Transaction's own IDisposable contract) is the safer choice.
+                                tcs.TrySetResult(new CodeExecutionResult
+                                {
+                                    Success = false,
+                                    ErrorMessage = $"The script did not finish within {HardWaitTimeout.TotalSeconds:0} seconds and did not respond to Stop. " +
+                                                   "It may still be running in the background. Any changes were not committed."
+                                });
+                                return;
+                            }
 
                             var result = task.Result;
 
@@ -173,7 +221,18 @@ namespace AJTools.GeminiShell.Services
                         }
                         catch (Exception ex)
                         {
-                            group.RollBack();
+                            try
+                            {
+                                group.RollBack();
+                            }
+                            catch
+                            {
+                                // The group may already be in a terminal state (e.g. Commit() itself
+                                // just failed) - nothing more can be done to it. Still fall through and
+                                // report the original error below so the caller's Task always completes;
+                                // swallowing it here would otherwise leave the AJ AI pane hung forever.
+                            }
+
                             tcs.TrySetResult(new CodeExecutionResult
                             {
                                 Success = false,

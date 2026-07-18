@@ -45,7 +45,6 @@ namespace AJTools.Utils
     /// </summary>
     internal static class SectionMarkVisibilityConfigStore
     {
-        private const string SettingsFolderName = "AJTools";
         private const string SettingsFileName = "SectionMarkVisibility.config";
 
         /// <summary>
@@ -125,10 +124,6 @@ namespace AJTools.Utils
             }
         }
 
-        private static string GetConfigPath()
-        {
-            string root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(root, SettingsFolderName, SettingsFileName);
-        }
+        private static string GetConfigPath() => AppDataConfigStore.GetPath(SettingsFileName);
     }
 }

@@ -41,14 +41,6 @@ namespace AJTools.Services.QuickDimension
         };
 
         /// <summary>
-        /// Backward-compatible entry point. Defaults to centerline mode.
-        /// </summary>
-        internal static Result Execute(ExternalCommandData data)
-        {
-            return Execute(data, QuickDimensionReferenceMode.Centerline);
-        }
-
-        /// <summary>
         /// Executes quick dimension creation for selected or picked parallel elements.
         /// </summary>
         internal static Result Execute(ExternalCommandData data, QuickDimensionReferenceMode mode)

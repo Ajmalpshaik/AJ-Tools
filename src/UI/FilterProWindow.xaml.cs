@@ -418,12 +418,6 @@ namespace AJTools.UI
             }
         }
 
-        private PatternItem GetPatternItem(ElementId id)
-        {
-            if (id == null || id == ElementId.InvalidElementId) return null;
-            return _patterns.FirstOrDefault(p => p.Id.IntValue() == id.IntValue());
-        }
-
         private List<ElementId> GetSelectedViewIds()
         {
             if (apply_active_radio.IsChecked == true)
