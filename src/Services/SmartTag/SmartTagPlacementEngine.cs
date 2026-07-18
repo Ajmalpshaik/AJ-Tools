@@ -403,6 +403,72 @@ namespace AJTools.Services.SmartTag
             return allAnnotations ?? new List<AnnotationBox>();
         }
 
+        /// <summary>
+        /// Indexes every candidate's Midpoint (X/Y only) for the parallel-group proximity check in
+        /// FindBestTagPosition, so it doesn't have to scan every other candidate for every candidate
+        /// (same pattern as BuildAnnotationSpatialIndex/QueryNearbyAnnotations above). Falls back to
+        /// null on any failure - callers fall back to a full scan, same as the annotation index does.
+        /// </summary>
+        private static AnnotationSpatialIndex BuildCandidateSpatialIndex(
+            List<TagCandidate> candidates,
+            out Dictionary<AnnotationBox, TagCandidate> candidateByBox)
+        {
+            candidateByBox = new Dictionary<AnnotationBox, TagCandidate>();
+            try
+            {
+                var index = new AnnotationSpatialIndex(ParallelGroupDistance);
+                foreach (TagCandidate candidate in candidates)
+                {
+                    if (candidate == null || candidate.Midpoint == null)
+                        continue;
+
+                    var box = new AnnotationBox(
+                        candidate.Midpoint.X, candidate.Midpoint.Y,
+                        candidate.Midpoint.X, candidate.Midpoint.Y);
+                    candidateByBox[box] = candidate;
+                    index.Add(box);
+                }
+
+                return index;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Candidates within ParallelGroupDistance (X/Y) of the given candidate, per the same
+        /// coarse-index-then-exact-3D-check reasoning as MarkDenseZones in SmartMepTagService: X/Y
+        /// distance can never exceed full 3D distance, so any pair within ParallelGroupDistance in 3D
+        /// is guaranteed to also be within ParallelGroupDistance in X/Y and therefore returned here -
+        /// the caller still runs the exact 3D DistanceTo check on every result. Falls back to the full
+        /// candidate list (original O(n) per-candidate behavior) if the index isn't available.
+        /// </summary>
+        private static List<TagCandidate> QueryNearbyCandidatesByPosition(
+            AnnotationSpatialIndex candidateSpatialIndex,
+            Dictionary<AnnotationBox, TagCandidate> candidateByBox,
+            List<TagCandidate> allCandidates,
+            TagCandidate candidate)
+        {
+            if (candidateSpatialIndex == null || candidateByBox == null || candidate == null || candidate.Midpoint == null)
+                return allCandidates;
+
+            AnnotationBox queryRegion = new AnnotationBox(
+                candidate.Midpoint.X - ParallelGroupDistance, candidate.Midpoint.Y - ParallelGroupDistance,
+                candidate.Midpoint.X + ParallelGroupDistance, candidate.Midpoint.Y + ParallelGroupDistance);
+
+            var result = new List<TagCandidate>();
+            foreach (AnnotationBox hitBox in candidateSpatialIndex.Query(queryRegion))
+            {
+                TagCandidate other;
+                if (candidateByBox.TryGetValue(hitBox, out other))
+                    result.Add(other);
+            }
+
+            return result;
+        }
+
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // SCORING ENGINE
         // Each candidate position scored 0â€“100 across 4 criteria.
@@ -807,6 +873,8 @@ namespace AJTools.Services.SmartTag
             SmartTagSettingsState settingsState,
             Dictionary<BuiltInCategory, TagSizeHint> sizeHints,
             List<TagCandidate> allCandidates,
+            AnnotationSpatialIndex candidateSpatialIndex,
+            Dictionary<AnnotationBox, TagCandidate> candidateByBox,
             HashSet<ElementId> taggedGroupMembers,
             PreFlightResult preflight,
             AnnotationBox placementBoundary,
@@ -947,7 +1015,10 @@ namespace AJTools.Services.SmartTag
             int parallelCount = 0;
             bool groupMemberAlreadyTagged = false;
 
-            foreach (TagCandidate other in allCandidates)
+            List<TagCandidate> nearbyByPosition = QueryNearbyCandidatesByPosition(
+                candidateSpatialIndex, candidateByBox, allCandidates, candidate);
+
+            foreach (TagCandidate other in nearbyByPosition)
             {
                 if (other.ElementId == candidate.ElementId)
                     continue;
@@ -1067,6 +1138,11 @@ namespace AJTools.Services.SmartTag
             AnnotationBox placementBoundary =
                 BuildPlacementBoundaryInViewPlane(preflight, viewRight, viewUp);
 
+            // Index every candidate's own position ONCE too, for the parallel-group check inside
+            // FindBestTagPosition - same reasoning as the annotation index above.
+            Dictionary<AnnotationBox, TagCandidate> candidateByBox;
+            AnnotationSpatialIndex candidateSpatialIndex = BuildCandidateSpatialIndex(candidates, out candidateByBox);
+
             // Track which elements have been successfully tagged â€” used for parallel group logic.
             var taggedGroupMembers = new HashSet<ElementId>();
 
@@ -1093,7 +1169,7 @@ namespace AJTools.Services.SmartTag
                 TagSkipReason skipReason;
                 XYZ tagPosition = FindBestTagPosition(
                     candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
-                    candidates, taggedGroupMembers,
+                    candidates, candidateSpatialIndex, candidateByBox, taggedGroupMembers,
                     preflight, placementBoundary, viewRight, viewUp,
                     out skipReason);
 
