@@ -7,6 +7,26 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.13.9] - 2026-07-18
+
+Full code review + security hardening pass over the AJ AI (Gemini Shell) subsystem and its
+companion AutoDebugger MCP server:
+
+- **Security**: the AI safety validator only blocked killing Revit itself
+  (`Process.GetCurrentProcess().Kill()`); a script could still kill *any other running program* on
+  the machine without tripping a single check. Widened to block any `.Kill(` call.
+- **Fixed**: `McpBridgeService.Start()` leaked a named-pipe handle on every failed start attempt.
+- **Fixed**: the MCP server's own response timeout (65s) was stale against Revit's execution
+  backstop (raised to 80s in a previous pass) — a script still legitimately finishing between
+  65-80s was incorrectly reported to the AI agent as timed out. Raised to 90s.
+- **Fixed**: the AJ AI activity banner window had `AllowsTransparency` set to `False` while using a
+  transparent background and no window chrome — WPF can't render true transparency without it, so
+  the banner likely showed as a solid black box instead of the intended floating card with a
+  shadow.
+- **Fixed**: the Gemini model-lookup call didn't respect the Stop button's cancellation token.
+- Reviewed and found already solid: the script cancellation/timeout chain, infinite-loop
+  protection, DPAPI-based API key encryption at rest, and the busy-state re-entrancy guards.
+
 ## [1.13.8] - 2026-07-18
 
 Third cleanup pass, acting on the items v1.13.7 had deliberately deferred:
