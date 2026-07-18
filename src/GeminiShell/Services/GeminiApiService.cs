@@ -85,6 +85,13 @@ namespace AJTools.GeminiShell.Services
                 _cachedModelName = selectedModel;
                 return selectedModel;
             }
+            catch (OperationCanceledException)
+            {
+                // Let Stop actually stop instead of silently continuing with a fallback model -
+                // this must be checked before the generic catch below, which would otherwise
+                // swallow the cancellation just like any other error.
+                throw;
+            }
             catch (Exception)
             {
                 return "gemini-1.5-flash"; // fallback on any error
