@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.8
+ * Version       : 1.13.9
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-18
@@ -24,6 +24,34 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.13.9 (2026-07-18) - Full code review + security hardening pass over the AJ AI (Gemini Shell)
+ *                       subsystem and its companion AutoDebugger MCP server (mcp-server/), covering
+ *                       all 24 GeminiShell C# files and index.js. Found and fixed: (1)
+ *                       GeneratedCodeSafetyValidator only blocked Process.GetCurrentProcess().Kill()
+ *                       - a script could still kill ANY other running process on the machine via
+ *                       Process.GetProcessesByName(...)/.Kill() without tripping any check; widened
+ *                       to block any .Kill( call. (2) McpBridgeService.Start() leaked a named-pipe
+ *                       handle on every failed start attempt (e.g. an AppData permission error) -
+ *                       the pipe was created and stored before the failure point but nothing ever
+ *                       disposed it; the catch block now does. (3) mcp-server/index.js's own
+ *                       response timeout (65s) was stale against RevitExecutionService's hard
+ *                       backstop, raised to 80s in the previous pass (v1.13.7/v1.13.8's timeframe) -
+ *                       a script still legitimately unwinding between 65-80s would get reported to
+ *                       the AI agent as "timed out" even though Revit would have finished it
+ *                       normally moments later; raised to 90s with an explanatory comment. (4)
+ *                       AiTaskWarningBarService's activity banner window set AllowsTransparency to
+ *                       False while using Background=Transparent and WindowStyle=None - WPF cannot
+ *                       render true alpha transparency without AllowsTransparency=True, so the
+ *                       banner likely rendered as a solid black rectangle instead of the intended
+ *                       soft floating card with a drop shadow; every other custom-chrome window in
+ *                       this project already had this set correctly, this file was the one
+ *                       inconsistent case. (5) GeminiApiService's model-list lookup call didn't pass
+ *                       through the cancellation token used everywhere else, so pressing Stop
+ *                       couldn't interrupt that one specific step. Reviewed and found already solid:
+ *                       RevitExecutionService's cancellation/backstop chain, LoopProtectionRewriter,
+ *                       GeminiShellConfig's DPAPI-based API key encryption at rest, the
+ *                       IsBusy/re-entrancy guards across GeminiShellViewModel, and
+ *                       TextMarkerService (standard AvalonEdit sample code).
  * v1.13.8 (2026-07-18) - Third cleanup pass, acting on items the second pass had deliberately
  *                       deferred: (1) SmartMepTagService.MarkDenseZones and
  *                       SmartTagPlacementEngine's parallel-group check both moved off O(n^2) full
@@ -219,5 +247,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.13.8.0")]
-[assembly: AssemblyFileVersion("1.13.8.0")]
+[assembly: AssemblyVersion("1.13.9.0")]
+[assembly: AssemblyFileVersion("1.13.9.0")]

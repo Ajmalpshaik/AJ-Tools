@@ -8,10 +8,10 @@
  *                 the "AutoDebugger" Connect/Disconnect toggle in the AJ AI pane starts and stops.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.6.0
  *
  * Created Date  : 2026-07-07
- * Last Updated  : 2026-07-16
+ * Last Updated  : 2026-07-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -52,6 +52,11 @@
  *   safety still comes from GeneratedCodeSafetyValidator above.
  *
  * Changelog     :
+ * v1.6.0 (2026-07-18) - Fixed a named-pipe handle leak in Start(): if anything after CreatePipe()
+ *                       (e.g. WriteDiscoveryFile()) threw, the already-created _waitingPipe was
+ *                       never disposed - every failed Start() attempt (e.g. AppData permission
+ *                       issue) leaked one OS pipe instance until Revit closed. The catch block now
+ *                       disposes it and clears _waitingPipe.
  * v1.5.0 (2026-07-16) - Instant preemption: a new chat window connecting immediately takes over as
  *                       the active session instead of waiting for the previous one to time out.
  *                       Pipe instance count raised 1 -> 2 (one active + one always-listening) so the
@@ -143,9 +148,10 @@ namespace AJTools.GeminiShell.Services
                 return true;
             }
 
+            NamedPipeServerStream firstWaitingPipe = null;
             try
             {
-                var firstWaitingPipe = CreatePipe();
+                firstWaitingPipe = CreatePipe();
                 lock (_pipeLock) { _waitingPipe = firstWaitingPipe; }
 
                 Token = GenerateToken();
@@ -163,6 +169,16 @@ namespace AJTools.GeminiShell.Services
             catch (Exception ex)
             {
                 IsRunning = false;
+
+                // If the pipe was created but something after it (e.g. writing the discovery file)
+                // failed before the listen loop started, it would otherwise leak: nothing else ever
+                // disposes it, since ListenLoopAsync never got a chance to take ownership of it.
+                lock (_pipeLock)
+                {
+                    if (_waitingPipe == firstWaitingPipe) _waitingPipe = null;
+                }
+                try { firstWaitingPipe?.Dispose(); } catch { /* best-effort cleanup */ }
+
                 errorMessage = "Could not start the AutoDebugger bridge: " + ex.Message;
                 return false;
             }

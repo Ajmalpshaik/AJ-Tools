@@ -18,7 +18,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 const DISCOVERY_FILE = path.join(process.env.APPDATA || "", "AJTools", "autodebugger-bridge.json");
-const RESPONSE_TIMEOUT_MS = 65_000; // server-side scripts hard-timeout at 60s; give a small margin
+// RevitExecutionService soft-cancels a loop-based script at 60s, then gives it a further 20s grace
+// period to actually unwind before its own hard backstop gives up (see that file's HardWaitTimeout,
+// 80s total). This must stay comfortably above that 80s, or a script that's still legitimately
+// unwinding gets reported here as "timed out" even though Revit would have finished it normally a
+// few seconds later.
+const RESPONSE_TIMEOUT_MS = 90_000;
 const CONNECT_TIMEOUT_MS = 10_000;
 
 let cachedDiscovery;
@@ -302,7 +307,7 @@ if (requestedParameter != null)
 return sb.ToString();`;
 }
 
-const server = new McpServer({ name: "aj-tools-autodebugger", version: "1.1.0" });
+const server = new McpServer({ name: "aj-tools-autodebugger", version: "1.2.0" });
 
 server.tool(
   "run_csharp",

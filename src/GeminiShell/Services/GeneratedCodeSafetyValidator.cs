@@ -8,7 +8,7 @@
  *                 user can confirm before running.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.3.0
  *
  * Created Date  : 2026-07-01
  * Last Updated  : 2026-07-18
@@ -36,6 +36,12 @@
  *   flagged so the caller can show a confirmation prompt first.
  *
  * Changelog     :
+ * v1.3.0 (2026-07-18) - Widened the process-kill block from the one specific
+ *                       `Process.GetCurrentProcess().Kill()` chain to any `.Kill(` call. The old
+ *                       pattern only caught a script killing Revit itself — it did not catch
+ *                       `Process.GetProcessesByName("x")[0].Kill()` or similar, which could kill any
+ *                       other running program on the machine (antivirus, backups, whatever else the
+ *                       user has open) without tripping any check at all.
  * v1.2.0 (2026-07-18) - Closed the `using static`/type-alias bypass documented in the v1.1.0 notes:
  *                       blocked `using static X;` (which lets a script call a blocked member, e.g.
  *                       Process.Start, by its bare method name) and `using X = Y;` type aliases
@@ -100,8 +106,8 @@ namespace AJTools.GeminiShell.Services
         {
             (new Regex(@"Process\s*\.\s*Start", RegexOptions.IgnoreCase),
                 "Launches an external program (Process.Start)."),
-            (new Regex(@"Process\s*\.\s*GetCurrentProcess\s*\(\s*\)\s*\.\s*Kill\s*\(|Environment\s*\.\s*FailFast\s*\("),
-                "Kills the Revit process outright — unsaved work would be lost."),
+            (new Regex(@"\.\s*Kill\s*\(|Environment\s*\.\s*FailFast\s*\("),
+                "Kills a process outright — whether it's Revit itself (unsaved work would be lost) or another running program on the machine."),
             (new Regex(@"Microsoft\s*\.\s*Win32\s*\.\s*Registry|\bRegistryKey\b", RegexOptions.IgnoreCase),
                 "Reads or writes the Windows registry."),
             (new Regex(@"\b(HttpClient|WebClient|WebRequest|HttpWebRequest|Socket|TcpClient|TcpListener|FtpWebRequest|UdpClient|SmtpClient|Dns|Ping)\b"),

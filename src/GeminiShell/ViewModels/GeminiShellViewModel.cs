@@ -567,6 +567,10 @@ If the user's request is unsafe, destructive without being explicitly asked for,
 
                 PromptInput = string.Empty;
             }
+            catch (OperationCanceledException)
+            {
+                StatusText = "Stopped.";
+            }
             catch (Exception ex)
             {
                 StatusText = $"Error generating code: {ex.Message}";
@@ -761,6 +765,10 @@ If the user's request is unsafe, destructive without being explicitly asked for,
 
                 ExecutionResults = response;
                 StatusText = "Review complete.";
+            }
+            catch (OperationCanceledException)
+            {
+                StatusText = "Stopped.";
             }
             catch (Exception ex)
             {
