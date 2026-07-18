@@ -29,6 +29,16 @@
                 <Setter Property="TextWrapping" Value="Wrap"/>
                 <Setter Property="Margin" Value="0,2,0,2"/>
             </Style>
+
+            <Style x:Key="PurgeGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="8,6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -135,7 +145,18 @@
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       GridLinesVisibility="Horizontal"
-                      HeadersVisibility="Column">
+                      HeadersVisibility="Column"
+                      AlternationCount="2"
+                      RowBackground="{StaticResource CardBackground}"
+                      AlternatingRowBackground="{StaticResource BackgroundMedium}"
+                      ColumnHeaderStyle="{StaticResource PurgeGridColumnHeaderStyle}">
+                <DataGrid.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                    </Style>
+                </DataGrid.Resources>
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="Pick" Width="48">
                         <DataGridTemplateColumn.CellTemplate>
