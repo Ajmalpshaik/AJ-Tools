@@ -8,10 +8,10 @@
  *                 user can confirm before running.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-17
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,13 +24,31 @@
  *
  * Notes         :
  * - This is a pattern-based guard, not a sandbox. It catches the obvious dangerous calls
- *   (Process.Start, registry, HttpClient/WebClient, reflection, unsafe, raw file I/O) but a
- *   determined attempt to obfuscate code (e.g. string-built reflection) can still slip through.
+ *   (Process.Start, registry, HttpClient/WebClient/SmtpClient/Dns/Ping, reflection Invoke,
+ *   unsafe, raw file I/O, #r/#load directives) but it is still plain text/regex matching, not
+ *   an AST/semantic scan — a determined attempt to obfuscate code (e.g. `using static` aliasing,
+ *   type aliasing, or string-built reflection member names) can still slip through undetected.
  *   Real isolation would require AppDomain/process-level sandboxing, which is out of scope here.
+ *   Treat this as a speed bump against careless/accidental generated code, not a security boundary
+ *   against a determined bypass.
  * - Delete/Purge calls are not blocked outright (they are normal Revit operations) but are
  *   flagged so the caller can show a confirmation prompt first.
  *
  * Changelog     :
+ * v1.1.0 (2026-07-17) - Safety hardening pass: blocked #r/#load script directives (RoslynService
+ *                       never disabled Roslyn's default directive resolver, so this was a full,
+ *                       one-line bypass of every other check — a script could pull in an
+ *                       arbitrary local or GAC-resident assembly and run unrestricted code).
+ *                       Blocked reflection-based indirect member access (GetMethod/GetProperty/
+ *                       GetField followed by Invoke/SetValue/GetValue), which generalized to a
+ *                       bypass for most other blocked patterns. Blocked Process.Kill and
+ *                       Environment.FailFast (both kill Revit outright, same as Environment.Exit).
+ *                       Added SmtpClient/Dns/Ping to the network blocklist — all three ship inside
+ *                       the same System.dll already referenced for HttpClient/WebClient, so they
+ *                       were reachable but unchecked. Rewrote the Notes above to state plainly that
+ *                       this remains a text-matching guard, not a security boundary — ordinary C#
+ *                       idioms (`using static`, type aliasing) can still bypass it, and that gap is
+ *                       not closed by this pass; it would need an AST/semantic-model based scan.
  * v1.0.0 (2026-07-01) - Initial release as part of the AJ AI safety hardening pass.
  *
  * License       : All Rights Reserved
@@ -72,20 +90,26 @@ namespace AJTools.GeminiShell.Services
         {
             (new Regex(@"Process\s*\.\s*Start", RegexOptions.IgnoreCase),
                 "Launches an external program (Process.Start)."),
+            (new Regex(@"Process\s*\.\s*GetCurrentProcess\s*\(\s*\)\s*\.\s*Kill\s*\(|Environment\s*\.\s*FailFast\s*\("),
+                "Kills the Revit process outright — unsaved work would be lost."),
             (new Regex(@"Microsoft\s*\.\s*Win32\s*\.\s*Registry|\bRegistryKey\b", RegexOptions.IgnoreCase),
                 "Reads or writes the Windows registry."),
-            (new Regex(@"\b(HttpClient|WebClient|WebRequest|HttpWebRequest|Socket|TcpClient|TcpListener|FtpWebRequest|UdpClient)\b"),
+            (new Regex(@"\b(HttpClient|WebClient|WebRequest|HttpWebRequest|Socket|TcpClient|TcpListener|FtpWebRequest|UdpClient|SmtpClient|Dns|Ping)\b"),
                 "Attempts network/internet access."),
             (new Regex(@"(?<![A-Za-z0-9_])unsafe\b"),
                 "Contains 'unsafe' code."),
             (new Regex(@"Assembly\s*\.\s*(Load|LoadFrom|LoadFile)\s*\(|Reflection\s*\.\s*Emit|Activator\s*\.\s*CreateInstance\s*\("),
                 "Loads assemblies or uses reflection to bypass normal API usage."),
+            (new Regex(@"\.\s*(GetMethod|GetProperty|GetField)\s*\([^)]*\)\s*\.\s*(Invoke|SetValue|GetValue)\s*\(", RegexOptions.Singleline),
+                "Uses reflection to call or read/write a member indirectly, bypassing the normal API checks above."),
             (new Regex(@"\bDllImport\b|Marshal\s*\.\s*"),
                 "Calls unmanaged/native code."),
             (new Regex(@"Environment\s*\.\s*Exit\s*\("),
                 "Attempts to terminate the Revit process."),
             (new Regex(@"(File|Directory)\s*\.\s*(Delete|Move)\s*\("),
                 "Deletes or moves files/folders on disk — this cannot be undone with Ctrl+Z."),
+            (new Regex(@"^\s*#\s*(r|load)\s*""", RegexOptions.Multiline),
+                "Uses a #r/#load directive to pull in an extra assembly or file — this runs completely outside every check above, so it is never allowed."),
         };
 
         // Legitimate but destructive or disk-touching operations — require user confirmation, not a block.

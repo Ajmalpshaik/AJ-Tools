@@ -573,22 +573,6 @@ namespace AJTools.Services.AutoDimension
             return true;
         }
 
-        private static XYZ GetCurveDirection(Curve curve)
-        {
-            try
-            {
-                return curve
-                    .ComputeDerivatives(0.5, true)
-                    .BasisX
-                    .Normalize();
-            }
-            catch
-            {
-                Line line = curve as Line;
-                return line?.Direction;
-            }
-        }
-
         private static Line TryGetGridLineInView(Grid grid, View view)
         {
             IList<Curve> curves = null;

@@ -109,7 +109,7 @@ namespace AJTools.Commands
                 }
             }
 
-            var filter = new DuctSelectionFilter();
+            var filter = new DuctCurveOnlySelectionFilter();
             int processedCount = 0;
             int placedTotal = 0;
             int skippedCount = 0;

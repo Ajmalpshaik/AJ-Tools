@@ -433,7 +433,7 @@ namespace AJTools.Services.ViewCrop
                 for (int i = 0; i < corners.Length; i++)
                 {
                     XYZ local = modelToView.OfPoint(corners[i]);
-                    if (!IsFinite(local))
+                    if (!ViewCropGeometryProjectionHelper.IsFinite(local))
                         continue;
 
                     if (local.X < elMinX) elMinX = local.X;
@@ -539,7 +539,7 @@ namespace AJTools.Services.ViewCrop
                 for (int i = 0; i < corners.Length; i++)
                 {
                     XYZ local = linkToView.OfPoint(corners[i]);
-                    if (!IsFinite(local))
+                    if (!ViewCropGeometryProjectionHelper.IsFinite(local))
                         continue;
 
                     if (local.X < elMinX) elMinX = local.X;
@@ -620,7 +620,7 @@ namespace AJTools.Services.ViewCrop
                         continue;
                     }
 
-                    if (!IsFinite(local))
+                    if (!ViewCropGeometryProjectionHelper.IsFinite(local))
                         continue;
 
                     if (local.X < elMinX) elMinX = local.X;
@@ -1001,7 +1001,7 @@ namespace AJTools.Services.ViewCrop
 
             XYZ min = bbox.Min;
             XYZ max = bbox.Max;
-            if (!IsFinite(min) || !IsFinite(max))
+            if (!ViewCropGeometryProjectionHelper.IsFinite(min) || !ViewCropGeometryProjectionHelper.IsFinite(max))
                 return false;
 
             double dx = Math.Abs(max.X - min.X);
@@ -1011,17 +1011,6 @@ namespace AJTools.Services.ViewCrop
             return dx > Constants.ZERO_LENGTH_TOLERANCE
                 || dy > Constants.ZERO_LENGTH_TOLERANCE
                 || dz > Constants.ZERO_LENGTH_TOLERANCE;
-        }
-
-        private static bool IsFinite(XYZ point)
-        {
-            return point != null
-                && !double.IsNaN(point.X)
-                && !double.IsNaN(point.Y)
-                && !double.IsNaN(point.Z)
-                && !double.IsInfinity(point.X)
-                && !double.IsInfinity(point.Y)
-                && !double.IsInfinity(point.Z);
         }
 
         private static string CombineErrors(string first, string second)

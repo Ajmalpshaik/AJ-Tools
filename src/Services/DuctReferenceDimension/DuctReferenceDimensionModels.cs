@@ -67,13 +67,6 @@ namespace AJTools.Services.DuctReferenceDimension
         }
     }
 
-    internal sealed class DuctDimensionBuildResult
-    {
-        public bool Succeeded { get; set; }
-        public DuctDimensionPlan Plan { get; set; }
-        public string FailureReason { get; set; }
-    }
-
     internal sealed class DuctDimensionBatchBuildResult
     {
         public IList<DuctDimensionPlan> Plans { get; set; }

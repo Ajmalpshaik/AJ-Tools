@@ -312,16 +312,6 @@ namespace AJTools.Commands
             return "Select pipes, ducts, cable trays, or conduits from the current model";
         }
 
-        private static bool ShouldRunDirectOpenings(MepOpeningSettings settings)
-        {
-            if (settings == null || !settings.UseCurrentModelHosts)
-            {
-                return false;
-            }
-
-            return settings.CreationMode == MepOpeningCreationMode.DirectOpening;
-        }
-
         private static List<MepOpeningSourceElement> ResolveSourceReferences(
             Document hostDoc,
             IList<Reference> references,

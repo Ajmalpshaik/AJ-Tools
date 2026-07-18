@@ -101,57 +101,5 @@ namespace AJTools.Utils
             message = string.Empty;
             return true;
         }
-
-        /// <summary>
-        /// Validates that a view supports a specific view type.
-        /// </summary>
-        /// <param name="view">The view to validate.</param>
-        /// <param name="allowedTypes">Array of allowed view types.</param>
-        /// <param name="message">Error message if validation fails.</param>
-        /// <returns>True if view type is supported, false otherwise.</returns>
-        public static bool ValidateViewType(View view, ViewType[] allowedTypes, out string message)
-        {
-            if (view == null)
-            {
-                message = "No active view.";
-                return false;
-            }
-
-            foreach (var allowedType in allowedTypes)
-            {
-                if (view.ViewType == allowedType)
-                {
-                    message = string.Empty;
-                    return true;
-                }
-            }
-
-            message = $"This tool only works in {string.Join(", ", allowedTypes)} views.";
-            return false;
-        }
-
-        /// <summary>
-        /// Validates that a view has crop enabled.
-        /// </summary>
-        /// <param name="view">The view to validate.</param>
-        /// <param name="message">Error message if validation fails.</param>
-        /// <returns>True if crop is active, false otherwise.</returns>
-        public static bool ValidateCropBoxActive(View view, out string message)
-        {
-            if (view == null)
-            {
-                message = "No active view.";
-                return false;
-            }
-
-            if (!view.CropBoxActive)
-            {
-                message = "Enable 'Crop View' for the active view and try again.";
-                return false;
-            }
-
-            message = string.Empty;
-            return true;
-        }
     }
 }

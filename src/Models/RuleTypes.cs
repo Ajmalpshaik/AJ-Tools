@@ -3,7 +3,8 @@
  * Tool Name     : Filter Pro
  * File Name     : RuleTypes.cs
  * Purpose       : String constants for all supported filter rule operators, shared between
- *                 the UI (RuleTypeItem) and the service layer (FilterCreator rule-building switch).
+ *                 the UI (FilterProWindow's rule selector) and the service layer (FilterCreator
+ *                 rule-building switch).
  *
  * Author        : Ajmal P.S.
  * Version       : 1.0.0

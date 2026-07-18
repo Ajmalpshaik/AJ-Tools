@@ -51,8 +51,6 @@ namespace AJTools.Models.MepOpenings
 
         public ElementId LinkInstanceId { get; private set; }
 
-        public string SourceLabel { get; private set; }
-
         public static MepOpeningSourceElement FromCurrent(Document doc, Element element)
         {
             return new MepOpeningSourceElement
@@ -61,8 +59,7 @@ namespace AJTools.Models.MepOpenings
                 Element = element,
                 TransformToHost = Transform.Identity,
                 IsLinked = false,
-                LinkInstanceId = ElementId.InvalidElementId,
-                SourceLabel = "Current Model"
+                LinkInstanceId = ElementId.InvalidElementId
             };
         }
 
@@ -78,8 +75,7 @@ namespace AJTools.Models.MepOpenings
                 Element = element,
                 TransformToHost = linkInstance == null ? Transform.Identity : linkInstance.GetTotalTransform(),
                 IsLinked = true,
-                LinkInstanceId = linkInstance == null ? ElementId.InvalidElementId : linkInstance.Id,
-                SourceLabel = string.IsNullOrWhiteSpace(linkName) ? "Linked Model" : linkName
+                LinkInstanceId = linkInstance == null ? ElementId.InvalidElementId : linkInstance.Id
             };
         }
     }

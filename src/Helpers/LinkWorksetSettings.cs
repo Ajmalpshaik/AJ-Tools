@@ -17,7 +17,6 @@ namespace AJTools.Utils
     internal static class LinkWorksetSettings
     {
         private const string DefaultWorksetName = "Linked Models";
-        private const string SettingsFolderName = "AJTools";
         private const string SettingsFileName = "SetLinkWorkset.config";
 
         internal static string GetLastWorksetName()
@@ -60,10 +59,6 @@ namespace AJTools.Utils
             }
         }
 
-        private static string GetConfigPath()
-        {
-            string root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(root, SettingsFolderName, SettingsFileName);
-        }
+        private static string GetConfigPath() => AppDataConfigStore.GetPath(SettingsFileName);
     }
 }

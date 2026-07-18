@@ -42,7 +42,6 @@ namespace AJTools.Utils
     /// </summary>
     internal static class ViewCropConfigStore
     {
-        private const string SettingsFolderName = "AJTools";
         private const string SettingsFileName = "ViewCrop.config";
 
         internal static ViewCropSettings Load()
@@ -146,10 +145,6 @@ namespace AJTools.Utils
             }
         }
 
-        private static string GetConfigPath()
-        {
-            string root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(root, SettingsFolderName, SettingsFileName);
-        }
+        private static string GetConfigPath() => AppDataConfigStore.GetPath(SettingsFileName);
     }
 }

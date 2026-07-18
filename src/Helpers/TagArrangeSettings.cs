@@ -20,7 +20,6 @@ namespace AJTools.Utils
         internal const string ConfigKey = "tag_spacing_mm";
         internal const double DefaultTagSpacingMm = 12.0;
 
-        private const string SettingsFolderName = "AJTools";
         private const string SettingsFileName = "Tagging.config";
 
         internal static double GetTagSpacingMm()
@@ -78,10 +77,6 @@ namespace AJTools.Utils
             }
         }
 
-        private static string GetConfigPath()
-        {
-            string root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(root, SettingsFolderName, SettingsFileName);
-        }
+        private static string GetConfigPath() => AppDataConfigStore.GetPath(SettingsFileName);
     }
 }
