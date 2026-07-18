@@ -1,0 +1,249 @@
+<!--
+Tool Name : C# / AJ AI Bridge shared UI styles
+Purpose   : Soft Revit UI resource dictionary (Neumorphism + Claymorphism, Neon Blue primary, dark
+            theme) shared between AiShellView.xaml (the docked pane) and SettingsWindow.xaml (the
+            popup settings dialog), so both surfaces stay visually consistent from one source.
+Author    : Ajmal P.S.
+Version   : 1.0.0
+Last Updated : 2026-07-18
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+    <!-- Soft Revit UI — Neon Blue, dark theme -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#00C8FF"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#37D7FF"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#009FCC"/>
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#062028"/>
+
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#1F2428"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#2A3035"/>
+    <SolidColorBrush x:Key="SoftCardBrush" Color="#303840"/>
+    <SolidColorBrush x:Key="SoftCardHoverBrush" Color="#39424B"/>
+
+    <SolidColorBrush x:Key="TextBrush" Color="#F2F7FA"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#A8B4BE"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#46515A"/>
+
+    <SolidColorBrush x:Key="DangerBrush" Color="#E57373"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#81C784"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24"/>
+    <SolidColorBrush x:Key="WarningTextBrush" Color="#2B2205"/>
+
+    <!-- Soft card: rounded, subtle border, shadow reserved for the main/floating cards only -->
+    <Style x:Key="SoftCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI Semibold"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+
+    <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+
+    <!-- Base soft button: rounded, no chrome, hover/pressed via background swap -->
+    <Style x:Key="SoftButtonBase" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="10">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                           VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonBase}">
+        <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonBase}">
+        <Setter Property="Background" Value="{StaticResource SoftCardBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource SoftCardHoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="{StaticResource BorderBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="WarningButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonBase}">
+        <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource WarningTextBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Opacity" Value="0.88"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Soft text field: rounded card, Neon Blue focus ring -->
+    <Style x:Key="SoftTextBoxStyle" TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Opacity" Value="0.6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Monospace variant for the code editor's surrounding chrome / output console -->
+    <Style x:Key="SoftMonoTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource SoftTextBoxStyle}">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- Full custom ComboBox chrome. A "colors only" restyle (just setting Background/Foreground
+         property values) does NOT work for ComboBox - the default Windows theme's internal toggle-
+         button chrome ignores the outer ComboBox.Background, which is why the dropdowns kept
+         showing white/system-grey even with the brush set. Needs a real Template like this. -->
+    <Style x:Key="SoftComboBoxItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource SoftCardHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource SoftCardBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SoftComboBoxStyle" TargetType="ComboBox">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource SoftComboBoxItemStyle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton x:Name="ToggleButton" Focusable="False" ClickMode="Press"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                            BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                            BorderThickness="{Binding BorderThickness, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                            CornerRadius="8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="22"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="1" Text="&#9662;" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                           Content="{TemplateBinding SelectionBoxItem}"
+                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                           Margin="{TemplateBinding Padding}"
+                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <Popup x:Name="Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                               PopupAnimation="Slide" IsOpen="{TemplateBinding IsDropDownOpen}"
+                               PlacementTarget="{Binding ElementName=ToggleButton}">
+                            <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Margin="0,4,0,0"
+                                    MinWidth="150"
+                                    MaxHeight="240">
+                                <ScrollViewer SnapsToDevicePixels="True">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Colors only - keeps WPF's default ProgressBar chrome so Value/IsIndeterminate keep
+         working correctly (a from-scratch custom template needs real Track-width math to avoid
+         silently showing wrong progress; not worth that risk for a corner-radius detail). -->
+    <Style x:Key="ProgressBarStyle" TargetType="ProgressBar">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+</ResourceDictionary>

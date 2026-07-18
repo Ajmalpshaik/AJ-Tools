@@ -6,7 +6,7 @@
  *                 update notes, and repository links.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2025-12-01
  * Last Updated  : 2026-07-01
@@ -28,6 +28,9 @@
  * Changelog     :
  * v1.0.0 (2025-12-01) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. About behaviour unchanged.
+ * v1.2.0 (2026-07-19) - AboutWindow overhaul: real window icon, Minimize button, taskbar-safe
+ *                       maximize, Neon Blue accent, and an accuracy pass on the Core Tools/Updates/
+ *                       License content. Full detail in AssemblyInfo.cs's v1.19.1 entry.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

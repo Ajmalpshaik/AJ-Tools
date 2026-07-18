@@ -6,19 +6,19 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.10.0
+ * Version       : 1.12.1
  *
  * Created Date  : 2025-01-01
- * Last Updated  : 2026-07-07
+ * Last Updated  : 2026-07-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, RibbonManager, AnnotationRibbonManager, GeminiShell
+ * Dependencies  : Autodesk Revit API, RibbonManager, AnnotationRibbonManager, AiShell
  *
  * Input         : UIControlledApplication from Revit on startup
- * Output        : AJ-Tools ribbon created; dockable Gemini Shell pane registered
+ * Output        : AJ-Tools ribbon created; dockable "C#" pane registered
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
@@ -27,6 +27,17 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.12.1 (2026-07-18) - Dockable pane title shortened to just "C#" (was "C# with AI"), matching the
+ *                       ribbon button label Ajmal shortened the same day.
+ * v1.12.0 (2026-07-18) - Registers the dockable pane as "C# with AI" now (was "AJ AI" - that name
+ *                       moved to the ribbon bridge button). Added a static AiBridgeButton PushButton
+ *                       reference (set by RibbonManager when the AJ AI button is built, cleared on
+ *                       shutdown) so ToggleAiBridgeCommand can swap that button's own icon between
+ *                       connected/disconnected art after each click.
+ * v1.11.0 (2026-07-18) - Exposed the running AiShellPaneProvider's McpBridgeService as a static
+ *                       AiBridge property (set on startup, cleared on shutdown) so the new standalone
+ *                       "AJ AI Bridge" ribbon button (ToggleAiBridgeCommand) can connect/disconnect
+ *                       the same bridge instance without going through the AJ AI chat panel.
  * v1.5.1 (2026-06-30) - Added mandatory metadata block.
  * v1.5.2 (2026-06-30) - Section Mark Visibility tool cleanup (perf, worksharing safety,
  *                       correct result code, new ribbon icon).
@@ -46,7 +57,8 @@
 #endregion
 
 using Autodesk.Revit.UI;
-using AJTools.GeminiShell.DockablePane;
+using AJTools.AiShell.DockablePane;
+using AJTools.AiShell.Services;
 using System;
 using System.IO;
 using System.Reflection;
@@ -56,7 +68,17 @@ namespace AJTools.App
     public class App : IExternalApplication
     {
         private static string _addinFolder;
-        private GeminiShellPaneProvider _geminiShellPaneProvider;
+        private AiShellPaneProvider _aiShellPaneProvider;
+
+        /// <summary>Shared AJ AI Bridge instance, set once at startup, so the standalone ribbon
+        /// button (ToggleAiBridgeCommand) can connect/disconnect the same running bridge the C# with
+        /// AI pane owns instead of creating a second one.</summary>
+        public static McpBridgeService AiBridge { get; private set; }
+
+        /// <summary>The "AJ AI" ribbon PushButton itself, captured at ribbon-build time so
+        /// ToggleAiBridgeCommand can swap its icon between AJ_AI_ON.png / AJ_AI_OFF.png after each
+        /// connect/disconnect - a plain PushButton has no built-in on/off visual state.</summary>
+        public static PushButton AiBridgeButton { get; set; }
 
         public Result OnStartup(UIControlledApplication app)
         {
@@ -89,8 +111,9 @@ namespace AJTools.App
                 var annotationRibbonManager = new AnnotationRibbonManager(app);
                 annotationRibbonManager.CreateRibbon();
 
-                _geminiShellPaneProvider = new GeminiShellPaneProvider();
-                app.RegisterDockablePane(GeminiShellPaneProvider.PaneId, "Gemini Shell", _geminiShellPaneProvider);
+                _aiShellPaneProvider = new AiShellPaneProvider();
+                AiBridge = _aiShellPaneProvider.Bridge;
+                app.RegisterDockablePane(AiShellPaneProvider.PaneId, "C#", _aiShellPaneProvider);
 
                 return Result.Succeeded;
             }
@@ -131,7 +154,9 @@ namespace AJTools.App
 
         public Result OnShutdown(UIControlledApplication app)
         {
-            _geminiShellPaneProvider?.Shutdown();
+            _aiShellPaneProvider?.Shutdown();
+            AiBridge = null;
+            AiBridgeButton = null;
             AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
             return Result.Succeeded;
         }

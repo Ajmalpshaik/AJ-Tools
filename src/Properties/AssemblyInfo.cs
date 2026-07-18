@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.9
+ * Version       : 1.19.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-18
+ * Last Updated  : 2026-07-19
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,163 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.19.1 (2026-07-19) - About window overhaul (src/UI/AboutWindow.xaml/.xaml.cs): added a real
+ *                       taskbar/window icon (loaded from Resources/About.png via the existing
+ *                       IconLoader), a Minimize button next to Close (there was no way to minimize
+ *                       this custom-chrome window before), and a MaxWidth/MaxHeight fix so the
+ *                       existing double-click-to-maximize no longer draws over the taskbar. Retuned
+ *                       the accent color from a generic cyan to the house Neon Blue dark value
+ *                       (#00C8FF) per the UI style guide. Content accuracy pass: Core Tools tab now
+ *                       lists the real current ribbon (previously named several tools - "Auto
+ *                       Dimensions", "Reset Datums", "Reset Text Position" - that don't match any
+ *                       actual button, and omitted real ones like Colorize, Smart MEP Tags, Pipe
+ *                       Sizing, MEP Openings, the AJ AI shell/bridge); Updates tab replaced its
+ *                       "replace this with your real notes" placeholder with actual recent
+ *                       highlights pulled from this changelog; License tab replaced a vague
+ *                       "restricted based on your release policy" line with the repository's real
+ *                       All Rights Reserved terms; fixed GetDeploymentLabel() only ever recognizing
+ *                       a Revit 2020 install path (regex now matches any Addins\<year> folder, so
+ *                       the label is correct on every supported Revit version, not just 2020).
+ *                       Read-only info window; no model-facing behaviour changed.
+ * v1.19.0 (2026-07-19) - Two more improvements Ajmal asked for after a second round of "any idea to
+ *                       improve the tool": (1) the diff-highlight from v1.18.0 now also covers Run
+ *                       Code's auto-fix loop, not just Generate - same gap, different code path.
+ *                       (2) new crash/close recovery: the Prompt and code editor content auto-save
+ *                       (2s debounce) to %AppData%/AJTools/ajai-recovery.json and restore on next
+ *                       open, so a Revit crash no longer loses work that was never explicitly saved
+ *                       as a script file.
+ * v1.18.0 (2026-07-18) - Two improvements Ajmal asked for after "any idea to improve the tool":
+ *                       (1) the Prompt box no longer clears after a successful generate, so a quick
+ *                       follow-up tweak doesn't mean retyping the whole request. (2) After a generate
+ *                       that edits existing code (the v1.17.0 incremental-edit feature), the changed
+ *                       lines are now highlighted in the code editor (translucent Neon Blue
+ *                       background, via AiShellViewModel's new CodeGenerated event + a line-level LCS
+ *                       diff in AiShellView.xaml.cs) - makes it obvious at a glance which part the AI
+ *                       actually touched instead of having to re-read the whole script. Skipped
+ *                       entirely on the first-ever generate (nothing to diff against) and when
+ *                       everything changed (a fresh rewrite, not an edit).
+ * v1.17.1 (2026-07-18) - "Generate C# Code" shrunk from a big full-width bar to a normal-sized button
+ *                       (same style/padding as Run Code etc.), left-aligned in its row. Added a Stop
+ *                       button beside it (same StopCommand the Run Code row already uses), visible
+ *                       while IsBusy, so there's a way to cancel while the AI is generating - not just
+ *                       while the code is running below, where the only Stop control used to live.
+ * v1.17.0 (2026-07-18) - New capability Ajmal asked for: "Generate C# Code" now sends the code
+ *                       already in the editor as context, so a small follow-up prompt ("change the
+ *                       color to green" right after "change all ducts to red") edits the existing
+ *                       script instead of always generating an unrelated-looking fresh one. The AI
+ *                       itself decides small-edit vs fresh-generate based on the injected instructions
+ *                       (AiShellViewModel.GenerateCodeAsync) - not a deterministic diff/heuristic in
+ *                       this codebase, since "is this request related" is a judgment call the model is
+ *                       better placed to make than a string comparison would be.
+ * v1.16.2 (2026-07-18) - Three visual fixes Ajmal reported from the first successful live launch:
+ *                       (1) "Review Code"/"Format Code" button labels were clipped ("Cod" with the
+ *                       "e" cut off) - those buttons had a fixed Width="100" too narrow for the
+ *                       label at the new padding; removed the fixed widths so all execution-row
+ *                       buttons auto-size to their content instead. (2) Provider/Model ComboBoxes in
+ *                       Settings still showed a white/system-grey background despite Background being
+ *                       set - a "colors only" ComboBox restyle doesn't work, the default Windows
+ *                       theme's internal toggle-button chrome ignores the outer ComboBox.Background
+ *                       property; replaced with a real custom ControlTemplate (SoftUiStyles.xaml).
+ *                       (3) Output console felt cramped - gave it more relative row height (1.5* ->
+ *                       2*, Code Editor 3* -> 2.5*, Prompt 2* -> 1.5*) plus a 90px MinHeight floor.
+ * v1.16.1 (2026-07-18) - Fixed a real startup crash in the v1.16.0/v1.15.2 work below: AiShellView.xaml
+ *                       and SettingsWindow.xaml both set Background/Foreground as StaticResource
+ *                       attributes directly on their own root element (UserControl/Window). WPF
+ *                       processes a root element's own attributes before its Resources dictionary is
+ *                       populated, so that StaticResource lookup always fails - "Cannot find resource
+ *                       named 'SurfaceBrush'" - which crashed Revit's OnStartup entirely (AiShellView
+ *                       is constructed unconditionally by AiShellPaneProvider). Fixed by moving
+ *                       Background/Foreground one level down onto the first child Grid instead, which
+ *                       DOES correctly resolve the parent's Resources. Confirmed live by Ajmal - this
+ *                       is the first bug this session that only a real Revit launch could catch (a
+ *                       clean msbuild only compiles BAML, it doesn't evaluate StaticResource lookups
+ *                       against the runtime resource tree).
+ * v1.16.0 (2026-07-18) - Settings for the "C#" pane moved out of its inline collapsible panel into a
+ *                       new standalone popup window (src/AiShell/Views/SettingsWindow.xaml, modal,
+ *                       opened from AiShellView's code-behind), per Ajmal's request. Binds to the
+ *                       SAME AiShellViewModel instance the pane already uses - no new ViewModel, no
+ *                       Revit API access (pure local config), so a plain ShowDialog() needed no
+ *                       ExternalEvent. Extracted the shared Soft Revit UI brush/style resources into
+ *                       src/AiShell/Views/SoftUiStyles.xaml (a merged ResourceDictionary) so the pane
+ *                       and the new popup draw from one visual-style source instead of duplicated
+ *                       XAML. Removed AiShellViewModel's now-unused IsSettingsVisible/
+ *                       ToggleSettingsCommand.
+ * v1.15.2 (2026-07-18) - Restyled the "C#" dockable pane (src/AiShell/Views/AiShellView.xaml) to the
+ *                       house Soft Revit UI look (Neumorphism + Claymorphism, Neon Blue #00C8FF
+ *                       primary, dark theme) - was a flat VS-Code-style layout with plain solid-color
+ *                       buttons and square borders. Rounded soft cards (CornerRadius 14) for each
+ *                       section (Settings, Prompt, C# Code, Output, saved-script rows), reusable
+ *                       button styles (Primary/Secondary/Warning with hover+pressed states), a custom
+ *                       rounded TextBox template, removed decorative emoji from button labels per
+ *                       house UI-wording rules (kept plain glyphs like the run/stop triangle-square).
+ *                       Restyle only - AiShellViewModel.cs untouched, every binding/command identical.
+ *                       Caught and fixed one real bug while building this: a first-draft custom
+ *                       ProgressBar ControlTemplate didn't correctly bind fill width to Value, which
+ *                       would have silently shown wrong/no progress - reverted to WPF's default
+ *                       ProgressBar chrome with just color overrides instead of shipping that.
+ * v1.15.1 (2026-07-18) - Two small fixes on the v1.15.0 rebrand below, same day: (1) AJ AI ON/OFF
+ *                       icons re-supplied by Ajmal as proper transparent PNGs (AJ_AI_ON.png /
+ *                       AJ_AI_OFF.png) - the original JPGs had a solid background box. (2) Chat
+ *                       button/pane label shortened from "C# with AI" to just "C#".
+ * v1.15.0 (2026-07-18) - Swapped branding between the AI Assistant panel's two buttons, per
+ *                       Ajmal-supplied art (Y:\Ajmal Ps\icon, 3 files): the chat/C#-generation panel
+ *                       (ShowAiShellCommand, the dockable pane, AiShellViewModel and every AiShell
+ *                       service file's "Tool Name" metadata) is now branded "C# with AI" instead of
+ *                       "AJ AI" - new icon Resources/CSharp_with_AI.png. The MCP bridge toggle
+ *                       (ToggleAiBridgeCommand, added in the v1.14.0 entry below the same day) is now
+ *                       branded just "AJ AI" instead of "AJ AI Bridge", and its ribbon button icon now
+ *                       dynamically swaps between Resources/AJ_AI_ON.jpg (connected) and
+ *                       AJ_AI_OFF.jpg (disconnected) after every click - via a new static
+ *                       App.AiBridgeButton PushButton reference captured when the ribbon is built,
+ *                       updated directly in ToggleAiBridgeCommand.Execute() using a fresh IconLoader.
+ *                       Old placeholder icons (AJ_AI.png sparkle, AJ_AI_Bridge.png chain-link,
+ *                       generated in-house earlier the same day) removed as orphaned once superseded.
+ * v1.14.0 (2026-07-18) - New ribbon tool: "AJ AI Bridge" button on the AI Assistant panel
+ *                       (ToggleAiBridgeCommand), connecting/disconnecting the live-Revit MCP bridge
+ *                       directly from the ribbon. Removed the equivalent Connect/Disconnect control
+ *                       from inside the AJ AI chat panel (AiShellViewModel/AiShellView) - it now
+ *                       lives only as this standalone button, per Ajmal's request. Both reach the
+ *                       same running McpBridgeService instance via a new static AJTools.App.App.
+ *                       AiBridge reference set at startup (AiShellPaneProvider now exposes it via a
+ *                       public Bridge property) - no second bridge/pipe is created. A new
+ *                       BridgeStatusToast helper shows a brief non-blocking confirmation on click,
+ *                       since a plain ribbon PushButton has no persistent on/off visual state the way
+ *                       the old WPF-bound panel button did. New dedicated icon
+ *                       (Resources/AJ_AI_Bridge.png, a chain-link glyph in the same purple/blue/pink
+ *                       gradient as AJ_AI.png) instead of reusing the AJ AI sparkle icon.
+ * v1.13.11 (2026-07-18) - Renamed the AJ AI pane's live-Revit MCP bridge from "AutoDebugger" to
+ *                       "AJ AI Bridge" everywhere: on-screen status/button text, named-pipe
+ *                       protocol name (AJTools.AutoDebugger -> AJTools.AjAi), discovery/audit file
+ *                       names (autodebugger-bridge.json/autodebugger-audit.jsonl -> ajai-bridge.json/
+ *                       ajai-audit.jsonl), the companion Node.js MCP server (mcp-server/index.js,
+ *                       package.json), its registration in .mcp.json (server key
+ *                       aj-tools-autodebugger -> aj-tools-aj-ai, so the tool names Claude calls are
+ *                       now mcp__aj-tools-aj-ai__ping/run_csharp/model_summary), the PowerShell
+ *                       fallback caller (.claude/tools/invoke-autodebugger.ps1 ->
+ *                       invoke-aj-ai-bridge.ps1), and ~25 of this project's own .claude/knowledge
+ *                       and .claude/skills files that referenced the old tool name. Both ends of the
+ *                       named pipe and the MCP registration were updated together since they must
+ *                       agree - requires reconnecting the AJ AI Bridge toggle in Revit and restarting/
+ *                       reconnecting Claude Code's MCP connection before the new tool names resolve;
+ *                       until then the old mcp__aj-tools-autodebugger__* tools simply won't exist for
+ *                       an already-running agent session. Historical changelog entries above and in
+ *                       CHANGELOG.md/debug-log.md/ProjectCleanupTracker.md left as-is (dated record of
+ *                       what things were called at the time). Behaviour unchanged otherwise.
+ * v1.13.10 (2026-07-18) - Renamed the AI shell's internal branding away from "Gemini"/"Gemini
+ *                       Shell" everywhere it isn't the actual provider choice: folder+namespace
+ *                       `src/GeminiShell` -> `src/AiShell`, classes GeminiShellConfig/
+ *                       GeminiShellViewModel/GeminiShellView/GeminiShellPaneProvider/
+ *                       ShowGeminiShellCommand -> AiShellConfig/AiShellViewModel/AiShellView/
+ *                       AiShellPaneProvider/ShowAiShellCommand, and the generic chat-message model
+ *                       GeminiMessage -> ChatMessage. User-visible strings updated to plain "AJ AI"
+ *                       (dockable pane title, ribbon tooltip, TransactionGroup/undo entry name,
+ *                       error messages, README/USAGE/testing-checklist docs). Left untouched, on
+ *                       purpose: GeminiApiService, its ProviderName/model-name/API-key members, and
+ *                       the Gemini/OpenAI provider picker in Settings - those name the actual Google
+ *                       Gemini provider, paired with OpenAiApiService, and are supposed to say
+ *                       "Gemini". Behaviour unchanged; historical changelog entries above and in
+ *                       CHANGELOG.md/debug-log.md left as-is since they're a dated record of what
+ *                       things were called at the time, not current-state docs.
  * v1.13.9 (2026-07-18) - Full code review + security hardening pass over the AJ AI (Gemini Shell)
  *                       subsystem and its companion AutoDebugger MCP server (mcp-server/), covering
  *                       all 24 GeminiShell C# files and index.js. Found and fixed: (1)
@@ -247,5 +404,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.13.9.0")]
-[assembly: AssemblyFileVersion("1.13.9.0")]
+[assembly: AssemblyVersion("1.19.0.0")]
+[assembly: AssemblyFileVersion("1.19.0.0")]

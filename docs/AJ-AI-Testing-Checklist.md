@@ -1,6 +1,6 @@
 # AJ AI — Revit Testing Checklist
 
-**Tool:** AJ AI (Gemini Shell) — embedded AI code assistant
+**Tool:** AJ AI — embedded AI code assistant
 **Change:** Safety & stability hardening pass
 **Suite build to test:** AJ-Tools (Release, Revit 2020)
 **Date prepared:** 2026-07-01

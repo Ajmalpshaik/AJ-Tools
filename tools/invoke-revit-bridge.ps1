@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Visible shortcut to the AJ Tools AutoDebugger bridge helper.
+    Visible shortcut to the AJ Tools AJ AI bridge helper.
 
 .DESCRIPTION
     Some agents search the workspace with plain `rg --files`, which ignores dot folders like
@@ -32,7 +32,7 @@ param(
 )
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$helper = Join-Path $repoRoot ".claude\tools\invoke-autodebugger.ps1"
+$helper = Join-Path $repoRoot ".claude\tools\invoke-aj-ai-bridge.ps1"
 if (-not (Test-Path -LiteralPath $helper)) {
     throw "Missing helper: $helper"
 }

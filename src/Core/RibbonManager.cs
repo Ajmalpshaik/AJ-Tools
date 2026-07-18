@@ -6,10 +6,10 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.4.1
+ * Version       : 1.6.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-13
+ * Last Updated  : 2026-07-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,23 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.6.1 (2026-07-18) - Two small same-day fixes on top of v1.6.0 below: (1) Ajmal's AJ AI ON/OFF
+ *                       source images had a solid (non-transparent) background from the original JPG
+ *                       export - he re-exported as PNG, so the icon files are now AJ_AI_ON.png /
+ *                       AJ_AI_OFF.png (renamed from .jpg to match the actual format). (2) Shortened
+ *                       the chat button's label from "C# with AI" to just "C#" per Ajmal's request.
+ * v1.6.0 (2026-07-18) - Rebranded the AI Assistant panel's two buttons per Ajmal-supplied art
+ *                       (Y:\Ajmal Ps\icon): the chat/code-generation button is now "C# with AI"
+ *                       (CSharp_with_AI.png, was "AJ AI"), and the bridge toggle is now just "AJ AI"
+ *                       (was "AJ AI Bridge") - swapped identities from the v1.5.0 entry below since
+ *                       the "AJ AI" name moved to the bridge button. The AJ AI button now starts on
+ *                       AJ_AI_OFF.jpg and captures its own PushButton into App.AiBridgeButton so
+ *                       ToggleAiBridgeCommand can swap it to AJ_AI_ON.jpg / back after each click.
+ * v1.5.0 (2026-07-18) - Added a second button to the AI Assistant panel: "AJ AI Bridge"
+ *                       (ToggleAiBridgeCommand), a standalone connect/disconnect toggle for the live-
+ *                       Revit MCP bridge that previously only lived inside the AJ AI chat panel. Own
+ *                       dedicated icon (AJ_AI_Bridge.png, a chain-link glyph) rather than reusing the
+ *                       AJ AI sparkle icon, so the two buttons stay visually distinct at a glance.
  * v1.2.0 (2026-05-07) - Reorganized ribbon panels; added HVAC schematic registration.
  * v1.3.0 (2026-07-01) - Refactor/audit: standardized metadata block. Ribbon layout unchanged.
  * v1.3.1 (2026-07-01) - Full audit fixes: wired CmdPurgeUnusedFamilyParametersAvailability into the
@@ -286,6 +303,7 @@ namespace AJTools.App
         private void BuildAiPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAiTool());
+            AddTopLevelTool(panel, AddAiBridgeTool());
         }
 
         private void BuildAboutPanel(RibbonPanel panel)
@@ -296,11 +314,26 @@ namespace AJTools.App
         private TopLevelToolSpec AddAiTool()
         {
             return CreatePushToolSpec(
+                "C#",
+                "Open the interactive AI-powered C# shell for Revit.",
+                typeof(AJTools.AiShell.Commands.ShowAiShellCommand),
+                "CSharp_with_AI.png",
+                "CSharp_with_AI.png");
+        }
+
+        private TopLevelToolSpec AddAiBridgeTool()
+        {
+            // Starts on the OFF icon - the bridge never auto-connects on startup. ToggleAiBridgeCommand
+            // swaps this same button's icon to AJ_AI_ON.png / AJ_AI_OFF.png after each click, via the
+            // PushButton reference captured below into App.AiBridgeButton.
+            return CreatePushToolSpec(
                 "AJ AI",
-                "Open the AI-powered Gemini C# Shell for Revit.",
-                typeof(AJTools.GeminiShell.Commands.ShowGeminiShellCommand),
-                "AJ_AI.png",
-                "AJ_AI.png");
+                "Connect or disconnect AJ AI - lets an external AI agent (via MCP) run C# against this " +
+                "live Revit document, without opening the C# panel. Click again to disconnect.",
+                typeof(AJTools.AiShell.Commands.ToggleAiBridgeCommand),
+                "AJ_AI_OFF.png",
+                "AJ_AI_OFF.png",
+                pushButton => App.AiBridgeButton = pushButton);
         }
 
         private TopLevelToolSpec AddToggleLinksTool()
