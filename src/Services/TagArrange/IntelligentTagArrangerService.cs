@@ -7,9 +7,7 @@
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.LeaderLogic, AJTools.Utils
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
@@ -165,7 +163,7 @@ namespace AJTools.Services.TagArrange
                 if (tag == null)
                     continue;
 
-                XYZ existingL1 = TryGetLeaderEnd(tag);
+                XYZ existingL1 = LeaderLogicService.GetL1(tag);
                 if (existingL1 == null)
                 {
                     unresolved.Add(tag);
@@ -205,8 +203,8 @@ namespace AJTools.Services.TagArrange
                         XYZ probed = null;
                         try
                         {
-                            if (TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
-                                probed = TryGetLeaderEnd(tag);
+                            if (LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
+                                probed = LeaderLogicService.GetL1(tag);
                         }
                         catch
                         {
@@ -408,145 +406,6 @@ namespace AJTools.Services.TagArrange
             return leaderLogic.OffsetInView(pointModel, deltaX, 0);
         }
 
-        private static XYZ TryGetLeaderEnd(IndependentTag tag)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                if (!tag.HasLeader)
-                    return null;
-            }
-            catch
-            {
-                return null;
-            }
-
-            try
-            {
-                XYZ direct = TagCompat.GetLeaderEnd(tag);
-                if (direct != null)
-                    return direct;
-            }
-            catch
-            {
-            }
-
-            XYZ byTaggedReference = TryGetLeaderEndFromTaggedReference(tag);
-            if (byTaggedReference != null)
-                return byTaggedReference;
-
-            XYZ byTaggedReferences = TryGetLeaderEndFromTaggedReferences(tag);
-            if (byTaggedReferences != null)
-                return byTaggedReferences;
-
-            return TryGetXYZProperty(tag, "LeaderEnd");
-        }
-
-        private static XYZ TryGetLeaderEndFromTaggedReference(IndependentTag tag)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                Reference taggedReference = TagCompat.GetTaggedReference(tag);
-                if (taggedReference == null)
-                    return null;
-
-                return InvokeGetLeaderEnd(tag, taggedReference);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static XYZ TryGetLeaderEndFromTaggedReferences(IndependentTag tag)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                MethodInfo method = tag.GetType().GetMethod("GetTaggedReferences", BindingFlags.Instance | BindingFlags.Public);
-                if (method == null)
-                    return null;
-
-                object refsRaw = method.Invoke(tag, null);
-                IEnumerable refs = refsRaw as IEnumerable;
-                if (refs == null)
-                    return null;
-
-                foreach (object item in refs)
-                {
-                    Reference reference = item as Reference;
-                    if (reference == null)
-                        continue;
-
-                    XYZ end = InvokeGetLeaderEnd(tag, reference);
-                    if (end != null)
-                        return end;
-                }
-            }
-            catch
-            {
-            }
-
-            return null;
-        }
-
-        private static XYZ InvokeGetLeaderEnd(IndependentTag tag, Reference reference)
-        {
-            if (tag == null || reference == null)
-                return null;
-
-            try
-            {
-                MethodInfo[] methods = tag.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public);
-                foreach (MethodInfo method in methods)
-                {
-                    if (!string.Equals(method.Name, "GetLeaderEnd", StringComparison.Ordinal))
-                        continue;
-
-                    ParameterInfo[] parameters = method.GetParameters();
-                    if (parameters.Length != 1 || parameters[0].ParameterType != typeof(Reference))
-                        continue;
-
-                    object result = method.Invoke(tag, new object[] { reference });
-                    XYZ xyz = result as XYZ;
-                    if (xyz != null)
-                        return xyz;
-                }
-            }
-            catch
-            {
-            }
-
-            return null;
-        }
-
-        private static XYZ TryGetXYZProperty(object instance, string propertyName)
-        {
-            if (instance == null || string.IsNullOrWhiteSpace(propertyName))
-                return null;
-
-            try
-            {
-                PropertyInfo prop = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
-                if (prop == null)
-                    return null;
-
-                object raw = prop.GetValue(instance, null);
-                return raw as XYZ;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
         private static void TryEnsureLeaderEnabled(IndependentTag tag)
         {
             if (tag == null)
@@ -591,52 +450,7 @@ namespace AJTools.Services.TagArrange
                 return true;
 
             // Keep L1 exactly as-is: do not toggle leader end condition as fallback.
-            return TrySetLeaderElbow(tag, elbow);
-        }
-
-        private static bool TrySetLeaderElbow(IndependentTag tag, XYZ elbow)
-        {
-            if (tag == null || elbow == null)
-                return false;
-
-            try
-            {
-                TagCompat.SetLeaderElbow(tag, elbow);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool TrySetLeaderEndCondition(IndependentTag tag, LeaderEndCondition condition)
-        {
-            if (tag == null)
-                return false;
-
-            try
-            {
-                if (tag.LeaderEndCondition == condition)
-                    return true;
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                if (tag.CanLeaderEndConditionBeAssigned(condition))
-                {
-                    tag.LeaderEndCondition = condition;
-                    return true;
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
+            return LeaderLogicService.TrySetLeaderElbow(tag, elbow);
         }
 
     }

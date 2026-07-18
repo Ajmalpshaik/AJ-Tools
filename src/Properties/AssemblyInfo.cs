@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.7
+ * Version       : 1.13.8
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-18
@@ -24,6 +24,48 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.13.8 (2026-07-18) - Third cleanup pass, acting on items the second pass had deliberately
+ *                       deferred: (1) SmartMepTagService.MarkDenseZones and
+ *                       SmartTagPlacementEngine's parallel-group check both moved off O(n^2) full
+ *                       pairwise scans onto the existing AnnotationSpatialIndex as an X/Y coarse
+ *                       pre-filter - the exact original 3D DistanceTo <= Radius check is still
+ *                       applied to every candidate the index returns, so results are identical, just
+ *                       faster on models with many tags/annotations. (2) Consolidated the ~150-line
+ *                       duplicated leader-probing reflection block that SmartTagPlacementEngine and
+ *                       IntelligentTagArrangerService had each independently reimplemented into a
+ *                       single shared LeaderLogicService (GetL1 and friends) - confirmed zero other
+ *                       callers before converting it to static. IntelligentTagArrangerService's one
+ *                       deliberate behavioral difference (TryApplyLShapeLeader does not toggle the
+ *                       leader end condition as a fallback, per its own existing comment) was kept
+ *                       intact; only the identical leaf helpers were merged. (3) SharedParamUtils.cs
+ *                       trimmed to the handful of methods actually shared across multiple unrelated
+ *                       tools (Purge, Duct Standards, a Model class); the feature-specific snapshot/
+ *                       restore logic used only by the Shared Param to Family Param conversion moved
+ *                       into SharedParamToFamilyParamService.cs, its only real consumer.
+ *                       (4) AJ AI's GeneratedCodeSafetyValidator now also blocks `using static` and
+ *                       `using X = Y;` type-alias directives, closing the specific bypass documented
+ *                       in v1.13.6/v1.13.7 (a script could otherwise rename a blocked call or type to
+ *                       dodge the name-based checks) - see that file's own changelog for detail; it
+ *                       remains text/regex matching, not an AST/semantic scan. Evaluated and
+ *                       deliberately left alone this pass, each for a specific reason (not simply
+ *                       skipped): DuctShapeService's reflection-based Shape read (no way to confirm a
+ *                       direct DuctType.Shape property exists on every supported Revit version
+ *                       2020-2027 without a compiler); LocationDataAssignerWindow.xaml.cs's embedded
+ *                       business logic (its loop updates live UI progress controls directly - a safe
+ *                       extraction needs a new callback abstraction, a bigger design call than a
+ *                       mechanical move); Colorize/FilterPro's near-identical LoadParameters/
+ *                       LoadValues (found real behavioral drift between them - different status
+ *                       messages, and only Colorize's LoadValues calls ApplyValueFilters()
+ *                       immediately - forcing one shared method risks changing live behavior in one
+ *                       tool); FilterProState/FilterSelection's ~20-property overlap (several
+ *                       properties differ in type on purpose - persisted IDs vs richer runtime
+ *                       objects - and verifying a shared base class is safe would mean also auditing
+ *                       FilterProStateTracker's conversion logic, not done this pass); FilterCategoryItem/
+ *                       PatternItem/GraphicsIdOption's identical wrapper shape (property name differs,
+ *                       Name vs DisplayName - unifying risks silently breaking an XAML binding that
+ *                       can't be checked visually here). The AJ AI API-key PasswordBox swap flagged in
+ *                       the first pass remains skipped for the same reason given then (WPF's
+ *                       PasswordBox.Password isn't bindable the same way as a normal TextBox).
  * v1.13.7 (2026-07-18) - Second cleanup pass, acting on items the first pass had deliberately
  *                       deferred: (1) AJ AI's blocking task.Wait() now has a hard backstop
  *                       (MaxLoopRuntime + 20s) instead of no timeout at all - narrows but does not
@@ -177,5 +219,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.13.7.0")]
-[assembly: AssemblyFileVersion("1.13.7.0")]
+[assembly: AssemblyVersion("1.13.8.0")]
+[assembly: AssemblyFileVersion("1.13.8.0")]

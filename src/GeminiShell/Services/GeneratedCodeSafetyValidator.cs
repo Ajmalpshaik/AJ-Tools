@@ -8,10 +8,10 @@
  *                 user can confirm before running.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,9 +25,10 @@
  * Notes         :
  * - This is a pattern-based guard, not a sandbox. It catches the obvious dangerous calls
  *   (Process.Start, registry, HttpClient/WebClient/SmtpClient/Dns/Ping, reflection Invoke,
- *   unsafe, raw file I/O, #r/#load directives) but it is still plain text/regex matching, not
- *   an AST/semantic scan — a determined attempt to obfuscate code (e.g. `using static` aliasing,
- *   type aliasing, or string-built reflection member names) can still slip through undetected.
+ *   unsafe, raw file I/O, #r/#load directives, using-static/type-alias renaming) but it is still
+ *   plain text/regex matching, not an AST/semantic scan — a sufficiently determined attempt to
+ *   obfuscate code (e.g. string-built reflection member names, char-code-built strings, or other
+ *   indirection this file hasn't been taught to recognize yet) can still slip through undetected.
  *   Real isolation would require AppDomain/process-level sandboxing, which is out of scope here.
  *   Treat this as a speed bump against careless/accidental generated code, not a security boundary
  *   against a determined bypass.
@@ -35,6 +36,15 @@
  *   flagged so the caller can show a confirmation prompt first.
  *
  * Changelog     :
+ * v1.2.0 (2026-07-18) - Closed the `using static`/type-alias bypass documented in the v1.1.0 notes:
+ *                       blocked `using static X;` (which lets a script call a blocked member, e.g.
+ *                       Process.Start, by its bare method name) and `using X = Y;` type aliases
+ *                       (which let a script rename a blocked type, e.g. System.IO.File, to dodge the
+ *                       name-based checks above). The alias pattern requires an `=` so it does not
+ *                       match ordinary `using Namespace.Type;` imports. Updated the Notes to be
+ *                       specific about what is now covered vs. what still isn't (string-built member
+ *                       names and similar indirection remain an open gap; this is still text/regex
+ *                       matching, not an AST/semantic scan).
  * v1.1.0 (2026-07-17) - Safety hardening pass: blocked #r/#load script directives (RoslynService
  *                       never disabled Roslyn's default directive resolver, so this was a full,
  *                       one-line bypass of every other check — a script could pull in an
@@ -110,6 +120,10 @@ namespace AJTools.GeminiShell.Services
                 "Deletes or moves files/folders on disk — this cannot be undone with Ctrl+Z."),
             (new Regex(@"^\s*#\s*(r|load)\s*""", RegexOptions.Multiline),
                 "Uses a #r/#load directive to pull in an extra assembly or file — this runs completely outside every check above, so it is never allowed."),
+            (new Regex(@"^\s*using\s+static\s+", RegexOptions.Multiline),
+                "Uses 'using static', which can rename a blocked call (e.g. Process.Start) to a bare method name and slip past the checks above."),
+            (new Regex(@"^\s*using\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*", RegexOptions.Multiline),
+                "Uses a 'using X = Y;' type alias, which can rename a blocked type (e.g. System.IO.File) to slip past the checks above."),
         };
 
         // Legitimate but destructive or disk-touching operations — require user confirmation, not a block.
