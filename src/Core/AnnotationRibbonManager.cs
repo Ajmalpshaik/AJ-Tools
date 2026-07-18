@@ -6,10 +6,10 @@
  *                 Annotation, Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.3.0
  *
  * Created Date  : 2026-05-10
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-17
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,12 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.3.0 (2026-07-17) - Replaced 28 repeated 4-line "load large icon, null-check, assign; load small
+ *                       icon, null-check, assign" blocks with calls to the shared
+ *                       RibbonPanelHelper.ApplyIcons (code review cleanup pass) - same icons, same
+ *                       null-safety, no visual change. AddAutoDuctDimensionTool's icon loading was
+ *                       left as-is since it deliberately reuses one loaded icon across three buttons,
+ *                       a different pattern from the simple repeated single-button blocks elsewhere.
  * v1.0.0 (2026-05-10) - Initial AJ Annotation tab with dimension, tag, flow, cloud, and text tools.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block. Ribbon layout unchanged.
  * v1.2.0 (2026-07-05) - Added the "Text" panel with the Arrange Text in Box tool.
@@ -102,10 +108,7 @@ namespace AJTools.App
             {
                 ToolTip = "Fit selected text notes into a box you drag: each note is resized to the box width and the notes are spread evenly top-to-bottom with left edges aligned. Pick the top-left corner once, then pick bottom-right corners to re-fit live. Press Esc to finish."
             };
-            var largeIcon = _iconLoader.LoadLarge("copyswaptext.png");
-            if (largeIcon != null) arrangeTextData.LargeImage = largeIcon;
-            var smallIcon = _iconLoader.LoadSmall("copyswaptext.png");
-            if (smallIcon != null) arrangeTextData.Image = smallIcon;
+            RibbonPanelHelper.ApplyIcons(arrangeTextData, _iconLoader, "copyswaptext.png");
 
             panel.AddItem(arrangeTextData);
         }
@@ -116,25 +119,16 @@ namespace AJTools.App
                 return;
 
             PulldownButtonData smartMepTagData = new PulldownButtonData("cmdSmartMepTagPulldown", "Smart MEP\nTags");
-            var smartMepTagLargeIcon = _iconLoader.LoadLarge("Smart MEP TAG.png");
-            if (smartMepTagLargeIcon != null) smartMepTagData.LargeImage = smartMepTagLargeIcon;
-            var smartMepTagSmallIcon = _iconLoader.LoadSmall("Smart MEP TAG.png");
-            if (smartMepTagSmallIcon != null) smartMepTagData.Image = smartMepTagSmallIcon;
+            RibbonPanelHelper.ApplyIcons(smartMepTagData, _iconLoader, "Smart MEP TAG.png");
 
             PulldownButtonData arrangeTagsData = new PulldownButtonData("cmdArrangeTagsPulldown", "Rearrange\nTags");
-            var arrangeTagsLargeIcon = _iconLoader.LoadLarge("Arrange Tag.png");
-            if (arrangeTagsLargeIcon != null) arrangeTagsData.LargeImage = arrangeTagsLargeIcon;
-            var arrangeTagsSmallIcon = _iconLoader.LoadSmall("Arrange Tag.png");
-            if (arrangeTagsSmallIcon != null) arrangeTagsData.Image = arrangeTagsSmallIcon;
+            RibbonPanelHelper.ApplyIcons(arrangeTagsData, _iconLoader, "Arrange Tag.png");
 
             PushButtonData lShapeLeaderData = new PushButtonData("cmdForceTagLeaderLShape", "L-Shape\nLeader", _assemblyPath, typeof(CmdForceTagLeaderLShape).FullName)
             {
                 ToolTip = "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc."
             };
-            var lShapeLargeIcon = _iconLoader.LoadLarge("L-ShapeLeader.png");
-            if (lShapeLargeIcon != null) lShapeLeaderData.LargeImage = lShapeLargeIcon;
-            var lShapeSmallIcon = _iconLoader.LoadSmall("L-ShapeLeader.png");
-            if (lShapeSmallIcon != null) lShapeLeaderData.Image = lShapeSmallIcon;
+            RibbonPanelHelper.ApplyIcons(lShapeLeaderData, _iconLoader, "L-ShapeLeader.png");
 
             var stackedItems = panel.AddStackedItems(smartMepTagData, arrangeTagsData, lShapeLeaderData);
 
@@ -157,10 +151,7 @@ namespace AJTools.App
             {
                 ToolTip = "Move every room tag in the active view to the center of its tagged room. Handles local rooms and loaded linked rooms; skips orphaned, pinned, and unreadable tags."
             };
-            var centerRoomTagsLargeIcon = _iconLoader.LoadLarge("Arrange Tag.png");
-            if (centerRoomTagsLargeIcon != null) centerRoomTagsData.LargeImage = centerRoomTagsLargeIcon;
-            var centerRoomTagsSmallIcon = _iconLoader.LoadSmall("Arrange Tag.png");
-            if (centerRoomTagsSmallIcon != null) centerRoomTagsData.Image = centerRoomTagsSmallIcon;
+            RibbonPanelHelper.ApplyIcons(centerRoomTagsData, _iconLoader, "Arrange Tag.png");
 
             panel.AddItem(centerRoomTagsData);
         }
@@ -174,10 +165,7 @@ namespace AJTools.App
             {
                 ToolTip = "Center selected annotations in the active annotation family view."
             };
-            var largeIcon = _iconLoader.LoadLarge("Reset Position.png");
-            if (largeIcon != null) centerAnnotationData.LargeImage = largeIcon;
-            var smallIcon = _iconLoader.LoadSmall("Reset Position.png");
-            if (smallIcon != null) centerAnnotationData.Image = smallIcon;
+            RibbonPanelHelper.ApplyIcons(centerAnnotationData, _iconLoader, "Reset Position.png");
 
             panel.AddItem(centerAnnotationData);
         }
@@ -188,22 +176,13 @@ namespace AJTools.App
                 return;
 
             PulldownButtonData ductFlowData = new PulldownButtonData("cmdDuctFlowPulldown", "Duct Flow\nAnnotations");
-            var ductFlowLargeIcon = _iconLoader.LoadLarge("Flowdirectioncreate.png");
-            if (ductFlowLargeIcon != null) ductFlowData.LargeImage = ductFlowLargeIcon;
-            var ductFlowSmallIcon = _iconLoader.LoadSmall("Flowdirectioncreate.png");
-            if (ductFlowSmallIcon != null) ductFlowData.Image = ductFlowSmallIcon;
+            RibbonPanelHelper.ApplyIcons(ductFlowData, _iconLoader, "Flowdirectioncreate.png");
 
             PulldownButtonData revisionCloudData = new PulldownButtonData("cmdRevisionCloudPulldown", "Revision\nClouds");
-            var revisionCloudLargeIcon = _iconLoader.LoadLarge("Cloud By Elements.png");
-            if (revisionCloudLargeIcon != null) revisionCloudData.LargeImage = revisionCloudLargeIcon;
-            var revisionCloudSmallIcon = _iconLoader.LoadSmall("Cloud By Elements.png");
-            if (revisionCloudSmallIcon != null) revisionCloudData.Image = revisionCloudSmallIcon;
+            RibbonPanelHelper.ApplyIcons(revisionCloudData, _iconLoader, "Cloud By Elements.png");
 
             SplitButtonData textToolsData = new SplitButtonData("cmdTextToolsSplit", "Copy / Swap\nText Notes");
-            var textToolsLargeIcon = _iconLoader.LoadLarge("copyswaptext.png");
-            if (textToolsLargeIcon != null) textToolsData.LargeImage = textToolsLargeIcon;
-            var textToolsSmallIcon = _iconLoader.LoadSmall("copyswaptext.png");
-            if (textToolsSmallIcon != null) textToolsData.Image = textToolsSmallIcon;
+            RibbonPanelHelper.ApplyIcons(textToolsData, _iconLoader, "copyswaptext.png");
 
             var stackedItems = panel.AddStackedItems(ductFlowData, revisionCloudData, textToolsData);
 
@@ -235,25 +214,16 @@ namespace AJTools.App
                 return;
 
             PulldownButtonData autoDimData = new PulldownButtonData("cmdAutoDimensionsPulldown", "Automatic\nDimension");
-            var autoDimLargeIcon = _iconLoader.LoadLarge("Dimensions.png");
-            if (autoDimLargeIcon != null) autoDimData.LargeImage = autoDimLargeIcon;
-            var autoDimSmallIcon = _iconLoader.LoadSmall("Dimensions.png");
-            if (autoDimSmallIcon != null) autoDimData.Image = autoDimSmallIcon;
+            RibbonPanelHelper.ApplyIcons(autoDimData, _iconLoader, "Dimensions.png");
 
             PulldownButtonData quickDimData = new PulldownButtonData("cmdQuickDimensionPulldown", "Quick\nDimension");
-            var quickDimLargeIcon = _iconLoader.LoadLarge("Dimensions by Line.png");
-            if (quickDimLargeIcon != null) quickDimData.LargeImage = quickDimLargeIcon;
-            var quickDimSmallIcon = _iconLoader.LoadSmall("Dimensions by Line.png");
-            if (quickDimSmallIcon != null) quickDimData.Image = quickDimSmallIcon;
+            RibbonPanelHelper.ApplyIcons(quickDimData, _iconLoader, "Dimensions by Line.png");
 
             PushButtonData copyDimTextData = new PushButtonData("cmdCmdCopyDimensionText", "Copy Dimension\nText", _assemblyPath, typeof(CmdCopyDimensionText).FullName)
             {
                 ToolTip = "Copy Above/Below/Prefix/Suffix text from one dimension to others."
             };
-            var copyDimLargeIcon = _iconLoader.LoadLarge("Copy Dim Text.png");
-            if (copyDimLargeIcon != null) copyDimTextData.LargeImage = copyDimLargeIcon;
-            var copyDimSmallIcon = _iconLoader.LoadSmall("Copy Dim Text.png");
-            if (copyDimSmallIcon != null) copyDimTextData.Image = copyDimSmallIcon;
+            RibbonPanelHelper.ApplyIcons(copyDimTextData, _iconLoader, "Copy Dim Text.png");
 
             var stackedItems = panel.AddStackedItems(autoDimData, quickDimData, copyDimTextData);
 
@@ -276,10 +246,7 @@ namespace AJTools.App
             {
                 ToolTip = tooltip
             };
-            var largeIcon = _iconLoader.LoadLarge(iconName);
-            if (largeIcon != null) btnData.LargeImage = largeIcon;
-            var smallIcon = _iconLoader.LoadSmall(iconName);
-            if (smallIcon != null) btnData.Image = smallIcon;
+            RibbonPanelHelper.ApplyIcons(btnData, _iconLoader, iconName);
 
             pulldown.AddPushButton(btnData);
         }
