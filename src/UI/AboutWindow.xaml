@@ -10,7 +10,9 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        ResizeMode="CanResizeWithGrip">
+        ResizeMode="CanResizeWithGrip"
+        MaxWidth="{x:Static SystemParameters.MaximizedPrimaryScreenWidth}"
+        MaxHeight="{x:Static SystemParameters.MaximizedPrimaryScreenHeight}">
 
     <Window.Resources>
         <SolidColorBrush x:Key="WindowBgBrush" Color="#0B0F16"/>
@@ -20,7 +22,8 @@
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#AAB4C5"/>
         <SolidColorBrush x:Key="TextMutedBrush" Color="#7F8BA3"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#00E5FF"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#00C8FF"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#37D7FF"/>
         <SolidColorBrush x:Key="SuccessBrush" Color="#22C55E"/>
 
         <Style x:Key="NavButtonStyle" TargetType="Button">
@@ -125,6 +128,40 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="ChromeButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ChromeBtnBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ChromeBtnBorder" Property="Background" Value="#1D2635"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </Window.Resources>
 
     <Border Background="{StaticResource WindowBgBrush}"
@@ -216,18 +253,27 @@
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextSecondaryBrush}"/>
 
-                        <Button Grid.Column="1"
-                                Width="34"
-                                Height="34"
-                                Margin="0,10,12,10"
-                                Click="CloseButton_Click"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                Foreground="{StaticResource TextSecondaryBrush}"
-                                FontSize="14"
-                                FontWeight="Bold"
-                                Cursor="Hand"
-                                Content="X"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,10,10,10">
+                            <Button Click="MinimizeButton_Click"
+                                    Style="{StaticResource ChromeButtonStyle}"
+                                    ToolTip="Minimize"
+                                    Content="&#xE921;"
+                                    FontFamily="Segoe MDL2 Assets"
+                                    FontSize="11"/>
+                            <Button Click="MaximizeRestoreButton_Click"
+                                    Style="{StaticResource ChromeButtonStyle}"
+                                    ToolTip="Maximize / Restore"
+                                    Content="&#xE922;"
+                                    FontFamily="Segoe MDL2 Assets"
+                                    FontSize="11"
+                                    Margin="2,0,0,0"/>
+                            <Button Click="CloseButton_Click"
+                                    Style="{StaticResource ChromeButtonStyle}"
+                                    ToolTip="Close"
+                                    FontWeight="Bold"
+                                    Content="X"
+                                    Margin="2,0,0,0"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -253,7 +299,7 @@
                             <TextBlock Text="AJ Tools Platform" Style="{StaticResource SectionTitleStyle}"/>
 
                             <TextBlock Style="{StaticResource BodyTextStyle}"
-                                       Text="AJ Tools is a Revit productivity add-in focused on practical BIM workflows, clean model coordination, automation, and day-to-day drafting speed. This About window keeps your tool details, supported platform, developer info, update notes, and repository access in one place."
+                                       Text="AJ Tools is a Revit productivity add-in built for practical BIM workflows: view and graphics control, datum and MEP coordination, dimensioning, tagging/annotation, and an in-app AI shell for on-demand C# automation. One installed add-in adds two ribbon tabs, AJ Tools and AJ Annotation, to Revit."
                                        Margin="0,0,0,18"/>
 
                             <UniformGrid Columns="2" Margin="0,0,0,6">
@@ -266,7 +312,7 @@
 
                                 <Border Style="{StaticResource CardBorderStyle}" Margin="10,0,0,14">
                                     <StackPanel>
-                                        <TextBlock Text="Revit Target" Style="{StaticResource ValueLabelStyle}"/>
+                                        <TextBlock Text="Running On" Style="{StaticResource ValueLabelStyle}"/>
                                         <TextBlock x:Name="RevitVersionText" Style="{StaticResource ValueTextStyle}" Text="Revit 2020"/>
                                     </StackPanel>
                                 </Border>
@@ -282,6 +328,20 @@
                                     <StackPanel>
                                         <TextBlock Text="Deployment" Style="{StaticResource ValueLabelStyle}"/>
                                         <TextBlock x:Name="DeploymentText" Style="{StaticResource ValueTextStyle}" Text="GitHub Release / Add-in Package"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,10,14">
+                                    <StackPanel>
+                                        <TextBlock Text="Ribbon Tabs" Style="{StaticResource ValueLabelStyle}"/>
+                                        <TextBlock Style="{StaticResource ValueTextStyle}" Text="AJ Tools + AJ Annotation"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource CardBorderStyle}" Margin="10,0,0,14">
+                                    <StackPanel>
+                                        <TextBlock Text="Tools Available" Style="{StaticResource ValueLabelStyle}"/>
+                                        <TextBlock Style="{StaticResource ValueTextStyle}" Text="50+ commands"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
@@ -324,7 +384,7 @@
                                                    Margin="0,4,0,10"/>
 
                                         <TextBlock Style="{StaticResource BodyTextStyle}"
-                                                   Text="Focused on Revit productivity, BIM model quality, MEP workflows, and practical tools that solve real project work. This About tool is designed to keep the same premium UI feeling while showing proper AJ Tools information."/>
+                                                   Text="Mechanical BIM modeller working across HVAC, plumbing, drainage, and firefighting coordination. AJ Tools grew out of that day-to-day modelling work - every tool in it exists to solve a real, repeated production task rather than to demo a feature."/>
 
                                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                                             <Button Style="{StaticResource LinkButtonStyle}" Click="GitHubButton_Click" Content="Open GitHub"/>
@@ -340,8 +400,16 @@
 
                             <Border Style="{StaticResource CardBorderStyle}">
                                 <StackPanel>
-                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Main AJ Tools Modules" Margin="0,0,0,10"/>
-                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="- Auto Dimensions&#x0a;- Copy View Range&#x0a;- Filter Pro&#x0a;- Linked ID Viewer / Linked Element Search&#x0a;- Reset Datums&#x0a;- Reset Overrides&#x0a;- Reset Text Position&#x0a;- Unhide All&#x0a;- About / Help utilities"/>
+                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="AJ Tools tab" Margin="0,0,0,10"/>
+                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="View &amp; Graphics - Filter Pro, Colorize, Toggle Link, Unhide All, Pin/Unpin Elements, Apply/Match/Reset Graphics, Section Mark Visibility&#x0a;Datums - Flip Grid/Level Bubbles, Reset Grid/Level Extents to 3D, Modify/Match Level Extents&#x0a;MEP &amp; Coordination - Smart Connect MEP Elements, Match MEP Element Elevation, HVAC Schematic, Duct Standard, Pipe Sizing, MEP Openings, Elements to Ceiling Grid&#x0a;Data &amp; Manage - Element ID lookup, Link Workset, Reassign Reference Level, Assign Location, View Crop, Shared to Family, Purge Unplaced Views/Sections&#x0a;AI Assistant - C# with AI chat shell, AJ AI live-model bridge"
+                                               Margin="0,0,0,4"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="AJ Annotation tab" Margin="0,0,0,10"/>
+                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="Dimensioning - Automatic Grid/Level Dimensions, Quick Parallel Dimensions, Copy Dimension Text&#x0a;Tagging - Smart MEP Tags, Rearrange Tags, L-Shape Leader, Center Room Tags/Annotation&#x0a;Duct Flow - Duct Flow Annotations&#x0a;Text &amp; Clouds - Copy/Swap Text Notes, Arrange Text in Box, Revision Clouds by Elements"/>
                                 </StackPanel>
                             </Border>
 
@@ -359,17 +427,17 @@
 
                             <Border Style="{StaticResource CardBorderStyle}">
                                 <StackPanel>
-                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Current Direction" Margin="0,0,0,10"/>
+                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Recent Highlights" Margin="0,0,0,10"/>
                                     <TextBlock Style="{StaticResource BodyTextStyle}"
-                                               Text="- Cleaner ribbon structure&#x0a;- Better UI consistency across tools&#x0a;- Improved Revit 2020 compatibility focus&#x0a;- Easier packaging and GitHub release workflow"/>
+                                               Text="- AJ AI shell: crash/close recovery auto-saves your Prompt and code so a Revit crash no longer loses unsaved work&#x0a;- AJ AI shell: changed lines are now highlighted after every AI edit, including the auto-fix loop&#x0a;- One codebase now builds and deploys across Revit 2020 through 2027 from a single source tree&#x0a;- Colorize and MEP Openings tools carried over and wired into the live ribbon&#x0a;- Ongoing project-wide audit pass: version-safe API helpers, single-undo grouping, and full metadata on every tool"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource CardBorderStyle}">
                                 <StackPanel>
-                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Note" Margin="0,0,0,10"/>
+                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Current Direction" Margin="0,0,0,10"/>
                                     <TextBlock Style="{StaticResource BodyTextStyle}"
-                                               Text="Replace these update notes any time with your exact release notes. The layout is already ready."/>
+                                               Text="- Keep every AJ Tools panel refactored to the same house conventions&#x0a;- Grow the AJ AI shell so more one-off model tasks can be handled without a new ribbon tool&#x0a;- Widen version coverage as new Revit releases ship&#x0a;- Keep the GitHub release/installer workflow simple to run"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -379,9 +447,9 @@
 
                             <Border Style="{StaticResource CardBorderStyle}">
                                 <StackPanel>
-                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Usage" Margin="0,0,0,10"/>
+                                    <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="All Rights Reserved" Margin="0,0,0,10"/>
                                     <TextBlock Style="{StaticResource BodyTextStyle}"
-                                               Text="AJ Tools is intended for professional BIM and Revit workflow use. Unauthorized redistribution, repackaging, or misuse of the add-in package should be restricted based on your release policy."/>
+                                               Text="Copyright (c) Ajmal P.S. This repository and the AJ Tools add-in source code are provided for development, evaluation, and distribution purposes. No permission is granted to copy, modify, redistribute, sublicense, sell, or create derivative works from its contents, except where explicitly granted in writing by the copyright holder. The absence of an open-source license means all rights are reserved by default."/>
 
                                     <Border Background="#121826"
                                             BorderBrush="{StaticResource BorderBrushDark}"
@@ -389,12 +457,15 @@
                                             CornerRadius="10"
                                             Padding="10"
                                             Margin="0,16,0,0">
-                                        <TextBlock x:Name="LicenseKeyText"
-                                                   Foreground="{StaticResource AccentBrush}"
-                                                   FontFamily="Consolas"
-                                                   FontSize="12"
-                                                   FontWeight="SemiBold"
-                                                   Text="AJ-TOOLS-REVIT-2020"/>
+                                        <StackPanel>
+                                            <TextBlock Text="Build reference (quote this in support requests)" Style="{StaticResource ValueLabelStyle}"/>
+                                            <TextBlock x:Name="LicenseKeyText"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       FontFamily="Consolas"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Text="AJ-TOOLS-REVIT-2020"/>
+                                        </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </Border>

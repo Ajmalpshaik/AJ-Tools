@@ -1,0 +1,96 @@
+<!--
+Tool Name : C# Settings
+Purpose   : Modal popup window for the "C#" AI shell's provider settings (Gemini/OpenAI API keys,
+            OpenAI model, local scripts folder) - moved out of the docked pane's inline collapsible
+            panel per Ajmal's request ("settings coming inside this window, I need a separate window
+            popup"). Binds directly to the same AiShellViewModel instance the pane already uses - no
+            new ViewModel, no Revit API access (pure local config), so a plain ShowDialog() is safe
+            without an ExternalEvent.
+Author    : Ajmal P.S.
+Version   : 1.0.0
+Last Updated : 2026-07-18
+-->
+<Window x:Class="AJTools.AiShell.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="AI Provider Settings"
+        Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="SoftUiStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <!-- Outer layer paints the full window edge-to-edge; a root element can't StaticResource its
+         own Resources on its own attributes, so background/foreground live one level down. -->
+    <Grid Background="{StaticResource SurfaceBrush}" TextElement.Foreground="{StaticResource TextBrush}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource SoftCardStyle}">
+            <StackPanel>
+                <TextBlock Text="AI Provider Settings" Style="{StaticResource SectionHeaderStyle}"/>
+
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="Provider" Style="{StaticResource FieldLabelStyle}"/>
+                    <ComboBox Style="{StaticResource SoftComboBoxStyle}" HorizontalAlignment="Stretch"
+                              SelectedValue="{Binding SelectedProvider}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="Gemini"/>
+                        <ComboBoxItem Content="OpenAI"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,12" Visibility="{Binding IsGeminiSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Gemini API Key" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Text="{Binding GeminiApiKeyInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SoftTextBoxStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,12" Visibility="{Binding IsOpenAiSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="OpenAI API Key" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Text="{Binding OpenAiApiKeyInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SoftTextBoxStyle}"/>
+
+                    <TextBlock Text="OpenAI Model (cost / token control)" Style="{StaticResource FieldLabelStyle}" Margin="0,10,0,4"/>
+                    <ComboBox SelectedValue="{Binding OpenAiModel}" SelectedValuePath="Content"
+                              Style="{StaticResource SoftComboBoxStyle}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="gpt-5.5-mini"/>
+                        <ComboBoxItem Content="gpt-4o-mini"/>
+                        <ComboBoxItem Content="gpt-4o"/>
+                        <ComboBoxItem Content="gpt-4-turbo"/>
+                        <ComboBoxItem Content="gpt-3.5-turbo"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Text="Local Scripts Folder" Style="{StaticResource FieldLabelStyle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding ScriptsFolderPath, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SoftTextBoxStyle}" IsReadOnly="True"/>
+                        <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseFolderCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,0,0" Padding="12,6"/>
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Close" Click="CloseButton_Click"
+                    Style="{StaticResource SecondaryButtonStyle}" IsCancel="True" Padding="18,8"/>
+            <Button Content="Save Settings" Command="{Binding SaveSettingsCommand}" Click="SaveButton_Click"
+                    Style="{StaticResource PrimaryButtonStyle}" IsDefault="True" Margin="10,0,0,0" Padding="18,8"/>
+        </StackPanel>
+    </Grid>
+    </Grid>
+</Window>

@@ -56,7 +56,7 @@ AJ Tools provides commands for:
 - automatic and quick dimensioning of grids, levels, and ducts
 - duct flow annotations, revision clouds, and text-note copy/swap
 - intelligent MEP tagging, tag rearranging, and L-shape leaders
-- a built-in AI Assistant (Gemini C# Shell)
+- a built-in AI Assistant (AJ AI)
 
 ## Repository Layout
 
@@ -82,7 +82,7 @@ The add-in registers **two** ribbon tabs:
   - **Data** — Assign Location, Duct Standard
   - **Manage** — Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)
   - **Family** — Shared to Family
-  - **AI Assistant** — AJ AI (Gemini C# Shell)
+  - **AI Assistant** — AJ AI
   - **About**
 - `AJ Annotation`: separate annotation tab with the following panels:
   - **Auto Dimention** — Auto Duct Dimension (single duct to wall, all duct to wall)
@@ -92,7 +92,7 @@ The add-in registers **two** ribbon tabs:
   - **Family** — Center Annotation
   - **Tags** — Smart MEP Tags, Rearrange Tags, L-Shape Leader
 
-The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab plus a dockable **Gemini Shell** pane — it is not a separate ribbon tab.
+The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab plus a dockable **AJ AI** pane — it is not a separate ribbon tab.
 
 ## Installation
 

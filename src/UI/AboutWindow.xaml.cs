@@ -1,4 +1,5 @@
 using Autodesk.Revit.UI;
+using AJTools.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace AJTools.UI
 {
@@ -61,7 +63,26 @@ namespace AJTools.UI
             };
 
             LoadData();
+            LoadWindowIcon();
             ShowSection("general");
+        }
+
+        private void LoadWindowIcon()
+        {
+            try
+            {
+                string assemblyPath = Assembly.GetExecutingAssembly().Location;
+                var iconLoader = new IconLoader(assemblyPath);
+                BitmapSource icon = iconLoader.LoadLarge("About.png");
+                if (icon != null)
+                {
+                    Icon = icon;
+                }
+            }
+            catch
+            {
+                // Non-critical: the window still works without a taskbar/alt-tab icon.
+            }
         }
 
         private void LoadData()
@@ -108,7 +129,7 @@ namespace AJTools.UI
                 }
 
                 string directory = Path.GetDirectoryName(assemblyLocation) ?? string.Empty;
-                if (directory.IndexOf("Autodesk\\Revit\\Addins\\2020", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (Regex.IsMatch(directory, @"Autodesk\\Revit\\Addins\\\d{4}", RegexOptions.IgnoreCase))
                 {
                     return "Revit Add-ins Folder";
                 }
@@ -174,6 +195,18 @@ namespace AJTools.UI
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeRestoreButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
         }
 
         private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

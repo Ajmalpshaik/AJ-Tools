@@ -1,8 +1,8 @@
-// AJ Tools AutoDebugger MCP server.
+// AJ Tools AJ AI Bridge MCP server.
 //
 // Bridges an MCP client (an AI agent) to a live Revit session. AJ Tools hosts a local named-pipe
-// server (McpBridgeService, inside the GeminiShell module) that this script talks to whenever the
-// "Connect AutoDebugger" toggle in the AJ AI pane is switched on. The MCP process keeps one
+// server (McpBridgeService, inside the AiShell module) that this script talks to whenever the
+// "Connect AJ AI Bridge" toggle in the AJ AI pane is switched on. The MCP process keeps one
 // authenticated pipe connection open between requests, then recreates it when Revit reconnects.
 //
 // Tools exposed:
@@ -17,7 +17,7 @@ import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
 
-const DISCOVERY_FILE = path.join(process.env.APPDATA || "", "AJTools", "autodebugger-bridge.json");
+const DISCOVERY_FILE = path.join(process.env.APPDATA || "", "AJTools", "ajai-bridge.json");
 // RevitExecutionService soft-cancels a loop-based script at 60s, then gives it a further 20s grace
 // period to actually unwind before its own hard backstop gives up (see that file's HardWaitTimeout,
 // 80s total). This must stay comfortably above that 80s, or a script that's still legitimately
@@ -33,7 +33,7 @@ function readDiscoveryInfo() {
   if (!fs.existsSync(DISCOVERY_FILE)) {
     cachedDiscovery = undefined;
     throw new Error(
-      "AutoDebugger is not connected. In Revit, open the AJ AI pane and click \"Connect AutoDebugger\", then try again."
+      "AJ AI Bridge is not connected. In Revit, open the AJ AI pane and click \"Connect AJ AI Bridge\", then try again."
     );
   }
 
@@ -49,7 +49,7 @@ function readDiscoveryInfo() {
   const raw = fs.readFileSync(DISCOVERY_FILE, "utf8");
   const info = JSON.parse(raw);
   if (!info.pipeName || !info.token) {
-    throw new Error("AutoDebugger connection file is malformed. Reconnect from the AJ AI pane in Revit.");
+    throw new Error("AJ AI bridge connection file is malformed. Reconnect from the AJ AI pane in Revit.");
   }
 
   cachedDiscovery = { mtimeMs: stat.mtimeMs, size: stat.size, info };
@@ -100,7 +100,7 @@ function createConnection(info) {
       if (connectSettled) return;
       connectSettled = true;
       socket.destroy();
-      reject(new Error("Timed out connecting to the AutoDebugger bridge. Is Revit busy or disconnected?"));
+      reject(new Error("Timed out connecting to the AJ AI bridge. Is Revit busy or disconnected?"));
     }, CONNECT_TIMEOUT_MS);
 
     socket.setNoDelay(true);
@@ -124,7 +124,7 @@ function createConnection(info) {
         connection.buffer = connection.buffer.slice(newlineIndex + 1);
         const pending = connection.pending;
         if (!pending) {
-          closeConnection(connection, "Received an unexpected AutoDebugger response.");
+          closeConnection(connection, "Received an unexpected AJ AI bridge response.");
           return;
         }
 
@@ -136,7 +136,7 @@ function createConnection(info) {
           // before the next queued request decides whether to reuse this connection.
           setImmediate(() => pending.resolve(response));
         } catch (err) {
-          closeConnection(connection, "Could not parse the AutoDebugger response: " + err.message);
+          closeConnection(connection, "Could not parse the AJ AI bridge response: " + err.message);
           return;
         }
       }
@@ -144,7 +144,7 @@ function createConnection(info) {
 
     socket.on("error", (err) => {
       const error = err.code === "ENOENT"
-        ? new Error("Could not reach the AutoDebugger bridge (pipe not found). It may have been disconnected or Revit was closed. Reconnect from the AJ AI pane.")
+        ? new Error("Could not reach the AJ AI bridge (pipe not found). It may have been disconnected or Revit was closed. Reconnect from the AJ AI pane.")
         : err;
 
       if (!connected && !connectSettled) {
@@ -156,14 +156,14 @@ function createConnection(info) {
       detachConnection(connection, error);
     });
 
-    socket.on("end", () => detachConnection(connection, new Error("The AutoDebugger bridge closed the pipe connection.")));
+    socket.on("end", () => detachConnection(connection, new Error("The AJ AI bridge closed the pipe connection.")));
     socket.on("close", () => {
       if (!connected && !connectSettled) {
         connectSettled = true;
         clearTimeout(connectTimer);
-        reject(new Error("The AutoDebugger bridge closed before the connection was established."));
+        reject(new Error("The AJ AI bridge closed before the connection was established."));
       }
-      detachConnection(connection, new Error("The AutoDebugger bridge closed the pipe connection."));
+      detachConnection(connection, new Error("The AJ AI bridge closed the pipe connection."));
     });
   });
 }
@@ -181,7 +181,7 @@ async function getConnection(info) {
   }
 
   if (activeConnection) {
-    closeConnection(activeConnection, "AutoDebugger connection details changed.");
+    closeConnection(activeConnection, "AJ AI bridge connection details changed.");
   }
 
   return createConnection(info);
@@ -189,10 +189,10 @@ async function getConnection(info) {
 
 function sendRequest(connection, info, code, allowDestructive) {
   if (connection.closed || connection.socket.destroyed || !connection.socket.writable) {
-    return Promise.reject(new Error("The AutoDebugger bridge connection is no longer available."));
+    return Promise.reject(new Error("The AJ AI bridge connection is no longer available."));
   }
   if (connection.pending) {
-    return Promise.reject(new Error("An AutoDebugger request is already in progress on this connection."));
+    return Promise.reject(new Error("An AJ AI bridge request is already in progress on this connection."));
   }
 
   return new Promise((resolve, reject) => {
@@ -307,11 +307,11 @@ if (requestedParameter != null)
 return sb.ToString();`;
 }
 
-const server = new McpServer({ name: "aj-tools-autodebugger", version: "1.2.0" });
+const server = new McpServer({ name: "aj-tools-aj-ai", version: "1.2.0" });
 
 server.tool(
   "run_csharp",
-  "Run a C# snippet against the currently open Revit document (via AJ Tools' AutoDebugger bridge). " +
+  "Run a C# snippet against the currently open Revit document (via AJ Tools' AJ AI bridge). " +
     "Use Document/UIDocument/Application/UIApplication directly by name (same globals as the AJ AI shell). " +
     "The last expression's value (or an explicit 'return' in a script-style block) becomes the output. " +
     "Destructive operations (Delete/Purge/file writes) are refused unless allowDestructive is set to true.",
@@ -334,7 +334,7 @@ server.tool(
 
 server.tool(
   "ping",
-  "Check whether Revit is open and the AutoDebugger bridge is connected and responding.",
+  "Check whether Revit is open and the AJ AI bridge is connected and responding.",
   {},
   async () => {
     try {

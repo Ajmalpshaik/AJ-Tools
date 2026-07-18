@@ -1,8 +1,8 @@
 {
-  "name": "aj-tools-autodebugger-mcp",
+  "name": "aj-tools-aj-ai-mcp",
   "version": "1.2.0",
   "private": true,
-  "description": "MCP server that lets an AI agent run C# against a live Revit document through the AJ Tools AutoDebugger bridge, for automated tool testing/debugging.",
+  "description": "MCP server that lets an AI agent run C# against a live Revit document through the AJ Tools AJ AI bridge, for automated tool testing/debugging.",
   "type": "module",
   "main": "index.js",
   "dependencies": {

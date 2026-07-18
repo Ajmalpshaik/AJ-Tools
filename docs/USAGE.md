@@ -16,7 +16,7 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 - Data: Assign Location, Duct Standard
 - Manage: Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)
 - Family: Shared to Family
-- AI Assistant: AJ AI (Gemini C# Shell, with a dockable pane)
+- AI Assistant: AJ AI (with a dockable pane)
 - About: About
 
 ### AJ Annotation
