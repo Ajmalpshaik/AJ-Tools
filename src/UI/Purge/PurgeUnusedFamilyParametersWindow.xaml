@@ -29,6 +29,22 @@
                 <Setter Property="TextWrapping" Value="Wrap"/>
                 <Setter Property="Margin" Value="0,2,0,2"/>
             </Style>
+
+            <Style x:Key="PurgeGridTextElement" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="PurgeGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="8,6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -135,7 +151,11 @@
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       GridLinesVisibility="Horizontal"
-                      HeadersVisibility="Column">
+                      HeadersVisibility="Column"
+                      AlternationCount="2"
+                      RowBackground="{StaticResource CardBackground}"
+                      AlternatingRowBackground="{StaticResource BackgroundMedium}"
+                      ColumnHeaderStyle="{StaticResource PurgeGridColumnHeaderStyle}">
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="Pick" Width="48">
                         <DataGridTemplateColumn.CellTemplate>
@@ -149,14 +169,14 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="Parameter Name" Binding="{Binding ParameterName}" Width="220"/>
-                    <DataGridTextColumn Header="Parameter Type" Binding="{Binding ParameterTypeText}" Width="130"/>
-                    <DataGridTextColumn Header="Instance / Type" Binding="{Binding InstanceTypeText}" Width="98"/>
-                    <DataGridTextColumn Header="Shared / Family" Binding="{Binding SourceText}" Width="102"/>
-                    <DataGridTextColumn Header="Formula" Binding="{Binding FormulaFlagText}" Width="70"/>
-                    <DataGridTextColumn Header="Reporting" Binding="{Binding ReportingFlagText}" Width="78"/>
-                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="120"/>
-                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*"/>
+                    <DataGridTextColumn Header="Parameter Name" Binding="{Binding ParameterName}" Width="220" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Parameter Type" Binding="{Binding ParameterTypeText}" Width="130" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Instance / Type" Binding="{Binding InstanceTypeText}" Width="98" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Shared / Family" Binding="{Binding SourceText}" Width="102" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Formula" Binding="{Binding FormulaFlagText}" Width="70" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Reporting" Binding="{Binding ReportingFlagText}" Width="78" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="120" ElementStyle="{StaticResource PurgeGridTextElement}"/>
+                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*" ElementStyle="{StaticResource PurgeGridTextElement}"/>
                 </DataGrid.Columns>
 
                 <DataGrid.RowDetailsTemplate>
