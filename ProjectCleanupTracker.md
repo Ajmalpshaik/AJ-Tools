@@ -1,5 +1,89 @@
 # Project Cleanup Tracker
 
+## 2026-07-18 Third Cleanup Pass - Acting on Remaining Deferred Items
+
+Follow-up to the Second Cleanup Pass below. That pass deliberately deferred a further set of
+findings; this pass came back and did the ones that could be done safely from a source-only
+environment, and gives an honest final disposition on the rest.
+
+- **Perf - Smart MEP Tag density check**: `SmartMepTagService.MarkDenseZones` scanned every tag
+  candidate against every other candidate (O(n^2)) to find "dense zones" within `DensityRadius`.
+  Rewrote it to use the existing `AnnotationSpatialIndex`/`AnnotationBox` (already used elsewhere in
+  this file for annotation clash detection) as an X/Y coarse pre-filter, keyed off each candidate's
+  midpoint. The exact original 3D `DistanceTo(...) <= DensityRadius` check is still applied to every
+  candidate the index returns as a possible match, so the result is provably identical to before -
+  for any two points, the 2D (X/Y-only) distance can never exceed the full 3D distance, so the index
+  can only ever return a superset of the true matches, and the original check filters that superset
+  down to the exact same answer. Just faster on models with a lot of MEP tags.
+- **Perf - Smart Tag parallel-group check**: `SmartTagPlacementEngine.FindBestTagPosition` had the
+  same O(n^2) shape when checking nearby candidates for "is there already a tag placed in a similar
+  direction/position nearby" (`ParallelGroupDistance`). Added a small spatial index built once per
+  placement run (`BuildCandidateSpatialIndex`/`QueryNearbyCandidatesByPosition`) and used it the same
+  way - X/Y pre-filter only, no change to the actual comparison logic that runs on the filtered list.
+- **Deduped leader-probing reflection block**: `SmartTagPlacementEngine` and
+  `IntelligentTagArrangerService` had each independently reimplemented the same ~150-line reflection
+  fallback chain for reading/writing a Revit tag's leader end point and elbow (`TryGetLeaderEnd`,
+  `TryGetLeaderEndFromTaggedReference(s)`, `InvokeGetLeaderEnd`, `TryGetXYZProperty`,
+  `TrySetLeaderElbow`, leader-end-condition get/set) - almost certainly copy-pasted from one to the
+  other at some point. Consolidated the identical leaf logic into `LeaderLogicService` as shared
+  static methods (`GetL1` was upgraded from an unused instance method to the shared static entry
+  point, after confirming it had zero external callers before the change). Each file's own
+  orchestration on top of those leaf calls was left where it was - in particular,
+  `IntelligentTagArrangerService.TryApplyLShapeLeader` still does **not** fall back to toggling the
+  leader end condition, per its own pre-existing comment ("Keep L1 exactly as-is") - that one
+  intentional behavioral difference between the two tools was preserved, not merged away.
+- **SharedParamUtils.cs reorganized**: this file mixed genuinely generic helpers (used by Purge, Duct
+  Standards, and a Model class) with logic that only the Shared Param to Family Param conversion tool
+  actually used (capturing/restoring a family parameter's value, formula, and reporting state across
+  a shared-to-non-shared conversion). Moved the feature-specific half into
+  `SharedParamToFamilyParamService.cs`, its only real consumer, keeping `SharedParamUtils.cs` down to
+  the handful of methods multiple unrelated tools depend on. `IsReporting`/`TryGetSharedGuid` were
+  deliberately left in `SharedParamUtils.cs` rather than also moved, specifically because
+  `SharedParamToFamilyParamItem.cs` (a Model) depends on them too, and moving them would have created
+  a new Model -> Service dependency that didn't exist before.
+- **AJ AI safety - closed the using-static/type-alias gap**: `GeneratedCodeSafetyValidator` now also
+  blocks `using static X;` and `using X = Y;` type-alias directives in generated scripts - both were
+  documented as a known, open gap in the v1.13.6/v1.13.7 passes (a script could rename a blocked call,
+  e.g. `Process.Start`, to a bare method name via `using static`, or rename a blocked type, e.g.
+  `System.IO.File`, via a type alias, and dodge every name-based check). The alias pattern requires an
+  `=`, so it does not match ordinary `using Namespace.Type;` imports. This remains text/regex
+  matching, not an AST/semantic scan - see the file's own updated Notes for what's still not covered
+  (mainly string-built member names and similar indirection).
+- Version bump: suite version 1.13.7 -> 1.13.8 (patch: perf/cleanup fixes, no new tool).
+- **Evaluated this pass and deliberately left alone**, each for a specific reason found by actually
+  reading and comparing the code, not just skipped for time:
+  - `DuctShapeService`'s reflection-based read of a duct type's `Shape` - there's a direct-API example
+    elsewhere in the repo (`SmartConnectRouteBuilder.cs`'s `connector.Shape`), but that's a different
+    API (`Connector.Shape`, not `DuctType.Shape`) - couldn't confirm `DuctType` exposes a direct
+    `.Shape` property on every supported Revit version (2020-2027) without a compiler or API docs to
+    check against, and a wrong guess would break compilation for a purely cosmetic gain.
+  - `LocationDataAssignerWindow.xaml.cs`'s ~500 lines of embedded business logic (room/HVAC lookups,
+    coordinate transforms, a per-element transaction loop) - it updates live UI progress-bar controls
+    directly inside that loop for real-time feedback, so a safe extraction would mean inventing a new
+    progress-callback abstraction to decouple the algorithm from the UI, which is a real design
+    decision, not a mechanical move, and can't be checked visually here.
+  - Colorize/FilterPro's near-identical `LoadParameters`/`LoadValues` methods - close comparison found
+    real behavioral drift: different status messages, a conditional message branch only Colorize has,
+    and critically, only Colorize's `LoadValues` calls `ApplyValueFilters()` immediately after
+    loading - FilterPro relies solely on its `TextChanged`/`SelectionChanged` event handlers for that.
+    Forcing a single shared method risks silently changing live behavior in one of the two tools.
+  - `FilterProState`/`FilterSelection`'s ~20-property overlap - most properties genuinely match, but a
+    few differ in type on purpose (`FilterProState` is a lightweight persisted snapshot using IDs/keys;
+    `FilterSelection` is a live runtime selection using richer objects), and safely verifying a shared
+    base class wouldn't break `FilterProStateTracker`'s conversion logic would need reading that file
+    too, which wasn't done this pass - low value for the verification effort given this is cosmetic,
+    not a bug or perf issue.
+  - `FilterCategoryItem`/`PatternItem`/`GraphicsIdOption` - structurally identical wrapper classes, but
+    two use a `Name` property and one uses `DisplayName` - unifying them risks silently breaking an
+    XAML `{Binding Name}`/`{Binding DisplayName}` reference that can't be checked visually in this
+    environment.
+  - The AJ AI API-key `PasswordBox` swap flagged in the very first pass remains skipped, same reason
+    as before: WPF's `PasswordBox.Password` isn't bindable the same way a normal `TextBox` is, and
+    doing it properly needs a small attached-behavior helper that should be tested visually.
+- Revit was not launched or tested - this pass was source-only (no Windows/.NET SDK available).
+  Please test loading in Revit, especially Smart MEP Tag, Smart Tag Placement, Intelligent Tag
+  Arranger, Shared Param to Family Param, and the AJ AI pane, before relying on this build.
+
 ## 2026-07-18 Second Cleanup Pass - Acting on Deferred Items
 
 Follow-up to the 2026-07-17 pass below. That pass deliberately deferred a set of larger/riskier

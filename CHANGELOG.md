@@ -7,6 +7,29 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 - No unreleased changes.
 
+## [1.13.8] - 2026-07-18
+
+Third cleanup pass, acting on the items v1.13.7 had deliberately deferred:
+
+- **Perf**: `SmartMepTagService.MarkDenseZones` and `SmartTagPlacementEngine`'s parallel-group check
+  both replaced an O(n^2) full pairwise scan with the existing `AnnotationSpatialIndex` as an X/Y
+  coarse pre-filter. The original exact 3D distance check is still applied to every result, so
+  behavior is unchanged, just faster on models with many tags.
+- **Deduped**: the ~150-line duplicated leader-probing reflection block that `SmartTagPlacementEngine`
+  and `IntelligentTagArrangerService` had each reimplemented is now shared via `LeaderLogicService`.
+  The one deliberate behavioral difference between the two tools was preserved.
+- **Reorganized**: `SharedParamUtils.cs` now holds only genuinely shared helpers; the Shared Param to
+  Family Param conversion's own snapshot/restore logic moved into its Service, the only place that
+  used it.
+- **Fixed**: AJ AI safety validator now also blocks `using static` and `using X = Y;` type-alias
+  directives, closing the specific bypass documented in v1.13.6/v1.13.7's notes.
+- Evaluated and deliberately left as-is, each for a documented reason (see
+  `src/Properties/AssemblyInfo.cs` for detail): `DuctShapeService`'s reflection-based shape read,
+  `LocationDataAssignerWindow.xaml.cs`'s embedded business logic, Colorize/FilterPro's near-identical
+  load methods (real behavioral drift found between them), `FilterProState`/`FilterSelection`'s
+  property overlap, and `FilterCategoryItem`/`PatternItem`/`GraphicsIdOption`'s identical wrapper
+  shape.
+
 ## [1.13.7] - 2026-07-18
 
 Second cleanup pass, acting on the items v1.13.6 had deliberately deferred:

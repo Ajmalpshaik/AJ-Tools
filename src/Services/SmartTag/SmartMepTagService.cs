@@ -465,31 +465,62 @@ namespace AJTools.Services.SmartTag
         /// Marks each candidate as dense when more than the threshold number of nearby
         /// candidates exist within the configured radius.
         /// </summary>
+        /// <remarks>
+        /// Uses AnnotationSpatialIndex as a coarse X/Y pre-filter instead of comparing every
+        /// candidate against every other candidate. Midpoint is a true 3D point and the original
+        /// check is a full 3D DistanceTo, but for any two points, their X/Y-only distance can never
+        /// exceed their full 3D distance (adding a Z term only ever adds to the total under the
+        /// square root) - so any pair within DensityRadius in 3D is guaranteed to also be within
+        /// DensityRadius in X/Y, and therefore inside the 2*DensityRadius query square used below.
+        /// The square can admit extra candidates whose 3D distance is actually greater than
+        /// DensityRadius (a duct directly above/below another, say), but the exact same 3D
+        /// DistanceTo &lt;= DensityRadius check that ran in the original O(n^2) version still runs on
+        /// every candidate the query returns, so those extras get filtered back out - the final
+        /// IsDenseZone result is identical to before, just without the full pairwise scan.
+        /// </remarks>
         private static void MarkDenseZones(List<TagCandidate> candidates)
         {
             if (candidates == null || candidates.Count == 0)
                 return;
 
-            for (int i = 0; i < candidates.Count; i++)
+            var candidateByBox = new Dictionary<AnnotationBox, TagCandidate>(candidates.Count);
+            var index = new AnnotationSpatialIndex(DensityRadius);
+
+            foreach (TagCandidate candidate in candidates)
             {
-                TagCandidate current = candidates[i];
-                if (current == null || current.Midpoint == null)
+                if (candidate == null || candidate.Midpoint == null)
                 {
-                    if (current != null)
-                        current.IsDenseZone = false;
+                    if (candidate != null)
+                        candidate.IsDenseZone = false;
                     continue;
                 }
 
+                // A point box (min == max), indexed by X/Y only - see remarks above.
+                var box = new AnnotationBox(
+                    candidate.Midpoint.X, candidate.Midpoint.Y,
+                    candidate.Midpoint.X, candidate.Midpoint.Y);
+                candidateByBox[box] = candidate;
+                index.Add(box);
+            }
+
+            foreach (TagCandidate current in candidates)
+            {
+                if (current == null || current.Midpoint == null)
+                    continue;
+
+                AnnotationBox queryRegion = new AnnotationBox(
+                    current.Midpoint.X - DensityRadius, current.Midpoint.Y - DensityRadius,
+                    current.Midpoint.X + DensityRadius, current.Midpoint.Y + DensityRadius);
+
                 int nearbyCount = 0;
-                for (int j = 0; j < candidates.Count; j++)
+                foreach (AnnotationBox hitBox in index.Query(queryRegion))
                 {
-                    if (i == j)
+                    TagCandidate other;
+                    if (!candidateByBox.TryGetValue(hitBox, out other) || ReferenceEquals(other, current))
                         continue;
 
-                    TagCandidate other = candidates[j];
-                    if (other == null || other.Midpoint == null)
-                        continue;
-
+                    // Exact same distance check as the original O(n^2) version - the index only
+                    // narrowed down candidates worth checking, it did not decide membership itself.
                     if (current.Midpoint.DistanceTo(other.Midpoint) <= DensityRadius)
                     {
                         nearbyCount++;

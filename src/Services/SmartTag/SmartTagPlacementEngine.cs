@@ -6,10 +6,8 @@
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Autodesk.Revit.DB;
 using AJTools.Models.SmartTag;
 using AJTools.Services.LeaderLogic;
@@ -401,6 +399,72 @@ namespace AJTools.Services.SmartTag
                 return spatialIndex.Query(searchArea);
 
             return allAnnotations ?? new List<AnnotationBox>();
+        }
+
+        /// <summary>
+        /// Indexes every candidate's Midpoint (X/Y only) for the parallel-group proximity check in
+        /// FindBestTagPosition, so it doesn't have to scan every other candidate for every candidate
+        /// (same pattern as BuildAnnotationSpatialIndex/QueryNearbyAnnotations above). Falls back to
+        /// null on any failure - callers fall back to a full scan, same as the annotation index does.
+        /// </summary>
+        private static AnnotationSpatialIndex BuildCandidateSpatialIndex(
+            List<TagCandidate> candidates,
+            out Dictionary<AnnotationBox, TagCandidate> candidateByBox)
+        {
+            candidateByBox = new Dictionary<AnnotationBox, TagCandidate>();
+            try
+            {
+                var index = new AnnotationSpatialIndex(ParallelGroupDistance);
+                foreach (TagCandidate candidate in candidates)
+                {
+                    if (candidate == null || candidate.Midpoint == null)
+                        continue;
+
+                    var box = new AnnotationBox(
+                        candidate.Midpoint.X, candidate.Midpoint.Y,
+                        candidate.Midpoint.X, candidate.Midpoint.Y);
+                    candidateByBox[box] = candidate;
+                    index.Add(box);
+                }
+
+                return index;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Candidates within ParallelGroupDistance (X/Y) of the given candidate, per the same
+        /// coarse-index-then-exact-3D-check reasoning as MarkDenseZones in SmartMepTagService: X/Y
+        /// distance can never exceed full 3D distance, so any pair within ParallelGroupDistance in 3D
+        /// is guaranteed to also be within ParallelGroupDistance in X/Y and therefore returned here -
+        /// the caller still runs the exact 3D DistanceTo check on every result. Falls back to the full
+        /// candidate list (original O(n) per-candidate behavior) if the index isn't available.
+        /// </summary>
+        private static List<TagCandidate> QueryNearbyCandidatesByPosition(
+            AnnotationSpatialIndex candidateSpatialIndex,
+            Dictionary<AnnotationBox, TagCandidate> candidateByBox,
+            List<TagCandidate> allCandidates,
+            TagCandidate candidate)
+        {
+            if (candidateSpatialIndex == null || candidateByBox == null || candidate == null || candidate.Midpoint == null)
+                return allCandidates;
+
+            AnnotationBox queryRegion = new AnnotationBox(
+                candidate.Midpoint.X - ParallelGroupDistance, candidate.Midpoint.Y - ParallelGroupDistance,
+                candidate.Midpoint.X + ParallelGroupDistance, candidate.Midpoint.Y + ParallelGroupDistance);
+
+            var result = new List<TagCandidate>();
+            foreach (AnnotationBox hitBox in candidateSpatialIndex.Query(queryRegion))
+            {
+                TagCandidate other;
+                if (candidateByBox.TryGetValue(hitBox, out other))
+                    result.Add(other);
+            }
+
+            return result;
         }
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -807,6 +871,8 @@ namespace AJTools.Services.SmartTag
             SmartTagSettingsState settingsState,
             Dictionary<BuiltInCategory, TagSizeHint> sizeHints,
             List<TagCandidate> allCandidates,
+            AnnotationSpatialIndex candidateSpatialIndex,
+            Dictionary<AnnotationBox, TagCandidate> candidateByBox,
             HashSet<ElementId> taggedGroupMembers,
             PreFlightResult preflight,
             AnnotationBox placementBoundary,
@@ -947,7 +1013,10 @@ namespace AJTools.Services.SmartTag
             int parallelCount = 0;
             bool groupMemberAlreadyTagged = false;
 
-            foreach (TagCandidate other in allCandidates)
+            List<TagCandidate> nearbyByPosition = QueryNearbyCandidatesByPosition(
+                candidateSpatialIndex, candidateByBox, allCandidates, candidate);
+
+            foreach (TagCandidate other in nearbyByPosition)
             {
                 if (other.ElementId == candidate.ElementId)
                     continue;
@@ -1067,6 +1136,11 @@ namespace AJTools.Services.SmartTag
             AnnotationBox placementBoundary =
                 BuildPlacementBoundaryInViewPlane(preflight, viewRight, viewUp);
 
+            // Index every candidate's own position ONCE too, for the parallel-group check inside
+            // FindBestTagPosition - same reasoning as the annotation index above.
+            Dictionary<AnnotationBox, TagCandidate> candidateByBox;
+            AnnotationSpatialIndex candidateSpatialIndex = BuildCandidateSpatialIndex(candidates, out candidateByBox);
+
             // Track which elements have been successfully tagged â€” used for parallel group logic.
             var taggedGroupMembers = new HashSet<ElementId>();
 
@@ -1093,7 +1167,7 @@ namespace AJTools.Services.SmartTag
                 TagSkipReason skipReason;
                 XYZ tagPosition = FindBestTagPosition(
                     candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
-                    candidates, taggedGroupMembers,
+                    candidates, candidateSpatialIndex, candidateByBox, taggedGroupMembers,
                     preflight, placementBoundary, viewRight, viewUp,
                     out skipReason);
 
@@ -1187,7 +1261,7 @@ namespace AJTools.Services.SmartTag
             if (head == null)
                 return true;
 
-            XYZ l1 = TryGetLeaderEnd(tag);
+            XYZ l1 = LeaderLogicService.GetL1(tag);
             if (l1 == null)
                 l1 = TryResolveLeaderEndByRollbackProbe(doc, tag);
 
@@ -1329,8 +1403,8 @@ namespace AJTools.Services.SmartTag
                     XYZ probed = null;
                     try
                     {
-                        if (TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
-                            probed = TryGetLeaderEnd(tag);
+                        if (LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
+                            probed = LeaderLogicService.GetL1(tag);
                     }
                     catch (Exception)
                     {
@@ -1339,145 +1413,6 @@ namespace AJTools.Services.SmartTag
                     st.RollBack();
                     return probed;
                 }
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        private static XYZ TryGetLeaderEnd(IndependentTag tag)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                if (!tag.HasLeader)
-                    return null;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-
-            try
-            {
-                XYZ direct = TagCompat.GetLeaderEnd(tag);
-                if (direct != null)
-                    return direct;
-            }
-            catch (Exception)
-            {
-            }
-
-            XYZ byTaggedReference = TryGetLeaderEndFromTaggedReference(tag);
-            if (byTaggedReference != null)
-                return byTaggedReference;
-
-            XYZ byTaggedReferences = TryGetLeaderEndFromTaggedReferences(tag);
-            if (byTaggedReferences != null)
-                return byTaggedReferences;
-
-            return TryGetXYZProperty(tag, "LeaderEnd");
-        }
-
-        private static XYZ TryGetLeaderEndFromTaggedReference(IndependentTag tag)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                Reference taggedReference = TagCompat.GetTaggedReference(tag);
-                if (taggedReference == null)
-                    return null;
-
-                return InvokeGetLeaderEnd(tag, taggedReference);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        private static XYZ TryGetLeaderEndFromTaggedReferences(IndependentTag tag)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                MethodInfo method = tag.GetType().GetMethod("GetTaggedReferences", BindingFlags.Instance | BindingFlags.Public);
-                if (method == null)
-                    return null;
-
-                object refsRaw = method.Invoke(tag, null);
-                IEnumerable refs = refsRaw as IEnumerable;
-                if (refs == null)
-                    return null;
-
-                foreach (object item in refs)
-                {
-                    Reference reference = item as Reference;
-                    if (reference == null)
-                        continue;
-
-                    XYZ end = InvokeGetLeaderEnd(tag, reference);
-                    if (end != null)
-                        return end;
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            return null;
-        }
-
-        private static XYZ InvokeGetLeaderEnd(IndependentTag tag, Reference reference)
-        {
-            if (tag == null || reference == null)
-                return null;
-
-            try
-            {
-                MethodInfo[] methods = tag.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public);
-                foreach (MethodInfo method in methods)
-                {
-                    if (!string.Equals(method.Name, "GetLeaderEnd", StringComparison.Ordinal))
-                        continue;
-
-                    ParameterInfo[] parameters = method.GetParameters();
-                    if (parameters.Length != 1 || parameters[0].ParameterType != typeof(Reference))
-                        continue;
-
-                    object result = method.Invoke(tag, new object[] { reference });
-                    XYZ xyz = result as XYZ;
-                    if (xyz != null)
-                        return xyz;
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            return null;
-        }
-
-        private static XYZ TryGetXYZProperty(object instance, string propertyName)
-        {
-            if (instance == null || string.IsNullOrWhiteSpace(propertyName))
-                return null;
-
-            try
-            {
-                PropertyInfo prop = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
-                if (prop == null)
-                    return null;
-
-                object raw = prop.GetValue(instance, null);
-                return raw as XYZ;
             }
             catch (Exception)
             {
@@ -1653,82 +1588,20 @@ namespace AJTools.Services.SmartTag
 
         private static bool TrySetLeaderElbowPreserveCondition(IndependentTag tag, XYZ elbow)
         {
-            if (TrySetLeaderElbow(tag, elbow))
+            if (LeaderLogicService.TrySetLeaderElbow(tag, elbow))
                 return true;
 
-            bool hadInitialCondition = TryGetLeaderEndCondition(tag, out LeaderEndCondition initialCondition);
-            if (!TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
+            bool hadInitialCondition = LeaderLogicService.TryGetLeaderEndCondition(tag, out LeaderEndCondition initialCondition);
+            if (!LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
                 return false;
 
-            if (!TrySetLeaderElbow(tag, elbow))
+            if (!LeaderLogicService.TrySetLeaderElbow(tag, elbow))
                 return false;
 
-            if (hadInitialCondition && !TrySetLeaderEndCondition(tag, initialCondition))
+            if (hadInitialCondition && !LeaderLogicService.TrySetLeaderEndCondition(tag, initialCondition))
                 return false;
 
             return true;
-        }
-
-        private static bool TrySetLeaderElbow(IndependentTag tag, XYZ elbow)
-        {
-            if (tag == null || elbow == null)
-                return false;
-
-            try
-            {
-                TagCompat.SetLeaderElbow(tag, elbow);
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        private static bool TryGetLeaderEndCondition(IndependentTag tag, out LeaderEndCondition condition)
-        {
-            condition = LeaderEndCondition.Attached;
-            if (tag == null)
-                return false;
-
-            try
-            {
-                condition = tag.LeaderEndCondition;
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        private static bool TrySetLeaderEndCondition(IndependentTag tag, LeaderEndCondition condition)
-        {
-            if (tag == null)
-                return false;
-
-            try
-            {
-                if (tag.LeaderEndCondition == condition)
-                    return true;
-            }
-            catch (Exception)
-            {
-            }
-
-            try
-            {
-                if (tag.CanLeaderEndConditionBeAssigned(condition))
-                {
-                    tag.LeaderEndCondition = condition;
-                    return true;
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            return false;
         }
     }
 
