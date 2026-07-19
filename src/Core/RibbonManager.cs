@@ -250,6 +250,7 @@ namespace AJTools.App
             AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
             AddTopLevelTool(panel, AddFilterProTool());
             AddTopLevelTool(panel, AddColorizeTool());
+            AddTopLevelTool(panel, AddHighlightSelectionTool());
             AddTopLevelTool(panel, AddSectionMarkVisibilityTool());
         }
 
@@ -403,6 +404,21 @@ namespace AJTools.App
                 "SectionMarkVisibility.png",
                 "SectionMarkVisibility.png",
                 pushButton => pushButton.AvailabilityClassName = typeof(CmdPlanViewAvailability).FullName);
+        }
+
+        private TopLevelToolSpec AddHighlightSelectionTool()
+        {
+            return CreatePushToolSpec(
+                "Highlight\nSelection",
+                "Color the selected elements red and every other element in the active view gray, for instant visual identification.",
+                typeof(CmdHighlightSelection),
+                "Highlight Selection.png",
+                "Highlight Selection.png",
+                pushButton =>
+                {
+                    pushButton.LongDescription = "Select elements first (or click with nothing selected to pick them), then click Highlight Selection - the selection turns red and everything else in the active view turns gray. Use the Reset Graphics tools (Graphics panel) afterward to clear the colors.";
+                    pushButton.AvailabilityClassName = typeof(CmdGraphicalViewAvailability).FullName;
+                });
         }
 
         private TopLevelToolSpec AddApplyGraphicsTools()

@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.19.1
+ * Version       : 1.20.2
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-19
@@ -24,6 +24,25 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.20.2 (2026-07-19) - New About icon: replaced Resources/About.png with Ajmal's own artwork
+ *                       (Y:\Ajmal Ps\icon\about.png, a purple question-mark badge) - same filename, so
+ *                       both the ribbon button and the About window's own taskbar icon (AboutWindow.xaml.cs,
+ *                       IconLoader.LoadLarge("About.png")) pick it up automatically, no other file touched.
+ * v1.20.1 (2026-07-19) - Fix on top of v1.20.0's Highlight Selection tool: a selected duct/pipe with
+ *                       insulation left the insulation gray instead of red (it's a separate hosted
+ *                       ElementId, not part of the raw selection). CmdHighlightSelection now pulls each
+ *                       highlighted element's insulation ids via InsulationLiningBase.GetInsulationIds
+ *                       (verified against the real installed RevitAPI.dll on 2020/2024/2027 - identical
+ *                       signature on all three) and colors them red too.
+ * v1.20.0 (2026-07-19) - New tool: Highlight Selection (View panel, src/Commands/GraphicsTools/
+ *                       CmdHighlightSelection.cs) - colors the current selection red and every other
+ *                       element in the active view gray, for instant visual identification. Reuses the
+ *                       existing Graphics command infrastructure (GraphicsCommandService,
+ *                       GraphicsElementService, GraphicsOverrideBuilder) rather than a one-off override
+ *                       path. Also corrected a version-attribute drift found while bumping this: the
+ *                       [assembly: AssemblyVersion]/[AssemblyFileVersion] attributes were still
+ *                       "1.19.0.0" even though the changelog below already documented v1.19.1 as
+ *                       shipped - the attribute bump was missed in that prior session. Now both match.
  * v1.19.1 (2026-07-19) - About window overhaul (src/UI/AboutWindow.xaml/.xaml.cs): added a real
  *                       taskbar/window icon (loaded from Resources/About.png via the existing
  *                       IconLoader), a Minimize button next to Close (there was no way to minimize
@@ -404,5 +423,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.19.0.0")]
-[assembly: AssemblyFileVersion("1.19.0.0")]
+[assembly: AssemblyVersion("1.20.2.0")]
+[assembly: AssemblyFileVersion("1.20.2.0")]
