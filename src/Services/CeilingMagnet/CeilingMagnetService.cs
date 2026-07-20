@@ -4,14 +4,15 @@
  * File Name     : CeilingMagnetService.cs
  * Purpose       : Implements the ceiling-grid-detection and snap algorithm: real-grid-geometry
  *                 detection (Revit 2025.3+), clustering grid lines into two perpendicular families,
- *                 median inter-line spacing, 2D line intersection, surface-pattern tile reading, and
- *                 per-element nearest-tile-center snap math.
+ *                 median inter-line spacing, 2D line intersection, surface-pattern tile reading,
+ *                 per-element nearest-tile-center snap math, and (as of v1.1.0) filtering a batch of
+ *                 elements down to the ones that geometrically sit over a given ceiling.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-07-17
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -19,11 +20,14 @@
  *
  * Dependencies  : Autodesk Revit API, AJTools.Utils (RevitCompat, CeilingGridApiCompat, DialogHelper)
  *
- * Input         : A resolved CeilingSelection (host or linked ceiling + transform), and per-element
- *                 snap calls with a resolved CeilingGridDefinition + origin point - all supplied by
- *                 CmdCeilingMagnet.cs, which owns ceiling/element picking and the TransactionGroup.
- * Output        : A CeilingGridDefinition (tile size/angle/axes + where it came from) and, per
- *                 element, an in-place move to the nearest tile center (tallied into a SnapSummary).
+ * Input         : A resolved CeilingSelection (host or linked ceiling + transform), a batch of
+ *                 point-based elements to filter/snap, and per-element snap calls with a resolved
+ *                 CeilingGridDefinition + origin point - all supplied by CmdCeilingMagnet.cs, which
+ *                 owns the up-front element batch pick, the repeatable ceiling+point loop, and the
+ *                 TransactionGroup.
+ * Output        : A CeilingGridDefinition (tile size/angle/axes + where it came from), the subset of
+ *                 a batch that sits over a given ceiling, and, per element, an in-place move to the
+ *                 nearest tile center (tallied into a SnapSummary).
  *
  * Notes         :
  * - Targets Revit 2020 through latest. Tile size/angle fallback path uses UnitUtils with
@@ -34,16 +38,26 @@
  *   intersecting one line from each family. Falls back to the type-pattern-or-600mm-fallback method
  *   on any version, or any ceiling, where the real grid data is unavailable or ambiguous - never
  *   guesses on ambiguous data.
+ * - FilterElementsOverCeiling (v1.1.0): per the Modeler mindset rule, does NOT use a rough bounding-box
+ *   guess - it reads the ceiling's actual solid geometry, finds its largest horizontal (top/bottom)
+ *   planar face, and tests each element's plan location against that face's real boundary
+ *   (Face.Project returns null outside the trimmed face - an exact contains test, correct even for
+ *   L-shaped/non-rectangular ceilings). Falls back to the ceiling's bounding box only if no usable
+ *   solid geometry is found (defensive - should not happen for a normal ceiling).
  * - TryCreateGridDefinition calls DialogHelper directly on its two failure paths (unchanged from the
  *   original inline Command code) rather than returning an error for the caller to show - kept as-is
  *   during this extraction to avoid changing this method's behavior/contract; every other method
  *   here is a pure algorithm with no direct UI interaction.
  * - SnapElement does not open its own Transaction - it is called once per element inside the
- *   caller's already-open Transaction (correct nested-ownership pattern, same as SnapElementsToGrid's
- *   per-preselected-batch and per-picked-element transactions in the Command).
+ *   caller's already-open Transaction (one Transaction per ceiling+point round in the Command).
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.0 (2026-07-20) - Added FilterElementsOverCeiling + GetLargestHorizontalFace to support the
+ *                       Command's new select-elements-first, then-repeat-ceiling+point-rounds
+ *                       workflow: each round now only snaps the elements that actually sit over the
+ *                       picked ceiling, found from real ceiling solid geometry (not a bounding-box
+ *                       guess). No change to existing grid-detection or per-element snap math.
  * v1.0.0 (2026-07-17) - Initial extraction from CmdCeilingMagnet.cs (code review cleanup pass) - no
  *                       behavior change.
  *
@@ -437,6 +451,112 @@ namespace AJTools.Services.CeilingMagnet
 
             normalized = new XYZ(projected.X / length, projected.Y / length, 0);
             return true;
+        }
+
+        /// <summary>
+        /// Returns the subset of <paramref name="elements"/> that geometrically sit over
+        /// <paramref name="ceilingSelection"/>'s ceiling, tested against the ceiling's real solid
+        /// geometry (largest horizontal face) rather than a rough bounding-box guess - correct even for
+        /// L-shaped/non-rectangular ceilings. Falls back to the ceiling's bounding box only if no
+        /// usable horizontal face is found.
+        /// </summary>
+        internal static IList<Element> FilterElementsOverCeiling(IList<Element> elements, CeilingSelection ceilingSelection)
+        {
+            List<Element> result = new List<Element>();
+            if (elements == null || elements.Count == 0 || ceilingSelection == null)
+            {
+                return result;
+            }
+
+            PlanarFace horizontalFace = GetLargestHorizontalFace(ceilingSelection.Ceiling);
+            BoundingBoxXYZ localBoundingBox = horizontalFace == null
+                ? ceilingSelection.Ceiling.get_BoundingBox(null)
+                : null;
+
+            if (horizontalFace == null && localBoundingBox == null)
+            {
+                return result;
+            }
+
+            Transform inverse = (ceilingSelection.TransformToHost ?? Transform.Identity).Inverse;
+
+            foreach (Element element in elements)
+            {
+                LocationPoint location = element?.Location as LocationPoint;
+                if (location == null)
+                {
+                    continue;
+                }
+
+                XYZ localPoint = inverse.OfPoint(location.Point);
+                bool isOverCeiling;
+                if (horizontalFace != null)
+                {
+                    XYZ probe = new XYZ(localPoint.X, localPoint.Y, horizontalFace.Origin.Z);
+                    isOverCeiling = horizontalFace.Project(probe) != null;
+                }
+                else
+                {
+                    isOverCeiling = localPoint.X >= localBoundingBox.Min.X && localPoint.X <= localBoundingBox.Max.X
+                        && localPoint.Y >= localBoundingBox.Min.Y && localPoint.Y <= localBoundingBox.Max.Y;
+                }
+
+                if (isOverCeiling)
+                {
+                    result.Add(element);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Finds the ceiling's largest horizontal (top or bottom) planar face from its real solid
+        /// geometry, used by FilterElementsOverCeiling as an exact plan-boundary contains test. Returns
+        /// null if the ceiling has no solid geometry with a horizontal face (defensive fallback path).
+        /// </summary>
+        private static PlanarFace GetLargestHorizontalFace(Ceiling ceiling)
+        {
+            Options options = new Options { ComputeReferences = false, DetailLevel = ViewDetailLevel.Fine };
+            GeometryElement geometry = ceiling.get_Geometry(options);
+            if (geometry == null)
+            {
+                return null;
+            }
+
+            PlanarFace best = null;
+            double bestArea = 0;
+
+            foreach (GeometryObject geometryObject in geometry)
+            {
+                Solid solid = geometryObject as Solid;
+                if (solid == null)
+                {
+                    continue;
+                }
+
+                foreach (Face face in solid.Faces)
+                {
+                    PlanarFace planarFace = face as PlanarFace;
+                    if (planarFace == null)
+                    {
+                        continue;
+                    }
+
+                    if (Math.Abs(Math.Abs(planarFace.FaceNormal.Z) - 1.0) > 0.01)
+                    {
+                        continue;
+                    }
+
+                    if (planarFace.Area > bestArea)
+                    {
+                        bestArea = planarFace.Area;
+                        best = planarFace;
+                    }
+                }
+            }
+
+            return best;
         }
 
         /// <summary>

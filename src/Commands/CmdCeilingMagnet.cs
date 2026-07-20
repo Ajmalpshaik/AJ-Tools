@@ -5,13 +5,17 @@
  * Purpose       : Snaps point-based elements to the nearest ceiling grid tile centers. On Revit 2025.3+
  *                 reads the ceiling's real grid line geometry directly (exact, no click needed). On
  *                 older versions, falls back to the ceiling's surface pattern (or a 600x600 fallback)
- *                 plus one clicked grid intersection - unchanged from the original behaviour.
+ *                 plus one clicked grid intersection - unchanged from the original behaviour. As of
+ *                 v1.5.0 Ajmal is asked up front which element-picking workflow to run: the original
+ *                 one-ceiling / pick-elements-one-at-a-time flow, or the v1.4.0 flow (window-select all
+ *                 elements once, then a repeatable ceiling+point round, Esc to finish) - both kept side
+ *                 by side, neither replaces the other.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.0
+ * Version       : 1.5.0
  *
  * Created Date  : 2026-04-12
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -19,28 +23,69 @@
  *
  * Dependencies  : Autodesk Revit API, AJTools.Utils (DialogHelper), AJTools.Services.CeilingMagnet
  *
- * Input         : Active project - a ceiling (host or linked), one anchor grid intersection, then
- *                 point-based elements (pre-selected and/or picked one-by-one, Esc to finish).
- * Output        : Elements moved in plan to the nearest tile center; final report of moved / aligned / skipped.
+ * Input         : Active project - first a TaskDialog command-link choice of workflow, then either (a)
+ *                 one ceiling (host or linked) + one anchor point, then point-based elements pre-selected
+ *                 and/or picked one-by-one (Esc to finish), or (b) a batch of point-based elements
+ *                 (current selection if any, otherwise one window/click multi-select), then a repeatable
+ *                 round of one ceiling + one anchor grid intersection per room (Esc at any point in a
+ *                 round to finish).
+ * Output        : Elements moved in plan to the nearest tile center of whichever ceiling they snapped to;
+ *                 mode (a) reports the single grid's detail, mode (b) reports an aggregate (ceilings
+ *                 processed / moved / aligned / skipped).
  *
  * Notes         :
  * - Targets Revit 2020 through latest. Tile size/angle is read from the ceiling surface pattern; uses
  *   UnitUtils with DisplayUnitType (the Revit 2020 unit API) - revisit for 2021+ ForgeTypeId builds.
  * - Reads linked-model ceilings for reference only; never modifies linked elements.
- * - The whole session (pre-selected batch + each pick) is one TransactionGroup assimilated into a single undo step.
- * - Esc during a pick ends the session silently; pinned / non-point elements are skipped and counted.
+ * - Both modes wrap their whole session in one TransactionGroup assimilated into a single undo step;
+ *   mode (b) rolls back instead if Esc is pressed before any round completes (nothing to undo).
+ * - Mode (a) - RunOneAtATimeMode/SnapElementsOneAtATime - is the original v1.3.0 logic, unchanged: one
+ *   ceiling only, pre-selected elements snap immediately, then a PickObject loop (Esc to finish) snaps
+ *   more one at a time, all to that same grid.
+ * - Mode (b) - RunWindowMultiSelectMode/PickElementBatch/RunCeilingRounds - is the v1.4.0 logic: Esc
+ *   during the up-front element pick cancels the whole command; Esc during a ceiling pick or an
+ *   anchor-point pick ends the round loop (keeps whatever rounds already completed) rather than
+ *   cancelling outright - a wrong (non-ceiling) pick just shows an error and lets the round be retried.
+ *   Each round only snaps the elements from the original batch that geometrically sit over that round's
+ *   ceiling (CeilingMagnetService.FilterElementsOverCeiling - real ceiling solid geometry, not a
+ *   bounding-box guess, per the Modeler mindset rule) - lets one up-front multi-room selection be
+ *   snapped to each room's own ceiling grid in turn, without re-snapping already-placed elements to a
+ *   later, unrelated grid. Confirmed with Ajmal this filtering behavior, not a global re-snap.
+ * - Pinned / non-point elements are skipped and counted in both modes.
  * - Real-grid path (2025.3+, see CeilingGridApiCompat): clusters the ceiling's actual grid lines into
  *   two perpendicular families, derives tile size/angle from each family's own inter-line spacing (median,
  *   for robustness against clipped boundary segments), and derives the anchor point by intersecting one
  *   line from each family - so the manual PickAnchorPoint click is skipped entirely on those versions.
  *   Falls back to the original type-pattern-or-fallback + manual-click method on any version, or any
  *   ceiling, where the real grid data is unavailable or ambiguous (never guesses on ambiguous data).
- * - Thin command wrapper: ceiling/element selection, the pick-loop, and transaction handling live
- *   here; grid detection (real-geometry and surface-pattern paths) and the per-element snap math live
- *   in Services/CeilingMagnet/CeilingMagnetService.cs.
+ *   Applies identically in both modes.
+ * - Thin command wrapper: mode choice, element-batch/ceiling selection, the round loop, and transaction
+ *   handling live here; grid detection, the geometric over-ceiling filter, and the per-element snap math
+ *   live in Services/CeilingMagnet/CeilingMagnetService.cs.
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.5.0 (2026-07-20) - Ajmal tried the v1.4.0 rework and asked to keep BOTH workflows in the same
+ *                       tool rather than replace one with the other - the original one-at-a-time flow
+ *                       ("before was good") plus the new window-select-then-loop flow ("this also I
+ *                       need"). Added an up-front TaskDialog command-link choice (AskElementPickMode)
+ *                       and split the old single Execute() body into RunOneAtATimeMode (restores the
+ *                       exact original v1.3.0 logic, byte-for-byte behavior) and
+ *                       RunWindowMultiSelectMode (the v1.4.0 logic, unchanged). ShowSummary is now
+ *                       overloaded - the grid-detail report for mode (a), the aggregate report for
+ *                       mode (b) - since the two modes report meaningfully different things.
+ * v1.4.0 (2026-07-20) - Reworked the selection workflow per Ajmal's request: elements are now
+ *                       window/click multi-selected ONCE up front (uidoc.Selection.PickObjects,
+ *                       reusing the current selection if one already exists) instead of one-at-a-time
+ *                       picking after the ceiling. The command then loops a ceiling+anchor-point round
+ *                       repeatedly (Esc to finish the whole loop) - each round snaps only the elements
+ *                       from that batch sitting over the picked ceiling (new
+ *                       CeilingMagnetService.FilterElementsOverCeiling), so one selection can be
+ *                       walked room-by-room without re-running the command. Confirmed with Ajmal:
+ *                       later rounds filter to that ceiling's own elements, they do not re-snap
+ *                       everything already placed by an earlier round. Aggregate summary (ceilings
+ *                       processed + totals) replaces the old single-ceiling grid-detail report.
+ *                       [Superseded same day by v1.5.0 - this became one of two selectable modes.]
  * v1.3.0 (2026-07-17) - Extracted the ceiling-grid-detection algorithm (real-grid clustering, family
  *                       spacing, 2D intersection, surface-pattern reading) and the per-element snap
  *                       math into Services/CeilingMagnet/CeilingMagnetService.cs (code review cleanup
@@ -78,6 +123,17 @@ namespace AJTools.Commands
         private const string SnapPreselectedTransactionName = "Snap Preselected";
         private const string SnapElementTransactionName = "Snap Element";
 
+        /// <summary>Which of the two element-picking workflows Ajmal chose for this run.</summary>
+        private enum ElementPickMode
+        {
+            /// <summary>Original v1.3.0 flow: pick one ceiling first, then elements one at a time.</summary>
+            OneAtATime,
+
+            /// <summary>v1.4.0 flow: window/click multi-select all elements first, then repeat
+            /// ceiling+point rounds.</summary>
+            WindowMultiSelect
+        }
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
@@ -90,32 +146,15 @@ namespace AJTools.Commands
 
             try
             {
-                CeilingSelection ceilingSelection;
-                if (!TryPickCeilingSelection(uidoc, doc, out ceilingSelection))
+                ElementPickMode? mode = AskElementPickMode();
+                if (mode == null)
                 {
                     return Result.Cancelled;
                 }
 
-                CeilingGridDefinition grid;
-                XYZ originPoint;
-                if (!CeilingMagnetService.TryGetGridFromRealGeometry(ceilingSelection, out grid, out originPoint))
-                {
-                    if (!CeilingMagnetService.TryCreateGridDefinition(ceilingSelection, out grid))
-                    {
-                        return Result.Cancelled;
-                    }
-
-                    originPoint = PickAnchorPoint(uidoc);
-                    if (originPoint == null)
-                    {
-                        return Result.Cancelled;
-                    }
-                }
-
-                SnapSummary summary = SnapElementsToGrid(uidoc, doc, originPoint, grid);
-                ShowSummary(grid, summary);
-
-                return Result.Succeeded;
+                return mode == ElementPickMode.OneAtATime
+                    ? RunOneAtATimeMode(uidoc, doc)
+                    : RunWindowMultiSelectMode(uidoc, doc);
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
@@ -128,38 +167,71 @@ namespace AJTools.Commands
             }
         }
 
-        private static bool TryPickCeilingSelection(UIDocument uidoc, Document hostDoc, out CeilingSelection selection)
+        /// <summary>
+        /// Asks Ajmal up front which of the two element-picking workflows to run this time. Both are
+        /// kept side by side per his request - the original one-ceiling / pick-elements-one-at-a-time
+        /// flow, and the newer window-select-everything-then-repeat-rooms flow.
+        /// </summary>
+        private static ElementPickMode? AskElementPickMode()
         {
-            selection = null;
-
-            Reference ceilingReference = PickCeilingReference(uidoc);
-            string skippedReason;
-            if (TryResolveCeilingSelection(hostDoc, ceilingReference, out selection, out skippedReason))
+            TaskDialog dialog = new TaskDialog(CeilingMagnetService.ToolTitle)
             {
-                return true;
+                MainInstruction = "How do you want to pick the elements to snap?",
+                CommonButtons = TaskDialogCommonButtons.Cancel
+            };
+            dialog.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink1,
+                "Pick one at a time",
+                "Pick one ceiling first, then click each element to snap - Esc when done. Good for a single room.");
+            dialog.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink2,
+                "Window-select multiple at once",
+                "Select all the elements first (drag a box, or click multiple, then Finish), then repeat "
+                    + "ceiling + point for each room - Esc to finish everything.");
+
+            TaskDialogResult result = dialog.Show();
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                    return ElementPickMode.OneAtATime;
+                case TaskDialogResult.CommandLink2:
+                    return ElementPickMode.WindowMultiSelect;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Original v1.3.0 workflow: pick one ceiling, resolve its grid, then snap any pre-selected
+        /// elements immediately followed by a one-at-a-time pick loop (Esc to finish) - every element
+        /// in this run snaps to that same single ceiling.
+        /// </summary>
+        private static Result RunOneAtATimeMode(UIDocument uidoc, Document doc)
+        {
+            CeilingSelection ceilingSelection;
+            if (!TryPickCeilingSelection(uidoc, doc, out ceilingSelection))
+            {
+                return Result.Cancelled;
             }
 
-            if (CanPickLinkedElementFromReference(hostDoc, ceilingReference))
+            CeilingGridDefinition grid;
+            XYZ originPoint;
+            if (!CeilingMagnetService.TryGetGridFromRealGeometry(ceilingSelection, out grid, out originPoint))
             {
-                Reference linkedReference = PickLinkedCeilingReference(uidoc);
-                if (TryResolveCeilingSelection(hostDoc, linkedReference, out selection, out skippedReason))
+                if (!CeilingMagnetService.TryCreateGridDefinition(ceilingSelection, out grid))
                 {
-                    return true;
+                    return Result.Cancelled;
                 }
+
+                originPoint = PickAnchorPoint(uidoc);
             }
 
-            DialogHelper.ShowError(CeilingMagnetService.ToolTitle, skippedReason);
-            return false;
+            SnapSummary summary = SnapElementsOneAtATime(uidoc, doc, originPoint, grid);
+            ShowSummary(grid, summary);
+            return Result.Succeeded;
         }
 
-        private static XYZ PickAnchorPoint(UIDocument uidoc)
-        {
-            // Revit 2020 does not expose the rendered model pattern origin, so the anchor
-            // still has to come from one manual click on a visible grid intersection.
-            return uidoc.Selection.PickPoint("Pick one ceiling grid intersection (anchor)");
-        }
-
-        private static SnapSummary SnapElementsToGrid(UIDocument uidoc, Document doc, XYZ originPoint, CeilingGridDefinition grid)
+        private static SnapSummary SnapElementsOneAtATime(UIDocument uidoc, Document doc, XYZ originPoint, CeilingGridDefinition grid)
         {
             SnapSummary summary = new SnapSummary();
 
@@ -212,6 +284,202 @@ namespace AJTools.Commands
             return summary;
         }
 
+        /// <summary>
+        /// v1.4.0 workflow: window/click multi-select all elements once up front, then repeat a
+        /// ceiling+anchor-point round (RunCeilingRounds) until Esc.
+        /// </summary>
+        private static Result RunWindowMultiSelectMode(UIDocument uidoc, Document doc)
+        {
+            IList<Element> batch = PickElementBatch(uidoc, doc);
+            if (batch == null)
+            {
+                return Result.Cancelled;
+            }
+
+            if (batch.Count == 0)
+            {
+                DialogHelper.ShowError(CeilingMagnetService.ToolTitle, "No elements were selected.");
+                return Result.Cancelled;
+            }
+
+            int roundCount;
+            SnapSummary summary = RunCeilingRounds(uidoc, doc, batch, out roundCount);
+            if (roundCount == 0)
+            {
+                return Result.Cancelled;
+            }
+
+            ShowSummary(roundCount, summary);
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Gets the batch of elements every round will snap from: reuses the current selection if
+        /// Ajmal already had one before running the command, otherwise prompts one window/click
+        /// multi-select (Esc cancels the whole command at this stage only).
+        /// </summary>
+        private static IList<Element> PickElementBatch(UIDocument uidoc, Document doc)
+        {
+            IList<Element> preselected = GetPreselectedPointElements(uidoc, doc);
+            if (preselected.Count > 0)
+            {
+                return preselected;
+            }
+
+            IList<Reference> pickedReferences;
+            try
+            {
+                pickedReferences = uidoc.Selection.PickObjects(
+                    ObjectType.Element,
+                    new PointElementSelectionFilter(),
+                    "Window-select the elements to snap, then press Finish (Esc to cancel)");
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                return null;
+            }
+
+            List<Element> result = new List<Element>();
+            foreach (Reference reference in pickedReferences)
+            {
+                Element element = doc.GetElement(reference.ElementId);
+                if (element != null)
+                {
+                    result.Add(element);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Repeats a ceiling+anchor-point round until Esc: each round resolves one ceiling's grid,
+        /// then snaps only the elements from <paramref name="batch"/> that sit over that ceiling. Esc
+        /// on the ceiling pick or the anchor-point pick ends the loop (keeping whatever rounds already
+        /// ran); an invalid ceiling pick just shows an error and lets the round be retried.
+        /// </summary>
+        private static SnapSummary RunCeilingRounds(UIDocument uidoc, Document doc, IList<Element> batch, out int roundCount)
+        {
+            SnapSummary summary = new SnapSummary();
+            roundCount = 0;
+
+            using (TransactionGroup group = new TransactionGroup(doc, TransactionGroupName))
+            {
+                group.Start();
+
+                while (true)
+                {
+                    CeilingSelection ceilingSelection;
+                    try
+                    {
+                        if (!TryPickCeilingSelection(uidoc, doc, out ceilingSelection))
+                        {
+                            continue;
+                        }
+                    }
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    CeilingGridDefinition grid;
+                    XYZ originPoint;
+                    if (!CeilingMagnetService.TryGetGridFromRealGeometry(ceilingSelection, out grid, out originPoint))
+                    {
+                        if (!CeilingMagnetService.TryCreateGridDefinition(ceilingSelection, out grid))
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            originPoint = PickAnchorPoint(uidoc);
+                        }
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                        {
+                            break;
+                        }
+                    }
+
+                    IList<Element> roundElements = CeilingMagnetService.FilterElementsOverCeiling(batch, ceilingSelection);
+                    if (roundElements.Count == 0)
+                    {
+                        DialogHelper.ShowError(
+                            CeilingMagnetService.ToolTitle,
+                            "None of the selected elements sit over that ceiling. Pick another ceiling, or Esc to finish.");
+                        continue;
+                    }
+
+                    using (Transaction tx = new Transaction(doc, SnapElementTransactionName))
+                    {
+                        tx.Start();
+                        foreach (Element element in roundElements)
+                        {
+                            CeilingMagnetService.SnapElement(doc, element, originPoint, grid, summary);
+                        }
+
+                        tx.Commit();
+                    }
+
+                    roundCount++;
+                }
+
+                if (roundCount > 0)
+                {
+                    group.Assimilate();
+                }
+                else
+                {
+                    group.RollBack();
+                }
+            }
+
+            return summary;
+        }
+
+        private static bool TryPickCeilingSelection(UIDocument uidoc, Document hostDoc, out CeilingSelection selection)
+        {
+            selection = null;
+
+            Reference ceilingReference = PickCeilingReference(uidoc);
+            string skippedReason;
+            if (TryResolveCeilingSelection(hostDoc, ceilingReference, out selection, out skippedReason))
+            {
+                return true;
+            }
+
+            if (CanPickLinkedElementFromReference(hostDoc, ceilingReference))
+            {
+                Reference linkedReference = PickLinkedCeilingReference(uidoc);
+                if (TryResolveCeilingSelection(hostDoc, linkedReference, out selection, out skippedReason))
+                {
+                    return true;
+                }
+            }
+
+            DialogHelper.ShowError(CeilingMagnetService.ToolTitle, skippedReason);
+            return false;
+        }
+
+        private static XYZ PickAnchorPoint(UIDocument uidoc)
+        {
+            // Revit 2020 does not expose the rendered model pattern origin, so the anchor
+            // still has to come from one manual click on a visible grid intersection.
+            return uidoc.Selection.PickPoint("Pick one ceiling grid intersection (anchor) - Esc to finish");
+        }
+
+        private static void ShowSummary(int roundCount, SnapSummary summary)
+        {
+            DialogHelper.ShowInfo(
+                CeilingMagnetService.ToolTitle,
+                string.Format(
+                    "Ceilings processed: {0}\nMoved: {1}\nAlready aligned: {2}\nSkipped: {3}",
+                    roundCount,
+                    summary.Moved,
+                    summary.Aligned,
+                    summary.Skipped));
+        }
+
         private static void ShowSummary(CeilingGridDefinition grid, SnapSummary summary)
         {
             double tileUmm = RevitCompat.InternalToMm(grid.TileU);
@@ -245,7 +513,7 @@ namespace AJTools.Commands
         {
             return uidoc.Selection.PickObject(
                 ObjectType.PointOnElement,
-                "Select ceiling from current model or linked model");
+                "Select ceiling from current model or linked model - Esc to finish");
         }
 
         private static Reference PickLinkedCeilingReference(UIDocument uidoc)

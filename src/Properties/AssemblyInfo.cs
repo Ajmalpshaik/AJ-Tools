@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.20.2
+ * Version       : 1.22.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-19
+ * Last Updated  : 2026-07-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,23 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.22.0 (2026-07-20) - Elements to Ceiling Grid (Ceiling Magnet): Ajmal asked to keep BOTH the
+ *                       original one-at-a-time workflow and the new v1.21.0 window-select-then-loop
+ *                       workflow in the same tool, rather than replace one with the other. The tool now
+ *                       opens with a TaskDialog command-link choice ("Pick one at a time" vs
+ *                       "Window-select multiple at once") and runs whichever flow was picked -
+ *                       CmdCeilingMagnet.cs's original v1.3.0 logic is preserved byte-for-byte as one
+ *                       branch. See CmdCeilingMagnet.cs v1.5.0 for full detail.
+ * v1.21.0 (2026-07-20) - Elements to Ceiling Grid (Ceiling Magnet): reworked the selection workflow.
+ *                       Elements to snap are now window/click multi-selected ONCE up front
+ *                       (src/Commands/CmdCeilingMagnet.cs, reuses the current selection if one already
+ *                       exists) instead of picked one at a time after the ceiling. The command then
+ *                       repeats a ceiling+anchor-point round (Esc to finish the whole loop) - each
+ *                       round snaps only the elements from that batch sitting over the picked ceiling
+ *                       (new CeilingMagnetService.FilterElementsOverCeiling, reading the ceiling's real
+ *                       solid geometry rather than a bounding-box guess), so one selection can be
+ *                       walked room-by-room without re-running the command or re-snapping elements an
+ *                       earlier round already placed. See CmdCeilingMagnet.cs v1.4.0 for full detail.
  * v1.20.2 (2026-07-19) - New About icon: replaced Resources/About.png with Ajmal's own artwork
  *                       (Y:\Ajmal Ps\icon\about.png, a purple question-mark badge) - same filename, so
  *                       both the ribbon button and the About window's own taskbar icon (AboutWindow.xaml.cs,
@@ -423,5 +440,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.20.2.0")]
-[assembly: AssemblyFileVersion("1.20.2.0")]
+[assembly: AssemblyVersion("1.22.0.0")]
+[assembly: AssemblyFileVersion("1.22.0.0")]
