@@ -6,10 +6,10 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.6.1
+ * Version       : 1.7.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-18
+ * Last Updated  : 2026-07-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,9 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.7.0 (2026-07-20) - Added the Smart Selection tool (Modify panel): pick one reference element,
+ *                       then window/crossing/click-select more - only elements sharing that
+ *                       element's category are added to the selection.
  * v1.6.1 (2026-07-18) - Two small same-day fixes on top of v1.6.0 below: (1) Ajmal's AJ AI ON/OFF
  *                       source images had a solid (non-transparent) background from the original JPG
  *                       export - he re-exported as PNG, so the icon files are now AJ_AI_ON.png /
@@ -267,6 +270,7 @@ namespace AJTools.App
         private void BuildModifyPanel(RibbonPanel panel)
         {
             AddStackedTools(panel, AddMatchElevationTool(), AddReassignLevelTool(), AddPinElementsTool());
+            AddTopLevelTool(panel, AddSmartSelectionTool());
         }
 
         private void BuildMepPanel(RibbonPanel panel)
@@ -357,6 +361,20 @@ namespace AJTools.App
                 "Unhide All.png",
                 "Unhide All.png",
                 pushButton => pushButton.AvailabilityClassName = typeof(CmdGraphicalViewAvailability).FullName);
+        }
+
+        private TopLevelToolSpec AddSmartSelectionTool()
+        {
+            return CreatePushToolSpec(
+                "Smart\nSelection",
+                "Pick one reference element, then window, crossing, or click-select more - only elements of the same category are added.",
+                typeof(CmdSmartSelection),
+                "cursor.png",
+                "cursor.png",
+                pushButton =>
+                {
+                    pushButton.LongDescription = "Pick a reference element (e.g. one duct), then window-select, crossing-select, or click across the view as many times as you like - only elements sharing that category are added; everything else caught in the box is skipped automatically. Click Finish (or press Enter) when done - the matched elements stay selected for whatever you do next.";
+                });
         }
 
         private TopLevelToolSpec AddPinElementsTool()

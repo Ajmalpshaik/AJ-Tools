@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.22.0
+ * Version       : 1.23.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-20
@@ -24,6 +24,12 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.23.0 (2026-07-20) - Smart Selection (Modify panel, AJ Tools tab): new tool - pick one reference
+ *                       element, then window-select, crossing-select, or click-select more elements in
+ *                       the view; only elements sharing the reference element's category are added,
+ *                       everything else caught in the box is skipped automatically. Read-only, no
+ *                       model changes. Ported in from a separate cloud-session PR (#16) and adapted to
+ *                       the current live source tree. See CmdSmartSelection.cs / SmartSelectionFilter.cs.
  * v1.22.0 (2026-07-20) - Elements to Ceiling Grid (Ceiling Magnet): Ajmal asked to keep BOTH the
  *                       original one-at-a-time workflow and the new v1.21.0 window-select-then-loop
  *                       workflow in the same tool, rather than replace one with the other. The tool now
@@ -440,5 +446,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.22.0.0")]
-[assembly: AssemblyFileVersion("1.22.0.0")]
+[assembly: AssemblyVersion("1.23.0.0")]
+[assembly: AssemblyFileVersion("1.23.0.0")]

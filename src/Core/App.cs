@@ -6,10 +6,10 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.12.1
+ * Version       : 1.13.0
  *
  * Created Date  : 2025-01-01
- * Last Updated  : 2026-07-18
+ * Last Updated  : 2026-07-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,7 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.13.0 (2026-07-20) - Suite bumped: added the Smart Selection tool (Modify panel, AJ Tools tab).
  * v1.12.1 (2026-07-18) - Dockable pane title shortened to just "C#" (was "C# with AI"), matching the
  *                       ribbon button label Ajmal shortened the same day.
  * v1.12.0 (2026-07-18) - Registers the dockable pane as "C# with AI" now (was "AJ AI" - that name
