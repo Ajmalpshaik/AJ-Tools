@@ -5,10 +5,122 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-- **Added**: Smart Selection tool (AJ Tools tab, Modify panel) - pick one reference element, then one
-  window or crossing box-select more elements in the view; only elements sharing the reference
+## [1.23.1] - 2026-07-20
+
+First tagged release since v1.13.5 - bundles ten days of accumulated work: two new tools, a Ceiling
+Magnet rework, the About window overhaul, and the AJ AI branding/UX pass below.
+
+- **Fixed**: Smart Selection swapped its multi-pick window/crossing/click loop (needed an explicit
+  Finish/Enter to end) for a single one-shot window/crossing box-select that completes the instant the
+  drag ends, per live-testing feedback.
+
+## [1.23.0] - 2026-07-20
+
+- **Added**: Smart Selection tool (AJ Tools tab, Modify panel) - pick one reference element, then
+  window, crossing, or click-select more elements in the view; only elements sharing the reference
   element's category are added to the selection, everything else is skipped automatically. Read-only
   (selection state only, no model changes, no undo step).
+
+## [1.22.0] - 2026-07-20
+
+- **Changed**: Elements to Ceiling Grid (Ceiling Magnet) now offers both the original one-at-a-time
+  workflow and the newer window-select-then-loop workflow side by side via a choice dialog, instead of
+  replacing one with the other.
+
+## [1.21.0] - 2026-07-20
+
+- **Changed**: Ceiling Magnet reworked - elements to snap are now window/click multi-selected once up
+  front, then the tool repeats a ceiling-plus-anchor-point round (Esc to finish), each round snapping
+  only that batch's elements sitting over the picked ceiling using its real solid geometry, not a
+  bounding-box guess.
+
+## [1.20.2] - 2026-07-19
+
+- **Changed**: new About icon (Ajmal's own artwork), used for both the ribbon button and the About
+  window's taskbar icon.
+
+## [1.20.1] - 2026-07-19
+
+- **Fixed**: Highlight Selection left a selected duct/pipe's insulation gray instead of red; insulation
+  is now colored along with its host element.
+
+## [1.20.0] - 2026-07-19
+
+- **Added**: Highlight Selection tool (View panel) - colors the current selection red and every other
+  element in the active view gray, for instant visual identification.
+
+## [1.19.1] - 2026-07-19
+
+- **Changed**: About window overhaul - real taskbar/window icon, a Minimize button, a maximize-size
+  fix, the house Neon Blue accent color, and a content accuracy pass (real ribbon list, real recent
+  updates, real license terms).
+
+## [1.19.0] - 2026-07-19
+
+- **Changed**: AJ AI's diff-highlight now also covers Run Code's auto-fix loop, not just Generate.
+- **Added**: Prompt and code editor content auto-saves (2s debounce) and restores after a Revit crash.
+
+## [1.18.0] - 2026-07-18
+
+- **Changed**: AJ AI's Prompt box no longer clears after a successful generate.
+- **Added**: changed lines are highlighted in the code editor after an incremental-edit generate.
+
+## [1.17.1] - 2026-07-18
+
+- **Changed**: "Generate C# Code" button resized to match the other buttons; added a Stop button beside
+  it, visible while busy.
+
+## [1.17.0] - 2026-07-18
+
+- **Added**: "Generate C# Code" now sends the code already in the editor as context, so a follow-up
+  prompt edits the existing script instead of always generating an unrelated fresh one.
+
+## [1.16.2] - 2026-07-18
+
+- **Fixed**: three visual issues from the first live launch - clipped button labels, Settings
+  ComboBoxes ignoring their background color, and a cramped Output console layout.
+
+## [1.16.1] - 2026-07-18
+
+- **Fixed**: a real startup crash (AiShellView/SettingsWindow StaticResource lookups failing before
+  their Resources dictionary was populated) that crashed Revit's OnStartup entirely. Confirmed live.
+
+## [1.16.0] - 2026-07-18
+
+- **Changed**: AJ AI's Settings moved out of an inline collapsible panel into its own popup window;
+  shared visual style resources extracted into one file.
+
+## [1.15.2] - 2026-07-18
+
+- **Changed**: restyled the AJ AI "C#" dockable pane to the house Soft Revit UI look (Neumorphism +
+  Claymorphism, Neon Blue, dark theme). Fixed a ProgressBar fill-width bug caught while building it.
+
+## [1.15.1] - 2026-07-18
+
+- **Fixed**: AJ AI ON/OFF icons re-supplied as proper transparent PNGs.
+- **Changed**: pane label shortened to "C#".
+
+## [1.15.0] - 2026-07-18
+
+- **Changed**: rebranded the AI Assistant panel's two buttons - the chat/generation pane is now "C#
+  with AI", the MCP bridge toggle is now just "AJ AI" with an icon that swaps between connected/
+  disconnected states.
+
+## [1.14.0] - 2026-07-18
+
+- **Added**: "AJ AI Bridge" ribbon button (AI Assistant panel) to connect/disconnect the live-Revit MCP
+  bridge directly, replacing the equivalent control that lived inside the AJ AI chat panel.
+
+## [1.13.11] - 2026-07-18
+
+- **Changed**: renamed the AJ AI pane's live-Revit MCP bridge from "AutoDebugger" to "AJ AI Bridge"
+  everywhere - UI text, named-pipe protocol, file names, MCP server registration, the tool names Claude
+  calls, and ~25 knowledge/skill files.
+
+## [1.13.10] - 2026-07-18
+
+- **Changed**: renamed the AI shell's internal branding away from "Gemini"/"Gemini Shell" to "AJ AI"
+  everywhere except the actual Gemini provider name/API service, which correctly still says Gemini.
 
 ## [1.13.9] - 2026-07-18
 
