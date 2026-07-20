@@ -10,7 +10,7 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 - View: View Crop, Unhide All, Toggle Link, Filter Pro, Section Mark Visibility
 - Graphics: Apply Graphics, Match Graphics, Reset Graphics
 - Datums: Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
-- Modify: Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements
+- Modify: Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements, Smart Selection
 - MEP: Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
 - Coordination: Element ID lookup, 3D Views by Workset, Link Workset
 - Data: Assign Location, Duct Standard
@@ -51,3 +51,7 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 - Auto Dims requires Crop View enabled and plan/section/elevation context.
 - Some tools are blocked by view template locks.
 - Very large models may take longer in Filter Pro value scanning.
+- Smart Selection matches by category only (not family/type): pick one reference element, then any
+  window, crossing, or click selection in the same pick session only adds elements sharing that
+  category. Press Esc during the first pick to cancel; Esc during the follow-up stage keeps just the
+  reference element selected.
