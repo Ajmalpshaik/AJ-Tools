@@ -7,7 +7,7 @@
  *                 added to the selection; everything else caught in the box is skipped automatically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-20
  * Last Updated  : 2026-07-20
@@ -35,6 +35,11 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.0.1 (2026-07-20) - Code review fixes: validate the active view (not just the document) up
+ *                       front so an unsupported view (e.g. a template) shows a clear message
+ *                       instead of risking a runtime exception; the unexpected-error handler now
+ *                       returns Result.Cancelled instead of Result.Failed since it already shows
+ *                       its own dialog - avoids Revit displaying a second, redundant error dialog.
  * v1.0.0 (2026-07-20) - Initial release.
  *
  * License       : All Rights Reserved
@@ -62,7 +67,7 @@ namespace AJTools.Commands
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uiDocument = commandData.Application?.ActiveUIDocument;
-            if (!ValidationHelper.ValidateUIDocument(uiDocument, out message))
+            if (!ValidationHelper.ValidateUIDocumentAndView(uiDocument, out message))
             {
                 DialogHelper.ShowError("Smart Selection", message);
                 return Result.Cancelled;
@@ -125,7 +130,7 @@ namespace AJTools.Commands
             {
                 message = ex.Message;
                 DialogHelper.ShowError("Smart Selection", "An unexpected error occurred:\n" + ex.Message);
-                return Result.Failed;
+                return Result.Cancelled;
             }
         }
 
