@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.23.0
+ * Version       : 1.23.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-20
@@ -24,6 +24,10 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.23.1 (2026-07-20) - Smart Selection: swapped the multi-pick window/crossing/click loop (needed an
+ *                       explicit Finish/Enter to end) for a single one-shot window/crossing box-select
+ *                       that completes the instant the drag ends - per Ajmal's feedback after live
+ *                       testing. See CmdSmartSelection.cs v1.1.0.
  * v1.23.0 (2026-07-20) - Smart Selection (Modify panel, AJ Tools tab): new tool - pick one reference
  *                       element, then window-select, crossing-select, or click-select more elements in
  *                       the view; only elements sharing the reference element's category are added,
@@ -446,5 +450,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.23.0.0")]
-[assembly: AssemblyFileVersion("1.23.0.0")]
+[assembly: AssemblyVersion("1.23.1.0")]
+[assembly: AssemblyFileVersion("1.23.1.0")]

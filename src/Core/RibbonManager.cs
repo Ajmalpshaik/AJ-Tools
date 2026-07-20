@@ -6,7 +6,7 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.7.0
+ * Version       : 1.7.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-20
@@ -26,6 +26,8 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.7.1 (2026-07-20) - Smart Selection tooltip/description text updated for the v1.1.0 single-shot
+ *                       box-select behavior (see CmdSmartSelection.cs) - no more "Finish" step.
  * v1.7.0 (2026-07-20) - Added the Smart Selection tool (Modify panel): pick one reference element,
  *                       then window/crossing/click-select more - only elements sharing that
  *                       element's category are added to the selection.
@@ -367,13 +369,13 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "Smart\nSelection",
-                "Pick one reference element, then window, crossing, or click-select more - only elements of the same category are added.",
+                "Pick one reference element, then one window or crossing-select - only elements of the same category are added.",
                 typeof(CmdSmartSelection),
                 "cursor.png",
                 "cursor.png",
                 pushButton =>
                 {
-                    pushButton.LongDescription = "Pick a reference element (e.g. one duct), then window-select, crossing-select, or click across the view as many times as you like - only elements sharing that category are added; everything else caught in the box is skipped automatically. Click Finish (or press Enter) when done - the matched elements stay selected for whatever you do next.";
+                    pushButton.LongDescription = "Pick a reference element (e.g. one duct), then window-select or crossing-select once across the view - only elements sharing that category are added; everything else caught in the box is skipped automatically. The matched elements stay selected for whatever you do next.";
                 });
         }
 
