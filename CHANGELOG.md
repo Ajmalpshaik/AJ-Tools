@@ -5,10 +5,10 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-- **Added**: Smart Selection tool (AJ Tools tab, Modify panel) - pick one reference element, then
-  window-select, crossing-select, or click-select more elements in the view; only elements sharing
-  the reference element's category are added to the selection, everything else is skipped
-  automatically. Read-only (selection state only, no model changes, no undo step).
+- **Added**: Smart Selection tool (AJ Tools tab, Modify panel) - pick one reference element, then one
+  window or crossing box-select more elements in the view; only elements sharing the reference
+  element's category are added to the selection, everything else is skipped automatically. Read-only
+  (selection state only, no model changes, no undo step).
 
 ## [1.13.9] - 2026-07-18
 

@@ -2,12 +2,12 @@
 /*
  * Tool Name     : Smart Selection
  * File Name     : CmdSmartSelection.cs
- * Purpose       : Pick one reference element, then window-select, crossing-select, or click-select more
- *                 elements in the view - only elements sharing the reference element's category are
- *                 added to the selection; everything else caught in the box is skipped automatically.
+ * Purpose       : Pick one reference element, then one window/crossing box-select more elements in the
+ *                 view - only elements sharing the reference element's category are added to the
+ *                 selection; everything else caught in the box is skipped automatically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-07-20
  * Last Updated  : 2026-07-20
@@ -19,9 +19,9 @@
  * Dependencies  : Autodesk Revit API, AJTools.Utils (SmartSelectionFilter, ValidationHelper, DialogHelper,
  *                 ElementIdIntegerComparer)
  *
- * Input         : Active document, Selection scope - one reference element, then any number of
- *                 window/crossing/click picks in one pick session (Finish/Enter to end, Esc to cancel).
- * Output        : The matched elements (reference + picked) are left as the active Revit selection.
+ * Input         : Active document, Selection scope - one reference element, then one window/crossing
+ *                 box drag (single shot, no Finish/Enter step; Esc to cancel).
+ * Output        : The matched elements (reference + boxed) are left as the active Revit selection.
  *                 No model changes.
  *
  * Notes         :
@@ -30,11 +30,16 @@
  * - Category-level match only: any element sharing the reference element's category is allowed (e.g.
  *   pick one duct, then window-select adds every duct in the box, skipping pipes/walls/tags/etc.).
  * - Esc on the reference pick cancels silently (Result.Cancelled, no error shown).
- * - Esc during the follow-up pick stage (after a reference element is already picked) falls back to
- *   leaving just the reference element selected, instead of losing the pick entirely.
+ * - The follow-up stage is a single PickElementsByRectangle box (drag left-to-right for window, right-
+ *   to-left for crossing) - it completes as soon as the drag ends, no Finish/Enter needed. Esc during
+ *   that stage falls back to leaving just the reference element selected, instead of losing the pick.
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.0 (2026-07-20) - Ajmal's feedback after live testing: the multi-pick PickObjects loop (window,
+ *                       crossing, or click, repeated any number of times, needing an explicit Finish/
+ *                       Enter to end) was more than he wanted - swapped for a single one-shot
+ *                       PickElementsByRectangle box-select that completes the instant the drag ends.
  * v1.0.1 (2026-07-20) - Code review fixes: validate the active view (not just the document) up
  *                       front so an unsupported view (e.g. a template) shows a clear message
  *                       instead of risking a runtime exception; the unexpected-error handler now
@@ -58,7 +63,7 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Entry command for Smart Selection: pick a reference element, then window/crossing/click-select
+    /// Entry command for Smart Selection: pick a reference element, then one window/crossing box-select
     /// more elements of the same category only.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
@@ -99,15 +104,12 @@ namespace AJTools.Commands
 
                 try
                 {
-                    IList<Reference> pickedReferences = uiDocument.Selection.PickObjects(
-                        ObjectType.Element,
+                    IList<Element> pickedElements = uiDocument.Selection.PickElementsByRectangle(
                         new SmartSelectionFilter(referenceCategory.Id),
-                        $"Smart Selection: window, crossing, or click-select more {referenceCategory.Name} " +
-                        "elements. Click Finish (or press Enter) when done.");
+                        $"Smart Selection: window or crossing-select more {referenceCategory.Name} elements.");
 
-                    foreach (Reference pickedReference in pickedReferences)
+                    foreach (Element pickedElement in pickedElements)
                     {
-                        Element pickedElement = document.GetElement(pickedReference);
                         if (pickedElement != null)
                         {
                             matchedIds.Add(pickedElement.Id);

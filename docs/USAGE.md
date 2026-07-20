@@ -51,7 +51,7 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 - Auto Dims requires Crop View enabled and plan/section/elevation context.
 - Some tools are blocked by view template locks.
 - Very large models may take longer in Filter Pro value scanning.
-- Smart Selection matches by category only (not family/type): pick one reference element, then any
-  window, crossing, or click selection in the same pick session only adds elements sharing that
-  category. Press Esc during the first pick to cancel; Esc during the follow-up stage keeps just the
-  reference element selected.
+- Smart Selection matches by category only (not family/type): pick one reference element, then one
+  window or crossing box-select adds only elements sharing that category - it completes as soon as the
+  box is drawn, no Finish/Enter step. Press Esc during the first pick to cancel; Esc during the
+  follow-up box keeps just the reference element selected.
