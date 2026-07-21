@@ -4,9 +4,14 @@ Purpose   : Dockable pane view for the AJ Tools interactive AI-assisted C# shell
             code -> review/run/save against the live Revit document). Soft Revit UI style (Neumorphism +
             Claymorphism, Neon Blue primary, dark theme).
 Author    : Ajmal P.S.
-Version   : 2.1.0
-Last Updated : 2026-07-18
+Version   : 2.2.0
+Last Updated : 2026-07-21
 Changelog :
+  v2.2.0 - Added a "Snoop Selection" button (dumps every parameter of the current selection to the
+           Output panel, read-only) and a "Live Console" expander below Saved Scripts History - type
+           one C# line, press Enter, it runs immediately with variables kept alive for the next line.
+           Both are RevitPythonShell-equivalent pieces (lookup()/RevitLookup and the interactive
+           IronPython console) ported to sit alongside the existing AI Generate/Run workflow.
   v2.1.0 - Settings moved out of this pane's inline collapsible panel into its own popup
            (SettingsWindow.xaml, opened from code-behind) per Ajmal's request. Shared brush/style
            resources extracted to SoftUiStyles.xaml (merged dictionary) so the pane and the new
@@ -46,6 +51,7 @@ Changelog :
             <RowDefinition Height="Auto"/> <!-- Run Buttons -->
             <RowDefinition Height="2*"/>   <!-- Results & Error -->
             <RowDefinition Height="Auto"/> <!-- Saved Scripts Expander -->
+            <RowDefinition Height="Auto"/> <!-- Live Console Expander -->
         </Grid.RowDefinitions>
 
         <!-- Top Bar -->
@@ -113,6 +119,9 @@ Changelog :
                 <Button Content="Save Script" Command="{Binding SaveScriptCommand}"
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                         Style="{StaticResource SecondaryButtonStyle}" Padding="14,8" Margin="8,0,0,0"/>
+                <Button Content="🔍 Snoop Selection" Command="{Binding SnoopSelectionCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                        Style="{StaticResource SecondaryButtonStyle}" Padding="14,8" Margin="8,0,0,0"/>
                 <Button Content="⏹ Stop" Command="{Binding StopCommand}"
                         Style="{StaticResource WarningButtonStyle}" Padding="14,8" Margin="8,0,0,0"
                         Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
@@ -162,6 +171,41 @@ Changelog :
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+        </Expander>
+
+        <!-- Live Console: type one line of C#, press Enter, it runs immediately and variables stay
+             alive for the next line - the actual "interactive shell" (same idea as RevitPythonShell's
+             IronPython console), sitting next to the AI Generate/Run workflow above. -->
+        <Expander Grid.Row="8" Header="Live Console (Interactive Shell)" Foreground="{StaticResource TextBrush}"
+                  BorderBrush="{StaticResource BorderBrush}" Background="{StaticResource CardBrush}"
+                  Margin="0,12,0,0" Padding="4" IsExpanded="False">
+            <StackPanel Margin="0,8,0,0">
+                <TextBlock Text="Type a C# statement or expression and press Enter to run it against the live document. Available: Document, UIDocument, Application, UIApplication. Each line auto-commits its own transaction - don't write your own Transaction block. Up/Down arrow recalls previous lines."
+                           Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <Border Style="{StaticResource SoftCardStyle}" Padding="8">
+                    <TextBox x:Name="ReplTranscriptBox" Text="{Binding ReplTranscript, Mode=OneWay}" IsReadOnly="True"
+                             Style="{StaticResource SoftMonoTextBoxStyle}" BorderThickness="0" Background="Transparent"
+                             MinHeight="120" MaxHeight="260" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"/>
+                </Border>
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="ReplInputBox" Grid.Column="0" Text="{Binding ReplInput, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource SoftMonoTextBoxStyle}" AcceptsReturn="False"
+                             PreviewKeyDown="ReplInputBox_PreviewKeyDown"
+                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"/>
+                    <Button Grid.Column="1" Content="Run" Command="{Binding ReplRunCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                            Style="{StaticResource PrimaryButtonStyle}" Padding="14,8" Margin="8,0,0,0"/>
+                    <Button Grid.Column="2" Content="Reset Session" Command="{Binding ReplResetCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                            Style="{StaticResource SecondaryButtonStyle}" Padding="10,8" Margin="8,0,0,0"/>
+                </Grid>
+            </StackPanel>
         </Expander>
     </Grid>
     </Grid>

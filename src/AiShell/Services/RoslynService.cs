@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
@@ -113,6 +114,43 @@ namespace AJTools.AiShell.Services
                 result.Success = false;
                 result.ErrorMessage = ex.InnerException?.Message ?? ex.Message;
                 result.Exception = ex.InnerException ?? ex;
+            }
+
+            return result;
+        }
+
+        /// <summary>Runs one interactive-console line. Unlike ExecuteAsync above (a whole AI-authored
+        /// script, cached and run standalone every time), this continues from the caller's previous
+        /// ScriptState when given one - so a variable declared on one line is still visible on the
+        /// next, the way a real interactive shell (RevitPythonShell's IronPython console, csi.exe,
+        /// RoslynPad) behaves. Raw statements/expressions only - no Execute()-wrapper convention.</summary>
+        public async Task<ReplLineResult> ExecuteReplLineAsync(string code, ScriptState<object> previousState, RevitScriptGlobals globals, CancellationToken cancellationToken)
+        {
+            var result = new ReplLineResult();
+
+            try
+            {
+                var syntaxTree = CSharpSyntaxTree.ParseText(code, ScriptParseOptions);
+                var rewriter = new LoopProtectionRewriter();
+                var safeCode = rewriter.Visit(syntaxTree.GetRoot()).ToFullString();
+
+                ScriptState<object> newState = previousState == null
+                    ? await CSharpScript.RunAsync(safeCode, SharedScriptOptions, globals, typeof(RevitScriptGlobals), cancellationToken).ConfigureAwait(false)
+                    : await previousState.ContinueWithAsync(safeCode, SharedScriptOptions, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                result.Success = true;
+                result.NewState = newState;
+                result.Output = newState.ReturnValue?.ToString();
+            }
+            catch (CompilationErrorException e)
+            {
+                result.Success = false;
+                result.ErrorMessage = string.Join(Environment.NewLine, e.Diagnostics);
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.InnerException?.Message ?? ex.Message;
             }
 
             return result;

@@ -27,9 +27,11 @@ namespace AJTools.AiShell.DockablePane
             var roslynService = new RoslynService();
             var revitExecService = new RevitExecutionService(roslynService);
             var contextService = new RevitContextExtractionService();
+            var replService = new ReplSessionService(roslynService);
+            var snoopService = new ElementSnoopService();
             _mcpBridge = new McpBridgeService(revitExecService);
 
-            var vm = new AiShellViewModel(config, geminiService, openAiService, revitExecService, contextService);
+            var vm = new AiShellViewModel(config, geminiService, openAiService, revitExecService, contextService, replService, snoopService);
 
             _view = new AiShellView { DataContext = vm };
         }
