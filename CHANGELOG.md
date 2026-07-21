@@ -5,6 +5,8 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-07-21
+
 - **Added**: Two RevitPythonShell-equivalent pieces in the C# pane, ported to sit alongside the
   existing AI Generate/Run workflow rather than replace it: a "Live Console" - type one raw C# line,
   press Enter, it runs immediately against the live document with variables kept alive for the next
