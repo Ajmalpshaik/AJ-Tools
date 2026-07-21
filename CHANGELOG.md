@@ -11,6 +11,10 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
   line (the actual "interactive shell" the reference tool is named for) - and a one-click "Snoop
   Selection" that dumps every instance/type parameter of the current selection to the Output panel,
   read-only, no code required.
+- **Added**: "📌 Pin" on each Saved Scripts History row + a new "Run Pinned" ribbon button (AI
+  Assistant panel) - pin one saved script for a one-click, no-code re-run. The safe, statically-
+  compiled alternative to RevitPythonShell's "deploy script as ribbon button", which relies on
+  runtime IL emission (System.Reflection.Emit) to generate a new type per script.
 
 ## [1.23.1] - 2026-07-20
 
