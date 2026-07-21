@@ -8,7 +8,7 @@
  *                 to the existing AI-authored full-script Run/RevitExecutionService path.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-21
  * Last Updated  : 2026-07-21
@@ -37,8 +37,25 @@
  *   (Roslyn's RunAsync/ContinueWithAsync can block synchronously for non-async script code) - see
  *   that file's notes for what this can and cannot cancel. The timeout here is much shorter since a
  *   console line is meant to be quick, not a whole script.
+ * - _globals is a session field, not a local: ScriptState.ContinueWithAsync has no globals
+ *   parameter at all - it silently keeps reusing whatever globals object was passed to the very
+ *   first RunAsync call in the chain. A fresh RevitScriptGlobals built on every call would be dead
+ *   for every line after the first, and worse, every continued line would keep checking the FIRST
+ *   line's CancellationToken - tied to a CancellationTokenSource already disposed by that line's
+ *   `using` block, which stops its timer without ever firing, so LoopProtectionRewriter's checks
+ *   would never see it as cancelled again. Mutating _globals' properties before each line (instead
+ *   of replacing the object) keeps the same globals identity Roslyn expects while still giving each
+ *   line a live, non-disposed token.
  *
  * Changelog     :
+ * v1.0.1 (2026-07-21) - Two review fixes: (1) _globals is now a persisted, mutated-in-place session
+ *                       field instead of a fresh local per call - fixes continuation lines silently
+ *                       running against the first line's disposed CancellationToken (loop protection
+ *                       was effectively dead past line 1). (2) Added an outer catch-all around
+ *                       Execute() - previously an exception thrown before the inner try (e.g. from
+ *                       Transaction construction/Start()) would leave the TaskCompletionSource never
+ *                       completed, hanging the whole pane in IsBusy forever (same failure mode
+ *                       RevitExecutionService v1.2.0 already hardened against).
  * v1.0.0 (2026-07-21) - Initial release: interactive line-by-line C# console with persisted state.
  *
  * License       : All Rights Reserved
@@ -68,6 +85,7 @@ namespace AJTools.AiShell.Services
 
         private ScriptState<object> _state;
         private Document _sessionDocument;
+        private RevitScriptGlobals _globals;
 
         // A console line is meant to be a quick, single statement/expression - a much shorter budget
         // than a whole AI-generated script gets in RevitExecutionService.
@@ -110,6 +128,7 @@ namespace AJTools.AiShell.Services
             {
                 _state = null;
                 _sessionDocument = null;
+                _globals = null;
             }
         }
 
@@ -143,21 +162,34 @@ namespace AJTools.AiShell.Services
                 if (_sessionDocument != null && !ReferenceEquals(_sessionDocument, doc))
                 {
                     _state = null;
+                    _globals = null;
                     sessionWasReset = true;
                 }
                 _sessionDocument = doc;
 
                 using (var timeoutCts = new CancellationTokenSource(ReplTimeout))
                 {
-                    var globals = new RevitScriptGlobals
+                    // Mutate the SAME globals instance in place rather than building a new one -
+                    // ContinueWithAsync has no globals parameter, so anything past the first line
+                    // would otherwise keep running against a stale, already-disposed
+                    // CancellationTokenSource (see the class notes above).
+                    if (_globals == null)
                     {
-                        UIApplication = app,
-                        Application = app.Application,
-                        UIDocument = uidoc,
-                        Document = doc,
-                        CancellationToken = timeoutCts.Token,
-                        ReportProgress = null
-                    };
+                        _globals = new RevitScriptGlobals
+                        {
+                            UIApplication = app,
+                            Application = app.Application,
+                            UIDocument = uidoc,
+                            Document = doc,
+                            CancellationToken = timeoutCts.Token,
+                            ReportProgress = null
+                        };
+                    }
+                    else
+                    {
+                        _globals.UIDocument = uidoc;
+                        _globals.CancellationToken = timeoutCts.Token;
+                    }
 
                     using (var tx = new Transaction(doc, "AJ AI Console"))
                     {
@@ -166,7 +198,7 @@ namespace AJTools.AiShell.Services
                         ReplLineResult lineResult;
                         try
                         {
-                            var task = _roslynService.ExecuteReplLineAsync(code, _state, globals, timeoutCts.Token);
+                            var task = _roslynService.ExecuteReplLineAsync(code, _state, _globals, timeoutCts.Token);
                             bool completed = task.Wait(HardWaitTimeout);
 
                             if (!completed)
@@ -216,6 +248,19 @@ namespace AJTools.AiShell.Services
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                // Catches anything thrown before/between the inner try blocks above (e.g. Transaction
+                // construction or Start() failing) - without this, such an exception would propagate
+                // out of Execute() with tcs never completed, hanging the whole pane in IsBusy forever
+                // (the same failure mode RevitExecutionService v1.2.0 already hardened against).
+                tcs?.TrySetResult(new CodeExecutionResult
+                {
+                    Success = false,
+                    ErrorMessage = "An unexpected error occurred: " + ex.Message,
+                    Exception = ex
+                });
             }
             finally
             {
