@@ -4,9 +4,15 @@ Purpose   : Dockable pane view for the AJ Tools interactive AI-assisted C# shell
             code -> review/run/save against the live Revit document). Soft Revit UI style (Neumorphism +
             Claymorphism, Neon Blue primary, dark theme).
 Author    : Ajmal P.S.
-Version   : 2.3.0
+Version   : 2.4.0
 Last Updated : 2026-07-21
 Changelog :
+  v2.4.0 - Two more RevitPythonShell-parity pieces: (1) Ctrl+Space in the Code Editor opens a
+           curated Revit API completion list (RevitApiCompletionData) - RPS's "autocompletion
+           (press CTRL+SPACE after a period)", scaled to a static list instead of a live semantic
+           model (see that file's notes for why). (2) "📋 Send Last Line to Code Editor" button in
+           Live Console - appends the last-run console line to the editor (never overwrites), and
+           if it failed, pre-fills Prompt with the error so Generate C# Code can ask AI to fix it.
   v2.3.0 - Saved Scripts History rows now also have a "📌 Pin" button (PinScriptCommand) next to
            "▶ Run", plus a status line showing which script (if any) is currently pinned. Pinning
            writes AiShellConfig.PinnedScriptPath, which the new standalone "Run Pinned" ribbon
@@ -104,7 +110,9 @@ Changelog :
                                        Background="{StaticResource SurfaceBrush}"
                                        Foreground="#DCDCDC"
                                        Padding="6"
-                                       TextChanged="CodeEditor_TextChanged"/>
+                                       ToolTip="Ctrl+Space for a list of common Revit API types, members, and snippets."
+                                       TextChanged="CodeEditor_TextChanged"
+                                       PreviewKeyDown="CodeEditor_PreviewKeyDown"/>
             </DockPanel>
         </Border>
 
@@ -222,6 +230,11 @@ Changelog :
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                             Style="{StaticResource SecondaryButtonStyle}" Padding="10,8" Margin="8,0,0,0"/>
                 </Grid>
+                <Button Content="📋 Send Last Line to Code Editor" Command="{Binding SendReplToEditorCommand}"
+                        HorizontalAlignment="Left"
+                        ToolTip="Appends the last console line to the Code Editor below (keeps existing content). If it failed, also fills the Prompt with the error so Generate C# Code can ask AI to fix it."
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                        Style="{StaticResource SecondaryButtonStyle}" Padding="10,6" Margin="0,8,0,0" FontSize="11"/>
             </StackPanel>
         </Expander>
     </Grid>

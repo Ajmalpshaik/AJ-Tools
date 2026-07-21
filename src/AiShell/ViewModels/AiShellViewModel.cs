@@ -36,6 +36,14 @@
  *   addition to the XAML now disabling the action buttons while a request is in flight.
  *
  * Changelog     :
+ * v1.10.0 (2026-07-21) - Two more Live Console additions: (1) console command history now persists
+ *                       to ajai-console-history.json (same best-effort pattern as the crash-
+ *                       recovery snapshot) so Up/Down recall survives Revit being closed and
+ *                       reopened. (2) SendReplToEditorCommand - appends the last-run console line to
+ *                       CodeEditorContent (never overwrites) and, if that line failed, pre-fills
+ *                       PromptInput with the exact error so clicking Generate C# Code hands the fix
+ *                       request straight to the existing incremental-edit AI flow (v1.5.0) instead
+ *                       of needing a second AI request path just for the console.
  * v1.9.0 (2026-07-21) - Added PinScriptCommand + PinnedScriptDisplayText: a "📌 Pin" button on each
  *                       Saved Scripts History row writes AiShellConfig.PinnedScriptPath, which the
  *                       new standalone RunPinnedScriptCommand ribbon button reads to run that one
@@ -205,6 +213,13 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             public string code { get; set; }
         }
 
+        // Live Console command history, persisted the same best-effort way as the recovery snapshot
+        // above, so Up/Down recall still has something to recall after Revit is closed and reopened
+        // (matches a terminal/REPL's own history file, e.g. bash's .bash_history).
+        private static readonly string ReplHistoryFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AJTools", "ajai-console-history.json");
+        private const int MaxReplHistoryEntries = 200;
+
         public AiShellViewModel(
             AiShellConfig config,
             IAiProviderService geminiService,
@@ -247,10 +262,12 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             ReplRunCommand = new AsyncRelayCommand(ReplRunAsync);
             ReplResetCommand = new RelayCommand(ReplReset);
             PinScriptCommand = new RelayCommand<HistoryItem>(PinScript);
+            SendReplToEditorCommand = new RelayCommand(SendReplToEditor);
 
             _autoSaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs) };
             _autoSaveTimer.Tick += (s, e) => { _autoSaveTimer.Stop(); SaveRecoverySnapshot(); };
             LoadRecoverySnapshotIfAny();
+            LoadReplHistoryIfAny();
         }
 
         private IAiProviderService GetActiveService()
@@ -298,6 +315,36 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 StatusText = "Recovered unsaved work from your last session.";
             }
             catch { /* best-effort - a corrupt/unreadable recovery file must never break startup */ }
+        }
+
+        private void SaveReplHistory()
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(ReplHistoryFilePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(ReplHistoryFilePath, JsonConvert.SerializeObject(_replHistory));
+            }
+            catch { /* best-effort - console history recall is a convenience, must never break the tool */ }
+        }
+
+        /// <summary>Restores the Live Console's Up/Down recall history from the previous session, if
+        /// any - so it survives Revit being closed and reopened, the same way a terminal's own
+        /// history file does.</summary>
+        private void LoadReplHistoryIfAny()
+        {
+            try
+            {
+                if (!File.Exists(ReplHistoryFilePath)) return;
+
+                var saved = JsonConvert.DeserializeObject<System.Collections.Generic.List<string>>(File.ReadAllText(ReplHistoryFilePath));
+                if (saved == null || saved.Count == 0) return;
+
+                _replHistory.Clear();
+                _replHistory.AddRange(saved);
+                _replHistoryIndex = _replHistory.Count;
+            }
+            catch { /* best-effort - a corrupt/unreadable history file must never break startup */ }
         }
 
         private string _promptInput;
@@ -420,6 +467,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         // --- Live Console (interactive shell) ---
         private readonly System.Collections.Generic.List<string> _replHistory = new System.Collections.Generic.List<string>();
         private int _replHistoryIndex;
+        // The most recently run console line and, if it failed, its error - feeds SendReplToEditor.
+        private string _lastReplCode;
+        private string _lastReplErrorMessage;
 
         private string _replInput = string.Empty;
         public string ReplInput
@@ -457,6 +507,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         public ICommand ReplRunCommand { get; }
         public ICommand ReplResetCommand { get; }
         public ICommand PinScriptCommand { get; }
+        public ICommand SendReplToEditorCommand { get; }
 
         /// <summary>Which saved script (if any) is currently pinned to the "Run Pinned" ribbon
         /// button (RunPinnedScriptCommand reads AiShellConfig.PinnedScriptPath directly - this is
@@ -1003,7 +1054,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             }
 
             _replHistory.Add(code);
+            while (_replHistory.Count > MaxReplHistoryEntries) _replHistory.RemoveAt(0);
             _replHistoryIndex = _replHistory.Count;
+            SaveReplHistory();
             ReplInput = string.Empty;
 
             try
@@ -1012,22 +1065,51 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 ReplTranscript += $"\n>>> {code}\n";
 
                 var result = await _replService.ExecuteAsync(code);
+                _lastReplCode = code;
                 if (result.Success)
                 {
+                    _lastReplErrorMessage = null;
                     if (!string.IsNullOrEmpty(result.Output)) ReplTranscript += result.Output + "\n";
                 }
                 else
                 {
+                    _lastReplErrorMessage = result.ErrorMessage;
                     ReplTranscript += "Error: " + result.ErrorMessage + "\n";
                 }
             }
             catch (Exception ex)
             {
+                _lastReplCode = code;
+                _lastReplErrorMessage = ex.Message;
                 ReplTranscript += "Error: " + ex.Message + "\n";
             }
             finally
             {
                 IsBusy = false;
+            }
+        }
+
+        /// <summary>Appends the last-run console line to the Code Editor (never overwrites existing
+        /// work there) so a snippet worked out in the Live Console can be kept/extended/saved like
+        /// any other script. If that line failed, also pre-fills Prompt with a fix request using the
+        /// exact error, so clicking "Generate C# Code" hands it straight to the AI - reuses the
+        /// existing incremental-edit Generate flow (v1.5.0) rather than a second AI request path.</summary>
+        private void SendReplToEditor()
+        {
+            if (IsBusy || string.IsNullOrWhiteSpace(_lastReplCode)) return;
+
+            CodeEditorContent = string.IsNullOrEmpty(CodeEditorContent)
+                ? _lastReplCode
+                : CodeEditorContent + "\n\n" + _lastReplCode;
+
+            if (!string.IsNullOrWhiteSpace(_lastReplErrorMessage))
+            {
+                PromptInput = $"Fix this error from the line just added to the code above:\n{_lastReplErrorMessage}";
+                StatusText = "Sent to Code Editor with the error as the prompt - click \"Generate C# Code\" to ask AI to fix it.";
+            }
+            else
+            {
+                StatusText = "Sent to Code Editor - click \"Save Script\" to keep it, or \"Generate C# Code\" to extend it.";
             }
         }
 
