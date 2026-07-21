@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using ICSharpCode.AvalonEdit.CodeCompletion;
 using AJTools.AiShell.ViewModels;
 using AJTools.AiShell.Helpers;
 
@@ -20,6 +21,7 @@ namespace AJTools.AiShell.Views
         private volatile bool _isUpdatingText = false;
         private TextMarkerService _textMarkerService;
         private DispatcherTimer _syntaxCheckTimer;
+        private CompletionWindow _completionWindow;
 
         public AiShellView()
         {
@@ -126,6 +128,30 @@ namespace AJTools.AiShell.Views
             }
 
             settingsWindow.ShowDialog();
+        }
+
+        /// <summary>Ctrl+Space opens a static, curated Revit API completion list (RevitPythonShell's
+        /// "autocompletion (press CTRL+SPACE after a period)" feature, scaled down to a fixed list
+        /// instead of a live semantic model - see RevitApiCompletionData for why).</summary>
+        private void CodeEditor_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != System.Windows.Input.Key.Space ||
+                System.Windows.Input.Keyboard.Modifiers != System.Windows.Input.ModifierKeys.Control)
+            {
+                return;
+            }
+
+            e.Handled = true;
+
+            _completionWindow = new CompletionWindow(CodeEditor.TextArea);
+            var data = _completionWindow.CompletionList.CompletionData;
+            foreach (var item in RevitApiCompletionData.GetDefaultList())
+            {
+                data.Add(item);
+            }
+
+            _completionWindow.Show();
+            _completionWindow.Closed += (o, args) => _completionWindow = null;
         }
 
         private void CodeEditor_TextChanged(object sender, System.EventArgs e)

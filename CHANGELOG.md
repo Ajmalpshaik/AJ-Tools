@@ -15,6 +15,12 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
   Assistant panel) - pin one saved script for a one-click, no-code re-run. The safe, statically-
   compiled alternative to RevitPythonShell's "deploy script as ribbon button", which relies on
   runtime IL emission (System.Reflection.Emit) to generate a new type per script.
+- **Added**: Ctrl+Space in the C# pane's Code Editor opens a curated Revit API completion list
+  (types, members, globals, and a couple of common snippets) - RevitPythonShell's "autocompletion",
+  scaled to a static list instead of a live semantic model so it needs no Roslyn workspace plumbing.
+- **Added**: Live Console command history now persists across Revit sessions, and a new "📋 Send
+  Last Line to Code Editor" button carries a console line (and its error, if it failed) into the
+  main editor/prompt so the AI can extend or fix it using the existing Generate flow.
 
 ## [1.23.1] - 2026-07-20
 
