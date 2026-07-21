@@ -36,6 +36,21 @@
  *   addition to the XAML now disabling the action buttons while a request is in flight.
  *
  * Changelog     :
+ * v1.8.0 (2026-07-21) - Added the two most useful RevitPythonShell-style pieces this tool was still
+ *                       missing, ported and adapted to the AI-powered workflow already here rather
+ *                       than replacing it: (1) a Live Console - type one raw C# line, press Enter,
+ *                       it runs immediately with variables persisted to the next line (the actual
+ *                       "interactive shell" RevitPythonShell is named for; backed by the new
+ *                       ReplSessionService/RoslynService.ExecuteReplLineAsync, which continue a
+ *                       Roslyn ScriptState across lines instead of compiling each run standalone).
+ *                       (2) Snoop Selection - a one-click, no-code dump of every instance/type
+ *                       parameter on the current selection (ElementSnoopService), the same job
+ *                       RevitPythonShell's lookup()/RevitLookup integration does. Deliberately
+ *                       skipped: full Roslyn IntelliSense (too much workspace/completion-service
+ *                       plumbing to get right without a local Revit+Visual Studio test loop),
+ *                       startup scripts and macro-to-ribbon-button deployment (both run arbitrary
+ *                       code with less visibility than a click - a bigger safety trade-off than this
+ *                       tool takes elsewhere without a stronger case for the extra risk).
  * v1.7.0 (2026-07-19) - Two more Ajmal-requested improvements: (1) CodeGenerated now also fires from
  *                       RunCodeAsync's auto-fix loop (previousCode captured right before
  *                       RequestFixAsync, event raised right after CodeEditorContent is reassigned) -
@@ -164,6 +179,8 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         private readonly IAiProviderService _openAiService;
         private readonly RevitExecutionService _executionService;
         private readonly RevitContextExtractionService _contextService;
+        private readonly ReplSessionService _replService;
+        private readonly ElementSnoopService _snoopService;
         // Captured at construction on Revit's UI thread — System.Windows.Application.Current is
         // null inside Revit, so it can never be used to reach the UI dispatcher (same root cause
         // as the AiTaskWarningBarService v1.2.0 fix).
@@ -188,13 +205,17 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             IAiProviderService geminiService,
             IAiProviderService openAiService,
             RevitExecutionService executionService,
-            RevitContextExtractionService contextService)
+            RevitContextExtractionService contextService,
+            ReplSessionService replService,
+            ElementSnoopService snoopService)
         {
             _config = config;
             _geminiService = geminiService;
             _openAiService = openAiService;
             _executionService = executionService;
             _contextService = contextService;
+            _replService = replService;
+            _snoopService = snoopService;
             _uiDispatcher = Dispatcher.CurrentDispatcher;
 
             History = new ObservableCollection<ChatMessage>();
@@ -217,6 +238,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             StopCommand = new RelayCommand(StopProcess);
             RunFromHistoryCommand = new RelayCommand<HistoryItem>(RunFromHistory);
             BrowseFolderCommand = new RelayCommand(BrowseFolder);
+            SnoopSelectionCommand = new AsyncRelayCommand(SnoopSelectionAsync);
+            ReplRunCommand = new AsyncRelayCommand(ReplRunAsync);
+            ReplResetCommand = new RelayCommand(ReplReset);
 
             _autoSaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs) };
             _autoSaveTimer.Tick += (s, e) => { _autoSaveTimer.Stop(); SaveRecoverySnapshot(); };
@@ -387,6 +411,26 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         public ObservableCollection<ChatMessage> History { get; }
         public ObservableCollection<HistoryItem> SavedHistory { get; }
 
+        // --- Live Console (interactive shell) ---
+        private readonly System.Collections.Generic.List<string> _replHistory = new System.Collections.Generic.List<string>();
+        private int _replHistoryIndex;
+
+        private string _replInput = string.Empty;
+        public string ReplInput
+        {
+            get => _replInput;
+            set => SetProperty(ref _replInput, value);
+        }
+
+        private string _replTranscript =
+            "Type a C# statement or expression and press Enter. Available: Document, UIDocument, Application, UIApplication.\n" +
+            "Each line auto-commits its own transaction and variables stay alive for the next line - just like a real interactive shell.\n";
+        public string ReplTranscript
+        {
+            get => _replTranscript;
+            set => SetProperty(ref _replTranscript, value);
+        }
+
         /// <summary>Fired with (previousCode, newCode) whenever the AI itself rewrites the editor's
         /// code - a successful GenerateCodeAsync, or an auto-fix in RunCodeAsync - so the View can
         /// diff-highlight which lines actually changed. Deliberately NOT raised from FormatCode or
@@ -403,6 +447,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         public ICommand StopCommand { get; }
         public ICommand RunFromHistoryCommand { get; }
         public ICommand BrowseFolderCommand { get; }
+        public ICommand SnoopSelectionCommand { get; }
+        public ICommand ReplRunCommand { get; }
+        public ICommand ReplResetCommand { get; }
 
         private void RunFromHistory(HistoryItem item)
         {
@@ -874,6 +921,119 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             {
                 StatusText = "Format failed: " + ex.Message;
             }
+        }
+
+        private async Task SnoopSelectionAsync()
+        {
+            if (IsBusy) return;
+
+            try
+            {
+                IsBusy = true;
+                StatusText = "Reading selected element(s)...";
+                ExecutionResults = await _snoopService.SnoopSelectionAsync();
+                StatusText = "Snoop complete.";
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Snoop failed: {ex.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task ReplRunAsync()
+        {
+            if (IsBusy) return;
+
+            string code = ReplInput?.Trim();
+            if (string.IsNullOrWhiteSpace(code)) return;
+
+            // Same safety gate as RunCodeAsync (block outright-dangerous patterns, confirm on
+            // destructive-but-legitimate ones) - a typed console line is just as capable of touching
+            // the live model as an AI-generated script, so it gets the same scrutiny.
+            var safety = GeneratedCodeSafetyValidator.Validate(code);
+            if (safety.IsBlocked)
+            {
+                string reasons = string.Join("\n - ", safety.Findings.Where(f => f.Level == CodeRiskLevel.Blocked).Select(f => f.Reason));
+                ReplTranscript += $"\n>>> {code}\nBLOCKED - this does something AJ AI does not allow:\n - {reasons}\n";
+                return;
+            }
+            if (safety.RequiresConfirmation)
+            {
+                string reasons = string.Join("\n - ", safety.Findings.Select(f => f.Reason));
+                var confirm = System.Windows.MessageBox.Show(
+                    $"This line does the following:\n - {reasons}\n\nThis can only be undone with Ctrl+Z in Revit. Continue?",
+                    "AJ AI: Confirm Risky Operation",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning);
+
+                if (confirm != System.Windows.MessageBoxResult.Yes)
+                {
+                    ReplTranscript += $"\n>>> {code}\nNot run - not confirmed.\n";
+                    return;
+                }
+            }
+
+            _replHistory.Add(code);
+            _replHistoryIndex = _replHistory.Count;
+            ReplInput = string.Empty;
+
+            try
+            {
+                IsBusy = true;
+                ReplTranscript += $"\n>>> {code}\n";
+
+                var result = await _replService.ExecuteAsync(code);
+                if (result.Success)
+                {
+                    if (!string.IsNullOrEmpty(result.Output)) ReplTranscript += result.Output + "\n";
+                }
+                else
+                {
+                    ReplTranscript += "Error: " + result.ErrorMessage + "\n";
+                }
+            }
+            catch (Exception ex)
+            {
+                ReplTranscript += "Error: " + ex.Message + "\n";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private void ReplReset()
+        {
+            if (IsBusy) return;
+            _replService.ResetSession();
+            _replHistory.Clear();
+            _replHistoryIndex = 0;
+            ReplTranscript = "Session reset - previous variables are gone, start fresh.\n";
+        }
+
+        /// <summary>Up-arrow recall for the console input; called from the View's code-behind.</summary>
+        public string RecallPreviousReplCommand()
+        {
+            if (_replHistory.Count == 0) return ReplInput;
+            if (_replHistoryIndex > 0) _replHistoryIndex--;
+            return _replHistory[_replHistoryIndex];
+        }
+
+        /// <summary>Down-arrow recall for the console input; called from the View's code-behind.</summary>
+        public string RecallNextReplCommand()
+        {
+            if (_replHistory.Count == 0) return string.Empty;
+            if (_replHistoryIndex < _replHistory.Count - 1)
+            {
+                _replHistoryIndex++;
+                return _replHistory[_replHistoryIndex];
+            }
+            _replHistoryIndex = _replHistory.Count;
+            return string.Empty;
         }
     }
 }

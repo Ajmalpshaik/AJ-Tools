@@ -5,6 +5,13 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+- **Added**: Two RevitPythonShell-equivalent pieces in the C# pane, ported to sit alongside the
+  existing AI Generate/Run workflow rather than replace it: a "Live Console" - type one raw C# line,
+  press Enter, it runs immediately against the live document with variables kept alive for the next
+  line (the actual "interactive shell" the reference tool is named for) - and a one-click "Snoop
+  Selection" that dumps every instance/type parameter of the current selection to the Output panel,
+  read-only, no code required.
+
 ## [1.23.1] - 2026-07-20
 
 First tagged release since v1.13.5 - bundles ten days of accumulated work: two new tools, a Ceiling

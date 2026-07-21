@@ -75,6 +75,41 @@ namespace AJTools.AiShell.Views
                     }
                 }
             }
+            else if (e.PropertyName == nameof(AiShellViewModel.ReplTranscript))
+            {
+                if (!Dispatcher.CheckAccess())
+                {
+                    Dispatcher.Invoke(() => Vm_PropertyChanged(sender, e));
+                    return;
+                }
+
+                ReplTranscriptBox.ScrollToEnd();
+            }
+        }
+
+        /// <summary>Enter runs the current console line; Up/Down recall previous lines - the same
+        /// keys a real interactive shell (RevitPythonShell's console, a terminal REPL) uses.</summary>
+        private void ReplInputBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (!(DataContext is AiShellViewModel vm)) return;
+
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                e.Handled = true;
+                if (vm.ReplRunCommand.CanExecute(null)) vm.ReplRunCommand.Execute(null);
+            }
+            else if (e.Key == System.Windows.Input.Key.Up)
+            {
+                e.Handled = true;
+                vm.ReplInput = vm.RecallPreviousReplCommand();
+                ReplInputBox.CaretIndex = ReplInputBox.Text.Length;
+            }
+            else if (e.Key == System.Windows.Input.Key.Down)
+            {
+                e.Handled = true;
+                vm.ReplInput = vm.RecallNextReplCommand();
+                ReplInputBox.CaretIndex = ReplInputBox.Text.Length;
+            }
         }
 
         /// <summary>Opens the Settings popup (its own Window, not touched inline in this pane
