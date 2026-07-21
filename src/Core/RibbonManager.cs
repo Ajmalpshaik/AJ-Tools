@@ -6,10 +6,10 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.7.1
+ * Version       : 1.8.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-20
+ * Last Updated  : 2026-07-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,11 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.8.0 (2026-07-21) - Added "Run Pinned" to the AI Assistant panel (RunPinnedScriptCommand) - runs
+ *                       whichever saved script is pinned from the C# pane's Saved Scripts History.
+ *                       Statically-compiled, no runtime code generation - see that command's own
+ *                       notes for why this is the safe alternative to RevitPythonShell's IL-emission
+ *                       based "deploy script as ribbon button" feature.
  * v1.7.1 (2026-07-20) - Smart Selection tooltip/description text updated for the v1.1.0 single-shot
  *                       box-select behavior (see CmdSmartSelection.cs) - no more "Finish" step.
  * v1.7.0 (2026-07-20) - Added the Smart Selection tool (Modify panel): pick one reference element,
@@ -311,6 +316,7 @@ namespace AJTools.App
         {
             AddTopLevelTool(panel, AddAiTool());
             AddTopLevelTool(panel, AddAiBridgeTool());
+            AddTopLevelTool(panel, AddRunPinnedScriptTool());
         }
 
         private void BuildAboutPanel(RibbonPanel panel)
@@ -341,6 +347,20 @@ namespace AJTools.App
                 "AJ_AI_OFF.png",
                 "AJ_AI_OFF.png",
                 pushButton => App.AiBridgeButton = pushButton);
+        }
+
+        private TopLevelToolSpec AddRunPinnedScriptTool()
+        {
+            // Runs whichever saved script is currently pinned (AiShellConfig.PinnedScriptPath, set
+            // via "📌 Pin" on an item in the C# pane's Saved Scripts History) - a one-click,
+            // statically-compiled equivalent of RevitPythonShell's "deploy script as ribbon button"
+            // that doesn't need runtime code generation. See RunPinnedScriptCommand for why.
+            return CreatePushToolSpec(
+                "Run\nPinned",
+                "Run the saved C# script currently pinned from the C# pane's Saved Scripts History. Click \"📌 Pin\" on a saved script to choose which one.",
+                typeof(AJTools.AiShell.Commands.RunPinnedScriptCommand),
+                "CSharp_with_AI.png",
+                "CSharp_with_AI.png");
         }
 
         private TopLevelToolSpec AddToggleLinksTool()

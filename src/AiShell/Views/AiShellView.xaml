@@ -4,9 +4,15 @@ Purpose   : Dockable pane view for the AJ Tools interactive AI-assisted C# shell
             code -> review/run/save against the live Revit document). Soft Revit UI style (Neumorphism +
             Claymorphism, Neon Blue primary, dark theme).
 Author    : Ajmal P.S.
-Version   : 2.2.0
+Version   : 2.3.0
 Last Updated : 2026-07-21
 Changelog :
+  v2.3.0 - Saved Scripts History rows now also have a "📌 Pin" button (PinScriptCommand) next to
+           "▶ Run", plus a status line showing which script (if any) is currently pinned. Pinning
+           writes AiShellConfig.PinnedScriptPath, which the new standalone "Run Pinned" ribbon
+           button (RunPinnedScriptCommand, AI Assistant panel) reads to run that one script with a
+           single click, no code panel needed - the safe, statically-compiled alternative to
+           RevitPythonShell's runtime-IL-emission "deploy script as ribbon button" feature.
   v2.2.0 - Added a "Snoop Selection" button (dumps every parameter of the current selection to the
            Output panel, read-only) and a "Live Console" expander below Saved Scripts History - type
            one C# line, press Enter, it runs immediately with variables kept alive for the next line.
@@ -148,29 +154,40 @@ Changelog :
         <Expander Grid.Row="7" Header="Saved Scripts History" Foreground="{StaticResource TextBrush}"
                   BorderBrush="{StaticResource BorderBrush}" Background="{StaticResource CardBrush}"
                   Margin="0,12,0,0" Padding="4" IsExpanded="False">
-            <ListBox ItemsSource="{Binding SavedHistory}" Background="Transparent" BorderThickness="0"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="250" Margin="0,8,0,0">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="{StaticResource SoftCardBrush}" CornerRadius="10" Margin="0,3" Padding="10"
-                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap"
-                                           VerticalAlignment="Center" ToolTip="{Binding ToolTipText}"/>
-                                <Button Grid.Column="1" Content="▶ Run"
-                                        Command="{Binding DataContext.RunFromHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        IsEnabled="{Binding DataContext.IsBusy, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"
-                                        Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0" Padding="10,4" FontSize="11"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <StackPanel Margin="0,8,0,0">
+                <TextBlock Text="{Binding PinnedScriptDisplayText}" Foreground="{StaticResource MutedBrush}"
+                           FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <ListBox ItemsSource="{Binding SavedHistory}" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="250">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource SoftCardBrush}" CornerRadius="10" Margin="0,3" Padding="10"
+                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap"
+                                               VerticalAlignment="Center" ToolTip="{Binding ToolTipText}"/>
+                                    <Button Grid.Column="1" Content="📌 Pin"
+                                            Command="{Binding DataContext.PinScriptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Pin this script to the &quot;Run Pinned&quot; ribbon button (AI Assistant panel) for one-click, no-code re-runs."
+                                            IsEnabled="{Binding DataContext.IsBusy, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"
+                                            Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,0,0" Padding="10,4" FontSize="11"/>
+                                    <Button Grid.Column="2" Content="▶ Run"
+                                            Command="{Binding DataContext.RunFromHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            IsEnabled="{Binding DataContext.IsBusy, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"
+                                            Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0" Padding="10,4" FontSize="11"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
         </Expander>
 
         <!-- Live Console: type one line of C#, press Enter, it runs immediately and variables stay

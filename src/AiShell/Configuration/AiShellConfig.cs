@@ -25,6 +25,10 @@ namespace AJTools.AiShell.Configuration
 
         public string ScriptsFolderPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AJTools_Scripts");
 
+        /// <summary>Full path of the saved .cs script currently pinned to the "Run Pinned Script"
+        /// ribbon button (RunPinnedScriptCommand). Null/empty means nothing is pinned.</summary>
+        public string PinnedScriptPath { get; set; }
+
         public static AiShellConfig Load()
         {
             lock (_fileLock)
