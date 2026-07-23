@@ -6,10 +6,10 @@
  *                 unique parameter values from the project for the Filter Pro UI.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.2
  *
  * Created Date  : 2025-12-11
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,13 +24,19 @@
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
  * - Element scan limited to Constants.ELEMENT_SCAN_LIMIT (default 10 000) to prevent UI freeze on large models.
- * - ParameterFilterUtilities.GetFilterableParametersInCommon confirmed valid 2020-2026.
- * - LabelUtils.GetLabelFor(BuiltInParameter) used for built-in parameter display names — valid 2020-2026.
+ * - ParameterFilterUtilities.GetFilterableParametersInCommon verified unchanged across Revit
+ *   2020-2027 against the per-version RevitAPI reference assemblies (2026-07-23).
+ * - LabelUtils.GetLabelFor(BuiltInParameter) used for built-in parameter display names — verified
+ *   present on 2020-2027 (only the legacy enum overloads, e.g. ParameterType/DisplayUnitType,
+ *   were removed in later versions; this overload is unaffected).
  * - Production-ready implementation. No model changes — no Transaction required.
  *
  * Changelog     :
  * v1.0.0 (2025-12-11) - Initial release.
  * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ * v1.0.2 (2026-07-23) - Compatibility audit: every Revit API member used here verified present on
+ *                        2020-2027 against the per-version RevitAPI reference assemblies. No code
+ *                        changes needed.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
