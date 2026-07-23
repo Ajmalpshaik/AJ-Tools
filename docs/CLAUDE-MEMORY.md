@@ -3,6 +3,17 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Smart MEP Tag multi-version compatibility audit (2020–2027)
+
+- Third tool of the passes, same branch/PR (#22). Result: **fully compatible
+  2020–2027, zero source changes** — TagCompat's REVIT2023 switch point is exactly
+  right (verified: old single-reference IndependentTag members exist 2020–2022 and
+  are removed in 2023; multi-reference API added 2022). The TagMode-based
+  IndependentTag.Create overload the tool uses exists in all 8 versions.
+- LeaderLogicService's reflection fallbacks are runtime-only — compile-safe on all
+  versions. All #if blocks in the services are #if DEBUG, not version branches.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Colorize multi-version compatibility audit (2020–2027)
 
 - Second tool of the one-tool-at-a-time passes, same session/branch/PR (#22) as the

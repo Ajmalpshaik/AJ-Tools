@@ -12,6 +12,66 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Smart MEP Tag — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):**
+`CmdSmartMepTag.cs`, `CmdSmartMepTagSettings.cs` (WinForms settings dialog); Services/SmartTag:
+`SmartMepTagService.cs`, `SmartTagPlacementEngine.cs`, `SmartTagReportGenerator.cs`,
+`SmartTagSettingsTracker.cs`, `SmartTagTelemetryTracker.cs`, `AnnotationBox.cs` (pure math, no API),
+`AnnotationSpatialIndex.cs`; Models: `SmartTagSettingsState.cs`. Shared dependency exercised and
+read (not modified): `Services/LeaderLogic/LeaderLogicService.cs`.
+
+**The one real version boundary this tool crosses — IndependentTag's API generations — verified
+in the assemblies, and `TagCompat`'s switch point is exactly right:**
+
+| IndependentTag members | 2020 | 2021 | 2022 | 2023–2027 |
+|---|---|---|---|---|
+| Old single-reference: `LeaderEnd`, `LeaderElbow`, `GetTaggedReference()`, `TaggedLocalElementId` | ✔ | ✔ | ✔ | ✘ removed |
+| Multi-reference: `GetTaggedReferences()`, `GetLeaderEnd(ref)`, `SetLeaderElbow(ref, xyz)`, `GetTaggedLocalElements()` | ✘ | ✘ | ✔ (added) | ✔ |
+
+`TagCompat` compiles the old members below `REVIT2023_OR_GREATER` and the new members from 2023 —
+both paths only ever touch members that exist in their version range (2022 has both generations,
+so either choice is valid there; the helper's pre-2023 choice preserves 2020-identical behaviour).
+Every leader/tagged-reference call site routes through `TagCompat` or `LeaderLogicService` (whose
+primary path is TagCompat; its reflection probes are runtime-only fallbacks that cannot break a
+compile). No direct call to any removed member exists in the tool.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+
+- `IndependentTag.Create(Document, ElementId viewId, Reference, bool, TagMode, TagOrientation, XYZ)`
+  — the overload the tool uses — present in all 8 (the `tagTypeId` overload also exists in all 8).
+- `IndependentTag`: `TagHeadPosition` get/set, `HasLeader` get/set, `LeaderEndCondition` get/set,
+  `CanLeaderEndConditionBeAssigned`.
+- Enums: `TagMode.TM_ADDBY_CATEGORY`, `TagOrientation.Horizontal/Vertical`,
+  `LeaderEndCondition.Attached/Free`; all 14 `BuiltInCategory` values used (6 MEP model categories,
+  6 tag categories, OST_Dimensions, INVALID); all 5 `BuiltInParameter` values used
+  (VIEWER_ANNOTATION_CROP_ACTIVE, CURVE_ELEM_LENGTH, RBS_CURVE_DIAMETER_PARAM,
+  RBS_CURVE_WIDTH_PARAM, RBS_PIPE_DIAMETER_PARAM).
+- `Reference(Element)` ctor; `View.RightDirection/UpDirection/ViewDirection/CropBox/CropBoxActive/Scale`;
+  `Element.IsHidden/GetTypeId/ChangeTypeId/get_BoundingBox(View)`; `Document.GetDefaultFamilyTypeId`;
+  `Family.FamilyCategory`; `Duct`/`Pipe`/`MEPCurve`/`LocationCurve`/`LocationPoint`; `Outline`;
+  `Curve.GetEndPoint/Evaluate`; `Line.Direction`; `Transform` (Identity/CreateTranslation/
+  CreateRotationAtPoint/OfPoint); `TransactionGroup`/`SubTransaction`;
+  `FilteredElementCollector.OfCategory`.
+- The single `new ElementId(...)` call uses the `BuiltInCategory` constructor (present in all 8);
+  all numeric id work goes through `.IntValue()`.
+
+**UI:** the settings dialog is WinForms (`UseWindowsForms` is enabled suite-wide in the csproj) —
+identical API surface on .NET Fx 4.7.2/4.8, .NET 8, and .NET 10. The `#if` blocks in the services
+are all `#if DEBUG` (diagnostics), not version branches — version-specific code lives only in the
+helpers, per the project rule.
+
+**Source changes needed: none** — headers contain no stale compatibility claims.
+
+**Incidental observation (does not affect this tool):** the 2024 assembly has an extra
+`IndependentTag.Create(Document, ElementId, ElementId, Reference, XYZ, double)` overload that is
+absent again in 2025+ — a reminder not to adopt one-version-only overloads outside helpers.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Colorize — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):**
