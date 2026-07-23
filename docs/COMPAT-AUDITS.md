@@ -12,6 +12,42 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Colorize — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):**
+`CmdColorize.cs`, `CmdColorizeAvailability.cs`; Services/Colorize: `ColorizeApplier.cs`,
+`ColorizeElementMatcher.cs`; UI: `ColorizeWindow.xaml` + code-behind; ribbon wiring in
+`RibbonManager.AddColorizeTool()`. Shared dependencies exercised by Colorize and read as part of
+this audit (not modified): `FilterProDataProvider`, `FilterApplier.GetSolidFillId`,
+`FilterRuleCompat`, `ColorPalette`, `GraphicsElementService.ApplyOverrides`,
+`GraphicsCommandService.ExecuteSummaryTransaction`, `GraphicsOperationSummary` (plain model).
+
+**API surface:** Colorize reuses almost the entire Filter Pro surface verified in the section
+below (rule factories via FilterRuleCompat, OverrideGraphicSettings setters, category/parameter
+utilities, TaskDialog, ViewType/StorageType enums). Members unique to Colorize, verified present
+with identical signatures in **all 8 versions (2020–2027)**:
+
+- `FilteredElementCollector(Document, ElementId)` view-scoped constructor (2027 adds an extra
+  3-arg overload; the 2-arg one is unchanged) and `FilteredElementCollector.ToElementIds()`
+- `View.SetElementOverrides(ElementId, OverrideGraphicSettings)`
+- `Transaction.RollBack`, `Document.ActiveView`
+- `Autodesk.Revit.Exceptions.OperationCanceledException` (type)
+- RevitAPIUI: `UIApplication.MainWindowHandle` (used with WPF `WindowInteropHelper` to parent the
+  window to Revit — `System.Windows.Interop` is standard WPF on all four target frameworks)
+
+**Version boundaries crossed:** the same three as Filter Pro (string rule factory 2023/2026,
+`ElementId.IntegerValue` removed 2026, `ElementId(int)` removed 2026) — all already handled by
+`FilterRuleCompat` / `ElementIdHelper` / `ElementIdExtensions`. Colorize contains no direct calls
+to any removed member.
+
+**Source changes needed: none** (its headers, written 2026-07-13, contain no stale compatibility
+claims, unlike the older Filter Pro headers corrected in this same audit branch).
+
+**Build verification:** same limitation as Filter Pro below — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Filter Pro — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):**
