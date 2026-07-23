@@ -28,11 +28,16 @@ namespace AJTools.AiShell.Services
             return !string.IsNullOrWhiteSpace(_config.GetGeminiApiKey());
         }
 
-        private string _cachedModelName = null;
+        // Keyed by API key (not a single field) so switching keys in Settings - without
+        // restarting Revit - re-discovers the best model for the new key instead of reusing
+        // whatever the previous key resolved to. This service instance lives for the whole
+        // Revit session (constructed once in AiShellPaneProvider), so a single field would
+        // otherwise never expire.
+        private readonly Dictionary<string, string> _cachedModelByApiKey = new Dictionary<string, string>();
 
         private async Task<string> GetBestGeminiModelAsync(string apiKey, CancellationToken cancellationToken)
         {
-            if (_cachedModelName != null) return _cachedModelName;
+            if (_cachedModelByApiKey.TryGetValue(apiKey, out var cachedModel)) return cachedModel;
 
             const string url = "https://generativelanguage.googleapis.com/v1beta/models";
             try
@@ -82,7 +87,7 @@ namespace AJTools.AiShell.Services
                      throw new Exception("No Gemini models supporting generateContent were found for your API key.");
                 }
 
-                _cachedModelName = selectedModel;
+                _cachedModelByApiKey[apiKey] = selectedModel;
                 return selectedModel;
             }
             catch (OperationCanceledException)

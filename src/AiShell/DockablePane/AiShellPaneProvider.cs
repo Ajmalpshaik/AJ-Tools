@@ -24,6 +24,7 @@ namespace AJTools.AiShell.DockablePane
             var config = AiShellConfig.Load();
             var geminiService = new GeminiApiService(config);
             var openAiService = new OpenAiApiService(config);
+            var anthropicService = new AnthropicApiService(config);
             var roslynService = new RoslynService();
             var revitExecService = new RevitExecutionService(roslynService);
             var contextService = new RevitContextExtractionService();
@@ -31,7 +32,7 @@ namespace AJTools.AiShell.DockablePane
             var snoopService = new ElementSnoopService();
             _mcpBridge = new McpBridgeService(revitExecService);
 
-            var vm = new AiShellViewModel(config, geminiService, openAiService, revitExecService, contextService, replService, snoopService);
+            var vm = new AiShellViewModel(config, geminiService, openAiService, anthropicService, revitExecService, contextService, replService, snoopService);
 
             _view = new AiShellView { DataContext = vm };
         }
