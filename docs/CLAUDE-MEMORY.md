@@ -3,6 +3,15 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Auto Dimensions multi-version compatibility audit (2020–2027)
+
+- Seventh tool of the passes, same branch/PR (#24) as Duct Standards Manager.
+  Result: **fully compatible 2020–2027, zero source changes**. Dimension creation
+  (ItemFactoryBase.NewDimension), datum curves (DatumPlane.GetCurvesInView +
+  DatumExtentType), Line.CreateBound, ReferenceArray — all identical in all 8
+  assemblies. The tool crosses no version boundary at all.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Duct Standards Manager multi-version compatibility audit (2020–2027)
 
 - Sixth tool of the passes (first after PR #23 merged — branch restarted from

@@ -12,6 +12,27 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Auto Dimensions — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdAutoDimensions.cs`;
+`Services/AutoDimension/AutoDimensionService.cs`. UI is TaskDialog-based — no window.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+`doc.Create.NewDimension(View, Line, ReferenceArray)` (defined on `Creation.ItemFactoryBase` —
+present with identical signature in all 8), `Line.CreateBound`, `ReferenceArray` + `Append`,
+`new Reference(Element)` for grid/level references, `Grid`/`Level` types,
+`DatumPlane.GetCurvesInView(DatumExtentType, View)` with `DatumExtentType.ViewSpecific/Model`,
+`ViewType.EngineeringPlan` (other view types verified in earlier audits), view direction/crop
+properties, `Transaction`, `TaskDialog.Show`. No version boundary is crossed anywhere in this tool —
+no ElementId numeric access, no unit API, no string filter rules, no tagging API.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Duct Standards Manager — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `CmdDuctStandardsManager.cs`; Services/DuctStandards:
