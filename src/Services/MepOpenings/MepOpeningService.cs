@@ -5,10 +5,10 @@
  * Purpose       : Finds selected current or linked MEP crossings and creates direct openings in current-model hosts.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.3
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-06
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,6 +32,11 @@
  *                         family bounding box cannot expose the opening void height.
  * v1.0.2 (2026-07-06) - Cable tray fittings/runs are accepted as cable tray sources; family placement
  *                         can infer direction from connectors when a location curve is unavailable.
+ * v1.0.3 (2026-07-23) - Compatibility audit: MmToInternal now delegates to RevitCompat.MmToInternal
+ *                        instead of carrying its own #if REVIT2021 unit branch (identical values on
+ *                        all versions; version branches belong in helpers per the project rule).
+ *                        Full 2020-2027 API surface verified against the per-version reference
+ *                        assemblies - see docs/COMPAT-AUDITS.md.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -3003,11 +3008,8 @@ namespace AJTools.Services.MepOpenings
 
         private static double MmToInternal(double value)
         {
-#if REVIT2021 || REVIT2022 || REVIT2023 || REVIT2024 || REVIT2025 || REVIT2026 || REVIT2027 || REVIT2024_OR_GREATER
-            return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
-#else
-            return UnitUtils.ConvertToInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS);
-#endif
+            // Version-safe: RevitCompat owns the DisplayUnitType-vs-UnitTypeId switch.
+            return RevitCompat.MmToInternal(value);
         }
 
         private sealed class OpeningSize

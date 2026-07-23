@@ -12,6 +12,48 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## MEP Openings — audited 2026-07-23 — RESULT: fully compatible; two inline version branches moved into helpers
+
+**Files covered (complete tool inventory):** `CmdCreateMepOpenings.cs`, `CmdMepOpeningSettings.cs`;
+Services/MepOpenings: `MepOpeningService.cs` (~132 KB, the suite's largest service),
+`MepOpeningSelectionFilter.cs`, `MepOpeningHostSelectionFilter.cs`,
+`MepOpeningSourceSelectionFilter.cs`, `MepOpeningSettingsService.cs`; all 9 Models/MepOpenings
+classes; UI: `MepOpeningSettingsWindow.xaml` + code-behind.
+
+**Verified unchanged across all 8 versions (2020–2027):** all three
+`doc.Create.NewOpening` overloads the tool uses — `(Wall, XYZ, XYZ)`, `(Element, CurveArray, bool)`,
+`(Element, CurveArray, eRefFace)` with `eRefFace.CenterX/Y/Z`; `FamilySymbol.Activate/IsActive`;
+`CurveArray`, `Arc.Create`, `Line.CreateBound`; `StructuralType.NonStructural`;
+`Element.UniqueId`; all category/parameter enum values used (incl. `OST_CableTrayRun`,
+`OST_CableTrayFitting`, `OST_Conduit`, `SCHEDULE_LEVEL_PARAM`, `INSTANCE_REFERENCE_LEVEL_PARAM`,
+`FAMILY_LEVEL_PARAM`, `RBS_REFERENCE_INSULATION_THICKNESS`); linked-model handling
+(`GetLinkDocument`, `GetTotalTransform` via `Instance`).
+
+**Notable verified subtlety:** `doc.Create.NewFamilyInstance(XYZ, FamilySymbol, Level,
+StructuralType)` — the overload MOVED from `Creation.Document` (2020–2023) to the base class
+`Creation.ItemFactoryBase` (2024+). Call sites are unaffected (C# resolves it through inheritance
+either way), but a naive single-type API diff would wrongly flag it as removed. Verified present in
+every version on one of the two types.
+
+**Also confirmed in the assemblies (suite-wide fact):** `DisplayUnitType` exists only in 2020–2021
+and is REMOVED from 2022; `UnitTypeId` exists from 2021. Both `RevitCompat`'s 2022 switch and this
+tool's former 2021 switch were valid; they produce identical values.
+
+**Source changes (the first real code changes of the audit series — convention cleanups, identical
+behaviour):**
+- `MepOpeningSelectionFilter.IsCategory`: inline `#if REVIT2024...` ElementId branch replaced with
+  the shared `ElementIdExtensions.LongValue()` helper.
+- `MepOpeningService.MmToInternal`: inline `#if REVIT2021...` unit branch replaced with
+  `RevitCompat.MmToInternal`.
+Both previously compiled correctly on all 8 versions — the change removes duplicated version logic
+from tool files per the project rule ("version-specific code lives ONLY inside helpers"); no
+behaviour difference on any version.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Auto Dimensions — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `CmdAutoDimensions.cs`;
