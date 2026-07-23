@@ -12,6 +12,33 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Smart Connect — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `SmartConnectCommand.cs`; Services/SmartConnect:
+`SmartConnectRouteBuilder.cs` (48 KB), `SmartConnectConnectorUtils.cs`,
+`SmartConnectSettingsService.cs`; `Helpers/SmartConnectSelectionFilter.cs`;
+`Models/SmartConnectSettings.cs`; UI: `SmartConnectWindow.xaml` + code-behind.
+
+**Verified with EXACT signatures across all 8 versions (2020–2027):**
+`Duct.Create(Document, ElementId, ElementId, ElementId, XYZ, XYZ)`,
+`Pipe.Create(Document, ElementId, ElementId, ElementId, XYZ, XYZ)`,
+`CableTray.Create(Document, ElementId, XYZ, XYZ, ElementId)`,
+`doc.Create.NewElbowFitting(Connector, Connector)`; the connector API
+(`ConnectorManager.Connectors`, `Connector.Origin/Domain/CoordinateSystem/IsConnectedTo`,
+`MEPCurve.ConnectorManager/ReferenceLevel/MEPSystem`, `FamilyInstance.MEPModel`);
+`ElementTransformUtils.RotateElement`; `Domain.DomainUndefined`; `PROFILE_ANGLE` +
+`RBS_CABLETRAY_WIDTH/HEIGHT_PARAM` (duct/pipe size parameters verified in earlier audits).
+No `#if` blocks; no legacy unit/ElementId usage; `.IntValue()` used for id comparison.
+
+**UI:** plain WPF window — identical on all four target frameworks. Settings persist as JSON.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Intelligent Tag Arranger — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `CmdIntelligentTagArranger.cs`,

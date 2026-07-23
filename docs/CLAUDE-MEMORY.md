@@ -3,6 +3,13 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Smart Connect multi-version compatibility audit (2020–2027)
+
+- Eleventh pass, same branch/PR (#25). Result: **fully compatible 2020–2027, zero
+  source changes**. Duct/Pipe/CableTray.Create and NewElbowFitting verified with
+  exact signatures in all 8 assemblies; whole connector API identical throughout.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Intelligent Tag Arranger multi-version compatibility audit (2020–2027)
 
 - Tenth pass, same branch/PR (#25). Result: **fully compatible 2020–2027, zero
