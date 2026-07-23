@@ -12,6 +12,31 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Pipe Sizing — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdPipeSizing.cs`; Services/PipeSizing:
+`PipeSizingCalculator.cs`, `PipeSizingCsvExporter.cs`, `PipeSizingData.cs`,
+`PipeSizingStateService.cs`; Models/PipeSizing: `PipeSizingResult.cs`, `PipeSizingState.cs`,
+`PipeSizeOption.cs`, `PipeFixtureData.cs`; UI: `PipeSizingWindow.xaml` + code-behind.
+
+**API surface:** this tool is a self-contained calculator — the ONLY Revit API it touches is the
+thin command wrapper (`IExternalCommand`, `ExternalCommandData`, `ElementSet`, `Result`,
+`TaskDialog.Show`, `OperationCanceledException`, `[Transaction(TransactionMode.ReadOnly)]`,
+`[Regeneration(RegenerationOption.Manual)]`). All of those were already verified in the earlier
+audits except `TransactionMode.ReadOnly`, now verified present in **all 8 versions (2020–2027)**.
+
+**The 2021 units boundary does not apply:** the calculator performs its own metric/imperial math —
+no `UnitUtils`, `DisplayUnitType`, or `UnitTypeId` anywhere in the tool. Services, models, and the
+window use zero Revit API: plain WPF, `Microsoft.Win32.SaveFileDialog` (CSV export), and JSON state
+via Newtonsoft — identical API surface on .NET Fx 4.7.2/4.8, .NET 8, and .NET 10.
+
+**Source changes: none** — headers are accurate.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Ceiling Magnet — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `CmdCeilingMagnet.cs`;
