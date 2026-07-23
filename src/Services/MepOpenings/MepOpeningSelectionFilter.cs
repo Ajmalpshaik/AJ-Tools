@@ -5,16 +5,16 @@
  * Purpose       : Identifies supported MEP source elements and supported opening host elements.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.2
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-06
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, AJTools.Models.MepOpenings
+ * Dependencies  : Autodesk Revit API, AJTools.Models.MepOpenings, AJTools.Utils
  *
  * Input         : Current-model or linked-model element read by the opening tools.
  * Output        : True only for pipe, duct, cable tray, and conduit source elements, plus supported hosts.
@@ -27,6 +27,9 @@
  * Changelog     :
  * v1.0.0 (2026-07-03) - Initial release.
  * v1.0.1 (2026-07-06) - Included cable tray runs and fittings in cable tray source detection.
+ * v1.0.2 (2026-07-23) - Compatibility audit: replaced the inline #if REVIT2024 ElementId branch with
+ *                        the shared ElementIdExtensions.LongValue() helper (identical behaviour on
+ *                        all versions; version branches belong in helpers per the project rule).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -36,6 +39,7 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI.Selection;
 using AJTools.Models.MepOpenings;
+using AJTools.Utils;
 
 namespace AJTools.Services.MepOpenings
 {
@@ -117,11 +121,8 @@ namespace AJTools.Services.MepOpenings
                 return false;
             }
 
-#if REVIT2024 || REVIT2025 || REVIT2026 || REVIT2027 || REVIT2024_OR_GREATER
-            return element.Category.Id.Value == (long)category;
-#else
-            return element.Category.Id.IntegerValue == (int)category;
-#endif
+            // Version-safe: LongValue() owns the ElementId 32/64-bit switch (ElementIdExtensions).
+            return element.Category.Id.LongValue() == (long)category;
         }
     }
 }

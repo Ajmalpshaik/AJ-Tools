@@ -4,15 +4,19 @@ Tool Name    : AJ Tools - Shared UI Theme
 Purpose      : Suite-wide WPF resource dictionary (soft dark UI, Neon Blue primary). Used by every AJ Tools window.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.1.0
+Version      : 1.2.0
 Created      : 2025-12-10
-Last Updated : 2026-06-28
+Last Updated : 2026-07-23
 Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
 Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in (WPF)
 Notes        : Brush KEY names are kept stable - every window binds to them. Only values are tuned to the AJ skill.
                Style = Neumorphism + Claymorphism soft UI; Neon Blue primary; orange = warning; red = danger; green = success.
-Changelog    : v1.1.0 - Skill alignment: Segoe UI font, Neon Blue #00C8FF, softer card radius, button shadow trimmed, Consolas mono style.
+Changelog    : v1.2.0 - Readability fix: accent-filled buttons (Primary/Modern/Success/Danger) and
+               selected states (list items, combo items, tab headers) now use TextOnAccent (white)
+               instead of the near-black TextOnLight, which was unreadable on the WinUI accent fills
+               (#0078D4/#0F7B0F/#E81123). TextOnLight kept for genuinely bright fills only.
+               v1.1.0 - Skill alignment: Segoe UI font, Neon Blue #00C8FF, softer card radius, button shadow trimmed, Consolas mono style.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================
@@ -49,8 +53,12 @@ Repo         : AJ-Tools
     <SolidColorBrush x:Key="TextPrimary" Color="#FFF2F7FA"/>
     <SolidColorBrush x:Key="TextSecondary" Color="#FFA8B4BE"/>
     <SolidColorBrush x:Key="TextDisabled" Color="#FF6E7882"/>
-    <!-- Dark text for use on bright accent (neon/green/amber) button fills -->
+    <!-- Dark text for use ONLY on genuinely BRIGHT fills (neon cyan, amber, white badges).
+         NOT readable on the WinUI accents below (#0078D4 blue / #0F7B0F green / #E81123 red) -
+         those medium-dark fills take TextOnAccent (white) instead. -->
     <SolidColorBrush x:Key="TextOnLight" Color="#FF0B1418"/>
+    <!-- Light text for the accent button/selection fills (blue/green/red) - readability fix 2026-07-23 -->
+    <SolidColorBrush x:Key="TextOnAccent" Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="TextSuccess" Color="#FF81C784"/>
 
     <!-- Borders / overlay -->
@@ -238,7 +246,7 @@ Repo         : AJ-Tools
     <Style x:Key="ModernButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
         <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
         <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextOnLight}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextOnAccent}"/>
     </Style>
 
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}"/>
@@ -252,13 +260,13 @@ Repo         : AJ-Tools
     <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
         <Setter Property="Background" Value="{StaticResource AccentGreen}"/>
         <Setter Property="BorderBrush" Value="{StaticResource AccentGreen}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextOnLight}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextOnAccent}"/>
     </Style>
 
     <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
         <Setter Property="Background" Value="{StaticResource AccentDanger}"/>
         <Setter Property="BorderBrush" Value="{StaticResource AccentDanger}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextOnLight}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextOnAccent}"/>
     </Style>
 
     <Style x:Key="CompactSecondaryButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
@@ -462,7 +470,7 @@ Repo         : AJ-Tools
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ComboItemBorder" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
                             <Setter TargetName="ComboItemBorder" Property="Background" Value="{StaticResource AccentBlue}"/>
-                            <Setter Property="Foreground" Value="{StaticResource TextOnLight}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextOnAccent}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource TextDisabled}"/>
@@ -529,7 +537,7 @@ Repo         : AJ-Tools
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentBlue}"/>
                             <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
-                            <Setter Property="Foreground" Value="{StaticResource TextOnLight}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextOnAccent}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentGray}"/>
@@ -560,7 +568,7 @@ Repo         : AJ-Tools
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentGreen}"/>
                             <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource AccentGreen}"/>
-                            <Setter Property="Foreground" Value="{StaticResource TextOnLight}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextOnAccent}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentGray}"/>
@@ -636,7 +644,7 @@ Repo         : AJ-Tools
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource AccentBlue}"/>
                             <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
-                            <Setter TargetName="TabContent" Property="TextElement.Foreground" Value="{StaticResource TextOnLight}"/>
+                            <Setter TargetName="TabContent" Property="TextElement.Foreground" Value="{StaticResource TextOnAccent}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
