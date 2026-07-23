@@ -12,6 +12,25 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## View utilities group (Unhide All / Smart Selection / Pin Elements / 3D Views per Workset / Transfer View Templates / Section Mark Visibility) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdUnhideAll.cs`, `CmdSmartSelection.cs` (+ `Helpers/SmartSelectionFilter.cs`),
+`CmdPinElements.cs` (+ Services/PinTools + `PinElementsWindow`), `Cmd3DViewsAsPerWorkset.cs`
+(+ Services/WorksetViews), `CmdTransferViewTemplates.cs` (+ window), `CmdSectionMarkVisibility.cs`
+(+ Services/SectionMarkVisibility + UI + config store) — 14 files.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+`View.UnhideElements/HideElements`, `View.DisableTemporaryViewMode` +
+`TemporaryViewMode.TemporaryHideIsolate`, `View.SetWorksetVisibility` +
+`WorksetVisibility.Visible/Hidden`, `View.ViewTemplateId` set, `View3D.CreateIsometric`,
+`ViewFamily.Section/ThreeDimensional` + `ViewFamilyType`, `Element.Pinned` set. Everything else
+(collectors, selection, worksets, transactions) verified in earlier audits. No `#if` blocks, no
+legacy usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
 ## Link tools group (Toggle Revit Links / Set Link Workset / Linked Element ID Viewer / Linked Element Search) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered:** `CmdToggleRevitLinks.cs`, `CmdRevitLinkToggleAvailability.cs`,
