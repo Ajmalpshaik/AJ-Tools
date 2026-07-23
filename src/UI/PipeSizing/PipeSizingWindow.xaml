@@ -351,14 +351,14 @@ Repo         : AJ-Tools
                                 Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="RECOMMENDED PIPE SIZE"
-                                           Foreground="{StaticResource TextOnLight}"
+                                           Foreground="{StaticResource TextOnAccent}"
                                            FontSize="11"
                                            FontWeight="Bold"
                                            HorizontalAlignment="Center"
                                            Margin="0,0,0,5"/>
                                 <TextBlock x:Name="TxtPipeSize"
                                            Text="--"
-                                           Foreground="{StaticResource TextOnLight}"
+                                           Foreground="{StaticResource TextOnAccent}"
                                            FontSize="20"
                                            FontWeight="Bold"
                                            HorizontalAlignment="Center"
