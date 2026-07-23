@@ -3,6 +3,19 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — MEP Openings multi-version compatibility audit (2020–2027)
+
+- Eighth tool of the passes (new PR after #24 merged). Result: **fully compatible
+  2020–2027**, with the audit series' first real code changes: two inline `#if REVIT`
+  branches in the tool's own files (ElementId category check, mm→internal units)
+  replaced with the existing ElementIdExtensions/RevitCompat helpers — identical
+  behaviour, but version logic belongs in helpers per the project rule.
+- Notable verified subtlety: NewFamilyInstance(XYZ, FamilySymbol, Level,
+  StructuralType) moved from Creation.Document (2020–2023) to ItemFactoryBase
+  (2024+) — call sites unaffected. Also confirmed DisplayUnitType exists only
+  2020–2021 (removed 2022), UnitTypeId from 2021.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Auto Dimensions multi-version compatibility audit (2020–2027)
 
 - Seventh tool of the passes, same branch/PR (#24) as Duct Standards Manager.
