@@ -3,6 +3,13 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — View utilities group multi-version compatibility audit (2020–2027)
+
+- Seventeenth pass (6 tools, 14 files as one group), same branch/PR (#25). Result:
+  **fully compatible 2020–2027, zero source changes**. Hide/unhide, temporary view
+  mode, workset visibility, view template assignment, View3D.CreateIsometric,
+  Element.Pinned — all identical in all 8 assemblies.
+
 ## 2026-07-23 — Link tools group multi-version compatibility audit (2020–2027)
 
 - Sixteenth pass (5 commands + 3 windows as one group), same branch/PR (#25).
