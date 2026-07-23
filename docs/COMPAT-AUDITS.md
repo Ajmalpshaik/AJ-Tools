@@ -1,0 +1,177 @@
+# Multi-version compatibility audits (Revit 2020–2027)
+
+One section per tool, newest first. Each audit checks every Revit API type, method,
+property, and enum the tool touches against the **real per-version RevitAPI /
+RevitAPIUI reference assemblies** (Nice3point.Revit.Api NuGet packages — the same
+ones the build uses), not just documentation. Method presence *and* full parameter
+signatures are decoded from assembly metadata.
+
+Verification method: `dnfile`-based ECMA-335 metadata audit script run against
+RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
+2022.1.80, 2023.1.90, 2024.3.40, 2025.4.50, 2026.4.10, 2027.1.0).
+
+---
+
+## Smart MEP Tag — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):**
+`CmdSmartMepTag.cs`, `CmdSmartMepTagSettings.cs` (WinForms settings dialog); Services/SmartTag:
+`SmartMepTagService.cs`, `SmartTagPlacementEngine.cs`, `SmartTagReportGenerator.cs`,
+`SmartTagSettingsTracker.cs`, `SmartTagTelemetryTracker.cs`, `AnnotationBox.cs` (pure math, no API),
+`AnnotationSpatialIndex.cs`; Models: `SmartTagSettingsState.cs`. Shared dependency exercised and
+read (not modified): `Services/LeaderLogic/LeaderLogicService.cs`.
+
+**The one real version boundary this tool crosses — IndependentTag's API generations — verified
+in the assemblies, and `TagCompat`'s switch point is exactly right:**
+
+| IndependentTag members | 2020 | 2021 | 2022 | 2023–2027 |
+|---|---|---|---|---|
+| Old single-reference: `LeaderEnd`, `LeaderElbow`, `GetTaggedReference()`, `TaggedLocalElementId` | ✔ | ✔ | ✔ | ✘ removed |
+| Multi-reference: `GetTaggedReferences()`, `GetLeaderEnd(ref)`, `SetLeaderElbow(ref, xyz)`, `GetTaggedLocalElements()` | ✘ | ✘ | ✔ (added) | ✔ |
+
+`TagCompat` compiles the old members below `REVIT2023_OR_GREATER` and the new members from 2023 —
+both paths only ever touch members that exist in their version range (2022 has both generations,
+so either choice is valid there; the helper's pre-2023 choice preserves 2020-identical behaviour).
+Every leader/tagged-reference call site routes through `TagCompat` or `LeaderLogicService` (whose
+primary path is TagCompat; its reflection probes are runtime-only fallbacks that cannot break a
+compile). No direct call to any removed member exists in the tool.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+
+- `IndependentTag.Create(Document, ElementId viewId, Reference, bool, TagMode, TagOrientation, XYZ)`
+  — the overload the tool uses — present in all 8 (the `tagTypeId` overload also exists in all 8).
+- `IndependentTag`: `TagHeadPosition` get/set, `HasLeader` get/set, `LeaderEndCondition` get/set,
+  `CanLeaderEndConditionBeAssigned`.
+- Enums: `TagMode.TM_ADDBY_CATEGORY`, `TagOrientation.Horizontal/Vertical`,
+  `LeaderEndCondition.Attached/Free`; all 14 `BuiltInCategory` values used (6 MEP model categories,
+  6 tag categories, OST_Dimensions, INVALID); all 5 `BuiltInParameter` values used
+  (VIEWER_ANNOTATION_CROP_ACTIVE, CURVE_ELEM_LENGTH, RBS_CURVE_DIAMETER_PARAM,
+  RBS_CURVE_WIDTH_PARAM, RBS_PIPE_DIAMETER_PARAM).
+- `Reference(Element)` ctor; `View.RightDirection/UpDirection/ViewDirection/CropBox/CropBoxActive/Scale`;
+  `Element.IsHidden/GetTypeId/ChangeTypeId/get_BoundingBox(View)`; `Document.GetDefaultFamilyTypeId`;
+  `Family.FamilyCategory`; `Duct`/`Pipe`/`MEPCurve`/`LocationCurve`/`LocationPoint`; `Outline`;
+  `Curve.GetEndPoint/Evaluate`; `Line.Direction`; `Transform` (Identity/CreateTranslation/
+  CreateRotationAtPoint/OfPoint); `TransactionGroup`/`SubTransaction`;
+  `FilteredElementCollector.OfCategory`.
+- The single `new ElementId(...)` call uses the `BuiltInCategory` constructor (present in all 8);
+  all numeric id work goes through `.IntValue()`.
+
+**UI:** the settings dialog is WinForms (`UseWindowsForms` is enabled suite-wide in the csproj) —
+identical API surface on .NET Fx 4.7.2/4.8, .NET 8, and .NET 10. The `#if` blocks in the services
+are all `#if DEBUG` (diagnostics), not version branches — version-specific code lives only in the
+helpers, per the project rule.
+
+**Source changes needed: none** — headers contain no stale compatibility claims.
+
+**Incidental observation (does not affect this tool):** the 2024 assembly has an extra
+`IndependentTag.Create(Document, ElementId, ElementId, Reference, XYZ, double)` overload that is
+absent again in 2025+ — a reminder not to adopt one-version-only overloads outside helpers.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Colorize — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):**
+`CmdColorize.cs`, `CmdColorizeAvailability.cs`; Services/Colorize: `ColorizeApplier.cs`,
+`ColorizeElementMatcher.cs`; UI: `ColorizeWindow.xaml` + code-behind; ribbon wiring in
+`RibbonManager.AddColorizeTool()`. Shared dependencies exercised by Colorize and read as part of
+this audit (not modified): `FilterProDataProvider`, `FilterApplier.GetSolidFillId`,
+`FilterRuleCompat`, `ColorPalette`, `GraphicsElementService.ApplyOverrides`,
+`GraphicsCommandService.ExecuteSummaryTransaction`, `GraphicsOperationSummary` (plain model).
+
+**API surface:** Colorize reuses almost the entire Filter Pro surface verified in the section
+below (rule factories via FilterRuleCompat, OverrideGraphicSettings setters, category/parameter
+utilities, TaskDialog, ViewType/StorageType enums). Members unique to Colorize, verified present
+with identical signatures in **all 8 versions (2020–2027)**:
+
+- `FilteredElementCollector(Document, ElementId)` view-scoped constructor (2027 adds an extra
+  3-arg overload; the 2-arg one is unchanged) and `FilteredElementCollector.ToElementIds()`
+- `View.SetElementOverrides(ElementId, OverrideGraphicSettings)`
+- `Transaction.RollBack`, `Document.ActiveView`
+- `Autodesk.Revit.Exceptions.OperationCanceledException` (type)
+- RevitAPIUI: `UIApplication.MainWindowHandle` (used with WPF `WindowInteropHelper` to parent the
+  window to Revit — `System.Windows.Interop` is standard WPF on all four target frameworks)
+
+**Version boundaries crossed:** the same three as Filter Pro (string rule factory 2023/2026,
+`ElementId.IntegerValue` removed 2026, `ElementId(int)` removed 2026) — all already handled by
+`FilterRuleCompat` / `ElementIdHelper` / `ElementIdExtensions`. Colorize contains no direct calls
+to any removed member.
+
+**Source changes needed: none** (its headers, written 2026-07-13, contain no stale compatibility
+claims, unlike the older Filter Pro headers corrected in this same audit branch).
+
+**Build verification:** same limitation as Filter Pro below — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Filter Pro — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):**
+`CmdFilterPro.cs`, `CmdFilterProAvailability.cs`; Services/FilterPro: `FilterApplier.cs`,
+`FilterCreator.cs`, `FilterProDataProvider.cs`, `FilterProHelper.cs`, `FilterProStateTracker.cs`,
+`FilterReorderer.cs`, `FilterValueKeyMatcher.cs`; Models: `FilterProState.cs`, `FilterSelection.cs`,
+`FilterValueItem.cs`, `FilterParameterItem.cs`, `FilterCategoryItem.cs`, `FilterValueKey.cs`,
+`SpecialParameterIds.cs`, `RuleTypes.cs`, `ColorPalette.cs`, `ApplyViewItem.cs`, `PatternItem.cs`;
+UI: `FilterProWindow.xaml` + code-behind; ribbon wiring in `RibbonManager.AddFilterProTool()`.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+
+- `ParameterFilterRuleFactory`: int, double+tolerance, and ElementId overloads of
+  Equals/NotEquals/Greater/GreaterOrEqual/Less/LessOrEqual, plus
+  `CreateHasValueParameterRule` / `CreateHasNoValueParameterRule` — identical signatures in all 8.
+- `OverrideGraphicSettings`: all setters/getters the tool uses (projection/cut line colour,
+  surface/cut foreground pattern id + colour, halftone).
+- `View`: `GetFilters`, `AddFilter`, `RemoveFilter`, `GetFilterOverrides`, `SetFilterOverrides`,
+  `GetFilterVisibility`, `SetFilterVisibility`, `AreGraphicsOverridesAllowed`, `IsTemplate`,
+  `ViewTemplateId`, `ViewType`.
+- `ParameterFilterElement.Create` (both overloads), `SetCategories`, `SetElementFilter`.
+- `ParameterFilterUtilities.GetAllFilterableCategories` / `GetFilterableParametersInCommon`.
+- `LabelUtils.GetLabelFor(BuiltInParameter)` (the legacy enum overloads that were removed in
+  2021+/2022+ are not used by this tool).
+- `ElementId(BuiltInParameter)` constructor (used for ALL_MODEL_FAMILY_NAME / ALL_MODEL_TYPE_NAME).
+- Enums: all used values of `ViewType` (incl. Internal/ProjectBrowser/SystemBrowser),
+  `BuiltInParameter` (4 used values), `StorageType`.
+- RevitAPIUI: `TaskDialog.Show` (2- and 3-arg), `IExternalCommand`, `IExternalCommandAvailability`,
+  `UIDocument.ActiveView/Document`, `UIApplication.ActiveUIDocument`,
+  `PushButton.AvailabilityClassName`, `TaskDialogResult/CommonButtons`,
+  `TransactionMode.Manual` / `RegenerationOption.Manual`.
+
+**Version boundaries that DO affect this tool — all already handled by existing helpers:**
+
+| API change | Real boundary (verified in assemblies) | Handled by |
+|---|---|---|
+| String rule factory 3-arg (caseSensitive) overloads | Present 2020–2025, REMOVED 2026; 2-arg added 2023 | `FilterRuleCompat` (switches at `REVIT2023_OR_GREATER`) |
+| `ElementId.IntegerValue` | Present 2020–2025, REMOVED 2026 | `ElementIdHelper` / `ElementIdExtensions.IntValue()` (switch to `.Value` at 2024) |
+| `ElementId(int)` constructor | Present 2020–2025, REMOVED 2026 (`long` ctor added 2024) | `ElementIdHelper.FromInt` (switches at 2024); only caller is `SpecialParameterIds` |
+| `BuiltInParameter` enum widened Int32→Int64 (2024) | 2024+ | `ElementIdHelper.IsDefinedBuiltInParameter` (reflection-based, no #if needed) |
+
+Note: earlier notes elsewhere in the repo said `ElementId(int)` was "removed by 2027" — the
+reference assemblies show it was already gone in 2026. Harmless either way, because the helper
+switches to the `long` constructor at 2024.
+
+**XAML / UI:** plain WPF only (Window, TabControl, ListBox with virtualization, styles from
+`ModernStyles.xaml`) — identical API surface on .NET Fx 4.7.2/4.8, .NET 8, and .NET 10. No
+version-specific XAML needed.
+
+**Project wiring:** the tool has no project-file machinery of its own; it is compiled by the single
+shared `src/AJ Tools.csproj`, which takes `RevitVersion` / `TargetFramework` / `REVITxxxx`
+constants entirely from `Directory.Build.props`. No duplication, no conflict.
+
+**Improvement opportunity (NOT applied — behaviour must stay identical on 2020):**
+Revit 2021 added `View.GetOrderedFilters()` and `Get/SetIsFilterEnabled()`. On 2021+,
+`FilterReorderer` could read the true filter order instead of maintaining its per-view order cache
+(`_lastKnownOrderByView`). Not applied because the current remove-and-re-add approach works on all
+8 versions, and using the new API only on 2021+ would make behaviour differ between versions.
+
+**Known accepted limitation (all versions, unchanged):** ElementId values are compared/dedup-keyed
+as `int` via `IntValue()`. Revit 2024+ ids are 64-bit; the repo-wide documented decision (see
+`ElementIdHelper.cs`, `FilterValueKey.cs`) is that real project ids stay well within int range.
+
+**Build verification:** not possible in the cloud session that produced this audit — the sandbox
+has no .NET SDK and its network policy blocks the SDK download (`builds.dotnet.microsoft.com`
+denied). Compatibility was instead verified at assembly-metadata level as described above. A real
+8-configuration build (`build-all.ps1`) still needs to be run on the local machine.
