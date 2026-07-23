@@ -3,6 +3,15 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Graphics Tools family multi-version compatibility audit (2020–2027)
+
+- Twelfth pass (8 commands + 7 services + 7 models + window as one family), same
+  branch/PR (#25). Result: **fully compatible 2020–2027, zero source changes**.
+  Category overrides, the full OverrideGraphicSettings writer surface (transparency,
+  background patterns, line weights/patterns, InvalidPenNumber), and
+  InsulationLiningBase.GetInsulationIds verified identical in all 8 assemblies.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Smart Connect multi-version compatibility audit (2020–2027)
 
 - Eleventh pass, same branch/PR (#25). Result: **fully compatible 2020–2027, zero

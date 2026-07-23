@@ -12,6 +12,33 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Graphics Tools family — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete family inventory):** Commands/GraphicsTools: `CmdApplyGraphics.cs`,
+`CmdClearSelectedElementGraphics.cs`, `CmdHighlightSelection.cs`, `CmdMatchCategoryGraphics.cs`,
+`CmdMatchElementGraphics.cs`, `CmdResetCategoryGraphics.cs`,
+`CmdResetCategoryGraphicsAllElements.cs`, plus `CmdResetOverrides.cs`; all 7
+Services/GraphicsTools classes; all 7 Models/GraphicsTools classes; UI:
+`GraphicsOverrideWindow.xaml` + code-behind.
+
+**Verified unchanged across all 8 versions (2020–2027) in this pass:** category-level overrides
+(`View.SetCategoryOverrides/GetCategoryOverrides/IsCategoryOverridable`, `View.GetElementOverrides`);
+the full `OverrideGraphicSettings` writer surface beyond what Filter Pro/Colorize already covered —
+`SetSurfaceTransparency`, surface/cut BACKGROUND pattern id+colour, projection/cut line weights,
+projection/cut line pattern ids, and `InvalidPenNumber`; and
+`InsulationLiningBase.GetInsulationIds` (used by Highlight Selection to include hosted insulation).
+Members already verified in earlier audits and reused here: `View.SetElementOverrides`
+(Colorize pass), foreground pattern setters/getters (Filter Pro pass),
+`GraphicsCommandService.ExecuteSummaryTransaction` internals (`Transaction` incl. `RollBack`).
+No `#if` blocks; all ElementId numeric access via `ElementIdHelper.GetIntegerValue`.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Smart Connect — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `SmartConnectCommand.cs`; Services/SmartConnect:
