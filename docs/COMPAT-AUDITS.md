@@ -12,6 +12,64 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Auto Dimensions — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdAutoDimensions.cs`;
+`Services/AutoDimension/AutoDimensionService.cs`. UI is TaskDialog-based — no window.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+`doc.Create.NewDimension(View, Line, ReferenceArray)` (defined on `Creation.ItemFactoryBase` —
+present with identical signature in all 8), `Line.CreateBound`, `ReferenceArray` + `Append`,
+`new Reference(Element)` for grid/level references, `Grid`/`Level` types,
+`DatumPlane.GetCurvesInView(DatumExtentType, View)` with `DatumExtentType.ViewSpecific/Model`,
+`ViewType.EngineeringPlan` (other view types verified in earlier audits), view direction/crop
+properties, `Transaction`, `TaskDialog.Show`. No version boundary is crossed anywhere in this tool —
+no ElementId numeric access, no unit API, no string filter rules, no tagging API.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Duct Standards Manager — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdDuctStandardsManager.cs`; Services/DuctStandards:
+`DuctCollectorService.cs`, `DuctParameterWriter.cs`, `DuctRuleEngine.cs`, `DuctShapeService.cs`,
+`DuctSizeService.cs`, `DuctStandardsConfigService.cs`, `DuctStandardsProcessor.cs`,
+`DuctWeightService.cs`; Models: `DuctStandardsConfig.cs`; UI: `DuctStandardsManagerWindow.xaml` +
+code-behind. Helpers read (unchanged): `RevitCompat`, `SharedParamUtils`, `TransactionHelper`.
+
+**The one real version boundary this tool crosses — the 2022 ForgeTypeId transition — is entirely
+routed through the existing helpers:** parameter spec/group tokens come from
+`RevitCompat.SpecText/SpecNumber/GroupData`, definition creation from
+`RevitCompat.CreateDefinitionOptions`, binding insert/re-insert from
+`RevitCompat.InsertBinding/ReInsertBinding`, and labels from `SharedParamUtils`. The window and
+`SharedParamUtils` use the project's guarded `AjSpec`/`AjGroup` alias pattern
+(`#if REVIT2022_OR_GREATER → ForgeTypeId`, else legacy enums) — no unguarded `ForgeTypeId` anywhere.
+
+**Verified unchanged across all 8 versions (2020–2027):** the whole shared-parameter workflow —
+`Application.SharedParametersFilename` get/set, `OpenSharedParameterFile`,
+`Creation.Application.NewInstanceBinding/NewCategorySet`, `Document.ParameterBindings` +
+`ForwardIterator` (inherited from `DefinitionBindingMap` — present in all 8),
+`DefinitionFile.Groups` / `DefinitionGroups.get_Item/Create` / `DefinitionGroup.Definitions` /
+`Definitions.Create`, `CategorySet.Insert`, `Category.AllowsBoundParameters`,
+`Settings.Categories.get_Item(BuiltInCategory)`; plus `Parameter.Set(double/int/string)`,
+`FilteredElementCollector.FirstElement/OfCategory`, `BuiltInParameter.RBS_CURVE_HEIGHT_PARAM`
+(width/diameter already verified in the Smart MEP Tag audit), and the FamilyParameter members
+`SharedParamUtils` exposes (`GUID`/`IsShared`/`IsReporting`, `FamilyManager.Types`).
+
+**UI:** plain WPF window (same ModernStyles pattern as Filter Pro) — identical on all four target
+frameworks. Config persistence is JSON via Newtonsoft (framework-independent).
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Pipe Sizing — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `CmdPipeSizing.cs`; Services/PipeSizing:
