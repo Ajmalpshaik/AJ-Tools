@@ -3,6 +3,25 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Suite-wide UI readability fix (unreadable button/selection text)
+
+- Ajmal reported some UIs had text and background in the same colours ("can't see
+  anything"). Root cause found in `ModernStyles.xaml`: v1.1.0 moved the accents to
+  darker WinUI colours (#0078D4 blue / #0F7B0F green / #E81123 red) but kept the
+  near-black `TextOnLight` (#0B1418) as the text on those fills — contrast ~3:1.
+  Affected EVERY window using the shared theme: all Primary/Modern/Success/Danger
+  buttons (Apply/Create/Close etc.), selected list items, selected combo items,
+  selected tab headers.
+- Fix (values only, zero behaviour/layout change): new `TextOnAccent` (white) brush;
+  all accent-fill foregrounds switched to it (8 spots in ModernStyles v1.2.0 + the
+  2 banner texts in PipeSizingWindow). `TextOnLight` kept, documented as bright-fill
+  only. All XAML re-validated as parseable.
+- Verified NOT broken (checked, no fix needed): combo dropdowns (implicit dark
+  style), both custom DataGrid styles (dark rows/cells/headers), AJ AI's neon
+  palette (dark-on-neon is correct there), GraphicsOverrideWindow accents (white
+  text already). Ajmal to confirm visually in Revit; if any specific window still
+  reads badly, name it and it gets a targeted pass.
+
 ## 2026-07-23 — FINAL compatibility pass — ENTIRE SUITE NOW AUDITED (2020–2027)
 
 - Nineteenth and final pass: View Crop, HVAC Schematic, Shared Param→Family Param,
