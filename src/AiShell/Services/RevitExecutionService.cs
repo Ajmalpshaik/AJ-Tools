@@ -6,10 +6,10 @@
  *                 Revit API thread via ExternalEvent, wrapped in a single-undo TransactionGroup.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.0
+ * Version       : 1.4.0
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,13 @@
  *   thread from waiting on it forever, it does not guarantee the runaway work actually stops.
  *
  * Changelog     :
+ * v1.4.0 (2026-07-23) - Fixed a misreported-failure bug: RefreshActiveView() ran inside the same
+ *                       try as group.Commit() and its own inner catch - if the view refresh threw
+ *                       (e.g. the active view became invalid), the script was reported as Failed
+ *                       even though its changes had already committed successfully, and the catch
+ *                       then tried to RollBack() a group that was no longer rollback-able. The
+ *                       refresh now has its own try/catch (TryRefreshActiveView) that can never
+ *                       affect the reported result.
  * v1.3.0 (2026-07-17) - Added a hard backstop to the blocking task.Wait() call (MaxLoopRuntime +
  *                       20s grace): previously this had no timeout of its own at all, so a script
  *                       that never reached a LoopProtectionRewriter checkpoint (goto-loop,
@@ -210,7 +217,7 @@ namespace AJTools.AiShell.Services
                             if (result.Success)
                             {
                                 group.Commit(); // Commit the transaction group so changes appear
-                                app.ActiveUIDocument?.RefreshActiveView();
+                                TryRefreshActiveView(app);
                             }
                             else
                             {
@@ -250,6 +257,16 @@ namespace AJTools.AiShell.Services
                     _isRunning = false;
                 }
             }
+        }
+
+        // RefreshActiveView() is a UI nicety, not part of the result - if it throws (e.g. the
+        // active view became invalid mid-script) after group.Commit() already succeeded above,
+        // letting that exception reach the outer catch would report an already-committed model
+        // change as a failure and try to RollBack() a group that is no longer rollback-able.
+        private static void TryRefreshActiveView(UIApplication app)
+        {
+            try { app.ActiveUIDocument?.RefreshActiveView(); }
+            catch { /* cosmetic only - never turn an already-committed success into a reported failure */ }
         }
 
         public string GetName() => "AJ AI Revit Execution Service";
