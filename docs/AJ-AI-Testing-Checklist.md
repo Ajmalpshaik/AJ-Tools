@@ -17,7 +17,7 @@
 | A1 | Restart Revit 2020 after the new build was deployed | AJ-Tools ribbon loads with no startup error popup | ☐ |
 | A2 | Click the **AJ AI** button on the ribbon | The AI panel opens docked on the right | ☐ |
 | A3 | Look at the top bar of the panel | Shows e.g. **"Gemini: API key configured"** (or "…API key missing — open Settings") — but **never shows the actual key** | ☐ |
-| A4 | Open **⚙ Settings**, switch provider between Gemini and OpenAI | Top-bar status updates to match the selected provider | ☐ |
+| A4 | Open **⚙ Settings**, switch provider between Gemini, OpenAI, and Claude | Top-bar status updates to match the selected provider | ☐ |
 
 ## B. Normal use (should work exactly like before)
 

@@ -5,6 +5,19 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+- **Added**: Claude as a third AI provider option in the C# pane's Settings, alongside Gemini and
+  OpenAI (new `AnthropicApiService`, its own API key field, and a model dropdown). Purely additive -
+  the default provider is still Gemini, so existing setups are unaffected until you open Settings
+  and switch.
+- **Fixed**: `GeminiApiService` cached its auto-selected "best model" for the life of the Revit
+  session in a single field. Switching to a different Gemini API key in Settings (without
+  restarting Revit) kept using the old key's cached model instead of re-discovering one for the new
+  key. Now cached per API key.
+- **Docs**: Added an "AJ AI Assistant" section to `docs/USAGE.md` covering the provider settings,
+  the safety model (blocked vs. confirm-first operations), and how to connect an external
+  MCP-capable AI tool (e.g. Claude Code) to the AJ AI Bridge - previously undocumented outside the
+  in-code comments.
+
 ## [1.24.0] - 2026-07-21
 
 - **Added**: Two RevitPythonShell-equivalent pieces in the C# pane, ported to sit alongside the

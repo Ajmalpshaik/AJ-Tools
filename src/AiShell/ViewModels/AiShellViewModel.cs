@@ -3,22 +3,22 @@
  * Tool Name     : C#
  * File Name     : AiShellViewModel.cs
  * Purpose       : WPF ViewModel driving the "C#" dockable pane — takes a plain-English prompt,
- *                 sends it (with live Revit context) to Gemini or OpenAI, extracts the returned
- *                 C# script, runs it safely against the open Revit document, and auto-retries a
- *                 failed run with the AI's help up to a fixed attempt limit.
+ *                 sends it (with live Revit context) to Gemini, OpenAI, or Claude, extracts the
+ *                 returned C# script, runs it safely against the open Revit document, and
+ *                 auto-retries a failed run with the AI's help up to a fixed attempt limit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.7.0
+ * Version       : 1.11.0
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-19
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in (WPF, no direct Revit API calls — all Revit access goes through
  *                 RevitContextExtractionService / RevitExecutionService via ExternalEvent)
  *
- * Dependencies  : IAiProviderService (Gemini/OpenAI), RevitExecutionService, RevitContextExtractionService,
+ * Dependencies  : IAiProviderService (Gemini/OpenAI/Claude), RevitExecutionService, RevitContextExtractionService,
  *                 GeneratedCodeSafetyValidator, ErrorCorrectionService
  *
  * Input         : User prompt text, live Revit selection context, saved script history
@@ -36,6 +36,13 @@
  *   addition to the XAML now disabling the action buttons while a request is in flight.
  *
  * Changelog     :
+ * v1.11.0 (2026-07-23) - Added Claude as a third AI provider alongside Gemini/OpenAI
+ *                       (AnthropicApiService, new IsAnthropicSelected/AnthropicApiKeyInput/
+ *                       AnthropicModel settings properties) - the in-Revit chat pane can now use
+ *                       the same model family as the external "AJ AI Bridge" MCP connection
+ *                       (McpBridgeService) that Claude Code already drives. Purely additive:
+ *                       SelectedProvider still defaults to "Gemini", so nothing changes for
+ *                       existing configs until Ajmal opens Settings and picks Claude.
  * v1.10.0 (2026-07-21) - Two more Live Console additions: (1) console command history now persists
  *                       to ajai-console-history.json (same best-effort pattern as the crash-
  *                       recovery snapshot) so Up/Down recall survives Revit being closed and
@@ -190,6 +197,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         private readonly AiShellConfig _config;
         private readonly IAiProviderService _geminiService;
         private readonly IAiProviderService _openAiService;
+        private readonly IAiProviderService _anthropicService;
         private readonly RevitExecutionService _executionService;
         private readonly RevitContextExtractionService _contextService;
         private readonly ReplSessionService _replService;
@@ -224,6 +232,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             AiShellConfig config,
             IAiProviderService geminiService,
             IAiProviderService openAiService,
+            IAiProviderService anthropicService,
             RevitExecutionService executionService,
             RevitContextExtractionService contextService,
             ReplSessionService replService,
@@ -232,6 +241,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             _config = config;
             _geminiService = geminiService;
             _openAiService = openAiService;
+            _anthropicService = anthropicService;
             _executionService = executionService;
             _contextService = contextService;
             _replService = replService;
@@ -245,6 +255,8 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             GeminiApiKeyInput = _config.GetGeminiApiKey();
             OpenAiApiKeyInput = _config.GetOpenAiApiKey();
             OpenAiModel = _config.OpenAiModel;
+            AnthropicApiKeyInput = _config.GetAnthropicApiKey();
+            AnthropicModel = _config.AnthropicModel;
             SavedHistory = new ObservableCollection<HistoryItem>();
             ScriptsFolderPath = _config.ScriptsFolderPath;
             RefreshScriptsList();
@@ -272,7 +284,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
 
         private IAiProviderService GetActiveService()
         {
-            return SelectedProvider == "OpenAI" ? _openAiService : _geminiService;
+            if (SelectedProvider == "OpenAI") return _openAiService;
+            if (SelectedProvider == "Claude") return _anthropicService;
+            return _geminiService;
         }
 
         private void ScheduleRecoverySave()
@@ -414,12 +428,14 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 _config.Save();
                 OnPropertyChanged(nameof(IsGeminiSelected));
                 OnPropertyChanged(nameof(IsOpenAiSelected));
+                OnPropertyChanged(nameof(IsAnthropicSelected));
                 OnPropertyChanged(nameof(ProviderStatusText));
             }
         }
 
         public bool IsGeminiSelected => SelectedProvider == "Gemini";
         public bool IsOpenAiSelected => SelectedProvider == "OpenAI";
+        public bool IsAnthropicSelected => SelectedProvider == "Claude";
 
         /// <summary>Plain-language provider + key status for the top bar — never shows the key itself.</summary>
         public string ProviderStatusText =>
@@ -444,6 +460,20 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         {
             get => _openAiModel;
             set => SetProperty(ref _openAiModel, value);
+        }
+
+        private string _anthropicApiKeyInput;
+        public string AnthropicApiKeyInput
+        {
+            get => _anthropicApiKeyInput;
+            set => SetProperty(ref _anthropicApiKeyInput, value);
+        }
+
+        private string _anthropicModel;
+        public string AnthropicModel
+        {
+            get => _anthropicModel;
+            set => SetProperty(ref _anthropicModel, value);
         }
 
         private string _scriptsFolderPath;
@@ -695,9 +725,14 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         {
             _config.SetGeminiApiKey(GeminiApiKeyInput);
             _config.SetOpenAiApiKey(OpenAiApiKeyInput);
+            _config.SetAnthropicApiKey(AnthropicApiKeyInput);
             if (!string.IsNullOrWhiteSpace(OpenAiModel))
             {
                 _config.OpenAiModel = OpenAiModel.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(AnthropicModel))
+            {
+                _config.AnthropicModel = AnthropicModel.Trim();
             }
             _config.Save();
             StatusText = "Settings saved securely.";
