@@ -30,12 +30,15 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
   leave the first caller's `Task` pending forever. Added the same guard to both.
 - **Removed**: `InverseBooleanToVisibilityConverter` - declared as a resource and a class but never
   actually bound anywhere in the pane's XAML.
-- **Docs**: Noted a real, deliberately-unfixed gap in `LoopProtectionRewriter` (and the AJ AI testing
-  checklist's "Known limitations"): only `while`/`for`/`do`/`foreach` loops are cancellation-checked
-  - a script with unbounded/mutual recursion is not protected and can crash Revit outright with a
+- **Fixed**: `LoopProtectionRewriter` only cancellation-checked `while`/`for`/`do`/`foreach` loops -
+  a script with unbounded/mutual recursion was unprotected and could crash Revit outright with a
   `StackOverflowException` (uncatchable by design in .NET), instead of the safe timeout a runaway
-  loop gets. Fixing this properly means instrumenting method/local-function calls with a depth
-  counter, a bigger and riskier change to this rewriter than reviewing it from source alone.
+  loop gets. Now also instruments block-bodied local functions, methods, and lambdas with a
+  recursion-depth guard (300 levels) that throws the same catchable timeout error a runaway loop
+  does. The 300 threshold is a conservative estimate - no Revit connection was available to measure
+  a real stack overflow depth, so this is written to be verified live before fully trusting it (see
+  `docs/AJ-AI-Testing-Checklist.md`). An expression-bodied recursive form (`int Fib(int n) => ...`)
+  is not instrumented - see the class-level comment in `LoopProtectionRewriter.cs` for why.
 
 ## [1.24.0] - 2026-07-21
 
