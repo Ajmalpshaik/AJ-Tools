@@ -3,6 +3,13 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Annotation tools group multi-version compatibility audit (2020–2027)
+
+- Eighteenth pass (6 tools, 20 files), same branch/PR (#25). Result: **fully
+  compatible 2020–2027, zero source changes**. RoomTag/SpatialElementTag,
+  LinkElementId, room boundaries, and all dimension/tag-leader work verified;
+  FlowDirectionSettingsWindow's #if is the sanctioned AjUnit alias pattern.
+
 ## 2026-07-23 — View utilities group multi-version compatibility audit (2020–2027)
 
 - Seventeenth pass (6 tools, 14 files as one group), same branch/PR (#25). Result:

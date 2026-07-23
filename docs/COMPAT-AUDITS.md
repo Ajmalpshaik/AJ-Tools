@@ -12,6 +12,27 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Annotation tools group (Center Room Tags / Flow Direction / Force Tag Leader L-Shape / Quick Parallel Dimension / Dimension by Line / Duct Reference Dimension) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (20 files):** `CmdCenterRoomTags.cs` + Services/RoomTags;
+`CmdFlowDirectionAnnotations.cs` + `CmdFlowDirectionSettings.cs` + Services/FlowDirection +
+`FlowDirectionSettingsWindow`; `CmdForceTagLeaderLShape.cs` + Services/ForceTagLeaderLShape;
+`CmdQuickParallelDimension.cs` + Services/QuickDimension; `CmdDimensionByLine.cs` +
+Services/DimensionByLine; `Commands/Annotation/DuctReferenceDimensionCommand.cs` +
+Services/DuctReferenceDimension.
+
+**Verified unchanged across all 8 versions (2020–2027):** `RoomTag.Room/TaggedRoomId`,
+`SpatialElementTag.TagHeadPosition` get+set + `HasLeader`, `LinkElementId.LinkInstanceId/
+LinkedElementId`, `Room` + `SpatialElement.GetBoundarySegments(SpatialElementBoundaryOptions)`;
+dimension creation and tag/leader work reuse members verified in earlier audits (`NewDimension`,
+`Line.CreateBound`, `TagCompat`/`LeaderLogicService` routing — no direct removed-member usage
+anywhere in the group). The one `#if` in `FlowDirectionSettingsWindow` is the sanctioned `AjUnit`
+alias pattern (`DisplayUnitType` 2020–2021 / `ForgeTypeId` 2022+), matching the helper convention.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
 ## View utilities group (Unhide All / Smart Selection / Pin Elements / 3D Views per Workset / Transfer View Templates / Section Mark Visibility) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered:** `CmdUnhideAll.cs`, `CmdSmartSelection.cs` (+ `Helpers/SmartSelectionFilter.cs`),
