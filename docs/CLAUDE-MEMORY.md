@@ -3,6 +3,26 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Auto Dimensions multi-version compatibility audit (2020–2027)
+
+- Seventh tool of the passes, same branch/PR (#24) as Duct Standards Manager.
+  Result: **fully compatible 2020–2027, zero source changes**. Dimension creation
+  (ItemFactoryBase.NewDimension), datum curves (DatumPlane.GetCurvesInView +
+  DatumExtentType), Line.CreateBound, ReferenceArray — all identical in all 8
+  assemblies. The tool crosses no version boundary at all.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
+## 2026-07-23 — Duct Standards Manager multi-version compatibility audit (2020–2027)
+
+- Sixth tool of the passes (first after PR #23 merged — branch restarted from
+  master, new PR). Result: **fully compatible 2020–2027, zero source changes**.
+- The tool's big boundary — the 2022 ForgeTypeId transition for shared-parameter
+  creation/binding — routes entirely through RevitCompat + the guarded AjSpec/AjGroup
+  alias pattern. Whole shared-parameter file workflow (DefinitionFile/Groups/
+  Definitions, CategorySet, InstanceBinding, BindingMap.ForwardIterator via its
+  DefinitionBindingMap base) verified identical in all 8 assemblies.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Pipe Sizing multi-version compatibility audit (2020–2027)
 
 - Fifth tool of the passes, same branch/PR (#23) as Ceiling Magnet. Result: **fully
