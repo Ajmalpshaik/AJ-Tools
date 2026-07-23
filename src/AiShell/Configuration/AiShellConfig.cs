@@ -16,12 +16,14 @@ namespace AJTools.AiShell.Configuration
 
         private static readonly object _fileLock = new object();
 
-        public string SelectedProvider { get; set; } = "Gemini"; // "Gemini" or "OpenAI"
+        public string SelectedProvider { get; set; } = "Gemini"; // "Gemini", "OpenAI", or "Claude"
 
         public string EncryptedGeminiApiKey { get; set; }
         public string EncryptedOpenAiApiKey { get; set; }
-        
+        public string EncryptedAnthropicApiKey { get; set; }
+
         public string OpenAiModel { get; set; } = "gpt-4o";
+        public string AnthropicModel { get; set; } = "claude-sonnet-5";
 
         public string ScriptsFolderPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AJTools_Scripts");
 
@@ -83,8 +85,15 @@ namespace AJTools.AiShell.Configuration
             Save();
         }
 
+        public void SetAnthropicApiKey(string key)
+        {
+            EncryptedAnthropicApiKey = Protect(key);
+            Save();
+        }
+
         public string GetGeminiApiKey() => Unprotect(EncryptedGeminiApiKey);
         public string GetOpenAiApiKey() => Unprotect(EncryptedOpenAiApiKey);
+        public string GetAnthropicApiKey() => Unprotect(EncryptedAnthropicApiKey);
 
         private static string Protect(string clearText)
         {
