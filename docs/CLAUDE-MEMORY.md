@@ -3,6 +3,15 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Pipe Sizing multi-version compatibility audit (2020–2027)
+
+- Fifth tool of the passes, same branch/PR (#23) as Ceiling Magnet. Result: **fully
+  compatible 2020–2027, zero source changes**. The tool is a self-contained
+  calculator — its only Revit API is the command wrapper; TransactionMode.ReadOnly
+  verified present in all 8 assemblies. No unit API anywhere (does its own
+  metric/imperial math), so the 2021 units boundary doesn't apply.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Ceiling Magnet multi-version compatibility audit (2020–2027)
 
 - Fourth tool of the passes (first after PR #22 merged — branch restarted from
