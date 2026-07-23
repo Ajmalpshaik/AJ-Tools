@@ -3,6 +3,14 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Intelligent Tag Arranger multi-version compatibility audit (2020–2027)
+
+- Tenth pass, same branch/PR (#25). Result: **fully compatible 2020–2027, zero
+  source changes**. All leader work routes through LeaderLogicService/TagCompat
+  (2023 tag boundary handled); Element.IsValidObject and
+  TransactionStatus.Committed/RolledBack verified present in all 8 assemblies.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Purge tools multi-version compatibility audit (2020–2027)
 
 - Ninth pass (a family of 6 commands audited together), same branch/PR (#25) as

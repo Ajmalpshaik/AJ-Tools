@@ -12,6 +12,33 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Intelligent Tag Arranger — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdIntelligentTagArranger.cs`,
+`CmdIntelligentTagArrangerSettings.cs` (WinForms settings dialog);
+`Services/TagArrange/IntelligentTagArrangerService.cs`; `Helpers/TagArrangeSettings.cs`
+(JSON config store, no Revit API).
+
+**The 2023 IndependentTag boundary (verified in the Smart MEP Tag audit) applies and is fully
+handled:** every leader/tagged-reference operation routes through `LeaderLogicService` (whose
+primary path is `TagCompat`; reflection probes are runtime-only fallbacks). Direct IndependentTag
+members used — `TagHeadPosition` get/set, `HasLeader` get/set, `LeaderEndCondition.Free` — were all
+verified identical across 2020–2027 in that audit. No inline `#if` blocks; no direct use of any
+removed member; ElementId access via `.IntValue()`.
+
+**Additionally verified in all 8 versions for this pass:** `Element.IsValidObject`,
+`TransactionStatus.Committed/RolledBack`, `ElementTransformUtils.MoveElement`,
+`Selection.PickPoint/GetElementIds` (previously verified members reconfirmed by reuse).
+
+**UI:** WinForms settings dialog — identical API surface on all four target frameworks.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Purge tools (Unplaced Views / Sections / 3D Views + Unused Family Parameters) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete family inventory):** Commands: `CmdPurgeUnplaced3DViews.cs`,
