@@ -6,10 +6,10 @@
  *                 composes and sanitises filter names, and ensures name uniqueness in the project.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.2
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,9 +23,13 @@
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
- * - ParameterFilterRuleFactory string overloads with caseSensitive bool are confirmed valid for 2020-2026.
- * - ElementId.IntValue() is deprecated in Revit 2024+ (replaced by ElementId.Value returning long).
- *   Current usage is safe on all versions; upgrading to .Value requires a #if REVIT2024 guard.
+ * - String rules route through FilterRuleCompat: the 3-arg (caseSensitive) factory overloads exist
+ *   only in Revit 2020-2025 (REMOVED 2026); the 2-arg overloads exist from 2023. Verified against
+ *   the per-version RevitAPI reference assemblies (2026-07-23).
+ * - Numeric (int / double+tolerance), ElementId, HasValue and HasNoValue rule factory overloads are
+ *   unchanged across Revit 2020-2027 and are safe to call directly (same verification).
+ * - ElementId numeric access uses the IntValue() extension (ElementIdExtensions), which is
+ *   version-safe: IntegerValue was removed in Revit 2026; the extension switches to .Value at 2024.
  * - Production-ready implementation.
  *
  * Changelog     :
@@ -33,6 +37,9 @@
  * v1.1.0 (2026-05-25) - Optimised name-uniqueness check from O(n²) DB queries to O(1) dictionary
  *                        lookups; added HashSet dedup for processed filter IDs; removed dead fallback method.
  * v1.1.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ * v1.1.2 (2026-07-23) - Compatibility audit: corrected stale header notes. Every Revit API member
+ *                        used here verified present/correct on 2020-2027 against the per-version
+ *                        RevitAPI reference assemblies (Nice3point NuGet). No code changes needed.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

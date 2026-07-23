@@ -3,6 +3,28 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Filter Pro multi-version compatibility audit (2020–2027)
+
+- Ran the per-tool compatibility audit process on **Filter Pro** (first tool of the
+  one-tool-at-a-time passes). Result: **fully compatible 2020–2027, zero code changes
+  needed** — FilterRuleCompat / ElementIdHelper / ElementIdExtensions already cover
+  every real API boundary the tool crosses.
+- Verification was done against the real per-version RevitAPI/RevitAPIUI reference
+  assemblies (Nice3point NuGet, all 8 versions), decoding method signatures from
+  assembly metadata — not just docs. Full record: `docs/COMPAT-AUDITS.md` (new file,
+  designed to accumulate one section per audited tool).
+- Corrected finding vs older notes: `ElementId(int)` ctor and `ElementId.IntegerValue`
+  were both already removed in the **2026** assemblies (not 2027). Helpers switch at
+  2024, so nothing breaks.
+- Only source changes: stale compatibility notes fixed in the headers of
+  FilterCreator.cs / FilterApplier.cs / FilterProDataProvider.cs (documentation only).
+- Improvement noted, NOT applied: `View.GetOrderedFilters()` (2021+) could replace
+  FilterReorderer's order cache, but would make 2020 behave differently — skipped.
+- Cloud sandbox cannot build (no .NET SDK, download blocked by network policy);
+  real 8-configuration build still needs to run on the local machine.
+- Next tools in the queue when Ajmal asks: pick any ribbon tool and repeat the same
+  audit process (script approach documented in COMPAT-AUDITS.md header).
+
 ## 2026-07-23 — Claude Code plugin setup
 
 - Added `.claude/settings.json` so every new Claude Code session on this repo
