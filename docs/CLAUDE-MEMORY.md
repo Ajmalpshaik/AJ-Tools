@@ -3,6 +3,18 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Purge tools multi-version compatibility audit (2020–2027)
+
+- Ninth pass (a family of 6 commands audited together), same branch/PR (#25) as
+  MEP Openings. Result: **fully compatible 2020–2027, zero source changes**.
+  Family-editor APIs (FamilyManager/FamilyType/FamilyParameter), view purge
+  (View3D/ViewSection/Viewport, Document.Delete), Transaction.GetStatus — all
+  identical in all 8 assemblies.
+- Confirmed the existing 2025 LinearDimension workaround is exactly right: the
+  subclass appears in the 2025 assembly; the category-based dimension collector
+  is version-safe everywhere with no #if needed.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — MEP Openings multi-version compatibility audit (2020–2027)
 
 - Eighth tool of the passes (new PR after #24 merged). Result: **fully compatible

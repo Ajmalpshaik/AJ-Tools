@@ -12,6 +12,35 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Purge tools (Unplaced Views / Sections / 3D Views + Unused Family Parameters) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete family inventory):** Commands: `CmdPurgeUnplaced3DViews.cs`,
+`CmdPurgeUnplacedSections.cs`, `CmdPurgeUnplacedViews.cs`, `CmdPurgeUnplacedViewsAvailability.cs`,
+`CmdPurgeUnusedFamilyParameters.cs`, `CmdPurgeUnusedFamilyParametersAvailability.cs`;
+Services/Purge: `UnplacedViewCollector.cs`, `UnplacedViewPurgeService.cs`,
+`FamilyParameterScanService.cs`, `FamilyParameterUsageEvaluator.cs`,
+`FamilyParameterDeleteService.cs`; UI: both purge windows (XAML + code-behind).
+
+**Verified unchanged across all 8 versions (2020–2027):** `Document.FamilyManager` /
+`FamilyManager.GetParameters/RemoveParameter/CurrentType` / `FamilyType.HasValue` + `As*` readers /
+`FamilyParameter.Formula/IsInstance/IsReadOnly/Definition` (GUID/IsShared/IsReporting verified in
+the Duct Standards audit); `Dimension.FamilyLabel`; `View3D`/`ViewSection`/`Viewport` collectors;
+`Document.Delete`; `Transaction.GetStatus` + `TransactionStatus.Started`. No `#if` blocks anywhere
+in the family; all ElementId numeric access already uses `.IntValue()`.
+
+**Existing version-awareness confirmed correct:** `FamilyParameterUsageEvaluator` deliberately
+collects dimensions by category rather than `OfClass(typeof(Dimension))` because Revit 2025+
+returns linear dimensions as the new `LinearDimension` subclass — the assemblies confirm the
+subclass exists exactly from 2025, and the category-based approach is version-safe on all 8 with
+no conditional compilation needed.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## MEP Openings — audited 2026-07-23 — RESULT: fully compatible; two inline version branches moved into helpers
 
 **Files covered (complete tool inventory):** `CmdCreateMepOpenings.cs`, `CmdMepOpeningSettings.cs`;
