@@ -3,6 +3,28 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Pipe Sizing multi-version compatibility audit (2020–2027)
+
+- Fifth tool of the passes, same branch/PR (#23) as Ceiling Magnet. Result: **fully
+  compatible 2020–2027, zero source changes**. The tool is a self-contained
+  calculator — its only Revit API is the command wrapper; TransactionMode.ReadOnly
+  verified present in all 8 assemblies. No unit API anywhere (does its own
+  metric/imperial math), so the 2021 units boundary doesn't apply.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
+## 2026-07-23 — Ceiling Magnet multi-version compatibility audit (2020–2027)
+
+- Fourth tool of the passes (first after PR #22 merged — branch restarted from
+  master, so this went up as a new PR). Result: **fully compatible 2020–2027**.
+- Verified: Ceiling.GetCeilingGridLines is absent 2020–2024 / present 2025+ in the
+  reference assemblies — CeilingGridApiCompat's REVIT2025 gate + runtime reflection
+  probe (for unpatched 2025.0–2025.2) is exactly right. Everything else, including
+  RevitLinkInstance.GetTotalTransform (inherited from Instance), identical in all 8.
+- Only source change: corrected a stale header note in CmdCeilingMagnet.cs and
+  CeilingMagnetService.cs claiming the tool still "uses UnitUtils with
+  DisplayUnitType — revisit for 2021+" (it already routes through RevitCompat).
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Smart MEP Tag multi-version compatibility audit (2020–2027)
 
 - Third tool of the passes, same branch/PR (#22). Result: **fully compatible

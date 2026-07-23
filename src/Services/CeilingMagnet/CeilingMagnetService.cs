@@ -30,8 +30,9 @@
  *                 nearest tile center (tallied into a SnapSummary).
  *
  * Notes         :
- * - Targets Revit 2020 through latest. Tile size/angle fallback path uses UnitUtils with
- *   DisplayUnitType (the Revit 2020 unit API) - revisit for 2021+ ForgeTypeId builds.
+ * - Targets Revit 2020 through latest. Tile size/angle fallback path converts units through
+ *   RevitCompat (mm/internal), which owns the DisplayUnitType-vs-UnitTypeId switch - no direct
+ *   legacy unit API is used here (2020-2027 audit, 2026-07-23).
  * - Real-grid path (2025.3+, see CeilingGridApiCompat): clusters the ceiling's actual grid lines into
  *   two perpendicular families, derives tile size/angle from each family's own inter-line spacing
  *   (median, for robustness against clipped boundary segments), and derives the anchor point by

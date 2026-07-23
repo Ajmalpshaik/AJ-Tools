@@ -12,6 +12,67 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Pipe Sizing — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdPipeSizing.cs`; Services/PipeSizing:
+`PipeSizingCalculator.cs`, `PipeSizingCsvExporter.cs`, `PipeSizingData.cs`,
+`PipeSizingStateService.cs`; Models/PipeSizing: `PipeSizingResult.cs`, `PipeSizingState.cs`,
+`PipeSizeOption.cs`, `PipeFixtureData.cs`; UI: `PipeSizingWindow.xaml` + code-behind.
+
+**API surface:** this tool is a self-contained calculator — the ONLY Revit API it touches is the
+thin command wrapper (`IExternalCommand`, `ExternalCommandData`, `ElementSet`, `Result`,
+`TaskDialog.Show`, `OperationCanceledException`, `[Transaction(TransactionMode.ReadOnly)]`,
+`[Regeneration(RegenerationOption.Manual)]`). All of those were already verified in the earlier
+audits except `TransactionMode.ReadOnly`, now verified present in **all 8 versions (2020–2027)**.
+
+**The 2021 units boundary does not apply:** the calculator performs its own metric/imperial math —
+no `UnitUtils`, `DisplayUnitType`, or `UnitTypeId` anywhere in the tool. Services, models, and the
+window use zero Revit API: plain WPF, `Microsoft.Win32.SaveFileDialog` (CSV export), and JSON state
+via Newtonsoft — identical API surface on .NET Fx 4.7.2/4.8, .NET 8, and .NET 10.
+
+**Source changes: none** — headers are accurate.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Ceiling Magnet — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdCeilingMagnet.cs`;
+`Services/CeilingMagnet/CeilingMagnetService.cs`; helper `CeilingGridApiCompat.cs` (read, unchanged).
+UI is TaskDialog-based (command links) — no XAML/WinForms window.
+
+**The one real version boundary — `Ceiling.GetCeilingGridLines` — verified in the assemblies, and
+`CeilingGridApiCompat`'s gate is exactly right:** the method is absent in 2020–2024 and present in
+2025–2027 reference assemblies. The helper compiles the call out below `REVIT2025_OR_GREATER` and
+still probes by reflection at runtime on 2025+ (because the method arrived in point release 2025.3 —
+an unpatched 2025.0–2025.2 install lacks it even though the reference assembly has it). Falls back
+silently to the manual-click path — never crashes.
+
+**Verified unchanged across all 8 versions (2020–2027):** `CeilingType` /
+`HostObjAttributes.GetCompoundStructure` / `CompoundStructure.GetLayers` /
+`CompoundStructureLayer.MaterialId`; `Material.SurfaceForegroundPatternId`;
+`FillPattern.Target/GetFillGrids`, `FillGrid.Offset/Angle`, `FillPatternTarget.Model`;
+`Options` (+ `ViewDetailLevel.Fine`), `Element.get_Geometry`, `Solid.Faces`,
+`PlanarFace.FaceNormal`, `Face.Project/Area`; `ElementTransformUtils.MoveElement`;
+`RevitLinkInstance.GetLinkDocument` + `GetTotalTransform` (inherited from `Instance` — present in
+all 8); `Transform.OfPoint/OfVector/Inverse/Origin`; `Reference.ElementId/LinkedElementId`;
+Selection API (`PickObject`/`PickObjects`/`PickPoint`/`GetElementIds`, `ObjectType.Element/
+PointOnElement/LinkedElement`, `ISelectionFilter`); instance `TaskDialog` with
+`AddCommandLink`/`TaskDialogCommandLinkId`/`TaskDialogResult.CommandLink1-2`.
+Unit conversion goes through `RevitCompat.MmToInternal/InternalToMm` (the 2021/2022 unit-API
+switch lives in that helper).
+
+**Source changes: header notes only.** Both file headers still said the tool "uses UnitUtils with
+DisplayUnitType — revisit for 2021+ ForgeTypeId builds", but the code had already been converted to
+RevitCompat in an earlier pass — the stale notes were corrected (no code touched).
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Smart MEP Tag — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):**
