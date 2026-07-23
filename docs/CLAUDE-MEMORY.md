@@ -3,6 +3,12 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Revision Cloud by Elements multi-version compatibility audit (2020–2027)
+
+- Thirteenth pass, same branch/PR (#25). Result: **fully compatible 2020–2027,
+  zero source changes**. RevisionCloud.Create exact signature + Revision.
+  SequenceNumber identical in all 8 assemblies.
+
 ## 2026-07-23 — Graphics Tools family multi-version compatibility audit (2020–2027)
 
 - Twelfth pass (8 commands + 7 services + 7 models + window as one family), same
