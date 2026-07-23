@@ -3,6 +3,19 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — FINAL compatibility pass — ENTIRE SUITE NOW AUDITED (2020–2027)
+
+- Nineteenth and final pass: View Crop, HVAC Schematic, Shared Param→Family Param,
+  Location Data Assigner, About, Core ribbon managers, the whole AiShell subsystem,
+  and remaining helpers. Result: **fully compatible 2020–2027, zero source changes**.
+  Version-matched ReplaceParameter overloads confirmed on both sides of the 2022
+  token switch; ExternalEvent/DockablePane/ribbon APIs identical in all 8.
+- **Every tool in AJ-Tools has now been audited** across 19 passes. Total code
+  changes needed across the whole suite: the two MEP Openings helper delegations
+  (pass 8) and stale header notes in Filter Pro (pass 1) / Ceiling Magnet (pass 4).
+  Remaining for Ajmal: merge PR #25 (passes 8–19), run build-all.ps1 locally,
+  spot-check a few tools live in a newer Revit.
+
 ## 2026-07-23 — Annotation tools group multi-version compatibility audit (2020–2027)
 
 - Eighteenth pass (6 tools, 20 files), same branch/PR (#25). Result: **fully
