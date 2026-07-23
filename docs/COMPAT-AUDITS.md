@@ -12,6 +12,22 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Text tools group (Arrange Text in Box / Copy Text / Swap Text / Reset Text Position / Copy Dim Text) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdArrangeTextInBox.cs` + `Services/ArrangeTextInBox/ArrangeTextInBoxService.cs`,
+`CmdCopyText.cs`, `CmdSwapText.cs`, `CmdResetTextPosition.cs`, `CmdCopyDimensionText.cs`.
+
+**Verified unchanged across all 8 versions (2020–2027):** `TextElement.Text/Coord/Width` get+set
+and the `GetMinimumAllowedWidth`/`GetMaximumAllowedWidth` statics (note: these all live on the
+`TextElement` BASE class, not on `TextNote` itself — statics are called through `TextNote`, which
+C# resolves to the base; another case where a naive single-type API diff would mislead);
+`Dimension.Above/Below/Prefix/Suffix/ValueOverride` get+set. Everything else (selection,
+transactions, TaskDialog) previously verified. No `#if` blocks, no legacy usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
 ## Revision Cloud by Elements — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered:** `CmdRevisionCloudByElements.cs`, `CmdRevisionCloudByElementsSettings.cs`;
