@@ -7,10 +7,10 @@
  *                 so generated code can reasonably assume what the user is looking at.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,6 +32,11 @@
  *   this exact wording without updating that check too.
  *
  * Changelog     :
+ * v1.2.0 (2026-07-23) - Added the same re-entrancy guard RevitExecutionService/ReplSessionService
+ *                       already use: a second ExtractContextAsync() call while one is still running
+ *                       now returns immediately instead of overwriting the shared _tcs field, which
+ *                       could otherwise leave an earlier caller's Task pending forever if Revit
+ *                       coalesced the two ExternalEvent.Raise() calls into one Execute().
  * v1.0.0 (2026-01-01) - Initial release (selection + category counts only).
  * v1.1.0 (2026-07-01) - Added document title, active view info, per-element type/level detail,
  *                       payload size cap, and per-field exception handling.
@@ -59,6 +64,11 @@ namespace AJTools.AiShell.Services
         private readonly object _lock = new object();
         private TaskCompletionSource<string> _tcs;
 
+        // Same coalescing hazard RevitExecutionService/ReplSessionService already guard against:
+        // ExternalEvent.Raise() can coalesce two rapid calls into a single Execute() invocation,
+        // which would silently overwrite _tcs and leave an earlier caller's Task pending forever.
+        private volatile bool _isRunning;
+
         public RevitContextExtractionService()
         {
             _externalEvent = ExternalEvent.Create(this);
@@ -68,6 +78,12 @@ namespace AJTools.AiShell.Services
         {
             lock (_lock)
             {
+                if (_isRunning)
+                {
+                    return Task.FromResult("(context extraction already in progress - try again in a moment)");
+                }
+
+                _isRunning = true;
                 _tcs = new TaskCompletionSource<string>();
             }
 
@@ -113,6 +129,13 @@ namespace AJTools.AiShell.Services
             catch (Exception ex)
             {
                 tcs.TrySetResult($"Failed to extract context: {ex.Message}");
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    _isRunning = false;
+                }
             }
         }
 

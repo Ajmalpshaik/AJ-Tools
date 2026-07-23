@@ -17,7 +17,7 @@
 | A1 | Restart Revit 2020 after the new build was deployed | AJ-Tools ribbon loads with no startup error popup | ☐ |
 | A2 | Click the **AJ AI** button on the ribbon | The AI panel opens docked on the right | ☐ |
 | A3 | Look at the top bar of the panel | Shows e.g. **"Gemini: API key configured"** (or "…API key missing — open Settings") — but **never shows the actual key** | ☐ |
-| A4 | Open **⚙ Settings**, switch provider between Gemini and OpenAI | Top-bar status updates to match the selected provider | ☐ |
+| A4 | Open **⚙ Settings**, switch provider between Gemini, OpenAI, and Claude | Top-bar status updates to match the selected provider | ☐ |
 
 ## B. Normal use (should work exactly like before)
 
@@ -69,4 +69,5 @@ _Write anything that failed or behaved oddly here, with the request text you typ
 ## Known limitations (already documented — not bugs to report)
 - The safety scan is a **pattern check, not a full sandbox** — cleverly disguised code could still slip past. Always glance at generated code before running on a real model.
 - A script stuck in a **single long Revit operation** (not a loop) can't be interrupted by Stop — only loop-based scripts and a 60-second backstop can.
+- **Unbounded recursion is not protected against** (only `while`/`for`/`do`/`foreach` loops are) — a script with a recursive method that never hits its base case can crash Revit outright (a real stack overflow, not a hang), instead of the safe "Stopped"/timeout behavior a runaway loop gets. Rare in AI-generated code, but possible.
 - AJ AI targets **Revit 2020 only** for now.
