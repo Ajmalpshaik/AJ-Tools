@@ -3,6 +3,13 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Text tools group multi-version compatibility audit (2020–2027)
+
+- Fourteenth pass (5 commands as one group), same branch/PR (#25). Result: **fully
+  compatible 2020–2027, zero source changes**. TextElement.Text/Coord/Width +
+  min/max width statics (all on the TextElement base class) and
+  Dimension.Above/Below/Prefix/Suffix/ValueOverride identical in all 8 assemblies.
+
 ## 2026-07-23 — Revision Cloud by Elements multi-version compatibility audit (2020–2027)
 
 - Thirteenth pass, same branch/PR (#25). Result: **fully compatible 2020–2027,
