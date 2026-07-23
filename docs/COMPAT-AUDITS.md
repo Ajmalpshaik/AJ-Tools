@@ -12,6 +12,42 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Ceiling Magnet — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdCeilingMagnet.cs`;
+`Services/CeilingMagnet/CeilingMagnetService.cs`; helper `CeilingGridApiCompat.cs` (read, unchanged).
+UI is TaskDialog-based (command links) — no XAML/WinForms window.
+
+**The one real version boundary — `Ceiling.GetCeilingGridLines` — verified in the assemblies, and
+`CeilingGridApiCompat`'s gate is exactly right:** the method is absent in 2020–2024 and present in
+2025–2027 reference assemblies. The helper compiles the call out below `REVIT2025_OR_GREATER` and
+still probes by reflection at runtime on 2025+ (because the method arrived in point release 2025.3 —
+an unpatched 2025.0–2025.2 install lacks it even though the reference assembly has it). Falls back
+silently to the manual-click path — never crashes.
+
+**Verified unchanged across all 8 versions (2020–2027):** `CeilingType` /
+`HostObjAttributes.GetCompoundStructure` / `CompoundStructure.GetLayers` /
+`CompoundStructureLayer.MaterialId`; `Material.SurfaceForegroundPatternId`;
+`FillPattern.Target/GetFillGrids`, `FillGrid.Offset/Angle`, `FillPatternTarget.Model`;
+`Options` (+ `ViewDetailLevel.Fine`), `Element.get_Geometry`, `Solid.Faces`,
+`PlanarFace.FaceNormal`, `Face.Project/Area`; `ElementTransformUtils.MoveElement`;
+`RevitLinkInstance.GetLinkDocument` + `GetTotalTransform` (inherited from `Instance` — present in
+all 8); `Transform.OfPoint/OfVector/Inverse/Origin`; `Reference.ElementId/LinkedElementId`;
+Selection API (`PickObject`/`PickObjects`/`PickPoint`/`GetElementIds`, `ObjectType.Element/
+PointOnElement/LinkedElement`, `ISelectionFilter`); instance `TaskDialog` with
+`AddCommandLink`/`TaskDialogCommandLinkId`/`TaskDialogResult.CommandLink1-2`.
+Unit conversion goes through `RevitCompat.MmToInternal/InternalToMm` (the 2021/2022 unit-API
+switch lives in that helper).
+
+**Source changes: header notes only.** Both file headers still said the tool "uses UnitUtils with
+DisplayUnitType — revisit for 2021+ ForgeTypeId builds", but the code had already been converted to
+RevitCompat in an earlier pass — the stale notes were corrected (no code touched).
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Smart MEP Tag — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):**
