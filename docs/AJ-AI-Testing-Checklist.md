@@ -69,4 +69,5 @@ _Write anything that failed or behaved oddly here, with the request text you typ
 ## Known limitations (already documented — not bugs to report)
 - The safety scan is a **pattern check, not a full sandbox** — cleverly disguised code could still slip past. Always glance at generated code before running on a real model.
 - A script stuck in a **single long Revit operation** (not a loop) can't be interrupted by Stop — only loop-based scripts and a 60-second backstop can.
+- **Unbounded recursion is not protected against** (only `while`/`for`/`do`/`foreach` loops are) — a script with a recursive method that never hits its base case can crash Revit outright (a real stack overflow, not a hang), instead of the safe "Stopped"/timeout behavior a runaway loop gets. Rare in AI-generated code, but possible.
 - AJ AI targets **Revit 2020 only** for now.

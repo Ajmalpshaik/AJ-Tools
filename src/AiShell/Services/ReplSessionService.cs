@@ -8,10 +8,10 @@
  *                 to the existing AI-authored full-script Run/RevitExecutionService path.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.0.2
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -48,6 +48,12 @@
  *   line a live, non-disposed token.
  *
  * Changelog     :
+ * v1.0.2 (2026-07-23) - Fixed a misreported-failure bug shared with RevitExecutionService:
+ *                       RefreshActiveView() ran right after tx.Commit()/_state update but before
+ *                       the line's success was reported - if the refresh threw, the outer catch-all
+ *                       reported the line as failed even though it had already committed and
+ *                       _state already reflected it, so a retry would double-apply the same line.
+ *                       The refresh now has its own try/catch (TryRefreshActiveView).
  * v1.0.1 (2026-07-21) - Two review fixes: (1) _globals is now a persisted, mutated-in-place session
  *                       field instead of a fresh local per call - fixes continuation lines silently
  *                       running against the first line's disposed CancellationToken (loop protection
@@ -230,7 +236,7 @@ namespace AJTools.AiShell.Services
                         {
                             tx.Commit();
                             _state = lineResult.NewState;
-                            app.ActiveUIDocument?.RefreshActiveView();
+                            TryRefreshActiveView(app);
 
                             string output = lineResult.Output;
                             if (sessionWasReset)
@@ -269,6 +275,17 @@ namespace AJTools.AiShell.Services
                     _isRunning = false;
                 }
             }
+        }
+
+        // RefreshActiveView() is a UI nicety, not part of the result - if it throws after tx.Commit()
+        // and _state have already succeeded above, letting that exception reach the outer catch-all
+        // would report an already-committed line (and already-updated session state) as a failure -
+        // worse here than in RevitExecutionService, since a retyped "failed" line would then double-
+        // apply against state that was never rolled back.
+        private static void TryRefreshActiveView(UIApplication app)
+        {
+            try { app.ActiveUIDocument?.RefreshActiveView(); }
+            catch { /* cosmetic only - never turn an already-committed success into a reported failure */ }
         }
 
         public string GetName() => "AJ AI Console Session";

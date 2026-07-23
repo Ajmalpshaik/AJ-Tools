@@ -45,7 +45,6 @@ Changelog :
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="SoftUiStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <localHelpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
             <localHelpers:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>

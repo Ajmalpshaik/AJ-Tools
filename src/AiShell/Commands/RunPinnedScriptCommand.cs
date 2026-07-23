@@ -15,10 +15,10 @@
  *                 the C# pane's own Run Code button already uses.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-07-23
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -44,6 +44,10 @@
  *   the WPF ViewModel layer.
  *
  * Changelog     :
+ * v1.0.1 (2026-07-23) - Fixed the same misreported-failure bug as RevitExecutionService v1.4.0:
+ *                       RefreshActiveView() ran inside the same try as group.Commit(), so a throw
+ *                       there reported an already-committed pinned script as Failed. The refresh
+ *                       now has its own try/catch (TryRefreshActiveView).
  * v1.0.0 (2026-07-21) - Initial release.
  *
  * License       : All Rights Reserved
@@ -149,7 +153,7 @@ namespace AJTools.AiShell.Commands
                     if (result.Success)
                     {
                         group.Commit();
-                        commandData.Application.ActiveUIDocument?.RefreshActiveView();
+                        TryRefreshActiveView(commandData.Application);
                         TaskDialog.Show("AJ AI: Pinned Script Ran Successfully", result.Output ?? "Done.");
                         return Result.Succeeded;
                     }
@@ -165,6 +169,16 @@ namespace AJTools.AiShell.Commands
                     return Result.Failed;
                 }
             }
+        }
+
+        // RefreshActiveView() is a UI nicety, not part of the result - if it throws after
+        // group.Commit() already succeeded above, letting that exception reach the outer catch
+        // would report an already-committed change as Failed and try to RollBack() a group that
+        // is no longer rollback-able (same bug class fixed in RevitExecutionService v1.4.0).
+        private static void TryRefreshActiveView(UIApplication app)
+        {
+            try { app.ActiveUIDocument?.RefreshActiveView(); }
+            catch { /* cosmetic only - never turn an already-committed success into a reported failure */ }
         }
 
         private static string StripSavedScriptHeader(string rawContent)
