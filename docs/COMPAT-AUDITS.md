@@ -12,6 +12,25 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Level & datum tools group (Extend Levels / Maximize Levels by Section Box / Match Elevation / Reassign Level / Reset Datums / Flip Grid Bubble) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdExtendLevelsBySelected.cs`, `CmdMaximizeLevelsBySectionBox.cs`,
+`CmdMatchElevation.cs`, `CmdReassignLevel.cs`, `CmdResetDatums.cs`, `CmdFlipGridBubble.cs`;
+Services: `LevelExtentsService.cs`, `LevelExtentsBySectionBoxService.cs`,
+`ReassignLevelService.cs`, `ResetDatumService.cs`.
+
+**Verified unchanged across all 8 versions (2020–2027):** the whole `DatumPlane` extent/bubble API —
+`SetDatumExtentType`, `SetCurveInView`, `GetCurvesInView`, `ShowBubbleInView`/`HideBubbleInView`/
+`IsBubbleVisibleInView`, `DatumEnds.End0/End1`, `DatumExtentType.Model/ViewSpecific`;
+`View3D.GetSectionBox`/`IsSectionBoxActive`; `Level.Elevation` get+set; and the level-related
+parameters used for reassignment (`RBS_START_LEVEL_PARAM`, `INSTANCE_FREE_HOST_OFFSET_PARAM`,
+`ROOM_UPPER_LEVEL`, `ROOM_UPPER_OFFSET`; others verified in earlier audits). No `#if` blocks, no
+legacy ElementId/unit usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
 ## Text tools group (Arrange Text in Box / Copy Text / Swap Text / Reset Text Position / Copy Dim Text) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered:** `CmdArrangeTextInBox.cs` + `Services/ArrangeTextInBox/ArrangeTextInBoxService.cs`,

@@ -3,6 +3,13 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Level & datum tools group multi-version compatibility audit (2020–2027)
+
+- Fifteenth pass (6 commands + 4 services as one group), same branch/PR (#25).
+  Result: **fully compatible 2020–2027, zero source changes**. Full DatumPlane
+  extent/bubble API, View3D section box, Level.Elevation, and level parameters
+  identical in all 8 assemblies.
+
 ## 2026-07-23 — Text tools group multi-version compatibility audit (2020–2027)
 
 - Fourteenth pass (5 commands as one group), same branch/PR (#25). Result: **fully
