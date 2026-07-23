@@ -12,6 +12,27 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Link tools group (Toggle Revit Links / Set Link Workset / Linked Element ID Viewer / Linked Element Search) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdToggleRevitLinks.cs`, `CmdRevitLinkToggleAvailability.cs`,
+`CmdSetLinkWorkset.cs`, `CmdLinkedElementIdViewer.cs`, `CmdLinkedElementSearch.cs`;
+`Helpers/LinkWorksetSettings.cs`; UI: `SetLinkWorksetWindow`, `LinkedIdViewerWindow`,
+`LinkedSearchWindow` (XAML + code-behind).
+
+**Verified unchanged across all 8 versions (2020–2027):** the workset API —
+`FilteredWorksetCollector` + `OfKind(WorksetKind.UserWorkset)`, `Workset.Create`,
+`Workset.Id/Name` (inherited from `WorksetPreview` — present in all 8), and notably
+**`WorksetId.IntegerValue`, which — unlike `ElementId.IntegerValue` — was NEVER removed and is
+present through 2027** (the direct `worksetParam.Set(workset.Id.IntegerValue)` call is safe as-is);
+`Document.IsWorkshared`; `ELEM_PARTITION_PARAM`; category toggling
+(`View.GetCategoryHidden/SetCategoryHidden/CanCategoryBeHidden`, `OST_RvtLinks`, and the
+`ElementId(BuiltInCategory)` constructor); linked-model reads (`GetLinkDocument`,
+`Reference.LinkedElementId` — verified in earlier audits). No `#if` blocks.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
 ## Level & datum tools group (Extend Levels / Maximize Levels by Section Box / Match Elevation / Reassign Level / Reset Datums / Flip Grid Bubble) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered:** `CmdExtendLevelsBySelected.cs`, `CmdMaximizeLevelsBySectionBox.cs`,

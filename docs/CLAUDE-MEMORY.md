@@ -3,6 +3,14 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Link tools group multi-version compatibility audit (2020–2027)
+
+- Sixteenth pass (5 commands + 3 windows as one group), same branch/PR (#25).
+  Result: **fully compatible 2020–2027, zero source changes**. Important negative
+  finding: WorksetId.IntegerValue was NEVER removed (present through 2027), unlike
+  ElementId.IntegerValue — the direct call in SetLinkWorksetWindow is safe as-is.
+  Workset.Id/Name resolve via the WorksetPreview base in all 8.
+
 ## 2026-07-23 — Level & datum tools group multi-version compatibility audit (2020–2027)
 
 - Fifteenth pass (6 commands + 4 services as one group), same branch/PR (#25).
