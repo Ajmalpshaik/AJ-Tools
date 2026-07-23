@@ -12,6 +12,298 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Final pass: View Crop / HVAC Schematic / Shared Param→Family Param / Location Data Assigner / About / Core ribbon / AJ AI — audited 2026-07-23 — RESULT: fully compatible, no code changes needed. THE ENTIRE SUITE IS NOW AUDITED.
+
+**Files covered:** `Commands/ViewCrop/CmdViewCrop3DExtents.cs` + all 11 Services/ViewCrop classes
+(+ `ViewCropConfigStore`); `HvacSchematicCommand.cs` + all 4 Services/HvacSchematic classes;
+`SharedParamToFamilyParamCommand.cs` + service + window; `CmdLocationDataAssigner.cs` + window;
+`AboutCommand.cs` + `AboutWindow`; Core (`App.cs`, `RibbonManager.cs`, `AnnotationRibbonManager.cs`,
+`RibbonPanelHelper.cs`); the whole AiShell subsystem (Commands/Configuration/DockablePane/Helpers/
+Models/Services/ViewModels/Views); remaining helpers (`IconLoader`, `WindowChromeHelper`,
+`GeometryExtensions`, `SelectionFilters`).
+
+**Verified unchanged across all 8 versions (2020–2027):** `ViewDrafting.Create`, `TextNote.Create`,
+`NewDetailCurve` (Document/ItemFactoryBase), `View.GetCropRegionShapeManager` +
+`ViewCropRegionShapeManager.SetCropShape` + `CurveLoop`;
+`FamilyManager.Set/RenameParameter/SetFormula` and — version-matched — the 4-arg
+`ReplaceParameter` overload with `BuiltInParameterGroup` on 2020–2021 and `ForgeTypeId` on 2022+
+(exactly the split the `AjGroup` alias + `RevitCompat` produce); RevitAPIUI:
+`ExternalEvent.Create/Raise`, `IExternalEventHandler`, the DockablePane API
+(`DockablePaneId`, `RegisterDockablePane`, `GetDockablePane`, `IDockablePaneProvider`), and the
+ribbon API (`PushButtonData`, `PulldownButtonData`, `SplitButtonData`, `RibbonPanel.AddItem/
+AddStackedItems`). The two `#if` blocks found (SharedParamToFamilyParamService,
+LocationDataAssignerWindow) are the sanctioned `AjGroup`/`AjSpec` alias pattern. The
+`snapshot.IntegerValue` hits are a plain model property, not `ElementId.IntegerValue`.
+
+**Source changes: none.** Build verification: same limitation as all other audits — a real
+8-configuration `build-all.ps1` run on the local machine remains the final step before release.
+
+---
+
+## Annotation tools group (Center Room Tags / Flow Direction / Force Tag Leader L-Shape / Quick Parallel Dimension / Dimension by Line / Duct Reference Dimension) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (20 files):** `CmdCenterRoomTags.cs` + Services/RoomTags;
+`CmdFlowDirectionAnnotations.cs` + `CmdFlowDirectionSettings.cs` + Services/FlowDirection +
+`FlowDirectionSettingsWindow`; `CmdForceTagLeaderLShape.cs` + Services/ForceTagLeaderLShape;
+`CmdQuickParallelDimension.cs` + Services/QuickDimension; `CmdDimensionByLine.cs` +
+Services/DimensionByLine; `Commands/Annotation/DuctReferenceDimensionCommand.cs` +
+Services/DuctReferenceDimension.
+
+**Verified unchanged across all 8 versions (2020–2027):** `RoomTag.Room/TaggedRoomId`,
+`SpatialElementTag.TagHeadPosition` get+set + `HasLeader`, `LinkElementId.LinkInstanceId/
+LinkedElementId`, `Room` + `SpatialElement.GetBoundarySegments(SpatialElementBoundaryOptions)`;
+dimension creation and tag/leader work reuse members verified in earlier audits (`NewDimension`,
+`Line.CreateBound`, `TagCompat`/`LeaderLogicService` routing — no direct removed-member usage
+anywhere in the group). The one `#if` in `FlowDirectionSettingsWindow` is the sanctioned `AjUnit`
+alias pattern (`DisplayUnitType` 2020–2021 / `ForgeTypeId` 2022+), matching the helper convention.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
+## View utilities group (Unhide All / Smart Selection / Pin Elements / 3D Views per Workset / Transfer View Templates / Section Mark Visibility) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdUnhideAll.cs`, `CmdSmartSelection.cs` (+ `Helpers/SmartSelectionFilter.cs`),
+`CmdPinElements.cs` (+ Services/PinTools + `PinElementsWindow`), `Cmd3DViewsAsPerWorkset.cs`
+(+ Services/WorksetViews), `CmdTransferViewTemplates.cs` (+ window), `CmdSectionMarkVisibility.cs`
+(+ Services/SectionMarkVisibility + UI + config store) — 14 files.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+`View.UnhideElements/HideElements`, `View.DisableTemporaryViewMode` +
+`TemporaryViewMode.TemporaryHideIsolate`, `View.SetWorksetVisibility` +
+`WorksetVisibility.Visible/Hidden`, `View.ViewTemplateId` set, `View3D.CreateIsometric`,
+`ViewFamily.Section/ThreeDimensional` + `ViewFamilyType`, `Element.Pinned` set. Everything else
+(collectors, selection, worksets, transactions) verified in earlier audits. No `#if` blocks, no
+legacy usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
+## Link tools group (Toggle Revit Links / Set Link Workset / Linked Element ID Viewer / Linked Element Search) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdToggleRevitLinks.cs`, `CmdRevitLinkToggleAvailability.cs`,
+`CmdSetLinkWorkset.cs`, `CmdLinkedElementIdViewer.cs`, `CmdLinkedElementSearch.cs`;
+`Helpers/LinkWorksetSettings.cs`; UI: `SetLinkWorksetWindow`, `LinkedIdViewerWindow`,
+`LinkedSearchWindow` (XAML + code-behind).
+
+**Verified unchanged across all 8 versions (2020–2027):** the workset API —
+`FilteredWorksetCollector` + `OfKind(WorksetKind.UserWorkset)`, `Workset.Create`,
+`Workset.Id/Name` (inherited from `WorksetPreview` — present in all 8), and notably
+**`WorksetId.IntegerValue`, which — unlike `ElementId.IntegerValue` — was NEVER removed and is
+present through 2027** (the direct `worksetParam.Set(workset.Id.IntegerValue)` call is safe as-is);
+`Document.IsWorkshared`; `ELEM_PARTITION_PARAM`; category toggling
+(`View.GetCategoryHidden/SetCategoryHidden/CanCategoryBeHidden`, `OST_RvtLinks`, and the
+`ElementId(BuiltInCategory)` constructor); linked-model reads (`GetLinkDocument`,
+`Reference.LinkedElementId` — verified in earlier audits). No `#if` blocks.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
+## Level & datum tools group (Extend Levels / Maximize Levels by Section Box / Match Elevation / Reassign Level / Reset Datums / Flip Grid Bubble) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdExtendLevelsBySelected.cs`, `CmdMaximizeLevelsBySectionBox.cs`,
+`CmdMatchElevation.cs`, `CmdReassignLevel.cs`, `CmdResetDatums.cs`, `CmdFlipGridBubble.cs`;
+Services: `LevelExtentsService.cs`, `LevelExtentsBySectionBoxService.cs`,
+`ReassignLevelService.cs`, `ResetDatumService.cs`.
+
+**Verified unchanged across all 8 versions (2020–2027):** the whole `DatumPlane` extent/bubble API —
+`SetDatumExtentType`, `SetCurveInView`, `GetCurvesInView`, `ShowBubbleInView`/`HideBubbleInView`/
+`IsBubbleVisibleInView`, `DatumEnds.End0/End1`, `DatumExtentType.Model/ViewSpecific`;
+`View3D.GetSectionBox`/`IsSectionBoxActive`; `Level.Elevation` get+set; and the level-related
+parameters used for reassignment (`RBS_START_LEVEL_PARAM`, `INSTANCE_FREE_HOST_OFFSET_PARAM`,
+`ROOM_UPPER_LEVEL`, `ROOM_UPPER_OFFSET`; others verified in earlier audits). No `#if` blocks, no
+legacy ElementId/unit usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
+## Text tools group (Arrange Text in Box / Copy Text / Swap Text / Reset Text Position / Copy Dim Text) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdArrangeTextInBox.cs` + `Services/ArrangeTextInBox/ArrangeTextInBoxService.cs`,
+`CmdCopyText.cs`, `CmdSwapText.cs`, `CmdResetTextPosition.cs`, `CmdCopyDimensionText.cs`.
+
+**Verified unchanged across all 8 versions (2020–2027):** `TextElement.Text/Coord/Width` get+set
+and the `GetMinimumAllowedWidth`/`GetMaximumAllowedWidth` statics (note: these all live on the
+`TextElement` BASE class, not on `TextNote` itself — statics are called through `TextNote`, which
+C# resolves to the base; another case where a naive single-type API diff would mislead);
+`Dimension.Above/Below/Prefix/Suffix/ValueOverride` get+set. Everything else (selection,
+transactions, TaskDialog) previously verified. No `#if` blocks, no legacy usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
+## Revision Cloud by Elements — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdRevisionCloudByElements.cs`, `CmdRevisionCloudByElementsSettings.cs`;
+Services/RevisionCloud: `RevisionCloudCreator.cs`, `GeometryProjectionService.cs`,
+`OrthogonalOutlineBuilder.cs`; UI: `RevisionCloudSettingsWindow.xaml` + code-behind.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+`RevisionCloud.Create(Document, View, ElementId, IList<Curve>)` (exact signature),
+`Revision.SequenceNumber` + the `Revision` collector; the geometry projection uses only members
+verified in earlier audits (`get_Geometry`, `Curve.GetEndPoint`, `Line.CreateBound`). No `#if`
+blocks, no legacy ElementId/unit usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
+## Graphics Tools family — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete family inventory):** Commands/GraphicsTools: `CmdApplyGraphics.cs`,
+`CmdClearSelectedElementGraphics.cs`, `CmdHighlightSelection.cs`, `CmdMatchCategoryGraphics.cs`,
+`CmdMatchElementGraphics.cs`, `CmdResetCategoryGraphics.cs`,
+`CmdResetCategoryGraphicsAllElements.cs`, plus `CmdResetOverrides.cs`; all 7
+Services/GraphicsTools classes; all 7 Models/GraphicsTools classes; UI:
+`GraphicsOverrideWindow.xaml` + code-behind.
+
+**Verified unchanged across all 8 versions (2020–2027) in this pass:** category-level overrides
+(`View.SetCategoryOverrides/GetCategoryOverrides/IsCategoryOverridable`, `View.GetElementOverrides`);
+the full `OverrideGraphicSettings` writer surface beyond what Filter Pro/Colorize already covered —
+`SetSurfaceTransparency`, surface/cut BACKGROUND pattern id+colour, projection/cut line weights,
+projection/cut line pattern ids, and `InvalidPenNumber`; and
+`InsulationLiningBase.GetInsulationIds` (used by Highlight Selection to include hosted insulation).
+Members already verified in earlier audits and reused here: `View.SetElementOverrides`
+(Colorize pass), foreground pattern setters/getters (Filter Pro pass),
+`GraphicsCommandService.ExecuteSummaryTransaction` internals (`Transaction` incl. `RollBack`).
+No `#if` blocks; all ElementId numeric access via `ElementIdHelper.GetIntegerValue`.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Smart Connect — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `SmartConnectCommand.cs`; Services/SmartConnect:
+`SmartConnectRouteBuilder.cs` (48 KB), `SmartConnectConnectorUtils.cs`,
+`SmartConnectSettingsService.cs`; `Helpers/SmartConnectSelectionFilter.cs`;
+`Models/SmartConnectSettings.cs`; UI: `SmartConnectWindow.xaml` + code-behind.
+
+**Verified with EXACT signatures across all 8 versions (2020–2027):**
+`Duct.Create(Document, ElementId, ElementId, ElementId, XYZ, XYZ)`,
+`Pipe.Create(Document, ElementId, ElementId, ElementId, XYZ, XYZ)`,
+`CableTray.Create(Document, ElementId, XYZ, XYZ, ElementId)`,
+`doc.Create.NewElbowFitting(Connector, Connector)`; the connector API
+(`ConnectorManager.Connectors`, `Connector.Origin/Domain/CoordinateSystem/IsConnectedTo`,
+`MEPCurve.ConnectorManager/ReferenceLevel/MEPSystem`, `FamilyInstance.MEPModel`);
+`ElementTransformUtils.RotateElement`; `Domain.DomainUndefined`; `PROFILE_ANGLE` +
+`RBS_CABLETRAY_WIDTH/HEIGHT_PARAM` (duct/pipe size parameters verified in earlier audits).
+No `#if` blocks; no legacy unit/ElementId usage; `.IntValue()` used for id comparison.
+
+**UI:** plain WPF window — identical on all four target frameworks. Settings persist as JSON.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Intelligent Tag Arranger — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete tool inventory):** `CmdIntelligentTagArranger.cs`,
+`CmdIntelligentTagArrangerSettings.cs` (WinForms settings dialog);
+`Services/TagArrange/IntelligentTagArrangerService.cs`; `Helpers/TagArrangeSettings.cs`
+(JSON config store, no Revit API).
+
+**The 2023 IndependentTag boundary (verified in the Smart MEP Tag audit) applies and is fully
+handled:** every leader/tagged-reference operation routes through `LeaderLogicService` (whose
+primary path is `TagCompat`; reflection probes are runtime-only fallbacks). Direct IndependentTag
+members used — `TagHeadPosition` get/set, `HasLeader` get/set, `LeaderEndCondition.Free` — were all
+verified identical across 2020–2027 in that audit. No inline `#if` blocks; no direct use of any
+removed member; ElementId access via `.IntValue()`.
+
+**Additionally verified in all 8 versions for this pass:** `Element.IsValidObject`,
+`TransactionStatus.Committed/RolledBack`, `ElementTransformUtils.MoveElement`,
+`Selection.PickPoint/GetElementIds` (previously verified members reconfirmed by reuse).
+
+**UI:** WinForms settings dialog — identical API surface on all four target frameworks.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## Purge tools (Unplaced Views / Sections / 3D Views + Unused Family Parameters) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered (complete family inventory):** Commands: `CmdPurgeUnplaced3DViews.cs`,
+`CmdPurgeUnplacedSections.cs`, `CmdPurgeUnplacedViews.cs`, `CmdPurgeUnplacedViewsAvailability.cs`,
+`CmdPurgeUnusedFamilyParameters.cs`, `CmdPurgeUnusedFamilyParametersAvailability.cs`;
+Services/Purge: `UnplacedViewCollector.cs`, `UnplacedViewPurgeService.cs`,
+`FamilyParameterScanService.cs`, `FamilyParameterUsageEvaluator.cs`,
+`FamilyParameterDeleteService.cs`; UI: both purge windows (XAML + code-behind).
+
+**Verified unchanged across all 8 versions (2020–2027):** `Document.FamilyManager` /
+`FamilyManager.GetParameters/RemoveParameter/CurrentType` / `FamilyType.HasValue` + `As*` readers /
+`FamilyParameter.Formula/IsInstance/IsReadOnly/Definition` (GUID/IsShared/IsReporting verified in
+the Duct Standards audit); `Dimension.FamilyLabel`; `View3D`/`ViewSection`/`Viewport` collectors;
+`Document.Delete`; `Transaction.GetStatus` + `TransactionStatus.Started`. No `#if` blocks anywhere
+in the family; all ElementId numeric access already uses `.IntValue()`.
+
+**Existing version-awareness confirmed correct:** `FamilyParameterUsageEvaluator` deliberately
+collects dimensions by category rather than `OfClass(typeof(Dimension))` because Revit 2025+
+returns linear dimensions as the new `LinearDimension` subclass — the assemblies confirm the
+subclass exists exactly from 2025, and the category-based approach is version-safe on all 8 with
+no conditional compilation needed.
+
+**Source changes: none** — headers contain no stale compatibility claims.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
+## MEP Openings — audited 2026-07-23 — RESULT: fully compatible; two inline version branches moved into helpers
+
+**Files covered (complete tool inventory):** `CmdCreateMepOpenings.cs`, `CmdMepOpeningSettings.cs`;
+Services/MepOpenings: `MepOpeningService.cs` (~132 KB, the suite's largest service),
+`MepOpeningSelectionFilter.cs`, `MepOpeningHostSelectionFilter.cs`,
+`MepOpeningSourceSelectionFilter.cs`, `MepOpeningSettingsService.cs`; all 9 Models/MepOpenings
+classes; UI: `MepOpeningSettingsWindow.xaml` + code-behind.
+
+**Verified unchanged across all 8 versions (2020–2027):** all three
+`doc.Create.NewOpening` overloads the tool uses — `(Wall, XYZ, XYZ)`, `(Element, CurveArray, bool)`,
+`(Element, CurveArray, eRefFace)` with `eRefFace.CenterX/Y/Z`; `FamilySymbol.Activate/IsActive`;
+`CurveArray`, `Arc.Create`, `Line.CreateBound`; `StructuralType.NonStructural`;
+`Element.UniqueId`; all category/parameter enum values used (incl. `OST_CableTrayRun`,
+`OST_CableTrayFitting`, `OST_Conduit`, `SCHEDULE_LEVEL_PARAM`, `INSTANCE_REFERENCE_LEVEL_PARAM`,
+`FAMILY_LEVEL_PARAM`, `RBS_REFERENCE_INSULATION_THICKNESS`); linked-model handling
+(`GetLinkDocument`, `GetTotalTransform` via `Instance`).
+
+**Notable verified subtlety:** `doc.Create.NewFamilyInstance(XYZ, FamilySymbol, Level,
+StructuralType)` — the overload MOVED from `Creation.Document` (2020–2023) to the base class
+`Creation.ItemFactoryBase` (2024+). Call sites are unaffected (C# resolves it through inheritance
+either way), but a naive single-type API diff would wrongly flag it as removed. Verified present in
+every version on one of the two types.
+
+**Also confirmed in the assemblies (suite-wide fact):** `DisplayUnitType` exists only in 2020–2021
+and is REMOVED from 2022; `UnitTypeId` exists from 2021. Both `RevitCompat`'s 2022 switch and this
+tool's former 2021 switch were valid; they produce identical values.
+
+**Source changes (the first real code changes of the audit series — convention cleanups, identical
+behaviour):**
+- `MepOpeningSelectionFilter.IsCategory`: inline `#if REVIT2024...` ElementId branch replaced with
+  the shared `ElementIdExtensions.LongValue()` helper.
+- `MepOpeningService.MmToInternal`: inline `#if REVIT2021...` unit branch replaced with
+  `RevitCompat.MmToInternal`.
+Both previously compiled correctly on all 8 versions — the change removes duplicated version logic
+from tool files per the project rule ("version-specific code lives ONLY inside helpers"); no
+behaviour difference on any version.
+
+**Build verification:** same limitation as the other audits — assembly-metadata verification only;
+a real 8-configuration build still needs `build-all.ps1` on the local machine.
+
+---
+
 ## Auto Dimensions — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete tool inventory):** `CmdAutoDimensions.cs`;

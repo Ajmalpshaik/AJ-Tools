@@ -3,6 +3,129 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Suite-wide UI readability fix (unreadable button/selection text)
+
+- Ajmal reported some UIs had text and background in the same colours ("can't see
+  anything"). Root cause found in `ModernStyles.xaml`: v1.1.0 moved the accents to
+  darker WinUI colours (#0078D4 blue / #0F7B0F green / #E81123 red) but kept the
+  near-black `TextOnLight` (#0B1418) as the text on those fills — contrast ~3:1.
+  Affected EVERY window using the shared theme: all Primary/Modern/Success/Danger
+  buttons (Apply/Create/Close etc.), selected list items, selected combo items,
+  selected tab headers.
+- Fix (values only, zero behaviour/layout change): new `TextOnAccent` (white) brush;
+  all accent-fill foregrounds switched to it (8 spots in ModernStyles v1.2.0 + the
+  2 banner texts in PipeSizingWindow). `TextOnLight` kept, documented as bright-fill
+  only. All XAML re-validated as parseable.
+- Verified NOT broken (checked, no fix needed): combo dropdowns (implicit dark
+  style), both custom DataGrid styles (dark rows/cells/headers), AJ AI's neon
+  palette (dark-on-neon is correct there), GraphicsOverrideWindow accents (white
+  text already). Ajmal to confirm visually in Revit; if any specific window still
+  reads badly, name it and it gets a targeted pass.
+
+## 2026-07-23 — FINAL compatibility pass — ENTIRE SUITE NOW AUDITED (2020–2027)
+
+- Nineteenth and final pass: View Crop, HVAC Schematic, Shared Param→Family Param,
+  Location Data Assigner, About, Core ribbon managers, the whole AiShell subsystem,
+  and remaining helpers. Result: **fully compatible 2020–2027, zero source changes**.
+  Version-matched ReplaceParameter overloads confirmed on both sides of the 2022
+  token switch; ExternalEvent/DockablePane/ribbon APIs identical in all 8.
+- **Every tool in AJ-Tools has now been audited** across 19 passes. Total code
+  changes needed across the whole suite: the two MEP Openings helper delegations
+  (pass 8) and stale header notes in Filter Pro (pass 1) / Ceiling Magnet (pass 4).
+  Remaining for Ajmal: merge PR #25 (passes 8–19), run build-all.ps1 locally,
+  spot-check a few tools live in a newer Revit.
+
+## 2026-07-23 — Annotation tools group multi-version compatibility audit (2020–2027)
+
+- Eighteenth pass (6 tools, 20 files), same branch/PR (#25). Result: **fully
+  compatible 2020–2027, zero source changes**. RoomTag/SpatialElementTag,
+  LinkElementId, room boundaries, and all dimension/tag-leader work verified;
+  FlowDirectionSettingsWindow's #if is the sanctioned AjUnit alias pattern.
+
+## 2026-07-23 — View utilities group multi-version compatibility audit (2020–2027)
+
+- Seventeenth pass (6 tools, 14 files as one group), same branch/PR (#25). Result:
+  **fully compatible 2020–2027, zero source changes**. Hide/unhide, temporary view
+  mode, workset visibility, view template assignment, View3D.CreateIsometric,
+  Element.Pinned — all identical in all 8 assemblies.
+
+## 2026-07-23 — Link tools group multi-version compatibility audit (2020–2027)
+
+- Sixteenth pass (5 commands + 3 windows as one group), same branch/PR (#25).
+  Result: **fully compatible 2020–2027, zero source changes**. Important negative
+  finding: WorksetId.IntegerValue was NEVER removed (present through 2027), unlike
+  ElementId.IntegerValue — the direct call in SetLinkWorksetWindow is safe as-is.
+  Workset.Id/Name resolve via the WorksetPreview base in all 8.
+
+## 2026-07-23 — Level & datum tools group multi-version compatibility audit (2020–2027)
+
+- Fifteenth pass (6 commands + 4 services as one group), same branch/PR (#25).
+  Result: **fully compatible 2020–2027, zero source changes**. Full DatumPlane
+  extent/bubble API, View3D section box, Level.Elevation, and level parameters
+  identical in all 8 assemblies.
+
+## 2026-07-23 — Text tools group multi-version compatibility audit (2020–2027)
+
+- Fourteenth pass (5 commands as one group), same branch/PR (#25). Result: **fully
+  compatible 2020–2027, zero source changes**. TextElement.Text/Coord/Width +
+  min/max width statics (all on the TextElement base class) and
+  Dimension.Above/Below/Prefix/Suffix/ValueOverride identical in all 8 assemblies.
+
+## 2026-07-23 — Revision Cloud by Elements multi-version compatibility audit (2020–2027)
+
+- Thirteenth pass, same branch/PR (#25). Result: **fully compatible 2020–2027,
+  zero source changes**. RevisionCloud.Create exact signature + Revision.
+  SequenceNumber identical in all 8 assemblies.
+
+## 2026-07-23 — Graphics Tools family multi-version compatibility audit (2020–2027)
+
+- Twelfth pass (8 commands + 7 services + 7 models + window as one family), same
+  branch/PR (#25). Result: **fully compatible 2020–2027, zero source changes**.
+  Category overrides, the full OverrideGraphicSettings writer surface (transparency,
+  background patterns, line weights/patterns, InvalidPenNumber), and
+  InsulationLiningBase.GetInsulationIds verified identical in all 8 assemblies.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
+## 2026-07-23 — Smart Connect multi-version compatibility audit (2020–2027)
+
+- Eleventh pass, same branch/PR (#25). Result: **fully compatible 2020–2027, zero
+  source changes**. Duct/Pipe/CableTray.Create and NewElbowFitting verified with
+  exact signatures in all 8 assemblies; whole connector API identical throughout.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
+## 2026-07-23 — Intelligent Tag Arranger multi-version compatibility audit (2020–2027)
+
+- Tenth pass, same branch/PR (#25). Result: **fully compatible 2020–2027, zero
+  source changes**. All leader work routes through LeaderLogicService/TagCompat
+  (2023 tag boundary handled); Element.IsValidObject and
+  TransactionStatus.Committed/RolledBack verified present in all 8 assemblies.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
+## 2026-07-23 — Purge tools multi-version compatibility audit (2020–2027)
+
+- Ninth pass (a family of 6 commands audited together), same branch/PR (#25) as
+  MEP Openings. Result: **fully compatible 2020–2027, zero source changes**.
+  Family-editor APIs (FamilyManager/FamilyType/FamilyParameter), view purge
+  (View3D/ViewSection/Viewport, Document.Delete), Transaction.GetStatus — all
+  identical in all 8 assemblies.
+- Confirmed the existing 2025 LinearDimension workaround is exactly right: the
+  subclass appears in the 2025 assembly; the category-based dimension collector
+  is version-safe everywhere with no #if needed.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
+## 2026-07-23 — MEP Openings multi-version compatibility audit (2020–2027)
+
+- Eighth tool of the passes (new PR after #24 merged). Result: **fully compatible
+  2020–2027**, with the audit series' first real code changes: two inline `#if REVIT`
+  branches in the tool's own files (ElementId category check, mm→internal units)
+  replaced with the existing ElementIdExtensions/RevitCompat helpers — identical
+  behaviour, but version logic belongs in helpers per the project rule.
+- Notable verified subtlety: NewFamilyInstance(XYZ, FamilySymbol, Level,
+  StructuralType) moved from Creation.Document (2020–2023) to ItemFactoryBase
+  (2024+) — call sites unaffected. Also confirmed DisplayUnitType exists only
+  2020–2021 (removed 2022), UnitTypeId from 2021.
+- Audit section added to `docs/COMPAT-AUDITS.md`.
+
 ## 2026-07-23 — Auto Dimensions multi-version compatibility audit (2020–2027)
 
 - Seventh tool of the passes, same branch/PR (#24) as Duct Standards Manager.
