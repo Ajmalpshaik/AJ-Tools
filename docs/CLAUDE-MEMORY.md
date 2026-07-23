@@ -3,6 +3,17 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-23 — Colorize multi-version compatibility audit (2020–2027)
+
+- Second tool of the one-tool-at-a-time passes, same session/branch/PR (#22) as the
+  Filter Pro audit below. Result: **fully compatible 2020–2027, zero source changes**
+  (not even header fixes — Colorize's headers are newer and contain no stale claims).
+- Colorize-specific members (view-scoped FilteredElementCollector ctor, ToElementIds,
+  View.SetElementOverrides, Transaction.RollBack, UIApplication.MainWindowHandle,
+  OperationCanceledException) verified identical in all 8 per-version assemblies;
+  everything else reuses the surface already verified for Filter Pro.
+- Audit section added to `docs/COMPAT-AUDITS.md` (newest first).
+
 ## 2026-07-23 — Filter Pro multi-version compatibility audit (2020–2027)
 
 - Ran the per-tool compatibility audit process on **Filter Pro** (first tool of the
