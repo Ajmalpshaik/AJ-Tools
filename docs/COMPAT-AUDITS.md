@@ -12,6 +12,22 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Revision Cloud by Elements — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
+
+**Files covered:** `CmdRevisionCloudByElements.cs`, `CmdRevisionCloudByElementsSettings.cs`;
+Services/RevisionCloud: `RevisionCloudCreator.cs`, `GeometryProjectionService.cs`,
+`OrthogonalOutlineBuilder.cs`; UI: `RevisionCloudSettingsWindow.xaml` + code-behind.
+
+**Verified unchanged across all 8 versions (2020–2027):**
+`RevisionCloud.Create(Document, View, ElementId, IList<Curve>)` (exact signature),
+`Revision.SequenceNumber` + the `Revision` collector; the geometry projection uses only members
+verified in earlier audits (`get_Geometry`, `Curve.GetEndPoint`, `Line.CreateBound`). No `#if`
+blocks, no legacy ElementId/unit usage.
+
+**Source changes: none.** Build verification: same limitation as the other audits.
+
+---
+
 ## Graphics Tools family — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (complete family inventory):** Commands/GraphicsTools: `CmdApplyGraphics.cs`,
