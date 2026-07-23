@@ -12,6 +12,34 @@ RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 
 ---
 
+## Final pass: View Crop / HVAC Schematic / Shared Param→Family Param / Location Data Assigner / About / Core ribbon / AJ AI — audited 2026-07-23 — RESULT: fully compatible, no code changes needed. THE ENTIRE SUITE IS NOW AUDITED.
+
+**Files covered:** `Commands/ViewCrop/CmdViewCrop3DExtents.cs` + all 11 Services/ViewCrop classes
+(+ `ViewCropConfigStore`); `HvacSchematicCommand.cs` + all 4 Services/HvacSchematic classes;
+`SharedParamToFamilyParamCommand.cs` + service + window; `CmdLocationDataAssigner.cs` + window;
+`AboutCommand.cs` + `AboutWindow`; Core (`App.cs`, `RibbonManager.cs`, `AnnotationRibbonManager.cs`,
+`RibbonPanelHelper.cs`); the whole AiShell subsystem (Commands/Configuration/DockablePane/Helpers/
+Models/Services/ViewModels/Views); remaining helpers (`IconLoader`, `WindowChromeHelper`,
+`GeometryExtensions`, `SelectionFilters`).
+
+**Verified unchanged across all 8 versions (2020–2027):** `ViewDrafting.Create`, `TextNote.Create`,
+`NewDetailCurve` (Document/ItemFactoryBase), `View.GetCropRegionShapeManager` +
+`ViewCropRegionShapeManager.SetCropShape` + `CurveLoop`;
+`FamilyManager.Set/RenameParameter/SetFormula` and — version-matched — the 4-arg
+`ReplaceParameter` overload with `BuiltInParameterGroup` on 2020–2021 and `ForgeTypeId` on 2022+
+(exactly the split the `AjGroup` alias + `RevitCompat` produce); RevitAPIUI:
+`ExternalEvent.Create/Raise`, `IExternalEventHandler`, the DockablePane API
+(`DockablePaneId`, `RegisterDockablePane`, `GetDockablePane`, `IDockablePaneProvider`), and the
+ribbon API (`PushButtonData`, `PulldownButtonData`, `SplitButtonData`, `RibbonPanel.AddItem/
+AddStackedItems`). The two `#if` blocks found (SharedParamToFamilyParamService,
+LocationDataAssignerWindow) are the sanctioned `AjGroup`/`AjSpec` alias pattern. The
+`snapshot.IntegerValue` hits are a plain model property, not `ElementId.IntegerValue`.
+
+**Source changes: none.** Build verification: same limitation as all other audits — a real
+8-configuration `build-all.ps1` run on the local machine remains the final step before release.
+
+---
+
 ## Annotation tools group (Center Room Tags / Flow Direction / Force Tag Leader L-Shape / Quick Parallel Dimension / Dimension by Line / Duct Reference Dimension) — audited 2026-07-23 — RESULT: fully compatible, no code changes needed
 
 **Files covered (20 files):** `CmdCenterRoomTags.cs` + Services/RoomTags;
