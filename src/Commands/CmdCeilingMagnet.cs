@@ -34,8 +34,9 @@
  *                 processed / moved / aligned / skipped).
  *
  * Notes         :
- * - Targets Revit 2020 through latest. Tile size/angle is read from the ceiling surface pattern; uses
- *   UnitUtils with DisplayUnitType (the Revit 2020 unit API) - revisit for 2021+ ForgeTypeId builds.
+ * - Targets Revit 2020 through latest. Tile size/angle is read from the ceiling surface pattern; unit
+ *   conversion goes through RevitCompat (mm/internal), which owns the DisplayUnitType-vs-UnitTypeId
+ *   switch - no direct legacy unit API is used here (2020-2027 audit, 2026-07-23).
  * - Reads linked-model ceilings for reference only; never modifies linked elements.
  * - Both modes wrap their whole session in one TransactionGroup assimilated into a single undo step;
  *   mode (b) rolls back instead if Esc is pressed before any round completes (nothing to undo).
