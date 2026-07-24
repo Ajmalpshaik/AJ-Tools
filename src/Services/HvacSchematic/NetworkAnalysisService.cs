@@ -3,17 +3,19 @@
 // Purpose      : Builds HVAC schematic nodes, edges, and network metadata from model selections.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.1.0
 // Created      : 2026-05-07
-// Last Updated : 2026-05-07
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Last Updated : 2026-07-24
+// Target       : Revit 2020 - latest
+// Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Selected HVAC element ids, connector data, and resolved levels.
 // Output       : Analyzed HVAC networks for schematic layout and drafting-view generation.
 // Notes        : Collects supported elements, connector relationships, and unresolved-analysis reports.
-// Changelog    : v1.0.0 - Initial production-ready HVAC schematic network analysis with standardized metadata.
+// Changelog    : v1.1.0 - Network traversal restricted to duct-domain connectors so hydronic piping
+//                         no longer falsely links separate air systems or feeds water flow into labels.
+//                v1.0.0 - Initial production-ready HVAC schematic network analysis with standardized metadata.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -476,7 +478,11 @@ namespace AJTools.Services.HvacSchematic
                     continue;
                 }
 
-                if (connector.ConnectorType == ConnectorType.End)
+                // Duct-domain end connectors only. Without the domain check the traversal
+                // walks out of equipment through its water/electrical connectors, across
+                // the piping network, and falsely links separate air systems together.
+                if (connector.ConnectorType == ConnectorType.End &&
+                    connector.Domain == Domain.DomainHvac)
                 {
                     connectors.Add(connector);
                 }
