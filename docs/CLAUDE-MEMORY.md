@@ -3,6 +3,30 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-24 — HVAC Schematic logic fixes (drawing came out messy/wrong)
+
+- Ajmal reported a logical issue in the schematic drawing. Root causes found and
+  fixed (suite v1.24.1.0, branch `claude/schematic-tool-logic-aynbkx`):
+  1. DraftingViewBuilder drew connections using flow-direction hints BEFORE the
+     layout tree's parent/child — whenever they disagreed (return air, exhaust,
+     second equipment) lines crossed through symbols. Now tree-first, hint fallback.
+  2. Level bands (34 apart) were shorter than a band's content (up to ~48 tall) and
+     the trunk sat only 8 above the guide, so branches crossed their own level line
+     and collided with the next band. Now floor-style: trunk 46 above its level
+     line, bands 56 apart — content always stays above its own line.
+  3. Equipment was always drawn on the trunk row (TrunkY) even when laid out on a
+     branch row — branch VAVs jumped onto the main run. Now drawn at Position.Y.
+  4. Only ducts could continue the main run, so in-line equipment dropped the whole
+     downstream run a row. Now equipment continues the run when no duct alternative
+     exists (two-pass: ducts first, equipment only as in-line fallback).
+  5. Connector traversal wasn't domain-filtered — it escaped through equipment's
+     water connectors and falsely linked separate air systems (and could label
+     water flow as airflow). Now HVAC-domain end connectors only.
+  6. Upward risers entered child elements from the top even when arriving from
+     below (line through the glyph). Entry/exit edge now picked by relative Y.
+- Connector.Domain is used already in SmartConnect (audited 2020–2027), so no new
+  version risk. Cloud sandbox still can't build; Ajmal to build + test in Revit.
+
 ## 2026-07-23 — Suite-wide UI readability fix (unreadable button/selection text)
 
 - Ajmal reported some UIs had text and background in the same colours ("can't see

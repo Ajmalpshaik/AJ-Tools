@@ -3,17 +3,19 @@
 // Purpose      : Assigns drafting-view positions for HVAC schematic nodes and edges.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.1.0
 // Created      : 2026-05-07
-// Last Updated : 2026-05-07
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Last Updated : 2026-07-24
+// Target       : Revit 2020 - latest
+// Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Analyzed schematic nodes and edges.
 // Output       : Logical HVAC schematic layout coordinates and hierarchy metadata.
 // Notes        : Uses tree-root layout bands and continuation/branch ordering for clean drafting output.
-// Changelog    : v1.0.0 - Initial production-ready HVAC schematic layout engine with standardized metadata.
+// Changelog    : v1.1.0 - Level bands sized to fit full branch depth (no cross-level overlap);
+//                         in-line equipment may continue the main run when no duct alternative exists.
+//                v1.0.0 - Initial production-ready HVAC schematic layout engine with standardized metadata.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -30,9 +32,14 @@ namespace AJTools.Services.HvacSchematic
     {
         // Tree-root layout: one trunk row, branches drop to rows below, sub-branches
         // drop again. No stepped elbows, no fake geometry. Pure logical hierarchy.
+        // Each level's schematic hangs ABOVE that level's guide line (floor-style),
+        // so the band must be tall enough for the trunk plus every branch row:
+        // TrunkOffsetFromGuide must exceed MaxBranchRow * TreeRowSpacing (glyphs and
+        // labels included), and LevelBandSpacing must exceed TrunkOffsetFromGuide
+        // plus the trunk glyph/label height - otherwise adjacent bands collide.
         public const double ColumnSpacing = 10.0;
-        public const double LevelBandSpacing = 34.0;
-        public const double TrunkOffsetFromGuide = 8.0;
+        public const double LevelBandSpacing = 56.0;
+        public const double TrunkOffsetFromGuide = 46.0;
         public const double TreeRowSpacing = 5.0;
         public const double NetworkGap = 18.0;
         public const int MaxBranchRow = 8;
@@ -468,6 +475,29 @@ namespace AJTools.Services.HvacSchematic
             IDictionary<int, int> leafCounts,
             IDictionary<string, SchematicEdge> edgeByKey)
         {
+            // The main run continues through a duct whenever one exists. Equipment may
+            // continue the run only when it is truly in-line (duct -> fan -> duct with
+            // no duct alternative); otherwise take-off equipment would steal the trunk.
+            int bestChildId = ResolveContinuationChildOfType(
+                parentId, children, nodeById, subtreeScores, leafCounts, edgeByKey, SchematicNodeType.Duct);
+            if (bestChildId != ElementId.InvalidElementId.IntValue())
+            {
+                return bestChildId;
+            }
+
+            return ResolveContinuationChildOfType(
+                parentId, children, nodeById, subtreeScores, leafCounts, edgeByKey, SchematicNodeType.Equipment);
+        }
+
+        private static int ResolveContinuationChildOfType(
+            int parentId,
+            IList<int> children,
+            IDictionary<int, SchematicNode> nodeById,
+            IDictionary<int, int> subtreeScores,
+            IDictionary<int, int> leafCounts,
+            IDictionary<string, SchematicEdge> edgeByKey,
+            SchematicNodeType candidateType)
+        {
             int bestChildId = ElementId.InvalidElementId.IntValue();
             double bestScore = double.MinValue;
             SchematicNode parent = nodeById[parentId];
@@ -476,7 +506,7 @@ namespace AJTools.Services.HvacSchematic
             {
                 int childId = children[i];
                 SchematicNode child = nodeById[childId];
-                if (child.NodeType != SchematicNodeType.Duct)
+                if (child.NodeType != candidateType)
                 {
                     continue;
                 }
@@ -536,7 +566,7 @@ namespace AJTools.Services.HvacSchematic
                 return 0;
             }
 
-            return isContinuation && child.NodeType == SchematicNodeType.Duct
+            return isContinuation && child.NodeType != SchematicNodeType.AirTerminal
                 ? parentRow
                 : parentRow + 1;
         }

@@ -3,17 +3,20 @@
 // Purpose      : Generates drafting-view graphics for HVAC schematic nodes, edges, and level bands.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.1.0
 // Created      : 2026-05-07
-// Last Updated : 2026-05-07
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Last Updated : 2026-07-24
+// Target       : Revit 2020 - latest
+// Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Laid-out schematic nodes and edges.
 // Output       : A populated Revit drafting view representing the HVAC schematic.
 // Notes        : Creates detail lines and text notes only inside a valid Revit transaction.
-// Changelog    : v1.0.0 - Initial production-ready HVAC schematic drafting builder with standardized metadata.
+// Changelog    : v1.1.0 - Connections now follow the layout tree hierarchy (hints are fallback only);
+//                         equipment drawn on its laid-out row instead of always the trunk row;
+//                         risers enter/exit through the edge facing the other element.
+//                v1.0.0 - Initial production-ready HVAC schematic drafting builder with standardized metadata.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -186,7 +189,7 @@ namespace AJTools.Services.HvacSchematic
                     CreateTextNote(
                         view,
                         textTypeId,
-                        new XYZ(node.Position.X - EquipmentHalfWidth, node.TrunkY + EquipmentHalfHeight + EquipmentLabelOffsetY, 0),
+                        new XYZ(node.Position.X - EquipmentHalfWidth, node.Position.Y + EquipmentHalfHeight + EquipmentLabelOffsetY, 0),
                         node.Label,
                         result);
                     break;
@@ -223,7 +226,10 @@ namespace AJTools.Services.HvacSchematic
 
         private void DrawEquipment(ViewDrafting view, SchematicNode node, BuildResult result)
         {
-            double centerY = node.TrunkY;
+            // Draw at the laid-out row, not the trunk row: equipment on a branch
+            // (VAV, fan coil) must sit on its branch, only main-run equipment
+            // (root or in-line continuation) actually lands on the trunk row.
+            double centerY = node.Position.Y;
             XYZ topLeft = new XYZ(node.Position.X - EquipmentHalfWidth, centerY + EquipmentHalfHeight, 0);
             XYZ topRight = new XYZ(node.Position.X + EquipmentHalfWidth, centerY + EquipmentHalfHeight, 0);
             XYZ bottomRight = new XYZ(node.Position.X + EquipmentHalfWidth, centerY - EquipmentHalfHeight, 0);
@@ -276,15 +282,10 @@ namespace AJTools.Services.HvacSchematic
                 return false;
             }
 
-            if (edge.HasDirectionHint)
-            {
-                if (nodeById.TryGetValue(edge.PreferredParentElementId.IntValue(), out parent) &&
-                    nodeById.TryGetValue(edge.PreferredChildElementId.IntValue(), out child))
-                {
-                    return true;
-                }
-            }
-
+            // The layout engine already placed every node from its tree hierarchy, so the
+            // drawn line must follow that same hierarchy. Flow-direction hints are only a
+            // fallback: letting them override the tree draws lines against the layout
+            // (crossing through symbols, entering elements from the wrong side).
             if (first.ParentElementId.IntValue() == second.ElementId.IntValue())
             {
                 parent = second;
@@ -297,6 +298,15 @@ namespace AJTools.Services.HvacSchematic
                 parent = first;
                 child = second;
                 return true;
+            }
+
+            if (edge.HasDirectionHint)
+            {
+                if (nodeById.TryGetValue(edge.PreferredParentElementId.IntValue(), out parent) &&
+                    nodeById.TryGetValue(edge.PreferredChildElementId.IntValue(), out child))
+                {
+                    return true;
+                }
             }
 
             if (first.Depth <= second.Depth)
@@ -316,20 +326,23 @@ namespace AJTools.Services.HvacSchematic
         private static XYZ GetParentExitPoint(SchematicNode parent, SchematicNode child)
         {
             // Exit on the side of the parent that faces the child. When the child sits
-            // directly below (rare, but possible when columns coincide) drop off the
-            // bottom instead of overshooting the shape.
+            // directly above or below (rare, but possible when columns coincide) leave
+            // through the facing edge instead of overshooting the shape.
+            bool childIsAbove = child.Position.Y > parent.Position.Y + Tolerance;
             switch (parent.NodeType)
             {
                 case SchematicNodeType.Equipment:
                     if (child.Position.X > parent.Position.X + Tolerance)
                     {
-                        return new XYZ(parent.Position.X + EquipmentHalfWidth, parent.TrunkY, 0);
+                        return new XYZ(parent.Position.X + EquipmentHalfWidth, parent.Position.Y, 0);
                     }
                     if (child.Position.X < parent.Position.X - Tolerance)
                     {
-                        return new XYZ(parent.Position.X - EquipmentHalfWidth, parent.TrunkY, 0);
+                        return new XYZ(parent.Position.X - EquipmentHalfWidth, parent.Position.Y, 0);
                     }
-                    return new XYZ(parent.Position.X, parent.TrunkY - EquipmentHalfHeight, 0);
+                    return childIsAbove
+                        ? new XYZ(parent.Position.X, parent.Position.Y + EquipmentHalfHeight, 0)
+                        : new XYZ(parent.Position.X, parent.Position.Y - EquipmentHalfHeight, 0);
 
                 case SchematicNodeType.Duct:
                     if (child.Position.X > parent.Position.X + Tolerance)
@@ -340,7 +353,9 @@ namespace AJTools.Services.HvacSchematic
                     {
                         return new XYZ(parent.Position.X - DuctTickHalfWidth, parent.Position.Y, 0);
                     }
-                    return new XYZ(parent.Position.X, parent.Position.Y - DuctTickHalfHeight, 0);
+                    return childIsAbove
+                        ? new XYZ(parent.Position.X, parent.Position.Y + DuctTickHalfHeight, 0)
+                        : new XYZ(parent.Position.X, parent.Position.Y - DuctTickHalfHeight, 0);
 
                 default:
                     return new XYZ(parent.Position.X, parent.Position.Y, 0);
@@ -349,21 +364,25 @@ namespace AJTools.Services.HvacSchematic
 
         private static XYZ GetChildEntryPoint(SchematicNode child, SchematicNode parent)
         {
-            // Tree layout: when the child drops to a lower row, the connection enters
-            // from the top of the child's shape (branch take-off look). Same-row
+            // Tree layout: when the child sits on another row, the connection enters
+            // from the edge facing the parent - top when the line drops from above
+            // (branch take-off look), bottom when a riser arrives from below. Same-row
             // continuations enter from the left/right side, producing a straight line.
+            bool parentIsAbove = parent.Position.Y > child.Position.Y + Tolerance;
             switch (child.NodeType)
             {
                 case SchematicNodeType.Equipment:
-                    if (Math.Abs(parent.Position.Y - child.TrunkY) < Tolerance)
+                    if (Math.Abs(parent.Position.Y - child.Position.Y) < Tolerance)
                     {
                         if (parent.Position.X < child.Position.X)
                         {
-                            return new XYZ(child.Position.X - EquipmentHalfWidth, child.TrunkY, 0);
+                            return new XYZ(child.Position.X - EquipmentHalfWidth, child.Position.Y, 0);
                         }
-                        return new XYZ(child.Position.X + EquipmentHalfWidth, child.TrunkY, 0);
+                        return new XYZ(child.Position.X + EquipmentHalfWidth, child.Position.Y, 0);
                     }
-                    return new XYZ(child.Position.X, child.TrunkY + EquipmentHalfHeight, 0);
+                    return parentIsAbove
+                        ? new XYZ(child.Position.X, child.Position.Y + EquipmentHalfHeight, 0)
+                        : new XYZ(child.Position.X, child.Position.Y - EquipmentHalfHeight, 0);
 
                 case SchematicNodeType.Duct:
                     if (Math.Abs(parent.Position.Y - child.Position.Y) < Tolerance)
@@ -374,7 +393,9 @@ namespace AJTools.Services.HvacSchematic
                         }
                         return new XYZ(child.Position.X + DuctTickHalfWidth, child.Position.Y, 0);
                     }
-                    return new XYZ(child.Position.X, child.Position.Y + DuctTickHalfHeight, 0);
+                    return parentIsAbove
+                        ? new XYZ(child.Position.X, child.Position.Y + DuctTickHalfHeight, 0)
+                        : new XYZ(child.Position.X, child.Position.Y - DuctTickHalfHeight, 0);
 
                 default:
                     // Air terminal: tip is the entry, already at (X, Y) pointing up.
