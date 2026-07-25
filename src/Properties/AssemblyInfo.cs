@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.23.1
+ * Version       : 1.25.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-20
+ * Last Updated  : 2026-07-25
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,34 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.25.0 (2026-07-25) - Merge of the GitHub line (v1.24.0/v1.24.1: Claude as third AJ AI provider,
+ *                       Gemini key-switch fix, misreported-failure fixes, HVAC Schematic drawing
+ *                       fixes, full-suite Revit 2020-2027 compatibility audit, suite-wide UI
+ *                       readability fixes) with the local line (v1.23.2-v1.23.5 below: ribbon
+ *                       restructure, Run Pinned / Saved Scripts split button, standalone Saved
+ *                       Scripts window, Smart Selection fixes, masked API-key Settings fields).
+ *                       Provider key unified to "Claude", default model claude-sonnet-5. Chosen
+ *                       1.25.0 because both 1.23.x (local) and 1.24.x (GitHub) already exist.
+ * v1.23.5 (2026-07-22) - Smart Selection: fixed a workflow gap Ajmal reported - selecting an element in
+ *                       Revit BEFORE running the tool was ignored, always forcing a fresh interactive
+ *                       pick for the reference element. Now a pre-existing single-element selection (if
+ *                       categorized) is used as the reference directly, skipping straight to the
+ *                       follow-up box-select stage. See CmdSmartSelection.cs v1.1.1.
+ * v1.23.4 (2026-07-21) - Correction on top of v1.23.3/v1.23.2: both split buttons (Opening, Run Pinned)
+ *                       now keep their default face permanently fixed (Create Openings / Run Pinned)
+ *                       instead of tracking whichever child ran last - Ajmal watched the tracking
+ *                       behavior live and wanted the simpler fixed version instead. See RibbonManager.cs
+ *                       v1.12.0, App.cs v1.16.0.
+ * v1.23.3 (2026-07-21) - AI Assistant panel: "Run Pinned" and "Saved Scripts" combined into one split
+ *                       button (Run Pinned default, Saved Scripts in the dropdown, top face tracks
+ *                       whichever ran last) - same pattern as the Opening split button just below. See
+ *                       RibbonManager.cs v1.11.0, App.cs v1.15.0.
+ * v1.23.2 (2026-07-21) - Ribbon restructure, no new tools: View panel (AJ Tools tab) - Filter Pro,
+ *                       Colorize, and Highlight Selection compacted into one small stacked group;
+ *                       Section Mark Visibility relocated to the AJ Annotation tab's Tags panel. Opening
+ *                       panel's split button now defaults to "Create Openings" and its top face tracks
+ *                       whichever of Create Openings / Opening Settings was actually run last. See
+ *                       RibbonManager.cs v1.10.0, AnnotationRibbonManager.cs v1.4.0, App.cs v1.14.0.
  * v1.23.1 (2026-07-20) - Smart Selection: swapped the multi-pick window/crossing/click loop (needed an
  *                       explicit Finish/Enter to end) for a single one-shot window/crossing box-select
  *                       that completes the instant the drag ends - per Ajmal's feedback after live
@@ -450,5 +478,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.24.1.0")]
-[assembly: AssemblyFileVersion("1.24.1.0")]
+[assembly: AssemblyVersion("1.25.0.0")]
+[assembly: AssemblyFileVersion("1.25.0.0")]

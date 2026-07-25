@@ -6,10 +6,10 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.0
+ * Version       : 1.16.0
  *
  * Created Date  : 2025-01-01
- * Last Updated  : 2026-07-20
+ * Last Updated  : 2026-07-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,20 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.16.0 (2026-07-21) - Removed the MepOpeningSplitButton / CreateOpeningsButton / OpeningSettingsButton
+ *                       / RunPinnedSplitButton / RunPinnedButton / SavedScriptsButton statics added in
+ *                       v1.15.0/v1.14.0 below - Ajmal wants both split buttons' default face permanently
+ *                       fixed (IsSynchronizedWithCurrentItem = false), so nothing needs to update
+ *                       CurrentButton anymore. See RibbonManager.cs v1.12.0.
+ * v1.15.0 (2026-07-21) - Added static RunPinnedSplitButton / RunPinnedButton / SavedScriptsButton
+ *                       references, same pattern as MepOpeningSplitButton just below - lets
+ *                       RunPinnedScriptCommand and ShowSavedScriptsCommand set SplitButton.CurrentButton
+ *                       to themselves so the AI Assistant panel's split button tracks whichever was run last.
+ * v1.14.0 (2026-07-21) - Added static MepOpeningSplitButton / CreateOpeningsButton / OpeningSettingsButton
+ *                       references (same pattern as AiBridgeButton), set by RibbonManager when the
+ *                       Opening split button is built, cleared on shutdown - lets CmdCreateMepOpenings
+ *                       and CmdMepOpeningSettings set SplitButton.CurrentButton to themselves so the
+ *                       ribbon's default face tracks whichever was actually used last.
  * v1.13.0 (2026-07-20) - Suite bumped: added the Smart Selection tool (Modify panel, AJ Tools tab).
  * v1.12.1 (2026-07-18) - Dockable pane title shortened to just "C#" (was "C# with AI"), matching the
  *                       ribbon button label Ajmal shortened the same day.
@@ -80,6 +94,7 @@ namespace AJTools.App
         /// ToggleAiBridgeCommand can swap its icon between AJ_AI_ON.png / AJ_AI_OFF.png after each
         /// connect/disconnect - a plain PushButton has no built-in on/off visual state.</summary>
         public static PushButton AiBridgeButton { get; set; }
+
 
         public Result OnStartup(UIControlledApplication app)
         {

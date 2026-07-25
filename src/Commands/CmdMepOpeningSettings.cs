@@ -5,10 +5,10 @@
  * Purpose       : Revit external command entry point for opening settings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-03
+ * Last Updated  : 2026-07-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,14 @@
  * - Window is owned by the Revit main window.
  *
  * Changelog     :
+ * v1.2.0 (2026-07-21) - Reverted v1.1.0 below - Opening Settings now only ever runs from the Opening
+ *                       split button's dropdown and never becomes its default face
+ *                       (RibbonManager.cs v1.12.0, IsSynchronizedWithCurrentItem = false), so Execute()
+ *                       no longer needs to set CurrentButton itself.
+ * v1.1.0 (2026-07-21) - Now sets the Opening ribbon split button's CurrentButton to itself as the very
+ *                       first thing Execute does (App.MepOpeningSplitButton / OpeningSettingsButton), so
+ *                       the split button's default face reflects that Opening Settings was the one just
+ *                       run - see RibbonManager.cs v1.10.0.
  * v1.0.0 (2026-07-03) - Initial release.
  *
  * License       : All Rights Reserved

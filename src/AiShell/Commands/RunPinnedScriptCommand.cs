@@ -15,7 +15,7 @@
  *                 the C# pane's own Run Code button already uses.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.3.1
  *
  * Created Date  : 2026-07-21
  * Last Updated  : 2026-07-23
@@ -42,12 +42,29 @@
  *   AiShellViewModel.SaveScript) before the actual code - stripped here the same way, kept as an
  *   independent small copy rather than shared with the ViewModel: this class must not depend on
  *   the WPF ViewModel layer.
+ * - RunScriptFile() is the shared "strip header, validate, confirm, run" path - also called by
+ *   SavedScriptsWindow's "▶ Run" button (2026-07-21), so both entry points share one execution
+ *   path instead of two copies that could drift.
  *
  * Changelog     :
- * v1.0.1 (2026-07-23) - Fixed the same misreported-failure bug as RevitExecutionService v1.4.0:
- *                       RefreshActiveView() ran inside the same try as group.Commit(), so a throw
- *                       there reported an already-committed pinned script as Failed. The refresh
- *                       now has its own try/catch (TryRefreshActiveView).
+ * v1.3.1 (2026-07-25) - Merged in the GitHub-side v1.0.1 fix below (TryRefreshActiveView), which
+ *                       had been made on the pre-RunScriptFile layout of this file.
+ * v1.3.0 (2026-07-21) - Reverted v1.2.0 below - Run Pinned's default face is now permanently fixed
+ *                       (RibbonManager.cs v1.12.0, IsSynchronizedWithCurrentItem = false), so Execute()
+ *                       no longer needs to set CurrentButton itself.
+ * v1.2.0 (2026-07-21) - Now sets the ribbon split button's CurrentButton to itself as the first thing
+ *                       Execute() does (App.RunPinnedSplitButton / RunPinnedButton) - Run Pinned and
+ *                       Saved Scripts are now one split button (RibbonManager.cs v1.11.0) instead of
+ *                       two separate top-level buttons; this keeps its default face in sync. Also
+ *                       corrected this header's own Version field, which had drifted to "1.0.0" even
+ *                       though v1.1.0 below already shipped.
+ * v1.1.0 (2026-07-21) - Extracted the run logic into public static RunScriptFile() so
+ *                       SavedScriptsWindow (the new standalone "Saved Scripts" tool) can run a
+ *                       script the same way without duplicating the safety/transaction handling.
+ * v1.0.1 (2026-07-23) - (GitHub line) Fixed the same misreported-failure bug as RevitExecutionService
+ *                       v1.4.0: RefreshActiveView() ran inside the same try as group.Commit(), so a
+ *                       throw there reported an already-committed pinned script as Failed. The
+ *                       refresh now has its own try/catch (TryRefreshActiveView).
  * v1.0.0 (2026-07-21) - Initial release.
  *
  * License       : All Rights Reserved
@@ -80,10 +97,18 @@ namespace AJTools.AiShell.Commands
             {
                 TaskDialog.Show(
                     "AJ AI: Run Pinned Script",
-                    "No script is pinned yet.\n\nOpen the C# pane, expand \"Saved Scripts History\", and click \"📌 Pin\" on a saved script.");
+                    "No script is pinned yet.\n\nOpen \"Saved Scripts\" (AI Assistant panel) and click \"📌 Pin\" on a saved script.");
                 return Result.Cancelled;
             }
 
+            return RunScriptFile(commandData, path, ref message);
+        }
+
+        /// <summary>Shared by RunPinnedScriptCommand and SavedScriptsWindow's "▶ Run" button: strips
+        /// the saved-script header, runs the safety validator, confirms risky operations, then
+        /// executes via RoslynService inside a TransactionGroup and reports the result.</summary>
+        public static Result RunScriptFile(ExternalCommandData commandData, string path, ref string message)
+        {
             string code;
             try
             {
@@ -91,13 +116,13 @@ namespace AJTools.AiShell.Commands
             }
             catch (Exception ex)
             {
-                message = $"Could not read the pinned script ({path}): {ex.Message}";
+                message = $"Could not read the script ({path}): {ex.Message}";
                 return Result.Failed;
             }
 
             if (string.IsNullOrWhiteSpace(code))
             {
-                message = "The pinned script file is empty.";
+                message = "The script file is empty.";
                 return Result.Failed;
             }
 
@@ -105,7 +130,7 @@ namespace AJTools.AiShell.Commands
             if (safety.IsBlocked)
             {
                 string blockedReasons = string.Join("\n - ", safety.Findings.Where(f => f.Level == CodeRiskLevel.Blocked).Select(f => f.Reason));
-                TaskDialog.Show("AJ AI: Pinned Script Blocked", $"This pinned script does something AJ AI does not allow:\n - {blockedReasons}");
+                TaskDialog.Show("AJ AI: Script Blocked", $"This script does something AJ AI does not allow:\n - {blockedReasons}");
                 return Result.Cancelled;
             }
 
@@ -114,7 +139,7 @@ namespace AJTools.AiShell.Commands
                 string reasons = string.Join("\n - ", safety.Findings.Select(f => f.Reason));
                 var confirm = TaskDialog.Show(
                     "AJ AI: Confirm Risky Operation",
-                    $"This pinned script does the following:\n - {reasons}\n\nThis can only be undone with Ctrl+Z in Revit. Continue?",
+                    $"This script does the following:\n - {reasons}\n\nThis can only be undone with Ctrl+Z in Revit. Continue?",
                     TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
 
                 if (confirm != TaskDialogResult.Yes)
@@ -139,7 +164,7 @@ namespace AJTools.AiShell.Commands
                 ReportProgress = null
             };
 
-            using (var group = new TransactionGroup(globals.Document, "AJ AI Pinned Script"))
+            using (var group = new TransactionGroup(globals.Document, "AJ AI Script"))
             {
                 group.Start();
 
@@ -154,7 +179,7 @@ namespace AJTools.AiShell.Commands
                     {
                         group.Commit();
                         TryRefreshActiveView(commandData.Application);
-                        TaskDialog.Show("AJ AI: Pinned Script Ran Successfully", result.Output ?? "Done.");
+                        TaskDialog.Show("AJ AI: Script Ran Successfully", result.Output ?? "Done.");
                         return Result.Succeeded;
                     }
 

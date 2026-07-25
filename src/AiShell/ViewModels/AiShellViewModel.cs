@@ -8,10 +8,10 @@
  *                 auto-retries a failed run with the AI's help up to a fixed attempt limit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.11.0
+ * Version       : 1.12.1
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-07-25
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,7 +21,7 @@
  * Dependencies  : IAiProviderService (Gemini/OpenAI/Claude), RevitExecutionService, RevitContextExtractionService,
  *                 GeneratedCodeSafetyValidator, ErrorCorrectionService
  *
- * Input         : User prompt text, live Revit selection context, saved script history
+ * Input         : User prompt text, live Revit selection context
  * Output        : Generated/edited C# script, execution results, saved .cs script files
  *
  * Notes         :
@@ -36,13 +36,24 @@
  *   addition to the XAML now disabling the action buttons while a request is in flight.
  *
  * Changelog     :
- * v1.11.0 (2026-07-23) - Added Claude as a third AI provider alongside Gemini/OpenAI
- *                       (AnthropicApiService, new IsAnthropicSelected/AnthropicApiKeyInput/
- *                       AnthropicModel settings properties) - the in-Revit chat pane can now use
- *                       the same model family as the external "AJ AI Bridge" MCP connection
- *                       (McpBridgeService) that Claude Code already drives. Purely additive:
- *                       SelectedProvider still defaults to "Gemini", so nothing changes for
- *                       existing configs until Ajmal opens Settings and picks Claude.
+ * v1.12.1 (2026-07-25) - Merge of the local and GitHub lines of this file (both had independently
+ *                       added the same third-provider feature). Provider key string unified to
+ *                       "Claude" (GitHub naming; shown in the Settings dropdown), default model
+ *                       claude-sonnet-5. Local v1.12.0 Saved Scripts split kept as-is.
+ * v1.12.0 (2026-07-21) - Removed the "Saved Scripts History" expander (SavedHistory, PinScriptCommand,
+ *                       RunFromHistoryCommand, PinnedScriptDisplayText, RefreshScriptsList and its
+ *                       header-parsing helpers) - moved to its own standalone "Saved Scripts" ribbon
+ *                       button/window (ShowSavedScriptsCommand/SavedScriptsWindow), same reasoning
+ *                       as "Run Pinned": reachable whether or not the C# pane is open. This pane no
+ *                       longer tracks saved-script state at all; ScriptsFolderPath (Settings) is the
+ *                       only piece of that feature still owned here.
+ * v1.11.0 (2026-07-21/23) - Added Claude as a third AI provider option alongside Gemini and OpenAI
+ *                       (AnthropicApiService, IsAnthropicSelected/AnthropicApiKeyInput/
+ *                       AnthropicModel settings properties, same IAiProviderService pattern as the
+ *                       other two) - the in-Revit chat pane can now use the same model family as
+ *                       the external "AJ AI Bridge" MCP connection (McpBridgeService) that Claude
+ *                       Code already drives. Purely additive: SelectedProvider still defaults to
+ *                       "Gemini", so nothing changes until Ajmal opens Settings and picks Claude.
  * v1.10.0 (2026-07-21) - Two more Live Console additions: (1) console command history now persists
  *                       to ajai-console-history.json (same best-effort pattern as the crash-
  *                       recovery snapshot) so Up/Down recall survives Revit being closed and
@@ -257,9 +268,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             OpenAiModel = _config.OpenAiModel;
             AnthropicApiKeyInput = _config.GetAnthropicApiKey();
             AnthropicModel = _config.AnthropicModel;
-            SavedHistory = new ObservableCollection<HistoryItem>();
             ScriptsFolderPath = _config.ScriptsFolderPath;
-            RefreshScriptsList();
 
             SaveSettingsCommand = new RelayCommand(SaveSettings);
             GenerateCodeCommand = new AsyncRelayCommand(GenerateCodeAsync);
@@ -268,12 +277,10 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             FormatCodeCommand = new RelayCommand(FormatCode);
             SaveScriptCommand = new RelayCommand(SaveScript);
             StopCommand = new RelayCommand(StopProcess);
-            RunFromHistoryCommand = new RelayCommand<HistoryItem>(RunFromHistory);
             BrowseFolderCommand = new RelayCommand(BrowseFolder);
             SnoopSelectionCommand = new AsyncRelayCommand(SnoopSelectionAsync);
             ReplRunCommand = new AsyncRelayCommand(ReplRunAsync);
             ReplResetCommand = new RelayCommand(ReplReset);
-            PinScriptCommand = new RelayCommand<HistoryItem>(PinScript);
             SendReplToEditorCommand = new RelayCommand(SendReplToEditor);
 
             _autoSaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(AutoSaveDelayMs) };
@@ -486,13 +493,11 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 {
                     _config.ScriptsFolderPath = value;
                     _config.Save();
-                    RefreshScriptsList();
                 }
             }
         }
 
         public ObservableCollection<ChatMessage> History { get; }
-        public ObservableCollection<HistoryItem> SavedHistory { get; }
 
         // --- Live Console (interactive shell) ---
         private readonly System.Collections.Generic.List<string> _replHistory = new System.Collections.Generic.List<string>();
@@ -531,43 +536,11 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         public ICommand FormatCodeCommand { get; }
         public ICommand SaveScriptCommand { get; }
         public ICommand StopCommand { get; }
-        public ICommand RunFromHistoryCommand { get; }
         public ICommand BrowseFolderCommand { get; }
         public ICommand SnoopSelectionCommand { get; }
         public ICommand ReplRunCommand { get; }
         public ICommand ReplResetCommand { get; }
-        public ICommand PinScriptCommand { get; }
         public ICommand SendReplToEditorCommand { get; }
-
-        /// <summary>Which saved script (if any) is currently pinned to the "Run Pinned" ribbon
-        /// button (RunPinnedScriptCommand reads AiShellConfig.PinnedScriptPath directly - this is
-        /// just the pane's own display of that same value).</summary>
-        public string PinnedScriptDisplayText =>
-            string.IsNullOrWhiteSpace(_config.PinnedScriptPath)
-                ? "No script pinned to the ribbon yet."
-                : $"📌 Pinned to ribbon: {Path.GetFileNameWithoutExtension(_config.PinnedScriptPath)}";
-
-        private void RunFromHistory(HistoryItem item)
-        {
-            if (IsBusy || item == null || !File.Exists(item.FilePath)) return;
-            PromptInput = item.Prompt;
-            CodeEditorContent = item.Code;
-
-            if (RunCodeCommand.CanExecute(null))
-            {
-                RunCodeCommand.Execute(null);
-            }
-        }
-
-        private void PinScript(HistoryItem item)
-        {
-            if (IsBusy || item == null || !File.Exists(item.FilePath)) return;
-
-            _config.PinnedScriptPath = item.FilePath;
-            _config.Save();
-            OnPropertyChanged(nameof(PinnedScriptDisplayText));
-            StatusText = $"Pinned \"{Path.GetFileNameWithoutExtension(item.FilePath)}\" to the ribbon - click \"Run Pinned\" (AI Assistant panel) anytime.";
-        }
 
         private void BrowseFolder()
         {
@@ -580,71 +553,6 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                     ScriptsFolderPath = dialog.SelectedPath;
                 }
             }
-        }
-
-        private void RefreshScriptsList()
-        {
-            if (SavedHistory == null) return;
-            SavedHistory.Clear();
-            if (string.IsNullOrWhiteSpace(ScriptsFolderPath) || !Directory.Exists(ScriptsFolderPath)) return;
-
-            var files = Directory.GetFiles(ScriptsFolderPath, "*.cs");
-            foreach (var file in files)
-            {
-                var rawContent = File.ReadAllText(file);
-                var (prompt, provider, code) = ParseSavedScriptHeader(rawContent);
-
-                SavedHistory.Add(new HistoryItem
-                {
-                    FilePath = file,
-                    Prompt = prompt,
-                    Provider = provider,
-                    Code = code,
-                    DateCreated = File.GetCreationTime(file)
-                });
-            }
-
-            // Sort by DateCreated descending
-            var sorted = new System.Collections.Generic.List<HistoryItem>(SavedHistory);
-            sorted.Sort((a, b) => b.DateCreated.CompareTo(a.DateCreated));
-            SavedHistory.Clear();
-            foreach (var item in sorted) SavedHistory.Add(item);
-        }
-
-        /// <summary>
-        /// Saved scripts start with one or two header comment lines (// Prompt: ... and
-        /// // Provider: ...) followed by a blank line and the code. This peels those header
-        /// lines off in a single, testable place instead of ad-hoc string math at each call site.
-        /// </summary>
-        private static (string Prompt, string Provider, string Code) ParseSavedScriptHeader(string rawContent)
-        {
-            string prompt = string.Empty;
-            string provider = string.Empty;
-            string remaining = rawContent ?? string.Empty;
-
-            remaining = ConsumeHeaderLine(remaining, "// Prompt: ", out prompt);
-            remaining = ConsumeHeaderLine(remaining, "// Provider: ", out provider);
-
-            return (prompt, provider, remaining.TrimStart('\r', '\n'));
-        }
-
-        private static string ConsumeHeaderLine(string content, string prefix, out string value)
-        {
-            value = string.Empty;
-            if (string.IsNullOrEmpty(content) || !content.StartsWith(prefix))
-            {
-                return content;
-            }
-
-            int lineEnd = content.IndexOf('\n');
-            if (lineEnd < 0)
-            {
-                value = content.Substring(prefix.Length).Trim();
-                return string.Empty;
-            }
-
-            value = content.Substring(prefix.Length, lineEnd - prefix.Length).Trim();
-            return content.Substring(lineEnd + 1);
         }
 
         private void SaveScript()
@@ -700,8 +608,6 @@ If the user's request is unsafe, destructive without being explicitly asked for,
 
             StatusText = $"Script saved to {filePath}";
             IsBusy = false;
-
-            RefreshScriptsList();
         }
 
         private void StopProcess()

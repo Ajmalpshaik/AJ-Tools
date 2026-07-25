@@ -6,10 +6,10 @@
  *                 Annotation, Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.0
+ * Version       : 1.4.0
  *
  * Created Date  : 2026-05-10
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,10 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.4.0 (2026-07-21) - Section Mark Visibility moved onto the Tags panel here, off the AJ Tools tab's
+ *                       View panel (RibbonManager.cs) - same command (CmdSectionMarkVisibility),
+ *                       AvailabilityClassName, and icon, just re-homed and now a standalone PushButton
+ *                       here instead of a top-level tool there.
  * v1.3.0 (2026-07-17) - Replaced 28 repeated 4-line "load large icon, null-check, assign; load small
  *                       icon, null-check, assign" blocks with calls to the shared
  *                       RibbonPanelHelper.ApplyIcons (code review cleanup pass) - same icons, same
@@ -154,6 +158,17 @@ namespace AJTools.App
             RibbonPanelHelper.ApplyIcons(centerRoomTagsData, _iconLoader, "Arrange Tag.png");
 
             panel.AddItem(centerRoomTagsData);
+
+            PushButtonData sectionMarkVisibilityData = new PushButtonData("cmdSectionMarkVisibility", "Section Mark\nVisibility", _assemblyPath, typeof(CmdSectionMarkVisibility).FullName)
+            {
+                ToolTip = "Automatically manage section visibility based on Sheet Number filters or sheet placement status."
+            };
+            RibbonPanelHelper.ApplyIcons(sectionMarkVisibilityData, _iconLoader, "SectionMarkVisibility.png");
+
+            if (panel.AddItem(sectionMarkVisibilityData) is PushButton sectionMarkVisibilityButton)
+            {
+                sectionMarkVisibilityButton.AvailabilityClassName = typeof(CmdPlanViewAvailability).FullName;
+            }
         }
 
         private void AddFamilyPanelTools(RibbonPanel panel)

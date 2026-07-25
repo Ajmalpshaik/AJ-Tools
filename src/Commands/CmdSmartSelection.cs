@@ -7,10 +7,10 @@
  *                 selection; everything else caught in the box is skipped automatically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-07-20
- * Last Updated  : 2026-07-20
+ * Last Updated  : 2026-07-22
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -29,13 +29,23 @@
  * - Read-only tool (TransactionMode.ReadOnly) - only the active selection changes, never the model.
  * - Category-level match only: any element sharing the reference element's category is allowed (e.g.
  *   pick one duct, then window-select adds every duct in the box, skipping pipes/walls/tags/etc.).
- * - Esc on the reference pick cancels silently (Result.Cancelled, no error shown).
+ * - If exactly one categorized element is already selected in Revit when the command is launched, that
+ *   pre-selection is used as the reference element directly - no interactive pick prompt shown. Zero,
+ *   more than one, or an uncategorized pre-selection all fall back to the normal PickObject prompt.
+ * - Esc on the reference pick (when no usable pre-selection exists) cancels silently (Result.Cancelled,
+ *   no error shown).
  * - The follow-up stage is a single PickElementsByRectangle box (drag left-to-right for window, right-
  *   to-left for crossing) - it completes as soon as the drag ends, no Finish/Enter needed. Esc during
  *   that stage falls back to leaving just the reference element selected, instead of losing the pick.
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.1 (2026-07-22) - Ajmal reported that pre-selecting an element in Revit before running the tool
+ *                       was ignored - the tool always forced a fresh interactive pick for the reference
+ *                       element. Now GetPreSelectedReference() checks uiDocument.Selection.GetElementIds()
+ *                       first: if exactly one categorized element is already selected, it's used as the
+ *                       reference directly and the pick prompt is skipped; otherwise behaviour is
+ *                       unchanged (interactive PickObject prompt).
  * v1.1.0 (2026-07-20) - Ajmal's feedback after live testing: the multi-pick PickObjects loop (window,
  *                       crossing, or click, repeated any number of times, needing an explicit Finish/
  *                       Enter to end) was more than he wanted - swapped for a single one-shot
@@ -54,6 +64,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -63,8 +74,8 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Entry command for Smart Selection: pick a reference element, then one window/crossing box-select
-    /// more elements of the same category only.
+    /// Entry command for Smart Selection: use a pre-existing single-element selection (if any) or pick
+    /// a reference element, then one window/crossing box-select more elements of the same category only.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class CmdSmartSelection : IExternalCommand
@@ -82,7 +93,7 @@ namespace AJTools.Commands
 
             try
             {
-                Element referenceElement = PickReferenceElement(uiDocument);
+                Element referenceElement = GetPreSelectedReference(uiDocument) ?? PickReferenceElement(uiDocument);
                 if (referenceElement == null)
                 {
                     return Result.Cancelled;
@@ -151,6 +162,23 @@ namespace AJTools.Commands
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// If exactly one categorized element was already selected in Revit before the command ran,
+        /// use it directly as the reference element and skip the interactive pick. Zero, more than
+        /// one, or an uncategorized pre-selection all fall back to the normal PickObject prompt.
+        /// </summary>
+        private static Element GetPreSelectedReference(UIDocument uiDocument)
+        {
+            ICollection<ElementId> preSelectedIds = uiDocument.Selection.GetElementIds();
+            if (preSelectedIds.Count != 1)
+            {
+                return null;
+            }
+
+            Element preSelectedElement = uiDocument.Document.GetElement(preSelectedIds.First());
+            return preSelectedElement?.Category != null ? preSelectedElement : null;
         }
     }
 }
