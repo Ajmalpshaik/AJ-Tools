@@ -6,7 +6,7 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.0
+ * Version       : 1.12.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-21
@@ -26,6 +26,39 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.12.0 (2026-07-21) - Correction on top of v1.11.0/v1.10.0 below: Ajmal watched the "last-used-first"
+ *                       sync behavior live and didn't want it - "Create Openings" and "Run Pinned" should
+ *                       stay the PERMANENT default face, never swap to "Opening Settings"/"Saved Scripts"
+ *                       just because one of those ran. Both split buttons now set
+ *                       IsSynchronizedWithCurrentItem = false instead of true - this is what actually
+ *                       keeps the top face fixed on the first-added child forever (per RevitAPIUI.xml:
+ *                       "if false, the first listed PushButton... executes this PushButton when clicked"
+ *                       - items after it are reachable only via the dropdown). The App.MepOpeningSplitButton
+ *                       / CreateOpeningsButton / OpeningSettingsButton / RunPinnedSplitButton /
+ *                       RunPinnedButton / SavedScriptsButton statics and the per-child afterCreate capture
+ *                       hooks are gone with it - nothing needs to set CurrentButton anymore (doing so
+ *                       while IsSynchronizedWithCurrentItem is false actually throws).
+ * v1.11.0 (2026-07-21) - AI Assistant panel: "Run Pinned" and "Saved Scripts" combined into one split
+ *                       button, same pattern as the Opening split button (v1.10.0 below) - Run Pinned
+ *                       is the default face (added first), Saved Scripts lives in the dropdown, and
+ *                       the top face tracks whichever of the two was actually run last via new
+ *                       App.RunPinnedSplitButton / RunPinnedButton / SavedScriptsButton statics.
+ * v1.10.0 (2026-07-21) - View panel decluttered: Filter Pro, Colorize, and Highlight Selection moved
+ *                       from 3 separate top-level buttons into one small stacked group (matching the
+ *                       View Crop/Unhide/Toggle Links stack); Section Mark Visibility moved off this
+ *                       tab entirely, onto the AJ Annotation tab's Tags panel (AnnotationRibbonManager.cs).
+ *                       Opening split button (Opening panel): "Create Openings" is now the default face
+ *                       (added first) and CreateSplitToolSpec gained an optional configureSplitButton
+ *                       hook so it captures itself + its two child buttons into new App.MepOpeningSplitButton
+ *                       / CreateOpeningsButton / OpeningSettingsButton statics - CmdCreateMepOpenings and
+ *                       CmdMepOpeningSettings each set SplitButton.CurrentButton to themselves as the
+ *                       first thing they do, so the ribbon's top face always reflects whichever of the
+ *                       two was actually run last (native SplitButton.IsSynchronizedWithCurrentItem
+ *                       behavior, set explicitly rather than relying on its Revit-side default).
+ * v1.9.0 (2026-07-21) - Added "Saved Scripts" to the AI Assistant panel (ShowSavedScriptsCommand) -
+ *                       standalone browse/pin/run window for every .cs file in the Scripts Folder,
+ *                       moved out of the C# pane's "Saved Scripts History" expander per Ajmal's
+ *                       request so it works whether or not the C# pane is open, same as Run Pinned.
  * v1.8.0 (2026-07-21) - Added "Run Pinned" to the AI Assistant panel (RunPinnedScriptCommand) - runs
  *                       whichever saved script is pinned from the C# pane's Saved Scripts History.
  *                       Statically-compiled, no runtime code generation - see that command's own
@@ -258,10 +291,7 @@ namespace AJTools.App
         private void BuildViewPanel(RibbonPanel panel)
         {
             AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
-            AddTopLevelTool(panel, AddFilterProTool());
-            AddTopLevelTool(panel, AddColorizeTool());
-            AddTopLevelTool(panel, AddHighlightSelectionTool());
-            AddTopLevelTool(panel, AddSectionMarkVisibilityTool());
+            AddStackedTools(panel, AddFilterProTool(), AddColorizeTool(), AddHighlightSelectionTool());
         }
 
         private void BuildGraphicsPanel(RibbonPanel panel)
@@ -316,7 +346,7 @@ namespace AJTools.App
         {
             AddTopLevelTool(panel, AddAiTool());
             AddTopLevelTool(panel, AddAiBridgeTool());
-            AddTopLevelTool(panel, AddRunPinnedScriptTool());
+            AddTopLevelTool(panel, AddRunPinnedTool());
         }
 
         private void BuildAboutPanel(RibbonPanel panel)
@@ -349,18 +379,32 @@ namespace AJTools.App
                 pushButton => App.AiBridgeButton = pushButton);
         }
 
-        private TopLevelToolSpec AddRunPinnedScriptTool()
+        private TopLevelToolSpec AddRunPinnedTool()
         {
-            // Runs whichever saved script is currently pinned (AiShellConfig.PinnedScriptPath, set
-            // via "📌 Pin" on an item in the C# pane's Saved Scripts History) - a one-click,
-            // statically-compiled equivalent of RevitPythonShell's "deploy script as ribbon button"
-            // that doesn't need runtime code generation. See RunPinnedScriptCommand for why.
-            return CreatePushToolSpec(
+            // "Run Pinned" is the permanent default face - a single click always runs it directly, same
+            // one-click statically-compiled equivalent of RevitPythonShell's "deploy script as ribbon
+            // button" it always was (see RunPinnedScriptCommand for why). "Saved Scripts" (browse/pin
+            // from the configured Scripts Folder) only lives in the dropdown - it never takes over the
+            // main face. IsSynchronizedWithCurrentItem = false is what keeps the top face fixed on
+            // "Run Pinned" (the first-added child) no matter which child was actually run last.
+            return CreateSplitToolSpec(
                 "Run\nPinned",
-                "Run the saved C# script currently pinned from the C# pane's Saved Scripts History. Click \"📌 Pin\" on a saved script to choose which one.",
-                typeof(AJTools.AiShell.Commands.RunPinnedScriptCommand),
+                "Run the saved C# script currently pinned in \"Saved Scripts\". Open Saved Scripts and click \"📌 Pin\" on one to choose which.",
                 "CSharp_with_AI.png",
-                "CSharp_with_AI.png");
+                "CSharp_with_AI.png",
+                splitButton => splitButton.IsSynchronizedWithCurrentItem = false,
+                CreateSplitChildTool(
+                    "Run\nPinned",
+                    "Run the saved C# script currently pinned in \"Saved Scripts\". Open Saved Scripts and click \"📌 Pin\" on one to choose which.",
+                    typeof(AJTools.AiShell.Commands.RunPinnedScriptCommand),
+                    "CSharp_with_AI.png",
+                    "CSharp_with_AI.png"),
+                CreateSplitChildTool(
+                    "Saved\nScripts",
+                    "Browse every saved C# script in your Scripts Folder. Pin one to \"Run Pinned\", or run it directly from here.",
+                    typeof(AJTools.AiShell.Commands.ShowSavedScriptsCommand),
+                    "CSharp_with_AI.png",
+                    "CSharp_with_AI.png"));
         }
 
         private TopLevelToolSpec AddToggleLinksTool()
@@ -433,17 +477,6 @@ namespace AJTools.App
                     pushButton.LongDescription = "Pick categories (and optionally a parameter and values, using the same category/parameter/value engine as Filter Pro), choose graphics options, then Shuffle Colors applies the overrides directly to matched elements in the active view or selected views - click it again anytime to re-shuffle.";
                     pushButton.AvailabilityClassName = typeof(CmdColorizeAvailability).FullName;
                 });
-        }
-
-        private TopLevelToolSpec AddSectionMarkVisibilityTool()
-        {
-            return CreatePushToolSpec(
-                "Section Mark\nVisibility",
-                "Automatically manage section visibility based on Sheet Number filters or sheet placement status.",
-                typeof(CmdSectionMarkVisibility),
-                "SectionMarkVisibility.png",
-                "SectionMarkVisibility.png",
-                pushButton => pushButton.AvailabilityClassName = typeof(CmdPlanViewAvailability).FullName);
         }
 
         private TopLevelToolSpec AddHighlightSelectionTool()
@@ -777,21 +810,26 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddMepOpeningsTool()
         {
+            // "Create Openings" is the permanent default face - a single click always runs it directly.
+            // "Opening Settings" only lives in the dropdown - it never takes over the main face.
+            // IsSynchronizedWithCurrentItem = false is what keeps the top face fixed on "Create Openings"
+            // (the first-added child) no matter which child was actually run last.
             return CreateSplitToolSpec(
                 "Opening",
                 "Create direct wall, floor/slab, and beam openings from selected pipes, ducts, cable trays, and conduits.",
                 "MEP Openings.png",
                 "MEP Openings.png",
-                CreateSplitChildTool(
-                    "Opening\nSettings",
-                    "Set opening shape, cutout buffer, insulation, and merge distance rules.",
-                    typeof(CmdMepOpeningSettings),
-                    "MEP Openings.png",
-                    "MEP Openings.png"),
+                splitButton => splitButton.IsSynchronizedWithCurrentItem = false,
                 CreateSplitChildTool(
                     "Create\nOpenings",
                     "Create and merge direct openings from the selected MEP elements.",
                     typeof(CmdCreateMepOpenings),
+                    "MEP Openings.png",
+                    "MEP Openings.png"),
+                CreateSplitChildTool(
+                    "Opening\nSettings",
+                    "Set opening shape, cutout buffer, insulation, and merge distance rules.",
+                    typeof(CmdMepOpeningSettings),
                     "MEP Openings.png",
                     "MEP Openings.png"));
         }
@@ -930,6 +968,22 @@ namespace AJTools.App
             string smallIconFileName,
             params SplitChildToolSpec[] childTools)
         {
+            return CreateSplitToolSpec(text, tooltip, largeIconFileName, smallIconFileName, null, childTools);
+        }
+
+        /// <summary>
+        /// Overload that also hands back the created SplitButton itself via <paramref name="configureSplitButton"/>,
+        /// for the rare split button that needs to set up its own state (e.g. IsSynchronizedWithCurrentItem)
+        /// beyond just adding its child buttons.
+        /// </summary>
+        private TopLevelToolSpec CreateSplitToolSpec(
+            string text,
+            string tooltip,
+            string largeIconFileName,
+            string smallIconFileName,
+            Action<SplitButton> configureSplitButton,
+            params SplitChildToolSpec[] childTools)
+        {
             return new TopLevelToolSpec(
                 CreateSplitButtonData(text, tooltip, largeIconFileName, smallIconFileName),
                 item =>
@@ -955,6 +1009,8 @@ namespace AJTools.App
                             childTool.AfterCreate?.Invoke(childButton);
                         }
                     }
+
+                    configureSplitButton?.Invoke(splitButton);
                 });
         }
 

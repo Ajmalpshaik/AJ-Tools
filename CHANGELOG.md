@@ -5,40 +5,20 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-- **Added**: Claude as a third AI provider option in the C# pane's Settings, alongside Gemini and
-  OpenAI (new `AnthropicApiService`, its own API key field, and a model dropdown). Purely additive -
-  the default provider is still Gemini, so existing setups are unaffected until you open Settings
-  and switch.
-- **Fixed**: `GeminiApiService` cached its auto-selected "best model" for the life of the Revit
-  session in a single field. Switching to a different Gemini API key in Settings (without
-  restarting Revit) kept using the old key's cached model instead of re-discovering one for the new
-  key. Now cached per API key.
-- **Docs**: Added an "AJ AI Assistant" section to `docs/USAGE.md` covering the provider settings,
-  the safety model (blocked vs. confirm-first operations), and how to connect an external
-  MCP-capable AI tool (e.g. Claude Code) to the AJ AI Bridge - previously undocumented outside the
-  in-code comments.
-- **Fixed**: `RevitExecutionService`, `ReplSessionService`, and `RunPinnedScriptCommand` all ran
-  `RefreshActiveView()` inside the same try block that reported success/failure. If the refresh
-  itself threw (e.g. the active view became invalid), an already-committed script/console
-  line/pinned script was reported back to the user as **Failed** - in the Live Console specifically,
-  this also left the session's variables silently updated from a line the user was told had failed,
-  so retrying it would double-apply it. The refresh now has its own try/catch and can never affect
-  the reported result.
-- **Fixed**: `RevitContextExtractionService` and `ElementSnoopService` were missing the re-entrancy
-  guard `RevitExecutionService`/`ReplSessionService` already use against `ExternalEvent.Raise()`
-  coalescing two rapid calls into one `Execute()` - a second call while one was still running could
-  leave the first caller's `Task` pending forever. Added the same guard to both.
-- **Removed**: `InverseBooleanToVisibilityConverter` - declared as a resource and a class but never
-  actually bound anywhere in the pane's XAML.
-- **Fixed**: `LoopProtectionRewriter` only cancellation-checked `while`/`for`/`do`/`foreach` loops -
-  a script with unbounded/mutual recursion was unprotected and could crash Revit outright with a
-  `StackOverflowException` (uncatchable by design in .NET), instead of the safe timeout a runaway
-  loop gets. Now also instruments block-bodied local functions, methods, and lambdas with a
-  recursion-depth guard (300 levels) that throws the same catchable timeout error a runaway loop
-  does. The 300 threshold is a conservative estimate - no Revit connection was available to measure
-  a real stack overflow depth, so this is written to be verified live before fully trusting it (see
-  `docs/AJ-AI-Testing-Checklist.md`). An expression-bodied recursive form (`int Fib(int n) => ...`)
-  is not instrumented - see the class-level comment in `LoopProtectionRewriter.cs` for why.
+## [1.25.0] - 2026-07-25
+
+- **Added**: Anthropic (Claude) as a third AI provider option in the C# AI pane, alongside Gemini and
+  OpenAI - same settings pattern (encrypted API key, model dropdown: claude-opus-4-8 default,
+  claude-sonnet-5, claude-haiku-4-5, claude-fable-5), raw HttpClient against the Messages API, no new
+  NuGet dependency.
+- **Changed**: Settings window's API key fields are now masked (PasswordBox with a "👁 show/hide"
+  toggle) instead of plain text - the key itself was always encrypted at rest and sent only in an
+  HTTPS header (never logged, never seen by the AI model), but the Settings UI previously displayed
+  it in the clear on screen.
+- **Added**: Standalone "Saved Scripts" ribbon button (AI Assistant panel) - browse, pin, and run any
+  .cs file in the configured Scripts Folder from its own window, reachable whether or not the C# pane
+  is open, same as "Run Pinned". Moved out of the C# pane's "Saved Scripts History" expander, which no
+  longer exists in the pane.
 
 ## [1.24.0] - 2026-07-21
 

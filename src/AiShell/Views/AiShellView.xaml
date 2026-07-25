@@ -4,9 +4,13 @@ Purpose   : Dockable pane view for the AJ Tools interactive AI-assisted C# shell
             code -> review/run/save against the live Revit document). Soft Revit UI style (Neumorphism +
             Claymorphism, Neon Blue primary, dark theme).
 Author    : Ajmal P.S.
-Version   : 2.4.0
+Version   : 2.5.0
 Last Updated : 2026-07-21
 Changelog :
+  v2.5.0 - Removed the "Saved Scripts History" expander entirely - moved to its own standalone
+           "Saved Scripts" ribbon button/window (ShowSavedScriptsCommand/SavedScriptsWindow) per
+           Ajmal's request, same reasoning as "Run Pinned": reachable whether or not this pane is
+           open. Live Console (now the only expander left) moved up to Grid.Row 7.
   v2.4.0 - Two more RevitPythonShell-parity pieces: (1) Ctrl+Space in the Code Editor opens a
            curated Revit API completion list (RevitApiCompletionData) - RPS's "autocompletion
            (press CTRL+SPACE after a period)", scaled to a static list instead of a live semantic
@@ -61,7 +65,6 @@ Changelog :
             <RowDefinition Height="2.5*"/> <!-- Code Editor -->
             <RowDefinition Height="Auto"/> <!-- Run Buttons -->
             <RowDefinition Height="2*"/>   <!-- Results & Error -->
-            <RowDefinition Height="Auto"/> <!-- Saved Scripts Expander -->
             <RowDefinition Height="Auto"/> <!-- Live Console Expander -->
         </Grid.RowDefinitions>
 
@@ -157,50 +160,12 @@ Changelog :
             </DockPanel>
         </Border>
 
-        <!-- Saved History Panel -->
-        <Expander Grid.Row="7" Header="Saved Scripts History" Foreground="{StaticResource TextBrush}"
-                  BorderBrush="{StaticResource BorderBrush}" Background="{StaticResource CardBrush}"
-                  Margin="0,12,0,0" Padding="4" IsExpanded="False">
-            <StackPanel Margin="0,8,0,0">
-                <TextBlock Text="{Binding PinnedScriptDisplayText}" Foreground="{StaticResource MutedBrush}"
-                           FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                <ListBox ItemsSource="{Binding SavedHistory}" Background="Transparent" BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="250">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{StaticResource SoftCardBrush}" CornerRadius="10" Margin="0,3" Padding="10"
-                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap"
-                                               VerticalAlignment="Center" ToolTip="{Binding ToolTipText}"/>
-                                    <Button Grid.Column="1" Content="📌 Pin"
-                                            Command="{Binding DataContext.PinScriptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip="Pin this script to the &quot;Run Pinned&quot; ribbon button (AI Assistant panel) for one-click, no-code re-runs."
-                                            IsEnabled="{Binding DataContext.IsBusy, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"
-                                            Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,0,0" Padding="10,4" FontSize="11"/>
-                                    <Button Grid.Column="2" Content="▶ Run"
-                                            Command="{Binding DataContext.RunFromHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            IsEnabled="{Binding DataContext.IsBusy, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"
-                                            Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0" Padding="10,4" FontSize="11"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </StackPanel>
-        </Expander>
-
         <!-- Live Console: type one line of C#, press Enter, it runs immediately and variables stay
              alive for the next line - the actual "interactive shell" (same idea as RevitPythonShell's
-             IronPython console), sitting next to the AI Generate/Run workflow above. -->
-        <Expander Grid.Row="8" Header="Live Console (Interactive Shell)" Foreground="{StaticResource TextBrush}"
+             IronPython console), sitting next to the AI Generate/Run workflow above.
+             (Saved Scripts History moved to its own "Saved Scripts" ribbon button/window per
+             Ajmal's 2026-07-21 request - see ShowSavedScriptsCommand/SavedScriptsWindow.) -->
+        <Expander Grid.Row="7" Header="Live Console (Interactive Shell)" Foreground="{StaticResource TextBrush}"
                   BorderBrush="{StaticResource BorderBrush}" Background="{StaticResource CardBrush}"
                   Margin="0,12,0,0" Padding="4" IsExpanded="False">
             <StackPanel Margin="0,8,0,0">
