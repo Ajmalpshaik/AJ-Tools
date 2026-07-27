@@ -1,14 +1,14 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Pipe Sizing
  * File Name     : PipeSizingCsvExporter.cs
  * Purpose       : Exports the Pipe Sizing fixture rows and summary values to CSV.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,8 @@
  * - Uses proper CSV escaping while keeping the same column order and summary rows.
  *
  * Changelog     :
+ * v1.0.1 (2026-07-28) - Audit: removed the "Report saved successfully." popup (house rule: silent
+ *                       success - the user picked the save path themselves). Failure popup kept.
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  *
  * License       : All Rights Reserved
@@ -85,8 +87,9 @@ namespace AJTools.Services.PipeSizing
                 lines.Add(ToCsvLine("Velocity", velocity));
                 lines.Add(ToCsvLine("Friction Loss", friction));
 
+                // Silent success (house rule: no success popups) - the user picked the save
+                // location themselves in the dialog one moment earlier.
                 File.WriteAllLines(dialog.FileName, lines, Encoding.UTF8);
-                MessageBox.Show("Report saved successfully.", DialogTitle, MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {

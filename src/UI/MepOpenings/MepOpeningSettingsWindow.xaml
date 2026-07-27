@@ -398,6 +398,7 @@ Repo         : AJ-Tools
                         Content="Close"
                         Width="110"
                         Style="{StaticResource SecondaryButton}"
+                        IsCancel="True"
                         Click="BtnClose_Click"/>
             </Grid>
         </Grid>
