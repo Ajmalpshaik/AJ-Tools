@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Get Element ID from Selection (Linked ID Viewer)
  * File Name     : CmdLinkedElementIdViewer.cs
@@ -6,10 +6,10 @@
  *                 Element ID together with which model it came from.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2025-12-07
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -29,6 +29,7 @@
  * Changelog     :
  * v1.0.1 (2025-12-10) - Host/linked pick fallback and clean link naming.
  * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; version-safe ElementId display. Behaviour unchanged.
+ * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -36,6 +37,7 @@
 #endregion
 
 using System;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -113,6 +115,11 @@ namespace AJTools.Commands
                 var window = new LinkedIdViewerWindow(
                     ElementIdHelper.ToReportString(elementIdToShow),
                     modelSource);
+
+                new WindowInteropHelper(window)
+                {
+                    Owner = commandData.Application.MainWindowHandle
+                };
 
                 window.ShowDialog();
 

@@ -411,6 +411,7 @@ Repo         : AJ-Tools
                     Content="Close"
                     Style="{StaticResource DangerButton}"
                     Width="100"
+                    IsCancel="True"
                     Click="BtnClose_Click"/>
         </Grid>
     </Grid>

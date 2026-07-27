@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : C#
  * File Name     : ShowSavedScriptsCommand.cs
@@ -9,10 +9,10 @@
  *                 that works whether or not the C# pane is open.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -43,6 +43,7 @@
  *                       moved into the dropdown of the Run Pinned split button (RibbonManager.cs
  *                       v1.11.0) instead of being its own top-level button.
  * v1.0.0 (2026-07-21) - Initial release.
+ * v1.2.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -52,6 +53,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -69,6 +71,11 @@ namespace AJTools.AiShell.Commands
         {
             var config = AiShellConfig.Load();
             var window = new SavedScriptsWindow(config, commandData);
+            new WindowInteropHelper(window)
+            {
+                Owner = commandData.Application.MainWindowHandle
+            };
+
             window.ShowDialog();
             return Result.Succeeded;
         }

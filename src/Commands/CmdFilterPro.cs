@@ -1,14 +1,14 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Filter Pro
  * File Name     : CmdFilterPro.cs
  * Purpose       : Entry point command — validates context and launches the Filter Pro window.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-29
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -28,6 +28,7 @@
  *
  * Changelog     :
  * v1.0.0 (2025-12-10) - Initial release.
+ * v1.0.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -35,6 +36,7 @@
 #endregion
 
 using System;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -65,6 +67,11 @@ namespace AJTools.Commands
                     return Result.Cancelled;
 
                 var window = new FilterProWindow(doc, activeView);
+                new WindowInteropHelper(window)
+                {
+                    Owner = commandData.Application.MainWindowHandle
+                };
+
                 window.ShowDialog();
 
                 return window.HasChanges ? Result.Succeeded : Result.Cancelled;

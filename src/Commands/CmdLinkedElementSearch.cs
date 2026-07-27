@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Find Element by Element ID (Linked Element Search)
  * File Name     : CmdLinkedElementSearch.cs
@@ -6,10 +6,10 @@
  *                 and zooms the active view to it.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2025-12-07
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -28,6 +28,7 @@
  * Changelog     :
  * v1.0.1 (2025-12-10) - Host and linked search with zoom-to-result.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Search behaviour unchanged.
+ * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -37,6 +38,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -88,6 +90,11 @@ namespace AJTools.Commands
                     .ToList();
 
                 var searchWindow = new LinkedSearchWindow(uiDoc, doc, activeView, linkInstances);
+                new WindowInteropHelper(searchWindow)
+                {
+                    Owner = commandData.Application.MainWindowHandle
+                };
+
                 searchWindow.ShowDialog();
 
                 return Result.Succeeded;

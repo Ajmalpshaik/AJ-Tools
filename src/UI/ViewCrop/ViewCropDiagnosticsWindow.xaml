@@ -29,6 +29,8 @@ Repo         : AJ-Tools
         MinWidth="450"
         MinHeight="500"
         WindowStartupLocation="CenterScreen"
+        MaxWidth="{x:Static SystemParameters.MaximizedPrimaryScreenWidth}"
+        MaxHeight="{x:Static SystemParameters.MaximizedPrimaryScreenHeight}"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"

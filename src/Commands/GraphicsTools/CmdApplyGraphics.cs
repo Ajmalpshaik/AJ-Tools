@@ -1,14 +1,14 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Apply Graphics
  * File Name     : CmdApplyGraphics.cs
  * Purpose       : Applies the same graphics overrides to selected elements or to their categories from one combined settings window.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-05-07
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,7 @@
  * - A single settings window instance is enforced to prevent duplicate dialogs.
  *
  * Changelog     :
+ * v1.5.1 (2026-07-28) - Audit: settings window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
  * v1.4.4 (2026-05-09) - Uses the reference-style split apply buttons and prevents duplicate settings windows.
  *
@@ -36,6 +37,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -105,6 +107,10 @@ namespace AJTools.Commands.GraphicsTools
                         "Apply Graphics Settings",
                         preselectedCategories,
                         preselectedCategories.Select(category => category.Id).ToList());
+                    new WindowInteropHelper(settingsWindow)
+                    {
+                        Owner = commandData.Application.MainWindowHandle
+                    };
                     settingsAccepted = settingsWindow.ShowDialog();
                 }
                 finally

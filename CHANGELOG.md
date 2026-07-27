@@ -5,6 +5,21 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.25.6] - 2026-07-28
+
+- **Fixed**: Full UI audit pass over every window in the suite. Twelve tool windows (Duct Standards,
+  Filter Pro, Linked ID Viewer, Linked Search, Pipe Sizing, both Purge tools, Revision Cloud
+  Settings, Transfer View Templates, Apply Graphics, Shared Param to Family Param, Saved Scripts)
+  were shown without a Revit owner and could drop behind the Revit window - all now properly owned.
+  Five borderless windows (Graphics Override and the four View Crop windows) could maximize over the
+  Windows taskbar - now capped to the working area. Esc now closes MEP Opening Settings, Pipe Sizing
+  and the About window.
+- **Removed**: Pipe Sizing CSV export's "Report saved successfully." popup (silent success is the
+  house style; the failure message stays).
+- **Checked clean**: every XAML resource reference resolves, no duplicate resource keys, no layout
+  grid overflows, credit footer present in every window, no duplicate ribbon button IDs, all ribbon
+  icons present, no empty tooltips.
+
 ## [1.25.5] - 2026-07-28
 
 - **Changed**: Smart MEP Tagging Settings rebuilt as a themed WPF window - the last WinForms dialog in

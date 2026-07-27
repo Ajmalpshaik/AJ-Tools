@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Purge Unplaced Views (shared runner)
  * File Name     : CmdPurgeUnplacedViews.cs
@@ -6,10 +6,10 @@
  *                 validates the project, opens the preview window for the chosen mode, and reports the result.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-05-11
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -28,12 +28,14 @@
  * Changelog     :
  * v1.0.0 (2026-05-11) - Converted from interactive Python shell script.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block. Purge behaviour unchanged.
+ * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
  */
 #endregion
 
+using System.Windows.Interop;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models.Purge;
@@ -72,6 +74,11 @@ namespace AJTools.Commands
                     : ElementId.InvalidElementId;
 
                 var window = new PurgeUnplacedViewsWindow(doc, activeViewId, mode);
+                new WindowInteropHelper(window)
+                {
+                    Owner = commandData.Application.MainWindowHandle
+                };
+
                 window.ShowDialog();
 
                 return window.OperationWasRun ? Result.Succeeded : Result.Cancelled;

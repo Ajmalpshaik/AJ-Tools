@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Purge Family Parameters (Purge Unused Family Parameters)
  * File Name     : CmdPurgeUnusedFamilyParameters.cs
@@ -6,10 +6,10 @@
  *                 parameters, classifies safe-to-remove candidates, and deletes the ones the user selects.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-05-11
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -29,12 +29,14 @@
  * Changelog     :
  * v1.0.0 (2026-05-11) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Purge behaviour unchanged.
+ * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
  */
 #endregion
 
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -67,6 +69,11 @@ namespace AJTools.Commands
                 }
 
                 var window = new PurgeUnusedFamilyParametersWindow(doc);
+                new WindowInteropHelper(window)
+                {
+                    Owner = commandData.Application.MainWindowHandle
+                };
+
                 window.ShowDialog();
                 return Result.Succeeded;
             }

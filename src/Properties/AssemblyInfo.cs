@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.25.5
+ * Version       : 1.25.6
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-07-28
@@ -24,6 +24,25 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.25.6 (2026-07-28) - Full-force UI audit pass (mechanical checks over all 33 XAML + every window
+ *                       call site), behaviour-preserving. VERIFIED CLEAN: every StaticResource/
+ *                       DynamicResource reference resolves in its window's actual merged dictionaries,
+ *                       no duplicate resource keys, no root-attribute StaticResource (the startup-crash
+ *                       class), no Grid.Row/Column overflow, credit footer present everywhere, no
+ *                       duplicate ribbon button IDs, all 34 ribbon icons exist on disk, no empty
+ *                       tooltips, no live Application.Current. FIXED: (1) 12 modal windows were shown
+ *                       without a Revit owner and could drop behind the Revit window - Duct Standards,
+ *                       Filter Pro, Linked ID Viewer, Linked Search, Pipe Sizing, both Purge tools,
+ *                       Revision Cloud Settings, Transfer View Templates, Apply Graphics, Shared Param
+ *                       to Family Param, Saved Scripts - all now owned via WindowInteropHelper;
+ *                       (2) 5 borderless windows (Graphics Override + 4 View Crop) could maximize OVER
+ *                       the Windows taskbar - given the same MaxWidth/MaxHeight caps AboutWindow got in
+ *                       v1.19.1; (3) Esc now closes MEP Opening Settings, Pipe Sizing and About
+ *                       (IsCancel on their Close buttons); (4) removed Pipe Sizing CSV export's
+ *                       "Report saved successfully." popup per the no-success-popup rule (failure
+ *                       popup kept). Left alone, noted as accepted: AiShell's two MessageBox confirm
+ *                       dialogs (functioning confirmations, AiShell styling debt). Release (2020)
+ *                       rebuild 0 errors / 0 warnings; R25 0 errors. Not click-tested in Revit.
  * v1.25.5 (2026-07-28) - Smart MEP Tagging Settings v2.0.0, UI only - the LAST WinForms dialog in the
  *                       suite is gone; every AJ Tools window is now themed WPF. Same treatment as
  *                       v1.25.2/v1.25.4: live inline validation (unticking every category now disables
@@ -548,5 +567,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.25.5.0")]
-[assembly: AssemblyFileVersion("1.25.5.0")]
+[assembly: AssemblyVersion("1.25.6.0")]
+[assembly: AssemblyFileVersion("1.25.6.0")]
