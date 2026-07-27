@@ -1407,7 +1407,7 @@ Repo          : AJ-Tools
                             Style="{StaticResource FooterSecondaryButtonStyle}"
                             Click="OnReset"/>
                     <TextBlock Grid.Column="1"
-                               Text="Copyright © 2026 Ajmal P.S. All Rights Reserved."
+                               Text="Created &amp; All Rights Reserved @ Ajmal P.S."
                                Foreground="{StaticResource TextDisabledBrush}"
                                FontSize="10"
                                VerticalAlignment="Center"

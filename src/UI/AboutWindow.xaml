@@ -488,7 +488,7 @@
                                    Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="11"
                                    FontWeight="SemiBold"
-                                   Text="(c) 2026 AJ Tools"/>
+                                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."/>
 
                         <TextBlock Grid.Column="1"
                                    VerticalAlignment="Center"

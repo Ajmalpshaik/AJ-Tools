@@ -6,10 +6,10 @@
  *                 for instant visual identification of a selection against the rest of the model.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-07-19
- * Last Updated  : 2026-07-19
+ * Last Updated  : 2026-07-26
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,24 +30,34 @@
  *   that belong to a different open view) - only the subset actually in the active view gets colored
  *   red; if NONE of the selection is in the active view, that's reported as an error instead of silently
  *   doing nothing. See knowledge/live-model/views.md for the live-verified root cause.
- * - AddHostedInsulation() is deliberately NOT restricted to Ducts/Pipes - it calls
- *   Autodesk.Revit.DB.InsulationLiningBase.GetInsulationIds(document, elemId) on every highlighted
+ * - ExpandInsulationAndLining() is deliberately NOT restricted to Ducts/Pipes - it calls
+ *   Autodesk.Revit.DB.InsulationLiningBase.GetInsulationIds / GetLiningIds on every highlighted
  *   element regardless of category, and just catches/skips the ArgumentException Revit itself throws
- *   for a category that can't host insulation ("This id does not represent a valid host for
+ *   for a category that can't host insulation/lining ("This id does not represent a valid host for
  *   insulation"). Confirmed via Autodesk's own API docs (DuctInsulation/PipeInsulation class remarks:
  *   "insulation applied to the outside of a given duct/pipe, FITTING, or ACCESSORY/content") that Duct
  *   Accessories and Pipe Accessories are official, documented insulation hosts alongside ducts, pipes,
  *   and fittings - not just an edge case - so this generic per-element try/catch is the correct design,
  *   not a gap to hardcode a category list for. If Revit ever exposes insulation on Mechanical Equipment
  *   too, this code already handles it with zero changes - don't "simplify" this to a category filter.
- * - Only covers the host-selected -> insulation-follows direction; selecting the insulation directly
- *   does not currently pull in its host duct/pipe (not asked for; same technique would cover it via the
- *   instance property InsulationLiningBase.HostElementId if ever needed). Lining (GetLiningIds) is a
- *   separate, unaddressed concept - not touched, only insulation was reported.
+ * - Covers BOTH directions since v1.2.0: host-selected -> its insulation AND lining follow
+ *   (GetInsulationIds + GetLiningIds, same shape), and insulation/lining-selected -> its host follows
+ *   (instance property InsulationLiningBase.HostElementId), with the pulled-in host then contributing
+ *   its own remaining wraps too. API members verified against the real installed RevitAPI.dll on
+ *   2020/2024 (full signatures identical) and 2027 (metadata name scan) on 2026-07-26 - not from the
+ *   NuGet reference package alone. Note there is no PipeLining class in any supported version - lining
+ *   is a duct-side concept only; the generic try/catch absorbs that difference with no special casing.
  * - Normal success is silent, matching the rest of the Graphics tool family.
  * - ESC during a pick cancels silently (no error dialog).
  *
  * Changelog     :
+ * v1.2.0 (2026-07-26) - Completed the insulation story flagged in v1.1.0's scope note, both halves:
+ *                       (1) selecting insulation/lining directly now pulls its HOST into the red set
+ *                       (InsulationLiningBase.HostElementId), so the duct/pipe under a picked wrap
+ *                       highlights too; (2) hosts now also pull in their LINING via GetLiningIds
+ *                       alongside the existing GetInsulationIds - duct lining was previously left
+ *                       gray. AddHostedInsulation renamed to ExpandInsulationAndLining; same
+ *                       category-agnostic try/catch design as before, applied per lookup.
  * v1.1.0 (2026-07-19) - Fix: selecting a duct/pipe with insulation left the insulation gray (a separate
  *                       hosted ElementId, not part of the raw selection). Added AddHostedInsulation() -
  *                       calls InsulationLiningBase.GetInsulationIds per highlighted host element and
@@ -133,7 +143,7 @@ namespace AJTools.Commands.GraphicsTools
                     return Result.Cancelled;
                 }
 
-                highlightIds = AddHostedInsulation(context.Document, highlightIds, elementsInView);
+                highlightIds = ExpandInsulationAndLining(context.Document, highlightIds, elementsInView);
 
                 var highlightIdSet = new HashSet<int>(highlightIds.Select(id => ElementIdHelper.GetIntegerValue(id)));
                 List<ElementId> restIds = elementsInView
@@ -183,43 +193,86 @@ namespace AJTools.Commands.GraphicsTools
             }
         }
 
-        private static List<ElementId> AddHostedInsulation(
+        private static List<ElementId> ExpandInsulationAndLining(
             Document doc,
-            List<ElementId> hostIds,
+            List<ElementId> selectedIds,
             ICollection<ElementId> elementsInView)
         {
             var viewKeys = new HashSet<int>(elementsInView.Select(id => ElementIdHelper.GetIntegerValue(id)));
-            var expandedKeys = new HashSet<int>(hostIds.Select(id => ElementIdHelper.GetIntegerValue(id)));
-            var expanded = new List<ElementId>(hostIds);
+            var expandedKeys = new HashSet<int>(selectedIds.Select(id => ElementIdHelper.GetIntegerValue(id)));
+            var expanded = new List<ElementId>(selectedIds);
 
-            foreach (ElementId hostId in hostIds)
+            // Direction 1: a selected insulation/lining element pulls in its host, so picking the wrap
+            // highlights the duct/pipe underneath it too (DuctInsulation, DuctLining, PipeInsulation all
+            // derive from InsulationLiningBase - verified on installed RevitAPI.dll 2020/2024, names
+            // confirmed present in 2027; there is no PipeLining class in any of them).
+            foreach (ElementId selectedId in selectedIds)
             {
-                ICollection<ElementId> insulationIds;
-                try
-                {
-                    insulationIds = InsulationLiningBase.GetInsulationIds(doc, hostId);
-                }
-                catch
-                {
-                    continue; // hostId's category doesn't support insulation - nothing to add.
-                }
-
-                if (insulationIds == null)
+                var wrap = doc.GetElement(selectedId) as InsulationLiningBase;
+                if (wrap == null)
                 {
                     continue;
                 }
 
-                foreach (ElementId insulationId in insulationIds)
+                ElementId hostId = wrap.HostElementId;
+                if (hostId == null || hostId == ElementId.InvalidElementId)
                 {
-                    int key = ElementIdHelper.GetIntegerValue(insulationId);
-                    if (viewKeys.Contains(key) && expandedKeys.Add(key))
-                    {
-                        expanded.Add(insulationId);
-                    }
+                    continue;
+                }
+
+                int key = ElementIdHelper.GetIntegerValue(hostId);
+                if (viewKeys.Contains(key) && expandedKeys.Add(key))
+                {
+                    expanded.Add(hostId);
                 }
             }
 
+            // Direction 2: every element in the red set (including hosts just added above) pulls in its
+            // hosted insulation AND lining. Index-capped loop: wraps appended inside the loop can't host
+            // anything themselves, so they never need a pass of their own.
+            int hostCandidateCount = expanded.Count;
+            for (int i = 0; i < hostCandidateCount; i++)
+            {
+                AddHostedWrapIds(InsulationLiningBase.GetInsulationIds, doc, expanded[i], viewKeys, expandedKeys, expanded);
+                AddHostedWrapIds(InsulationLiningBase.GetLiningIds, doc, expanded[i], viewKeys, expandedKeys, expanded);
+            }
+
             return expanded;
+        }
+
+        private static void AddHostedWrapIds(
+            Func<Document, ElementId, ICollection<ElementId>> getWrapIds,
+            Document doc,
+            ElementId hostId,
+            HashSet<int> viewKeys,
+            HashSet<int> expandedKeys,
+            List<ElementId> expanded)
+        {
+            ICollection<ElementId> wrapIds;
+            try
+            {
+                // Deliberately category-agnostic (see Notes): Revit itself throws ArgumentException for
+                // an id that can't host insulation/lining - catching per element IS the category filter.
+                wrapIds = getWrapIds(doc, hostId);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (wrapIds == null)
+            {
+                return;
+            }
+
+            foreach (ElementId wrapId in wrapIds)
+            {
+                int key = ElementIdHelper.GetIntegerValue(wrapId);
+                if (viewKeys.Contains(key) && expandedKeys.Add(key))
+                {
+                    expanded.Add(wrapId);
+                }
+            }
         }
 
         private static OverrideGraphicSettings BuildSolidOverride(Document doc, GraphicsColorValue color)

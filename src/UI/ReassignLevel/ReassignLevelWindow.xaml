@@ -1,0 +1,165 @@
+<!--
+  Tool Name: Reassign Reference Level - Level Picker
+  Description: Choose the FROM and TO level for the whole-project level reassignment.
+  Author: Ajmal P.S.
+  Version: 1.0.0
+  Last Updated: 2026-07-28
+  Revit Version: 2020 - latest
+  Dependencies: AJTools.UI.ModernStyles, Autodesk.Revit.DB (Level)
+-->
+<Window x:Class="AJTools.UI.ReassignLevel.ReassignLevelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Reassign Level - AJ Tools"
+        Width="520"
+        Height="500"
+        MinWidth="470"
+        MinHeight="470"
+        ResizeMode="CanResize"
+        SizeToContent="Manual"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BackgroundDark}"
+        Foreground="{DynamicResource TextPrimary}"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../ModernStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Footer -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="11"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,8"/>
+
+        <Grid Margin="10">
+            <Border Style="{StaticResource PanelCard}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                        <TextBlock Text="Reassign Reference Level"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock Text="Moves supported MEP elements from one level to another across the whole project. Elements stay exactly where they are."
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <!-- FROM -->
+                    <StackPanel Grid.Row="1">
+                        <TextBlock Text="FROM level"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{StaticResource AccentDanger}"
+                                   Margin="0,0,0,5"/>
+                        <ComboBox x:Name="FromCombo"
+                                  Height="34"
+                                  HorizontalAlignment="Stretch"
+                                  SelectionChanged="OnLevelChanged"
+                                  ToolTip="Elements currently referencing this level."/>
+                    </StackPanel>
+
+                    <!-- Swap -->
+                    <Button Grid.Row="2"
+                            x:Name="SwapButton"
+                            Content="Swap"
+                            Style="{StaticResource CompactSecondaryButton}"
+                            HorizontalAlignment="Center"
+                            MinWidth="80"
+                            Margin="0,8,0,8"
+                            Click="OnSwap"
+                            ToolTip="Swap the FROM and TO levels."/>
+
+                    <!-- TO -->
+                    <StackPanel Grid.Row="3">
+                        <TextBlock Text="TO level"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextSuccess}"
+                                   Margin="0,0,0,5"/>
+                        <ComboBox x:Name="ToCombo"
+                                  Height="34"
+                                  HorizontalAlignment="Stretch"
+                                  SelectionChanged="OnLevelChanged"
+                                  ToolTip="The level those elements will reference instead."/>
+                    </StackPanel>
+
+                    <!-- Note -->
+                    <Border Grid.Row="4"
+                            Margin="0,14,0,0"
+                            Background="{StaticResource BackgroundMedium}"
+                            BorderBrush="{StaticResource BorderSoft}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,8">
+                        <StackPanel>
+                            <TextBlock Text="Before you run this"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="Applies to the whole project, not just the active view. Hosted family instances are skipped — their level follows the host. You will see the element count and can still cancel before anything changes."
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Inline validation message -->
+                    <TextBlock x:Name="ErrorText"
+                               Grid.Row="5"
+                               FontSize="12"
+                               Foreground="{StaticResource AccentDanger}"
+                               TextWrapping="Wrap"
+                               Margin="0,10,0,0"/>
+
+                    <!-- Buttons -->
+                    <Grid Grid.Row="7" Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="1"
+                                x:Name="RunButton"
+                                Content="Reassign Elements"
+                                Style="{StaticResource ModernButton}"
+                                MinWidth="150"
+                                Margin="0,0,8,0"
+                                IsDefault="True"
+                                Click="OnRun"/>
+
+                        <Button Grid.Column="2"
+                                Content="Cancel"
+                                Style="{StaticResource SecondaryButton}"
+                                MinWidth="104"
+                                IsCancel="True"
+                                Click="OnCancel"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

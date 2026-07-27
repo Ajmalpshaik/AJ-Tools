@@ -19,9 +19,9 @@ Repo         : AJ-Tools
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Opening Settings"
         Width="1120"
-        Height="800"
+        Height="824"
         MinWidth="980"
-        MinHeight="760"
+        MinHeight="784"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize"
         Background="{DynamicResource BackgroundDark}"
@@ -85,29 +85,16 @@ Repo         : AJ-Tools
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <DockPanel>
+        <!-- Footer -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="11"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,8"/>
 
-        <Border Grid.Row="0"
-                Background="{StaticResource BackgroundMedium}"
-                BorderBrush="{StaticResource BorderSoft}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="14"
-                Margin="0,0,0,12">
-            <StackPanel>
-                <TextBlock Text="Opening Settings" Style="{StaticResource TitleText}"/>
-                <TextBlock Text="Opening shape, cutout buffer, insulation, and merge distance"
-                           Style="{StaticResource SubtitleText}"
-                           Margin="0,2,0,0"/>
-            </StackPanel>
-        </Border>
-
-        <Grid Grid.Row="1">
+        <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -115,281 +102,304 @@ Repo         : AJ-Tools
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
-                    Style="{StaticResource PanelCard}"
+                    Background="{StaticResource BackgroundMedium}"
+                    BorderBrush="{StaticResource BorderSoft}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14"
                     Margin="0,0,0,12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Row="0"
-                                Grid.Column="0"
-                                Margin="0,0,24,16">
-                        <TextBlock Text="Opening Method"
-                                   Style="{StaticResource HeaderLabel}"/>
-                        <ComboBox ItemsSource="{Binding OpeningModeChoices}"
-                                  SelectedValuePath="Mode"
-                                  SelectedValue="{Binding CreationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  MinHeight="32">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayName}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="0"
-                                Grid.Column="1"
-                                Margin="0,0,0,16">
-                        <TextBlock Text="Selection Method"
-                                   Style="{StaticResource HeaderLabel}"/>
-                        <ComboBox ItemsSource="{Binding OpeningSelectionMethodChoices}"
-                                  SelectedValuePath="Method"
-                                  SelectedValue="{Binding SelectionMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  MinHeight="32">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayName}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,24,0">
-                        <TextBlock Text="Opening Sources"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   FontSize="15"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,10"/>
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton Content="Current Model"
-                                         GroupName="OpeningSourceModelScope"
-                                         IsChecked="{Binding UseCurrentModelSources, Mode=TwoWay}"
-                                         Foreground="{StaticResource TextPrimary}"
-                                         Style="{StaticResource ModernRadioButton}"
-                                         Margin="0,0,22,0"/>
-                            <RadioButton Content="Linked Models"
-                                         GroupName="OpeningSourceModelScope"
-                                         IsChecked="{Binding UseLinkedModelSources, Mode=TwoWay}"
-                                         Foreground="{StaticResource TextPrimary}"
-                                         Style="{StaticResource ModernRadioButton}"/>
-                        </StackPanel>
-                        <TextBlock Text="Linked Source Model"
-                                   Style="{StaticResource HeaderLabel}"
-                                   Margin="0,14,0,6"/>
-                        <ComboBox ItemsSource="{Binding OpeningLinkChoices}"
-                                  SelectedValuePath="UniqueId"
-                                  SelectedValue="{Binding SelectedSourceLinkUniqueId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEnabled="{Binding IsSourceLinkPickerEnabled}"
-                                  MinHeight="32">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayName}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="1" Grid.Column="1">
-                        <TextBlock Text="Opening Hosts"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   FontSize="15"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,10"/>
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton Content="Current Model"
-                                         GroupName="OpeningHostModelScope"
-                                         IsChecked="{Binding UseCurrentModelHosts, Mode=TwoWay}"
-                                         Foreground="{StaticResource TextPrimary}"
-                                         Style="{StaticResource ModernRadioButton}"
-                                         Margin="0,0,22,0"/>
-                            <RadioButton Content="Linked Models"
-                                         GroupName="OpeningHostModelScope"
-                                         IsChecked="{Binding UseLinkedModelHosts, Mode=TwoWay}"
-                                         Foreground="{StaticResource TextPrimary}"
-                                         Style="{StaticResource ModernRadioButton}"/>
-                        </StackPanel>
-                        <TextBlock Text="Linked Host Model"
-                                   Style="{StaticResource HeaderLabel}"
-                                   Margin="0,14,0,6"/>
-                        <ComboBox ItemsSource="{Binding OpeningLinkChoices}"
-                                  SelectedValuePath="UniqueId"
-                                  SelectedValue="{Binding SelectedHostLinkUniqueId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEnabled="{Binding IsHostLinkPickerEnabled}"
-                                  MinHeight="32">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayName}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
-                </Grid>
+                <StackPanel>
+                    <TextBlock Text="Opening Settings" Style="{StaticResource TitleText}"/>
+                    <TextBlock Text="Opening shape, cutout buffer, insulation, and merge distance"
+                               Style="{StaticResource SubtitleText}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
             </Border>
 
-            <Border Grid.Row="1"
-                    Style="{StaticResource PanelCard}"
-                    MinHeight="210">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0"
-                               Text="Element Rules"
-                               Foreground="{StaticResource TextPrimary}"
-                               FontSize="16"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,10"/>
+                <Border Grid.Row="0"
+                        Style="{StaticResource PanelCard}"
+                        Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <DataGrid Grid.Row="1"
-                              x:Name="RulesGrid"
-                              Style="{StaticResource OpeningDataGrid}"
-                              ItemsSource="{Binding Rules}"
-                              MinHeight="160"
-                              RowHeight="30"
-                              ColumnHeaderHeight="32"
-                              VerticalScrollBarVisibility="Auto">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Use" Width="0.55*">
-                                <DataGridTemplateColumn.CellTemplate>
+                        <StackPanel Grid.Row="0"
+                                    Grid.Column="0"
+                                    Margin="0,0,24,16">
+                            <TextBlock Text="Opening Method"
+                                       Style="{StaticResource HeaderLabel}"/>
+                            <ComboBox ItemsSource="{Binding OpeningModeChoices}"
+                                      SelectedValuePath="Mode"
+                                      SelectedValue="{Binding CreationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      MinHeight="32">
+                                <ComboBox.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox IsChecked="{Binding IsIncluded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center"
-                                                  Style="{StaticResource ModernCheckBox}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
                                     </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
 
-                            <DataGridTextColumn Header="Element"
-                                                Binding="{Binding ElementName}"
-                                                Width="1.35*"
-                                                IsReadOnly="True"/>
-
-                            <DataGridTemplateColumn Header="Shape" Width="1.35*">
-                                <DataGridTemplateColumn.CellTemplate>
+                        <StackPanel Grid.Row="0"
+                                    Grid.Column="1"
+                                    Margin="0,0,0,16">
+                            <TextBlock Text="Selection Method"
+                                       Style="{StaticResource HeaderLabel}"/>
+                            <ComboBox ItemsSource="{Binding OpeningSelectionMethodChoices}"
+                                      SelectedValuePath="Method"
+                                      SelectedValue="{Binding SelectionMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      MinHeight="32">
+                                <ComboBox.ItemTemplate>
                                     <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding ShapeChoices}"
-                                                  SelectedItem="{Binding Shape, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  IsEnabled="{Binding DataContext.IsShapeSelectionEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  MinHeight="28"
-                                                  Style="{StaticResource OpeningRuleComboBoxStyle}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
                                     </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
 
-                            <DataGridTextColumn Header="Cutout Buffer (mm)"
-                                                Binding="{Binding CutoutBufferMm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=0.##}"
-                                                Width="1.7*"/>
-
-                            <DataGridTemplateColumn Header="Vertical Family" Width="2.5*">
-                                <DataGridTemplateColumn.CellTemplate>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,24,0">
+                            <TextBlock Text="Opening Sources"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Content="Current Model"
+                                             GroupName="OpeningSourceModelScope"
+                                             IsChecked="{Binding UseCurrentModelSources, Mode=TwoWay}"
+                                             Foreground="{StaticResource TextPrimary}"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             Margin="0,0,22,0"/>
+                                <RadioButton Content="Linked Models"
+                                             GroupName="OpeningSourceModelScope"
+                                             IsChecked="{Binding UseLinkedModelSources, Mode=TwoWay}"
+                                             Foreground="{StaticResource TextPrimary}"
+                                             Style="{StaticResource ModernRadioButton}"/>
+                            </StackPanel>
+                            <TextBlock Text="Linked Source Model"
+                                       Style="{StaticResource HeaderLabel}"
+                                       Margin="0,14,0,6"/>
+                            <ComboBox ItemsSource="{Binding OpeningLinkChoices}"
+                                      SelectedValuePath="UniqueId"
+                                      SelectedValue="{Binding SelectedSourceLinkUniqueId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      IsEnabled="{Binding IsSourceLinkPickerEnabled}"
+                                      MinHeight="32">
+                                <ComboBox.ItemTemplate>
                                     <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding DataContext.OpeningFamilyChoices, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  SelectedItem="{Binding VerticalOpeningFamilyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  IsEnabled="{Binding DataContext.IsOpeningFamilyEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  MinHeight="28"
-                                                  Style="{StaticResource OpeningRuleComboBoxStyle}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
                                     </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
 
-                            <DataGridTemplateColumn Header="Horizontal Family" Width="2.5*">
-                                <DataGridTemplateColumn.CellTemplate>
+                        <StackPanel Grid.Row="1" Grid.Column="1">
+                            <TextBlock Text="Opening Hosts"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Content="Current Model"
+                                             GroupName="OpeningHostModelScope"
+                                             IsChecked="{Binding UseCurrentModelHosts, Mode=TwoWay}"
+                                             Foreground="{StaticResource TextPrimary}"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             Margin="0,0,22,0"/>
+                                <RadioButton Content="Linked Models"
+                                             GroupName="OpeningHostModelScope"
+                                             IsChecked="{Binding UseLinkedModelHosts, Mode=TwoWay}"
+                                             Foreground="{StaticResource TextPrimary}"
+                                             Style="{StaticResource ModernRadioButton}"/>
+                            </StackPanel>
+                            <TextBlock Text="Linked Host Model"
+                                       Style="{StaticResource HeaderLabel}"
+                                       Margin="0,14,0,6"/>
+                            <ComboBox ItemsSource="{Binding OpeningLinkChoices}"
+                                      SelectedValuePath="UniqueId"
+                                      SelectedValue="{Binding SelectedHostLinkUniqueId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      IsEnabled="{Binding IsHostLinkPickerEnabled}"
+                                      MinHeight="32">
+                                <ComboBox.ItemTemplate>
                                     <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding DataContext.OpeningFamilyChoices, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  SelectedItem="{Binding HorizontalOpeningFamilyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  IsEnabled="{Binding DataContext.IsOpeningFamilyEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  MinHeight="28"
-                                                  Style="{StaticResource OpeningRuleComboBoxStyle}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
                                     </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-            <Border Grid.Row="2"
-                    Style="{StaticResource PanelCard}"
-                    Margin="0,12,0,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="180"/>
-                        <ColumnDefinition Width="40"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                <Border Grid.Row="1"
+                        Style="{StaticResource PanelCard}"
+                        MinHeight="210">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,18,0">
-                        <TextBlock Text="Merge Distance" Style="{StaticResource HeaderLabel}"/>
-                        <TextBlock Text="Nearby selected crossings on the same host become one rectangular opening."
+                        <TextBlock Grid.Row="0"
+                                   Text="Element Rules"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,10"/>
+
+                        <DataGrid Grid.Row="1"
+                                  x:Name="RulesGrid"
+                                  Style="{StaticResource OpeningDataGrid}"
+                                  ItemsSource="{Binding Rules}"
+                                  MinHeight="160"
+                                  RowHeight="30"
+                                  ColumnHeaderHeight="32"
+                                  VerticalScrollBarVisibility="Auto">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Use" Width="0.55*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsIncluded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Style="{StaticResource ModernCheckBox}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTextColumn Header="Element"
+                                                    Binding="{Binding ElementName}"
+                                                    Width="1.35*"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTemplateColumn Header="Shape" Width="1.35*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding ShapeChoices}"
+                                                      SelectedItem="{Binding Shape, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding DataContext.IsShapeSelectionEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      MinHeight="28"
+                                                      Style="{StaticResource OpeningRuleComboBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTextColumn Header="Cutout Buffer (mm)"
+                                                    Binding="{Binding CutoutBufferMm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=0.##}"
+                                                    Width="1.7*"/>
+
+                                <DataGridTemplateColumn Header="Vertical Family" Width="2.5*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding DataContext.OpeningFamilyChoices, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding VerticalOpeningFamilyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding DataContext.IsOpeningFamilyEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      MinHeight="28"
+                                                      Style="{StaticResource OpeningRuleComboBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Horizontal Family" Width="2.5*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding DataContext.OpeningFamilyChoices, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding HorizontalOpeningFamilyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding DataContext.IsOpeningFamilyEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      MinHeight="28"
+                                                      Style="{StaticResource OpeningRuleComboBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2"
+                        Style="{StaticResource PanelCard}"
+                        Margin="0,12,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="40"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,18,0">
+                            <TextBlock Text="Merge Distance" Style="{StaticResource HeaderLabel}"/>
+                            <TextBlock Text="Nearby selected crossings on the same host become one rectangular opening."
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <TextBox Grid.Row="0"
+                                 Grid.Column="1"
+                                 x:Name="TxtMergeDistance"
+                                 Text="{Binding MergeDistanceText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 TextAlignment="Center"
+                                 VerticalContentAlignment="Center"
+                                 Style="{StaticResource ModernTextBox}"
+                                 MinHeight="34"/>
+                        <TextBlock Grid.Row="0"
+                                   Grid.Column="2"
+                                   Text="mm"
                                    Foreground="{StaticResource TextSecondary}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
+                                   VerticalAlignment="Center"
+                                   Margin="8,0,0,0"/>
 
-                    <TextBox Grid.Row="0"
-                             Grid.Column="1"
-                             x:Name="TxtMergeDistance"
-                             Text="{Binding MergeDistanceText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             TextAlignment="Center"
-                             VerticalContentAlignment="Center"
-                             Style="{StaticResource ModernTextBox}"
-                             MinHeight="34"/>
-                    <TextBlock Grid.Row="0"
-                               Grid.Column="2"
-                               Text="mm"
-                               Foreground="{StaticResource TextSecondary}"
-                               VerticalAlignment="Center"
-                               Margin="8,0,0,0"/>
+                        <CheckBox Grid.Row="1"
+                                  Grid.Column="0"
+                                  Grid.ColumnSpan="3"
+                                  x:Name="ChkIncludeInsulation"
+                                  Content="Include pipe and duct insulation when it exists"
+                                  IsChecked="{Binding IncludeInsulation, Mode=TwoWay}"
+                                  Foreground="{StaticResource TextPrimary}"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  Margin="0,14,0,0"/>
+                    </Grid>
+                </Border>
+            </Grid>
 
-                    <CheckBox Grid.Row="1"
-                              Grid.Column="0"
-                              Grid.ColumnSpan="3"
-                              x:Name="ChkIncludeInsulation"
-                              Content="Include pipe and duct insulation when it exists"
-                              IsChecked="{Binding IncludeInsulation, Mode=TwoWay}"
-                              Foreground="{StaticResource TextPrimary}"
-                              Style="{StaticResource ModernCheckBox}"
-                              Margin="0,14,0,0"/>
-                </Grid>
-            </Border>
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="TxtStatus"
+                           Grid.Column="0"
+                           Text=""
+                           Foreground="{StaticResource TextSecondary}"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Content="Save"
+                        Width="110"
+                        Style="{StaticResource ModernButton}"
+                        Margin="0,0,8,0"
+                        Click="BtnSave_Click"/>
+                <Button Grid.Column="2"
+                        Content="Close"
+                        Width="110"
+                        Style="{StaticResource SecondaryButton}"
+                        Click="BtnClose_Click"/>
+            </Grid>
         </Grid>
-
-        <Grid Grid.Row="2" Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock x:Name="TxtStatus"
-                       Grid.Column="0"
-                       Text=""
-                       Foreground="{StaticResource TextSecondary}"
-                       VerticalAlignment="Center"/>
-            <Button Grid.Column="1"
-                    Content="Save"
-                    Width="110"
-                    Style="{StaticResource ModernButton}"
-                    Margin="0,0,8,0"
-                    Click="BtnSave_Click"/>
-            <Button Grid.Column="2"
-                    Content="Close"
-                    Width="110"
-                    Style="{StaticResource SecondaryButton}"
-                    Click="BtnClose_Click"/>
-        </Grid>
-    </Grid>
+    </DockPanel>
 </Window>

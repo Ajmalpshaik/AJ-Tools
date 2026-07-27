@@ -55,7 +55,14 @@ Changelog :
     <!-- Outer layer paints the full pane edge-to-edge; a root element can't StaticResource its own
          Resources on its own attributes (WPF processes them before Resources is populated), so the
          background/foreground live one level down instead, on the first real child. -->
-    <Grid Background="{StaticResource SurfaceBrush}" TextElement.Foreground="{StaticResource TextBrush}">
+    <DockPanel Background="{StaticResource SurfaceBrush}" TextElement.Foreground="{StaticResource TextBrush}">
+    <!-- Footer -->
+    <TextBlock DockPanel.Dock="Bottom"
+               Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+               Foreground="{StaticResource MutedBrush}"
+               FontSize="11"
+               HorizontalAlignment="Center"
+               Margin="0,0,0,8"/>
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Top Bar -->
@@ -202,5 +209,5 @@ Changelog :
             </StackPanel>
         </Expander>
     </Grid>
-    </Grid>
+    </DockPanel>
 </UserControl>

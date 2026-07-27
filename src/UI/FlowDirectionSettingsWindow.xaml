@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   Tool Name: Duct Flow Annotations - Settings
   Description: Dialog for selecting the annotation family and spacing.
   Author: Ajmal P.S.
@@ -12,9 +12,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Duct Flow Settings"
         Width="500"
-        Height="390"
+        Height="414"
         MinWidth="420"
-        MinHeight="320"
+        MinHeight="344"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterScreen"
@@ -28,91 +28,101 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="8">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <Border Background="{StaticResource CardBackground}"
-                    BorderBrush="{StaticResource BorderSoft}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="10">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+    <DockPanel>
+        <!-- Footer -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="11"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,8"/>
 
-                <TextBlock Text="Duct Flow Settings"
-                           FontWeight="Bold"
-                           FontSize="14"
-                           Foreground="{StaticResource TextPrimary}"
-                           Grid.Row="0"
-                           Margin="0,0,0,8"/>
+        <Grid Margin="8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Border Background="{StaticResource CardBackground}"
+                        BorderBrush="{StaticResource BorderSoft}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="1" Margin="0,0,0,8">
-                    <TextBlock Text="Annotation Family"
-                               FontWeight="SemiBold"
-                               FontSize="12"
+                    <TextBlock Text="Duct Flow Settings"
+                               FontWeight="Bold"
+                               FontSize="14"
                                Foreground="{StaticResource TextPrimary}"
-                               Margin="0,0,0,4"/>
-                    <ComboBox x:Name="FamilyCombo"
-                              Height="34"
-                              HorizontalAlignment="Stretch"/>
-                </StackPanel>
+                               Grid.Row="0"
+                               Margin="0,0,0,8"/>
 
-                <StackPanel Grid.Row="2" Margin="0,0,0,8">
-                    <TextBlock Text="Spacing"
-                               FontWeight="SemiBold"
-                               FontSize="12"
-                               Foreground="{StaticResource TextPrimary}"
-                               Margin="0,0,0,4"/>
-                    <Grid>
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <TextBlock Text="Annotation Family"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   Margin="0,0,0,4"/>
+                        <ComboBox x:Name="FamilyCombo"
+                                  Height="34"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,0,0,8">
+                        <TextBlock Text="Spacing"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   Margin="0,0,0,4"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="SpacingBox"
+                                     Grid.Column="0"
+                                     Style="{StaticResource ModernTextBox}"/>
+                            <TextBlock x:Name="SpacingUnitText"
+                                       Grid.Column="1"
+                                       Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource TextSecondary}"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <TextBlock x:Name="ErrorText"
+                               Grid.Row="3"
+                               Foreground="{StaticResource AccentDanger}"
+                               Margin="0,0,0,8"/>
+
+                    <Grid Grid.Row="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="SpacingBox"
-                                 Grid.Column="0"
-                                 Style="{StaticResource ModernTextBox}"/>
-                        <TextBlock x:Name="SpacingUnitText"
-                                   Grid.Column="1"
-                                   Margin="8,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondary}"/>
+                        <Button Grid.Column="1"
+                                Content="Start"
+                                Style="{StaticResource ModernButton}"
+                                Click="OnStart"
+                                IsDefault="True"
+                                MinWidth="110"
+                                Margin="0,0,8,0"/>
+                        <Button Grid.Column="2"
+                                Content="Cancel"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="OnCancel"
+                                IsCancel="True"
+                                MinWidth="110"/>
                     </Grid>
-                </StackPanel>
-
-                <TextBlock x:Name="ErrorText"
-                           Grid.Row="3"
-                           Foreground="{StaticResource AccentDanger}"
-                           Margin="0,0,0,8"/>
-
-                <Grid Grid.Row="4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="1"
-                            Content="Start"
-                            Style="{StaticResource ModernButton}"
-                            Click="OnStart"
-                            IsDefault="True"
-                            MinWidth="110"
-                            Margin="0,0,8,0"/>
-                    <Button Grid.Column="2"
-                            Content="Cancel"
-                            Style="{StaticResource SecondaryButton}"
-                            Click="OnCancel"
-                            IsCancel="True"
-                            MinWidth="110"/>
                 </Grid>
-            </Grid>
-            </Border>
-        </ScrollViewer>
-    </Grid>
+                </Border>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
 </Window>
 

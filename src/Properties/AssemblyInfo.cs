@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.25.0
+ * Version       : 1.25.5
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-25
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,76 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.25.5 (2026-07-28) - Smart MEP Tagging Settings v2.0.0, UI only - the LAST WinForms dialog in the
+ *                       suite is gone; every AJ Tools window is now themed WPF. Same treatment as
+ *                       v1.25.2/v1.25.4: live inline validation (unticking every category now disables
+ *                       Save with a message instead of closing the dialog, erroring and cancelling the
+ *                       command), priority is a fixed-choice dropdown so an invalid value is impossible
+ *                       by construction, window owned by the Revit main window, credit footer standard.
+ *                       Added Tag all / Tag none buttons. Dropped the "Settings saved." success popup
+ *                       per the house rule. Saved-state shape and the offset carry-over logic unchanged.
+ *                       R25 CA1416 count fell 490 -> 274 (all 216 of this file's WinForms warnings
+ *                       gone); every remaining warning now sits in AiShell/AvalonEdit-era files.
+ *                       Release (2020) rebuild 0 errors / 0 warnings. Not click-tested in Revit.
+ * v1.25.4 (2026-07-28) - Reassign Reference Level v1.3.0, UI only - the reassignment algorithm in
+ *                       ReassignLevelService is untouched. The WinForms level prompt was replaced by
+ *                       ReassignLevelWindow (themed WPF). Fixed: (1) picking the same level in both
+ *                       boxes closed the dialog, showed an error popup and cancelled the command, so
+ *                       the tool had to be restarted from the ribbon - now caught live inline with Run
+ *                       disabled; (2) the "Reassign Elements" button overlapped Cancel by 15 px
+ *                       (carried over from v1.25.3, now moot - the WinForms form is gone); (3) no owner
+ *                       window, so the dialog could drop behind Revit; (4) the intro text sat in a fixed
+ *                       460x225 form with a fixed 430x32 label and could clip at larger Windows text
+ *                       scaling - now wraps in a resizable window. Added: a Swap button, and an up-front
+ *                       note that the scope is the WHOLE project and that hosted elements are skipped
+ *                       (previously only discoverable from the report after the run). The bulk-change
+ *                       confirmation with the element count is unchanged and still fires before any
+ *                       edit. Side effect: R25's CA1416 count fell 682 -> 490, since all 192 of
+ *                       CmdReassignLevel's WinForms warnings went with the form. Release (2020) rebuild
+ *                       0 errors / 0 warnings. Not click-tested in Revit.
+ * v1.25.3 (2026-07-27) - Suite-wide credit line, no new tool: "Created & All Rights Reserved @ Ajmal
+ *                       P.S." now appears in EVERY window. It already existed in 9 windows and those
+ *                       were left exactly where they were; 18 windows that had no credit got it added
+ *                       as a bottom-centred footer (root layout wrapped in a DockPanel so no existing
+ *                       Grid.Row index moved, and fixed-height windows gained +24 px so the footer
+ *                       cannot squeeze the button row). Three windows that carried a DIFFERENT wording
+ *                       were normalised to the standard text without moving them: Graphics Override
+ *                       ("Copyright (c) 2026 Ajmal P.S. All Rights Reserved."), Pipe Sizing ("Created
+ *                       and all rights reserved (c) Ajmal P.S. (AJ Tools)") and the About window
+ *                       ("(c) 2026 AJ Tools", which was built from DateTime.Now.Year in code-behind).
+ *                       The two remaining WinForms dialogs (Smart MEP Tag Settings, Reassign Level)
+ *                       got a matching grey label. Fixed in passing: Reassign Level's "Reassign
+ *                       Elements" button overlapped the Cancel button by 15 px (x=235 + width 130 = 365
+ *                       against Cancel at x=350) - now 220 + 125 = 345 with a 5 px gap. Release (2020)
+ *                       rebuild 0 errors / 0 warnings; R25 builds, its CA1416 count rose 654 -> 682
+ *                       purely from the two new WinForms labels. No window click-tested in Revit yet.
+ * v1.25.2 (2026-07-27) - Arrange Tags Settings v2.0.0, no new tool: the last WinForms prompt in the
+ *                       Annotation tab was rebuilt as a themed WPF window (ArrangeTagsSettingsWindow,
+ *                       matching ModernStyles like every other settings window). Fixes carried in the
+ *                       same pass: (1) a typo no longer closes the window and throws the entry away -
+ *                       validation is live and inline, Save stays disabled until the value is valid;
+ *                       (2) comma-decimal Windows locales could read "12.5" as 125 and silently save a
+ *                       10x spacing - both formats now parse correctly; (3) added a 0.1-250 mm range
+ *                       check (any positive number was accepted before); (4) the window is owned by the
+ *                       Revit main window so it can no longer hide behind Revit; (5) the tool no longer
+ *                       demands an open project - the setting lives in AppData, and the active view
+ *                       scale is now only used for the live "on sheet vs in model" explanation;
+ *                       (6) the save is verified by read-back instead of assumed, so a failed write is
+ *                       reported instead of silently swallowed. The routine "saved" popup was dropped
+ *                       per the house no-success-popup rule. Not yet click-tested in Revit.
+ * v1.25.1 (2026-07-26) - Maintenance pass, no new tool: (1) Highlight Selection v1.2.0 - selecting
+ *                       insulation/lining directly now highlights its host too, and hosts now pull in
+ *                       duct lining alongside insulation (both flagged as open items in v1.20.1's
+ *                       scope note; API verified on real RevitAPI.dll 2020/2024/2027). (2) Fixed the
+ *                       ProgramData all-users deploy writing a broken manifest path
+ *                       ("AJ ToolsAJ Tools.dll", found 2026-07-21) - files now land in the AJ Tools\
+ *                       subfolder and the manifest derives from the real copy path. (3) Removed the
+ *                       orphaned CmdQuickParallelDimension class (superseded by the CenterLine/
+ *                       FaceEdge pair; confirmed unreferenced). All 8 configs (2020-2027) built with
+ *                       0 errors and 0 warnings from changed files, then deployed to all 8 years after
+ *                       Revit closed - read-back verified both ProgramData subfolder DLLs (v1.25.1.0,
+ *                       manifests matching) and AppData payloads. Highlight Selection's new insulation
+ *                       behaviour still needs Ajmal's live click-test.
  * v1.25.0 (2026-07-25) - Merge of the GitHub line (v1.24.0/v1.24.1: Claude as third AJ AI provider,
  *                       Gemini key-switch fix, misreported-failure fixes, HVAC Schematic drawing
  *                       fixes, full-suite Revit 2020-2027 compatibility audit, suite-wide UI
@@ -478,5 +548,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.25.0.0")]
-[assembly: AssemblyFileVersion("1.25.0.0")]
+[assembly: AssemblyVersion("1.25.5.0")]
+[assembly: AssemblyFileVersion("1.25.5.0")]

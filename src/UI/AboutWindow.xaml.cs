@@ -103,7 +103,7 @@ namespace AJTools.UI
             FrameworkText.Text = GetFrameworkVersionLabel();
             DeploymentText.Text = GetDeploymentLabel();
             LicenseKeyText.Text = "AJ-TOOLS-REVIT-" + revitVersion;
-            CopyrightText.Text = string.Format("(c) {0} AJ Tools", DateTime.Now.Year);
+            CopyrightText.Text = "Created & All Rights Reserved @ Ajmal P.S.";
         }
 
         private static string GetFrameworkVersionLabel()

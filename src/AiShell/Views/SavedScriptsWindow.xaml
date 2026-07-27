@@ -29,7 +29,14 @@ Last Updated : 2026-07-21
     </Window.Resources>
     <!-- Outer layer paints the full window edge-to-edge; a root element can't StaticResource its
          own Resources on its own attributes, so background/foreground live one level down. -->
-    <Grid Background="{StaticResource SurfaceBrush}" TextElement.Foreground="{StaticResource TextBrush}">
+    <DockPanel Background="{StaticResource SurfaceBrush}" TextElement.Foreground="{StaticResource TextBrush}">
+    <!-- Footer -->
+    <TextBlock DockPanel.Dock="Bottom"
+               Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+               Foreground="{StaticResource MutedBrush}"
+               FontSize="11"
+               HorizontalAlignment="Center"
+               Margin="0,0,0,8"/>
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -92,5 +99,5 @@ Last Updated : 2026-07-21
             <Button Content="Close" Click="CloseButton_Click" Style="{StaticResource PrimaryButtonStyle}" IsCancel="True" Margin="10,0,0,0" Padding="18,8"/>
         </StackPanel>
     </Grid>
-    </Grid>
+    </DockPanel>
 </Window>
