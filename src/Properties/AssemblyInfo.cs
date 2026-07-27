@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.25.6
+ * Version       : 1.25.7
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-07-27
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,16 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.25.7 (2026-07-27) - Fixed a crash in HVAC Schematic: "An unexpected error occurred. The given
+ *                       key was not present in the dictionary." fired on almost every run (any
+ *                       selection producing at least one leaf node in the schematic tree - i.e.
+ *                       nearly always, including a single isolated element). Root cause in
+ *                       SchematicLayoutEngine.AssignTreePositions: a variable was pre-set to "no
+ *                       continuation child" (-1) then passed as the out-parameter of a
+ *                       Dictionary.TryGetValue call - TryGetValue always overwrites its out-parameter,
+ *                       even when the key is missing, so the "-1" default was silently replaced by 0
+ *                       and then used as if it were a real element id, which isn't in the node lookup.
+ *                       See SchematicLayoutEngine.cs v1.1.1. No other tool touched.
  * v1.25.6 (2026-07-28) - Full-force UI audit pass (mechanical checks over all 33 XAML + every window
  *                       call site), behaviour-preserving. VERIFIED CLEAN: every StaticResource/
  *                       DynamicResource reference resolves in its window's actual merged dictionaries,
@@ -567,5 +577,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.25.6.0")]
-[assembly: AssemblyFileVersion("1.25.6.0")]
+[assembly: AssemblyVersion("1.25.7.0")]
+[assembly: AssemblyFileVersion("1.25.7.0")]
