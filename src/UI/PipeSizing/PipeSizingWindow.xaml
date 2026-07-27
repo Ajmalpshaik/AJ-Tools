@@ -396,7 +396,7 @@ Repo         : AJ-Tools
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0"
-                       Text="Created and all rights reserved (c) Ajmal P.S. (AJ Tools)"
+                       Text="Created &amp; All Rights Reserved @ Ajmal P.S."
                        Foreground="{StaticResource TextSecondary}"
                        VerticalAlignment="Center"/>
             <Button x:Name="BtnExport"

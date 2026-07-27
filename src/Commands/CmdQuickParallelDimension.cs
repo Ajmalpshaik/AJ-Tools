@@ -6,10 +6,10 @@
  *                 or by both side faces/edges. Each delegates to QuickParallelDimensionService.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-03-29
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-26
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,12 +21,16 @@
  * Output        : A parallel dimension string; validation/transaction/report handled by the service.
  *
  * Notes         :
- * - Targets Revit 2020 through latest. The plain command keeps centerline mode for backward compatibility.
+ * - Targets Revit 2020 through latest.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2026-03-29) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Dimension behaviour unchanged.
+ * v1.1.1 (2026-07-26) - Removed the orphaned CmdQuickParallelDimension class (pre-split original,
+ *                       superseded by the CenterLine/FaceEdge pair below; wired to no ribbon button
+ *                       since the split - confirmed by repo-wide reference sweep before removal).
+ *                       The two live commands are unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -40,26 +44,6 @@ using AJTools.Services.QuickDimension;
 
 namespace AJTools.Commands
 {
-    /// <summary>
-    /// Backward-compatible quick parallel command (defaults to center line mode).
-    /// </summary>
-    [Transaction(TransactionMode.Manual)]
-    public class CmdQuickParallelDimension : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            try
-            {
-                return QuickParallelDimensionService.Execute(commandData, QuickDimensionReferenceMode.Centerline);
-            }
-            catch (System.Exception ex)
-            {
-                message = ex.Message;
-                return Result.Failed;
-            }
-        }
-    }
-
     /// <summary>
     /// Creates quick dimensions using center line references.
     /// </summary>

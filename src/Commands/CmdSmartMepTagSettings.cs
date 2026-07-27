@@ -6,29 +6,37 @@
  *                 will process, showing each category's element count in the model.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.0
+ * Version       : 2.0.0
  *
  * Created Date  : 2026-04-20
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : Autodesk Revit API, AJTools.Models.SmartTag, AJTools.Services.SmartTag, AJTools.Utils,
- *                 System.Windows.Forms
+ *                 AJTools.UI.SmartMepTag.SmartMepTagSettingsWindow (WPF)
  *
- * Input         : Active project - category enable/priority chosen in the dialog.
+ * Input         : Active project - category enable/priority chosen in the settings window.
  * Output        : Saved Smart MEP Tag settings (read-only to the Revit model; no transaction).
  *
  * Notes         :
  * - Targets Revit 2020 through latest. Settings-only tool; reads category counts but does not modify the model.
+ * - Modal WPF window shown from inside Execute, owned by the Revit main window.
+ * - The window is pure UI: this command counts the elements, builds the rows, and owns the save.
  * - Cancel closes silently.
- * - Production-ready implementation.
  *
  * Changelog     :
  * v1.2.0 (2026-04-20) - Category enable/priority grid with model counts.
  * v1.3.0 (2026-07-01) - Refactor/audit: added full metadata block. Settings behaviour unchanged.
+ * v2.0.0 (2026-07-28) - UI rebuilt as a themed WPF window (was the last WinForms dialog in the suite):
+ *                       live inline validation - unticking every category now disables Save with a
+ *                       message instead of closing the dialog with an error popup and cancelling the
+ *                       command; priority is a fixed-choice dropdown so an invalid value is impossible;
+ *                       added Tag all / Tag none buttons; window owned by the Revit main window.
+ *                       Dropped the "Settings saved." success popup per the house no-success-popup rule.
+ *                       Offset carry-over and saved-state shape unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -37,14 +45,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models.SmartTag;
 using AJTools.Services.SmartTag;
+using AJTools.UI.SmartMepTag;
 using AJTools.Utils;
-using Drawing = System.Drawing;
-using WinForms = System.Windows.Forms;
 
 namespace AJTools.Commands
 {
@@ -55,10 +63,6 @@ namespace AJTools.Commands
     public class CmdSmartMepTagSettings : IExternalCommand
     {
         private const string ToolTitle = "Smart MEP Tag";
-        private const string ColumnCategory = "Category";
-        private const string ColumnCount = "CountInModel";
-        private const string ColumnEnable = "EnableTag";
-        private const string ColumnPriority = "Priority";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -79,15 +83,15 @@ namespace AJTools.Commands
             var tracker = new SmartTagSettingsTracker(doc);
             SmartTagSettingsState initial = SmartTagSettingsTracker.EnsureDefaults(tracker.LastState);
 
-            if (!TryPromptSettings(doc, initial, out SmartTagSettingsState newState))
+            if (!TryPromptSettings(commandData.Application, doc, initial, out SmartTagSettingsState newState))
                 return Result.Cancelled;
 
             tracker.Save(newState);
-            DialogHelper.ShowInfo(ToolTitle, "Settings saved.");
             return Result.Succeeded;
         }
 
         private static bool TryPromptSettings(
+            UIApplication uiapp,
             Document doc,
             SmartTagSettingsState initialState,
             out SmartTagSettingsState newState)
@@ -95,137 +99,43 @@ namespace AJTools.Commands
             newState = null;
 
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
-            var rowCategoryMap = new Dictionary<int, BuiltInCategory>();
 
-            using (var form = new WinForms.Form())
-            using (var title = new WinForms.Label())
-            using (var note = new WinForms.Label())
-            using (var grid = new WinForms.DataGridView())
-            using (var save = new WinForms.Button())
-            using (var cancel = new WinForms.Button())
+            // Build the rows here so the window stays pure UI (no collectors, no tracker access).
+            var rows = new List<SmartTagCategoryRow>();
+            foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
             {
-                form.Text = "Smart MEP Tag Settings";
-                form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
-                form.StartPosition = WinForms.FormStartPosition.CenterScreen;
-                form.ClientSize = new Drawing.Size(660, 420);
-                form.MaximizeBox = false;
-                form.MinimizeBox = false;
-
-                title.Text = "Smart MEP Tag Settings";
-                title.Font = new Drawing.Font(form.Font, Drawing.FontStyle.Bold);
-                title.AutoSize = true;
-                title.Location = new Drawing.Point(12, 12);
-
-                note.Text = "Enable categories and set priority. High priority tags are placed first in crowded areas.";
-                note.AutoSize = true;
-                note.ForeColor = Drawing.Color.DimGray;
-                note.Location = new Drawing.Point(12, 36);
-
-                grid.Location = new Drawing.Point(12, 60);
-                grid.Size = new Drawing.Size(636, 300);
-                grid.AllowUserToAddRows = false;
-                grid.AllowUserToDeleteRows = false;
-                grid.AllowUserToResizeRows = false;
-                grid.MultiSelect = false;
-                grid.RowHeadersVisible = false;
-                grid.SelectionMode = WinForms.DataGridViewSelectionMode.CellSelect;
-                grid.AutoSizeColumnsMode = WinForms.DataGridViewAutoSizeColumnsMode.Fill;
-
-                var colCategory = new WinForms.DataGridViewTextBoxColumn
+                int countInModel = inModelCounts.TryGetValue(category, out int count) ? count : 0;
+                var row = new SmartTagCategoryRow(
+                    category,
+                    SmartTagSettingsTracker.GetCategoryLabel(category),
+                    countInModel)
                 {
-                    Name = ColumnCategory,
-                    HeaderText = "Element Type",
-                    ReadOnly = true
+                    Enabled = SmartTagSettingsTracker.IsCategoryEnabled(initialState, category),
+                    PriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(initialState, category))
                 };
-
-                var colCount = new WinForms.DataGridViewTextBoxColumn
-                {
-                    Name = ColumnCount,
-                    HeaderText = "In Model",
-                    ReadOnly = true,
-                    FillWeight = 60
-                };
-
-                var colEnable = new WinForms.DataGridViewCheckBoxColumn
-                {
-                    Name = ColumnEnable,
-                    HeaderText = "Tag?",
-                    FillWeight = 45
-                };
-                
-                var colPriority = new WinForms.DataGridViewComboBoxColumn
-                {
-                    Name = ColumnPriority,
-                    HeaderText = "Priority",
-                    FillWeight = 70,
-                    DisplayStyle = WinForms.DataGridViewComboBoxDisplayStyle.DropDownButton,
-                    ToolTipText = "Controls tagging order: High categories claim the best available positions first."
-                };
-                colPriority.Items.AddRange("High", "Medium", "Low");
-
-                grid.Columns.Add(colCategory);
-                grid.Columns.Add(colCount);
-                grid.Columns.Add(colEnable);
-                grid.Columns.Add(colPriority);
-
-                foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
-                {
-                    bool enabled = SmartTagSettingsTracker.IsCategoryEnabled(initialState, category);
-                    TagPriority priority = SmartTagSettingsTracker.ResolvePriority(initialState, category);
-                    int countInModel = inModelCounts.TryGetValue(category, out int count) ? count : 0;
-
-                    int rowIndex = grid.Rows.Add(
-                        SmartTagSettingsTracker.GetCategoryLabel(category),
-                        countInModel.ToString(),
-                        enabled,
-                        GetPriorityDisplay(priority));
-                    rowCategoryMap[rowIndex] = category;
-                }
-
-                save.Text = "Save";
-                save.DialogResult = WinForms.DialogResult.OK;
-                save.Location = new Drawing.Point(492, 376);
-                save.Width = 75;
-
-                cancel.Text = "Cancel";
-                cancel.DialogResult = WinForms.DialogResult.Cancel;
-                cancel.Location = new Drawing.Point(573, 376);
-                cancel.Width = 75;
-
-                form.Controls.Add(title);
-                form.Controls.Add(note);
-                form.Controls.Add(grid);
-                form.Controls.Add(save);
-                form.Controls.Add(cancel);
-                form.AcceptButton = save;
-                form.CancelButton = cancel;
-
-                if (form.ShowDialog() != WinForms.DialogResult.OK)
-                    return false;
-
-                grid.EndEdit();
-
-                if (!TryBuildStateFromGrid(
-                    grid,
-                    rowCategoryMap,
-                    initialState,
-                    out newState,
-                    out string error))
-                {
-                    DialogHelper.ShowError(ToolTitle, error);
-                    return false;
-                }
+                rows.Add(row);
             }
 
-            return true;
+            var window = new SmartMepTagSettingsWindow(rows);
+
+            if (uiapp != null)
+            {
+                new WindowInteropHelper(window)
+                {
+                    Owner = uiapp.MainWindowHandle
+                };
+            }
+
+            if (window.ShowDialog() != true)
+                return false;
+
+            return TryBuildStateFromRows(window.Rows, initialState, out newState);
         }
 
-        private static bool TryBuildStateFromGrid(
-            WinForms.DataGridView grid,
-            IDictionary<int, BuiltInCategory> rowCategoryMap,
+        private static bool TryBuildStateFromRows(
+            IReadOnlyList<SmartTagCategoryRow> rows,
             SmartTagSettingsState initialState,
-            out SmartTagSettingsState state,
-            out string error)
+            out SmartTagSettingsState state)
         {
             state = new SmartTagSettingsState
             {
@@ -233,39 +143,23 @@ namespace AJTools.Commands
                 CategoryOffsetInternal = new Dictionary<BuiltInCategory, double>(),
                 CategoryPriority = new Dictionary<BuiltInCategory, TagPriority>()
             };
-            error = null;
 
             int enabledCount = 0;
             double firstEnabledOffset = 0;
 
-            foreach (WinForms.DataGridViewRow row in grid.Rows)
+            foreach (SmartTagCategoryRow row in rows)
             {
-                if (row == null || !rowCategoryMap.TryGetValue(row.Index, out BuiltInCategory category))
+                if (row == null)
                     continue;
 
-                bool enabled = false;
-                WinForms.DataGridViewCell enableCell = row.Cells[ColumnEnable];
-                if (enableCell != null && enableCell.Value is bool b)
-                    enabled = b;
+                TagPriority priority = ParsePriority(row.PriorityText, SmartTagSettingsTracker.ResolvePriority(initialState, row.Category));
+                double offsetInternal = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, row.Category);
 
-                TagPriority priority = SmartTagSettingsTracker.ResolvePriority(initialState, category);
-                WinForms.DataGridViewCell priorityCell = row.Cells[ColumnPriority];
-                if (priorityCell != null && priorityCell.Value != null)
-                {
-                    if (!TryParsePriority(priorityCell.Value, out priority))
-                    {
-                        error = string.Format("Select a valid priority for '{0}'.", SmartTagSettingsTracker.GetCategoryLabel(category));
-                        return false;
-                    }
-                }
+                state.CategoryEnabled[row.Category] = row.Enabled;
+                state.CategoryOffsetInternal[row.Category] = offsetInternal;
+                state.CategoryPriority[row.Category] = priority;
 
-                double offsetInternal = SmartTagSettingsTracker.ResolveOffsetInternal(initialState, category);
-
-                state.CategoryEnabled[category] = enabled;
-                state.CategoryOffsetInternal[category] = offsetInternal;
-                state.CategoryPriority[category] = priority;
-
-                if (enabled)
+                if (row.Enabled)
                 {
                     enabledCount++;
                     if (enabledCount == 1)
@@ -273,11 +167,9 @@ namespace AJTools.Commands
                 }
             }
 
+            // The window disables Save when nothing is ticked; re-check anyway.
             if (enabledCount == 0)
-            {
-                error = "Enable at least one category to run Smart MEP Tag.";
                 return false;
-            }
 
             state.OffsetInternal = firstEnabledOffset > Constants.ZERO_LENGTH_TOLERANCE
                 ? firstEnabledOffset
@@ -291,47 +183,26 @@ namespace AJTools.Commands
             switch (priority)
             {
                 case TagPriority.High:
-                    return "High";
+                    return SmartTagCategoryRow.PriorityHigh;
                 case TagPriority.Medium:
-                    return "Medium";
+                    return SmartTagCategoryRow.PriorityMedium;
                 default:
-                    return "Low";
+                    return SmartTagCategoryRow.PriorityLow;
             }
         }
 
-        private static bool TryParsePriority(object value, out TagPriority priority)
+        private static TagPriority ParsePriority(string text, TagPriority fallback)
         {
-            priority = TagPriority.Low;
+            if (string.Equals(text, SmartTagCategoryRow.PriorityHigh, StringComparison.OrdinalIgnoreCase))
+                return TagPriority.High;
 
-            if (value is TagPriority enumValue)
-            {
-                priority = enumValue;
-                return true;
-            }
+            if (string.Equals(text, SmartTagCategoryRow.PriorityMedium, StringComparison.OrdinalIgnoreCase))
+                return TagPriority.Medium;
 
-            string text = value as string;
-            if (string.IsNullOrWhiteSpace(text))
-                return false;
+            if (string.Equals(text, SmartTagCategoryRow.PriorityLow, StringComparison.OrdinalIgnoreCase))
+                return TagPriority.Low;
 
-            if (string.Equals(text, "High", StringComparison.OrdinalIgnoreCase))
-            {
-                priority = TagPriority.High;
-                return true;
-            }
-
-            if (string.Equals(text, "Medium", StringComparison.OrdinalIgnoreCase))
-            {
-                priority = TagPriority.Medium;
-                return true;
-            }
-
-            if (string.Equals(text, "Low", StringComparison.OrdinalIgnoreCase))
-            {
-                priority = TagPriority.Low;
-                return true;
-            }
-
-            return false;
+            return fallback;
         }
 
         private static Dictionary<BuiltInCategory, int> CountElementsInModel(Document doc)

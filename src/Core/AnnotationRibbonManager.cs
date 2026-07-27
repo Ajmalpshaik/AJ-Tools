@@ -147,7 +147,7 @@ namespace AJTools.App
                 if (stackedItems[1] is PulldownButton arrangeTagsPulldown)
                 {
                     AddChildPushButton(arrangeTagsPulldown, "cmdIntelligentTagArranger", "Rearrange\nTags", "Rearrange selected tags into a clean vertical stack. The nearest T1-to-L1 tag position is placed first, then remaining tags stack above or below based on T1 relative to L1.", typeof(CmdIntelligentTagArranger).FullName, "Arrange Tag.png");
-                    AddChildPushButton(arrangeTagsPulldown, "cmdIntelligentTagArrangerSettings", "Arrange Tag\nSettings", "Set default vertical spacing for Arrange Tags (tag_spacing_mm).", typeof(CmdIntelligentTagArrangerSettings).FullName, "settings.png");
+                    AddChildPushButton(arrangeTagsPulldown, "cmdIntelligentTagArrangerSettings", "Arrange Tags\nSettings", "Set the default vertical gap between tags stacked by Rearrange Tags, in mm on the printed sheet.", typeof(CmdIntelligentTagArrangerSettings).FullName, "settings.png");
                 }
             }
 

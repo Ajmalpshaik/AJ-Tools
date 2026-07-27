@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   Tool Name: Smart Connect Settings Window
   Description: Lets the user choose connection angle for Smart Connect.
   Author: Ajmal P.S.
@@ -12,9 +12,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Smart Connect"
         Width="520"
-        Height="520"
+        Height="544"
         MinWidth="420"
-        MinHeight="360"
+        MinHeight="384"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
@@ -28,143 +28,153 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="12">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <Border Background="{StaticResource CardBackground}"
-                    BorderBrush="{StaticResource BorderSoft}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="12">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+    <DockPanel>
+        <!-- Footer -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   Foreground="{StaticResource TextDisabled}"
+                   FontSize="11"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,8"/>
 
-                <StackPanel Grid.Row="0"
+        <Grid Margin="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Border Background="{StaticResource CardBackground}"
+                        BorderBrush="{StaticResource BorderSoft}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0"
+                                Margin="0,0,0,10">
+                        <TextBlock Text="Smart Connect"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock Text="Single Elbow mode | Continuous pick until Esc"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="12"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1"
+                            Background="{StaticResource BackgroundMedium}"
+                            CornerRadius="6"
+                            Padding="10"
                             Margin="0,0,0,10">
-                    <TextBlock Text="Smart Connect"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimary}"/>
-                    <TextBlock Text="Single Elbow mode | Continuous pick until Esc"
-                               Foreground="{StaticResource TextSecondary}"
-                               FontSize="12"
-                               Margin="0,2,0,0"/>
-                </StackPanel>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                <Border Grid.Row="1"
-                        Background="{StaticResource BackgroundMedium}"
-                        CornerRadius="6"
-                        Padding="10"
-                        Margin="0,0,0,10">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0"
+                                       Grid.ColumnSpan="2"
+                                       Text="Angle"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6"/>
+
+                            <UniformGrid Grid.Row="1"
+                                         Grid.ColumnSpan="2"
+                                         Columns="2"
+                                         Margin="0,0,0,8">
+                                <RadioButton x:Name="Angle45Radio"
+                                             Content="45&#176;"
+                                             GroupName="AnglePreset"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             Checked="OnPresetAngleChecked"
+                                             HorizontalAlignment="Left"/>
+                                <RadioButton x:Name="Angle90Radio"
+                                             Content="90&#176;"
+                                             GroupName="AnglePreset"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             Checked="OnPresetAngleChecked"
+                                             HorizontalAlignment="Left"/>
+                            </UniformGrid>
+
+                            <TextBlock Grid.Row="2"
+                                       Grid.ColumnSpan="2"
+                                       Text="Custom angle (5 to 175)"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12"
+                                       Margin="0,0,0,4"/>
+
+                            <TextBox x:Name="CustomAngleBox"
+                                     Grid.Row="3"
+                                     Grid.Column="0"
+                                     Height="28"
+                                     Style="{StaticResource ModernTextBox}"
+                                     VerticalContentAlignment="Center"/>
+
+                            <Button x:Name="AddAngleButton"
+                                    Grid.Row="3"
+                                    Grid.Column="1"
+                                    Content="Add Angle"
+                                    Style="{StaticResource ModernButton}"
+                                    MinWidth="110"
+                                    Margin="8,0,0,0"
+                                    Click="OnAddCustomAngleClick"/>
+
+                            <ListBox x:Name="CustomAnglesList"
+                                     Grid.Row="4"
+                                     Grid.ColumnSpan="2"
+                                     MinHeight="96"
+                                     Margin="0,8,0,0"
+                                     Style="{StaticResource ModernListBox}"
+                                     ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                     SelectionMode="Single"
+                                     SelectionChanged="OnCustomAnglesSelectionChanged"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Row="0"
-                                   Grid.ColumnSpan="2"
-                                   Text="Angle"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,6"/>
+                        <TextBlock x:Name="ErrorText"
+                                   Grid.Column="0"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource AccentDanger}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,10,0"/>
 
-                        <UniformGrid Grid.Row="1"
-                                     Grid.ColumnSpan="2"
-                                     Columns="2"
-                                     Margin="0,0,0,8">
-                            <RadioButton x:Name="Angle45Radio"
-                                         Content="45&#176;"
-                                         GroupName="AnglePreset"
-                                         Style="{StaticResource ModernRadioButton}"
-                                         Checked="OnPresetAngleChecked"
-                                         HorizontalAlignment="Left"/>
-                            <RadioButton x:Name="Angle90Radio"
-                                         Content="90&#176;"
-                                         GroupName="AnglePreset"
-                                         Style="{StaticResource ModernRadioButton}"
-                                         Checked="OnPresetAngleChecked"
-                                         HorizontalAlignment="Left"/>
-                        </UniformGrid>
-
-                        <TextBlock Grid.Row="2"
-                                   Grid.ColumnSpan="2"
-                                   Text="Custom angle (5 to 175)"
-                                   Foreground="{StaticResource TextSecondary}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-
-                        <TextBox x:Name="CustomAngleBox"
-                                 Grid.Row="3"
-                                 Grid.Column="0"
-                                 Height="28"
-                                 Style="{StaticResource ModernTextBox}"
-                                 VerticalContentAlignment="Center"/>
-
-                        <Button x:Name="AddAngleButton"
-                                Grid.Row="3"
-                                Grid.Column="1"
-                                Content="Add Angle"
+                        <Button Grid.Column="1"
+                                Content="OK"
                                 Style="{StaticResource ModernButton}"
+                                IsDefault="True"
                                 MinWidth="110"
-                                Margin="8,0,0,0"
-                                Click="OnAddCustomAngleClick"/>
+                                Margin="0,0,8,0"
+                                Click="OnOkClick"/>
 
-                        <ListBox x:Name="CustomAnglesList"
-                                 Grid.Row="4"
-                                 Grid.ColumnSpan="2"
-                                 MinHeight="96"
-                                 Margin="0,8,0,0"
-                                 Style="{StaticResource ModernListBox}"
-                                 ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                                 SelectionMode="Single"
-                                 SelectionChanged="OnCustomAnglesSelectionChanged"/>
+                        <Button Grid.Column="2"
+                                Content="Cancel"
+                                Style="{StaticResource SecondaryButton}"
+                                IsCancel="True"
+                                MinWidth="110"
+                                Click="OnCancelClick"/>
                     </Grid>
-                </Border>
-
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock x:Name="ErrorText"
-                               Grid.Column="0"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource AccentDanger}"
-                               TextWrapping="Wrap"
-                               Margin="0,0,10,0"/>
-
-                    <Button Grid.Column="1"
-                            Content="OK"
-                            Style="{StaticResource ModernButton}"
-                            IsDefault="True"
-                            MinWidth="110"
-                            Margin="0,0,8,0"
-                            Click="OnOkClick"/>
-
-                    <Button Grid.Column="2"
-                            Content="Cancel"
-                            Style="{StaticResource SecondaryButton}"
-                            IsCancel="True"
-                            MinWidth="110"
-                            Click="OnCancelClick"/>
                 </Grid>
-            </Grid>
-            </Border>
-        </ScrollViewer>
-    </Grid>
+                </Border>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
 </Window>
 

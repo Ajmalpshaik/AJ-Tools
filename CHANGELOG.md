@@ -5,6 +5,67 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.25.5] - 2026-07-28
+
+- **Changed**: Smart MEP Tagging Settings rebuilt as a themed WPF window - the last WinForms dialog in
+  the suite is gone, every AJ Tools window is now themed WPF. Live inline validation (unticking every
+  category disables Save with a message instead of closing the dialog and cancelling the command),
+  priority is a fixed-choice dropdown so an invalid value is impossible, window owned by the Revit
+  main window. Added "Tag all" / "Tag none" buttons. Saved-settings shape and the offset carry-over
+  logic unchanged.
+- **Removed**: The routine "Settings saved." success popup, per the house no-success-popup rule.
+
+## [1.25.4] - 2026-07-28
+
+- **Changed**: Reassign Reference Level's level picker rebuilt as a themed WPF window (reassignment
+  logic untouched). Picking the same level in both boxes is now caught live inline with the Run button
+  disabled - previously it closed the dialog, showed an error popup and cancelled the whole command.
+  Added a "Swap" button and an up-front note that the scope is the whole project and hosted family
+  instances are skipped. The bulk-change confirmation with the element count still fires before any
+  edit.
+- **Fixed**: The old dialog's "Reassign Elements" button overlapped Cancel by 15 px; the dialog had no
+  owner window so it could drop behind Revit; the fixed-size intro text could clip at larger Windows
+  text scaling.
+
+## [1.25.3] - 2026-07-27
+
+- **Added**: The credit line "Created & All Rights Reserved @ Ajmal P.S." now appears in every window
+  in the suite - added as a bottom-centred footer to 18 windows that had none, kept exactly where it
+  already was in the 9 windows that had it, and normalised to the standard wording in 3 windows that
+  had drifted into their own variants (Graphics Override, Pipe Sizing, About).
+- **Fixed**: Reassign Level's overlapping Save/Cancel buttons (superseded by the v1.25.4 WPF rebuild).
+
+## [1.25.2] - 2026-07-27
+
+- **Changed**: Arrange Tags Settings rebuilt as a themed WPF window (was a plain WinForms prompt):
+  live inline validation instead of losing the entry on a typo, quick preset buttons
+  (6/8/10/12/15/20 mm), "Reset to default", and a live explanation of what the spacing means on the
+  printed sheet vs in the model at the current view scale.
+- **Fixed**: On comma-decimal Windows regional settings the old dialog could read "12.5" as 125 and
+  silently save a 10x tag spacing - both decimal formats now parse correctly. Added a 0.1-250 mm
+  range check (any positive number was accepted before). The save is now verified by read-back, so a
+  failed settings write is reported instead of silently showing success. The window is owned by the
+  Revit main window and no longer requires an open project.
+
+## [1.25.1] - 2026-07-26
+
+- **Improved**: Highlight Selection now completes the insulation story in both directions: selecting
+  insulation or lining directly also turns its host duct/pipe red (previously only host-selected ->
+  insulation-follows worked), and highlighted hosts now pull in their duct LINING alongside insulation
+  (lining was previously left gray). API members (`InsulationLiningBase.GetLiningIds` /
+  `.HostElementId`) verified against the real installed RevitAPI.dll on 2020/2024/2027, not the NuGet
+  reference package alone.
+- **Fixed**: The all-users ProgramData deploy (`Directory.Build.targets`) wrote its files loose at the
+  shared `Addins\<year>\` root and its .addin manifest pointed at a glued
+  "`AJ ToolsAJ Tools.dll`" path that never existed (bug found 2026-07-21, fix applied now). DLL, PDB,
+  and Resources now land inside the `AJ Tools\` subfolder and the manifest is generated from the exact
+  same path the DLL is copied to, so they can never drift apart again. The everyday per-user AppData
+  deploy was never affected. Takes effect on the next non-skip build; stale loose files from old
+  builds are not auto-deleted.
+- **Removed**: The orphaned `CmdQuickParallelDimension` command class (the pre-split original,
+  superseded by the CenterLine/FaceEdge pair, wired to no ribbon button since the split - confirmed by
+  a fresh repo-wide reference sweep). The two live Quick Parallel Dimension commands are unchanged.
+
 ## [1.25.0] - 2026-07-25
 
 - **Added**: Anthropic (Claude) as a third AI provider option in the C# AI pane, alongside Gemini and

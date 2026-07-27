@@ -6,16 +6,17 @@
  *                 from one level to another across the whole project without moving them physically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.3.0
  *
  * Created Date  : 2026-04-14
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, AJTools.Utils, AJTools.Services.ReassignLevel
+ * Dependencies  : Autodesk Revit API, AJTools.Utils, AJTools.Services.ReassignLevel,
+ *                 AJTools.UI.ReassignLevel.ReassignLevelWindow (WPF)
  *
  * Input         : Full Project - FROM level and TO level chosen in a dialog.
  * Output        : Matching elements re-pointed to the TO level (host offset compensated so they stay put);
@@ -37,6 +38,14 @@
  * v1.2.0 (2026-07-17) - Extracted the level-reassignment algorithm (eligibility checks, host-offset
  *                       compensation, space copy logic) into Services/ReassignLevel/ReassignLevelService.cs
  *                       (code review cleanup pass) - no behavior change.
+ * v1.3.0 (2026-07-28) - UI only, reassignment logic untouched: the WinForms level prompt was replaced by
+ *                       ReassignLevelWindow (themed WPF, matching the rest of the suite). Fixes: picking
+ *                       the same level twice used to close the dialog, show an error popup and cancel the
+ *                       command - now caught live inline with Run disabled; the "Reassign Elements" button
+ *                       overlapped Cancel by 15 px; the dialog had no owner so it could drop behind Revit;
+ *                       the fixed-size intro label could clip long text (now wraps). Added a Swap button
+ *                       and an up-front note that the scope is the whole project and hosted elements are
+ *                       skipped - previously only discoverable from the report after the fact.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -47,13 +56,13 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Services.ReassignLevel;
+using AJTools.UI.ReassignLevel;
 using AJTools.Utils;
-using Drawing = System.Drawing;
-using WinForms = System.Windows.Forms;
 
 namespace AJTools.Commands
 {
@@ -64,7 +73,6 @@ namespace AJTools.Commands
     public class CmdReassignLevel : IExternalCommand
     {
         private const string ToolTitle = "Reassign Level";
-        private const double MetersPerFoot = 0.3048;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -88,7 +96,7 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            if (!TryPromptLevels(allLevels, out Level fromLevel, out Level toLevel))
+            if (!TryPromptLevels(commandData.Application, allLevels, out Level fromLevel, out Level toLevel))
             {
                 return Result.Cancelled;
             }
@@ -183,147 +191,36 @@ namespace AJTools.Commands
             return Result.Succeeded;
         }
 
-        private static bool TryPromptLevels(IList<Level> levels, out Level fromLevel, out Level toLevel)
+        private static bool TryPromptLevels(
+            UIApplication uiapp,
+            IList<Level> levels,
+            out Level fromLevel,
+            out Level toLevel)
         {
             fromLevel = null;
             toLevel = null;
 
-            var levelItems = levels.Select(level => new LevelChoice(level)).ToList();
+            var window = new ReassignLevelWindow(levels);
 
-            using (var form = new WinForms.Form())
-            using (var intro = new WinForms.Label())
-            using (var fromLabel = new WinForms.Label())
-            using (var fromCombo = new WinForms.ComboBox())
-            using (var toLabel = new WinForms.Label())
-            using (var toCombo = new WinForms.ComboBox())
-            using (var okButton = new WinForms.Button())
-            using (var cancelButton = new WinForms.Button())
+            if (uiapp != null)
             {
-                form.Text = ToolTitle;
-                form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
-                form.StartPosition = WinForms.FormStartPosition.CenterScreen;
-                form.ClientSize = new Drawing.Size(460, 225);
-                form.MaximizeBox = false;
-                form.MinimizeBox = false;
-                form.ShowInTaskbar = false;
-
-                intro.Text = "Switch the level reference of supported MEP elements from one level to another without moving them.";
-                intro.AutoSize = false;
-                intro.Size = new Drawing.Size(430, 32);
-                intro.Location = new Drawing.Point(15, 12);
-
-                fromLabel.Text = "FROM Level:";
-                fromLabel.AutoSize = true;
-                fromLabel.Font = new Drawing.Font(form.Font, Drawing.FontStyle.Bold);
-                fromLabel.ForeColor = Drawing.Color.FromArgb(192, 0, 0);
-                fromLabel.Location = new Drawing.Point(15, 56);
-
-                fromCombo.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
-                fromCombo.FormattingEnabled = true;
-                fromCombo.Width = 430;
-                fromCombo.Location = new Drawing.Point(15, 76);
-
-                toLabel.Text = "TO Level:";
-                toLabel.AutoSize = true;
-                toLabel.Font = new Drawing.Font(form.Font, Drawing.FontStyle.Bold);
-                toLabel.ForeColor = Drawing.Color.FromArgb(0, 102, 0);
-                toLabel.Location = new Drawing.Point(15, 112);
-
-                toCombo.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
-                toCombo.FormattingEnabled = true;
-                toCombo.Width = 430;
-                toCombo.Location = new Drawing.Point(15, 132);
-
-                foreach (LevelChoice item in levelItems)
+                new WindowInteropHelper(window)
                 {
-                    fromCombo.Items.Add(item);
-                    toCombo.Items.Add(item);
-                }
-
-                if (fromCombo.Items.Count > 0)
-                {
-                    fromCombo.SelectedIndex = 0;
-                }
-
-                if (toCombo.Items.Count > 1)
-                {
-                    toCombo.SelectedIndex = 1;
-                }
-                else if (toCombo.Items.Count > 0)
-                {
-                    toCombo.SelectedIndex = 0;
-                }
-
-                okButton.Text = "Reassign Elements";
-                okButton.DialogResult = WinForms.DialogResult.OK;
-                okButton.Width = 130;
-                okButton.Location = new Drawing.Point(235, 178);
-
-                cancelButton.Text = "Cancel";
-                cancelButton.DialogResult = WinForms.DialogResult.Cancel;
-                cancelButton.Width = 95;
-                cancelButton.Location = new Drawing.Point(350, 178);
-
-                form.Controls.Add(intro);
-                form.Controls.Add(fromLabel);
-                form.Controls.Add(fromCombo);
-                form.Controls.Add(toLabel);
-                form.Controls.Add(toCombo);
-                form.Controls.Add(okButton);
-                form.Controls.Add(cancelButton);
-                form.AcceptButton = okButton;
-                form.CancelButton = cancelButton;
-
-                if (form.ShowDialog() != WinForms.DialogResult.OK)
-                {
-                    return false;
-                }
-
-                LevelChoice fromChoice = fromCombo.SelectedItem as LevelChoice;
-                LevelChoice toChoice = toCombo.SelectedItem as LevelChoice;
-
-                if (fromChoice == null || toChoice == null)
-                {
-                    DialogHelper.ShowError(ToolTitle, "Please select both levels.");
-                    return false;
-                }
-
-                if (fromChoice.Level.Id == toChoice.Level.Id)
-                {
-                    DialogHelper.ShowError(ToolTitle, "FROM and TO levels must be different.");
-                    return false;
-                }
-
-                fromLevel = fromChoice.Level;
-                toLevel = toChoice.Level;
-                return true;
-            }
-        }
-
-        private static double FeetToMeters(double feet)
-        {
-            return feet * MetersPerFoot;
-        }
-
-        private sealed class LevelChoice
-        {
-            public LevelChoice(Level level)
-            {
-                Level = level;
-                Label = string.Format(
-                    CultureInfo.CurrentCulture,
-                    "{0} ({1:0.000} m)",
-                    level?.Name ?? "<Unnamed>",
-                    level == null ? 0 : FeetToMeters(level.Elevation));
+                    Owner = uiapp.MainWindowHandle
+                };
             }
 
-            public Level Level { get; }
-            public string Label { get; }
+            if (window.ShowDialog() != true)
+                return false;
 
-            public override string ToString()
-            {
-                return Label;
-            }
+            fromLevel = window.FromLevel;
+            toLevel = window.ToLevel;
+
+            // The window disables Run unless both are set and different; re-check anyway.
+            if (fromLevel == null || toLevel == null || fromLevel.Id == toLevel.Id)
+                return false;
+
+            return true;
         }
     }
 }

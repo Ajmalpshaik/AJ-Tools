@@ -1,45 +1,51 @@
 #region Metadata
 /*
- * Tool Name     : Arrange Tag Settings
+ * Tool Name     : Arrange Tags Settings
  * File Name     : CmdIntelligentTagArrangerSettings.cs
  * Purpose       : Settings dialog that stores the default vertical spacing (mm) used by Rearrange Tags.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 2.0.0
  *
  * Created Date  : 2026-04-07
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-07-27
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, AJTools.Utils (TagArrangeSettings, DialogHelper), System.Windows.Forms
+ * Dependencies  : Autodesk Revit API, AJTools.Utils (TagArrangeSettings, DialogHelper),
+ *                 AJTools.UI.TagArrange.ArrangeTagsSettingsWindow (WPF)
  *
- * Input         : A spacing value (mm) entered in the dialog.
+ * Input         : A spacing value (mm) entered in the settings window.
  * Output        : Saved spacing setting (no model change; read-only to the Revit model).
  *
  * Notes         :
  * - Targets Revit 2020 through latest. Settings-only tool; does not modify the model, so no transaction.
- * - Cancel closes silently; a save confirmation shows the stored value.
- * - Production-ready implementation.
+ * - Modal WPF window shown from inside Execute, owned by the Revit main window so it cannot fall behind Revit.
+ * - Works with or without an open project; the active view scale is only used for the live explanation text.
+ * - Cancel closes silently. A save is confirmed by reading the value back; only a failed write reports an error.
  *
  * Changelog     :
  * v1.0.0 (2026-04-07) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Settings behaviour unchanged.
+ * v2.0.0 (2026-07-27) - UI rebuilt as a themed WPF window (was a plain WinForms prompt): live inline
+ *                       validation instead of losing the entry on a typo, presets, reset to default,
+ *                       live sheet/model explanation. Fixed comma-decimal locale misreads, added a
+ *                       sane range check, dropped the unnecessary open-project requirement, and the
+ *                       save is now verified by read-back instead of assumed.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
  */
 #endregion
 
-using System.Globalization;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.UI.TagArrange;
 using AJTools.Utils;
-using Drawing = System.Drawing;
-using WinForms = System.Windows.Forms;
 
 namespace AJTools.Commands
 {
@@ -55,20 +61,41 @@ namespace AJTools.Commands
         {
             try
             {
-                UIDocument uidoc = commandData?.Application?.ActiveUIDocument;
-                Document doc = uidoc?.Document;
-                if (doc == null)
+                UIApplication uiapp = commandData?.Application;
+                if (uiapp == null)
                 {
-                    message = "No active document.";
+                    message = "No Revit session available.";
                     return Result.Failed;
                 }
 
                 double current = TagArrangeSettings.GetTagSpacingMm();
-                if (!TryPromptSpacing(current, out double spacingMm))
+
+                var window = new ArrangeTagsSettingsWindow(
+                    current,
+                    TagArrangeSettings.DefaultTagSpacingMm,
+                    GetActiveViewScale(uiapp));
+
+                new WindowInteropHelper(window)
+                {
+                    Owner = uiapp.MainWindowHandle
+                };
+
+                if (window.ShowDialog() != true)
                     return Result.Cancelled;
 
+                double spacingMm = window.SpacingMm;
                 TagArrangeSettings.SaveTagSpacingMm(spacingMm);
-                DialogHelper.ShowInfo(Title, $"Tag spacing saved as {spacingMm:0.###} mm.");
+
+                // Settings writes are swallowed by design; confirm the value actually stuck.
+                double stored = TagArrangeSettings.GetTagSpacingMm();
+                if (System.Math.Abs(stored - spacingMm) > 0.0005)
+                {
+                    DialogHelper.ShowError(
+                        Title,
+                        "The spacing could not be saved. Check that AJ Tools can write to your AppData folder, then try again.");
+                    return Result.Failed;
+                }
+
                 return Result.Succeeded;
             }
             catch (System.Exception ex)
@@ -78,81 +105,24 @@ namespace AJTools.Commands
             }
         }
 
-        private static bool TryPromptSpacing(double currentSpacingMm, out double spacingMm)
+        /// <summary>
+        /// Returns the active view scale (1:x) for the explanation text, or 0 when there is no usable view.
+        /// </summary>
+        private static int GetActiveViewScale(UIApplication uiapp)
         {
-            spacingMm = 0;
-
-            using (var form = new WinForms.Form())
-            using (var title = new WinForms.Label())
-            using (var inputLabel = new WinForms.Label())
-            using (var input = new WinForms.TextBox())
-            using (var save = new WinForms.Button())
-            using (var cancel = new WinForms.Button())
+            try
             {
-                form.Text = Title;
-                form.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
-                form.StartPosition = WinForms.FormStartPosition.CenterScreen;
-                form.ClientSize = new Drawing.Size(430, 150);
-                form.MaximizeBox = false;
-                form.MinimizeBox = false;
+                Document doc = uiapp?.ActiveUIDocument?.Document;
+                View view = doc?.ActiveView;
+                if (view == null)
+                    return 0;
 
-                title.Text = "Tagging Settings";
-                title.Font = new Drawing.Font(form.Font, Drawing.FontStyle.Bold);
-                title.AutoSize = true;
-                title.Location = new Drawing.Point(12, 12);
-
-                inputLabel.Text = "Enter default vertical spacing for tags (in mm):";
-                inputLabel.AutoSize = true;
-                inputLabel.Location = new Drawing.Point(12, 44);
-
-                input.Text = currentSpacingMm.ToString("0.###", CultureInfo.CurrentCulture);
-                input.Location = new Drawing.Point(12, 64);
-                input.Width = 400;
-
-                save.Text = "Save";
-                save.DialogResult = WinForms.DialogResult.OK;
-                save.Location = new Drawing.Point(256, 104);
-                save.Width = 75;
-
-                cancel.Text = "Cancel";
-                cancel.DialogResult = WinForms.DialogResult.Cancel;
-                cancel.Location = new Drawing.Point(337, 104);
-                cancel.Width = 75;
-
-                form.Controls.Add(title);
-                form.Controls.Add(inputLabel);
-                form.Controls.Add(input);
-                form.Controls.Add(save);
-                form.Controls.Add(cancel);
-                form.AcceptButton = save;
-                form.CancelButton = cancel;
-
-                if (form.ShowDialog() != WinForms.DialogResult.OK)
-                    return false;
-
-                string raw = input.Text?.Trim();
-                if (string.IsNullOrWhiteSpace(raw))
-                {
-                    DialogHelper.ShowError(Title, "Enter a spacing value.");
-                    return false;
-                }
-
-                if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out double parsed))
-                {
-                    DialogHelper.ShowError(Title, "Invalid input. Please enter a valid number.");
-                    return false;
-                }
-
-                if (parsed <= 0)
-                {
-                    DialogHelper.ShowError(Title, "Spacing must be greater than zero.");
-                    return false;
-                }
-
-                spacingMm = parsed;
+                return view.Scale > 0 ? view.Scale : 0;
             }
-
-            return true;
+            catch
+            {
+                return 0;
+            }
         }
     }
 }
