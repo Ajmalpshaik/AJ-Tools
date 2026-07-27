@@ -3,6 +3,30 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-27 — HVAC Schematic crash fix ("key was not present in the dictionary")
+
+- Ajmal reported the tool erroring on run (screenshot: "An unexpected error occurred. / The
+  given key was not present in the dictionary."), branch `claude/schematic-tool-error-4kl9g2`.
+- Root cause: `SchematicLayoutEngine.AssignTreePositions` did
+  `int continuationChildId = ElementId.InvalidElementId.IntValue(); continuationChildByParent.
+  TryGetValue(nodeId, out continuationChildId);` — `TryGetValue`'s `out` parameter is always
+  overwritten (even on a failed lookup, to `default(int)` = 0), so the intended "-1 = none"
+  default was silently replaced by 0 for every node with no continuation child (i.e. every leaf
+  node — air terminals, dead-end ducts — and a single isolated selected element). The code then
+  treated element id 0 as real and did `nodeById[0]`, which isn't a key → KeyNotFoundException.
+  Fired on nearly every run since leaf nodes are near-universal in any schematic tree. Introduced
+  by the 2026-07-24 "in-line equipment continuation" change (`continuationChildByParent` is new
+  in that pass) — the earlier "messy but drawing" state predates it.
+- Fix: check `TryGetValue`'s return value before falling back to the "-1/none" default (matches
+  the already-correct pattern used a few methods away in `GetChildOrder`). One-line-shaped fix,
+  no behaviour change beyond removing the crash. SchematicLayoutEngine.cs → v1.1.1, suite → v1.25.7.
+- Grepped the rest of the codebase for the same `preset-default; TryGetValue(..., out sameVar)`
+  anti-pattern — one other hit (`FamilyParameterScanService.cs`, unrelated Purge tool) but its
+  preset default is already 0 (matches TryGetValue's own failure default), so it's harmless and
+  was left alone as out of scope for this fix.
+- Cloud sandbox still has no .NET SDK (`dotnet` not found) — could not build. Ajmal to build +
+  test in Revit; this is the one change that should make the tool run again.
+
 ## 2026-07-24 — HVAC Schematic logic fixes (drawing came out messy/wrong)
 
 - Ajmal reported a logical issue in the schematic drawing. Root causes found and

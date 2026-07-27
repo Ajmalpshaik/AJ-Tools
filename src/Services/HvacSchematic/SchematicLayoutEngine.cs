@@ -3,9 +3,9 @@
 // Purpose      : Assigns drafting-view positions for HVAC schematic nodes and edges.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.1.1
 // Created      : 2026-05-07
-// Last Updated : 2026-07-24
+// Last Updated : 2026-07-27
 // Target       : Revit 2020 - latest
 // Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
@@ -13,7 +13,16 @@
 // Input        : Analyzed schematic nodes and edges.
 // Output       : Logical HVAC schematic layout coordinates and hierarchy metadata.
 // Notes        : Uses tree-root layout bands and continuation/branch ordering for clean drafting output.
-// Changelog    : v1.1.0 - Level bands sized to fit full branch depth (no cross-level overlap);
+// Changelog    : v1.1.1 - Fixed a crash ("The given key was not present in the dictionary") that hit
+//                         almost every run: AssignTreePositions pre-set continuationChildId to
+//                         "none" (-1) then passed it as the out-parameter of
+//                         continuationChildByParent.TryGetValue, which unconditionally overwrites an
+//                         out-parameter even on a failed lookup - the "none" default was silently
+//                         replaced with 0 for every node with no continuation child (i.e. every leaf,
+//                         including a single isolated selected element), then treated as a real
+//                         element id and looked up in nodeById, which does not contain id 0. Now
+//                         checks TryGetValue's return value before falling back to "none".
+//                v1.1.0 - Level bands sized to fit full branch depth (no cross-level overlap);
 //                         in-line equipment may continue the main run when no duct alternative exists.
 //                v1.0.0 - Initial production-ready HVAC schematic layout engine with standardized metadata.
 // License      : All Rights Reserved
@@ -370,8 +379,11 @@ namespace AJTools.Services.HvacSchematic
             node.ColumnIndex = Math.Max(0, startColumn);
 
             List<int> children = childrenByParent[nodeId];
-            int continuationChildId = ElementId.InvalidElementId.IntValue();
-            continuationChildByParent.TryGetValue(nodeId, out continuationChildId);
+            int continuationChildId;
+            if (!continuationChildByParent.TryGetValue(nodeId, out continuationChildId))
+            {
+                continuationChildId = ElementId.InvalidElementId.IntValue();
+            }
             int nextColumn = node.ColumnIndex + 1;
             int maxColumn = node.ColumnIndex;
 
