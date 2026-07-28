@@ -5,6 +5,25 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.25.8] - 2026-07-28
+
+- **Changed**: HVAC Schematic error dialogs now name the exact failing method and line (exception
+  type + trimmed stack trace) instead of only a bare message — kept as a standing diagnostic even
+  after the v1.25.7 crash below was root-caused, since a bare message alone had proven too vague
+  to act on.
+
+## [1.25.7] - 2026-07-27
+
+- **Fixed**: HVAC Schematic crash, "An unexpected error occurred. The given key was not present in
+  the dictionary.", firing on almost every run (any selection producing at least one leaf node in
+  the schematic tree — nearly always, including a single isolated element). Root cause in
+  `SchematicLayoutEngine.AssignTreePositions`: a variable was pre-set to the "no continuation
+  child" sentinel (-1) then passed as the out-parameter of a `Dictionary.TryGetValue` call —
+  `TryGetValue` always overwrites its out-parameter even on a failed lookup, so the -1 default was
+  silently replaced with 0 for every leaf node, then treated as a real element id and looked up,
+  which threw. Now checks `TryGetValue`'s return value first, matching the already-correct pattern
+  used a few methods away in `GetChildOrder`. No behaviour change beyond removing the crash.
+
 ## [1.25.6] - 2026-07-28
 
 - **Fixed**: Full UI audit pass over every window in the suite. Twelve tool windows (Duct Standards,

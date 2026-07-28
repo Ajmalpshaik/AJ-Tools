@@ -3,6 +3,20 @@
 Running log of decisions and progress across Claude Code chats. Newest entries at
 the top. Keep entries short; delete sections that are no longer relevant.
 
+## 2026-07-28 — Merged the v1.25.7 fix, landed v1.25.8 diagnostics alongside it
+
+- Local session (Ajmal's own PC, not a cloud sandbox) pulled branch
+  `claude/schematic-tool-error-4kl9g2` and fast-forward merged the v1.25.7 fix below into master.
+- Separately, Ajmal's local working tree already had a finished, uncommitted diagnostic
+  enhancement to the same tool — `HvacSchematicCommand.cs` v1.1.0, error dialogs now report
+  exception type + trimmed stack trace instead of a bare message. Written to help corner this same
+  crash before the root cause below was found; kept as a standing improvement since it's still
+  useful for any future crash. Committed as v1.25.8, right after the v1.25.7 fix.
+- Also backfilled a `CHANGELOG.md` entry for v1.25.7 — the original fix commit updated this file
+  (CLAUDE-MEMORY.md) and `AssemblyInfo.cs` but never touched `CHANGELOG.md`.
+- Built locally (Release/2020 baseline) after syncing both changes back into the root `src/`
+  live tree — see root `CLAUDE.md` for why root and this repo's `src/` are separate copies.
+
 ## 2026-07-27 — HVAC Schematic crash fix ("key was not present in the dictionary")
 
 - Ajmal reported the tool erroring on run (screenshot: "An unexpected error occurred. / The
