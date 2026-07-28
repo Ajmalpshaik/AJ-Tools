@@ -6,7 +6,7 @@
  *                 air terminals, and mechanical equipment, using their connector network and levels.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-05-07
  * Last Updated  : 2026-07-01
@@ -30,6 +30,9 @@
  * Changelog     :
  * v1.0.0 (2026-05-07) - Initial production-ready HVAC schematic command.
  * v1.0.0 (2026-07-01) - Refactor/audit: standardized metadata block. Schematic behaviour unchanged.
+ * v1.1.0 (2026-07-28) - Error dialogs now include the exception type and the failing AJ Tools
+ *                       method/line (trimmed stack trace), so a live crash pinpoints its source
+ *                       instead of showing only a bare message ("key not present" debugging).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -110,7 +113,7 @@ namespace AJTools.Commands
                         }
 
                         message = ex.Message;
-                        DialogHelper.ShowError(ToolTitle, "Failed to create the drafting view.\n\n" + ex.Message);
+                        DialogHelper.ShowError(ToolTitle, "Failed to create the drafting view.\n\n" + BuildExceptionReport(ex));
                         return Result.Failed;
                     }
                 }
@@ -121,8 +124,61 @@ namespace AJTools.Commands
             catch (Exception ex)
             {
                 message = ex.Message;
-                DialogHelper.ShowError(ToolTitle, "An unexpected error occurred.\n\n" + ex.Message);
+                DialogHelper.ShowError(ToolTitle, "An unexpected error occurred.\n\n" + BuildExceptionReport(ex));
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Builds a compact diagnostic block for an error dialog: exception type, message, and the
+        /// AJ Tools stack frames (method + line) so a live crash pinpoints its exact source. Inner
+        /// exceptions are included because the outermost message alone has proven too vague to act
+        /// on (e.g. a bare "The given key was not present in the dictionary." with no location).
+        /// </summary>
+        private static string BuildExceptionReport(Exception exception)
+        {
+            var builder = new StringBuilder();
+
+            Exception current = exception;
+            int depth = 0;
+            while (current != null && depth < 4)
+            {
+                if (depth > 0)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine("Caused by:");
+                }
+
+                builder.AppendLine(current.GetType().Name + ": " + current.Message);
+                AppendRelevantStackFrames(builder, current.StackTrace);
+
+                current = current.InnerException;
+                depth++;
+            }
+
+            return builder.ToString().Trim();
+        }
+
+        private static void AppendRelevantStackFrames(StringBuilder builder, string stackTrace)
+        {
+            if (string.IsNullOrEmpty(stackTrace))
+            {
+                return;
+            }
+
+            string[] lines = stackTrace.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Prefer this add-in's own frames (they carry file + line numbers via the deployed PDB);
+            // if none match - the throw happened wholly inside Revit/.NET - fall back to the top frames.
+            List<string> relevant = lines.Where(line => line.Contains("AJTools")).Take(6).ToList();
+            if (relevant.Count == 0)
+            {
+                relevant = lines.Take(4).ToList();
+            }
+
+            for (int i = 0; i < relevant.Count; i++)
+            {
+                builder.AppendLine(relevant[i].Trim());
             }
         }
 

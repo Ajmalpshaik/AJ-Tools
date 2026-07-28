@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.25.7
+ * Version       : 1.25.8
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-27
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,12 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.25.8 (2026-07-28) - HVAC Schematic error dialogs now show the exception type and the failing
+ *                       AJ Tools method/line (trimmed stack trace) instead of a bare message, so a
+ *                       live crash pinpoints its own source. Written while the v1.25.7 "key not
+ *                       present" crash was still unreproduced locally; kept as a standing diagnostic
+ *                       even after the root cause was found, since a bare message alone had proven
+ *                       too vague to act on. See HvacSchematicCommand.cs v1.1.0. No other tool touched.
  * v1.25.7 (2026-07-27) - Fixed a crash in HVAC Schematic: "An unexpected error occurred. The given
  *                       key was not present in the dictionary." fired on almost every run (any
  *                       selection producing at least one leaf node in the schematic tree - i.e.
@@ -577,5 +583,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.25.7.0")]
-[assembly: AssemblyFileVersion("1.25.7.0")]
+[assembly: AssemblyVersion("1.25.8.0")]
+[assembly: AssemblyFileVersion("1.25.8.0")]
