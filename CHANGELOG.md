@@ -5,6 +5,20 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.39.1] - 2026-08-04
+
+- **Fixed**: The Revit 2025, 2026 and 2027 builds now compile with zero warnings, matching the 2020
+  baseline. They had been emitting 11 platform-compatibility warnings on Windows-only dialogs
+  (colour picker, folder picker, screen bounds) because the assembly was never marked Windows-only -
+  the marker a `net8.0-windows` build normally carries is suppressed by this project maintaining its
+  own AssemblyInfo. The add-in only ever runs inside Revit on Windows, so the marker is now declared
+  explicitly, guarded so the .NET Framework builds (Revit 2020-2024) are untouched.
+- **Changed**: The AJ AI Bridge builds its per-session token with `RandomNumberGenerator.Create()`
+  instead of the obsolete `RNGCryptoServiceProvider`. Identical cryptographic strength, same 24-byte
+  token, same format - existing connections and discovery files are unaffected.
+- **Note**: No tool behaviour changed in this version. This is the first release to carry the work
+  from 1.26.0 onward, which had been built and running locally but never published.
+
 ## [1.39.0] - 2026-07-30
 
 - **Added**: Game Mode laser now also shows the element's System and Level in its identity line
