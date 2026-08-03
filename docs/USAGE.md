@@ -7,26 +7,83 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 
 ### AJ Tools
 
-- View: View Crop, Unhide All, Toggle Link, Filter Pro, Section Mark Visibility
+- View: View Crop, Unhide All, Toggle Links, Filter Pro, Colorize, Highlight Selection
 - Graphics: Apply Graphics, Match Graphics, Reset Graphics
 - Datums: Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
 - Modify: Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements, Smart Selection
 - MEP: Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
+- Opening: MEP Openings (create openings, opening settings)
 - Coordination: Element ID lookup, 3D Views by Workset, Link Workset
 - Data: Assign Location, Duct Standard
-- Manage: Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)
+- Manage:
+  - Transfer: View Templates, Schedules, Legends, Drafting Views
+  - Purge Unplaced: 3D Views, Sections, Schedules, Legends, Drafting Views
+  - Purge Unused: View Templates, Filters, Groups
+  - Purge Family Parameters
 - Family: Shared to Family
-- AI Assistant: AJ AI (with a dockable pane)
+- AI Assistant: AJ AI (C# chat pane), AJ AI bridge toggle, Run Pinned / Saved Scripts
+- Game: Game Mode
 - About: About
 
 ### AJ Annotation
 
-- Auto Dimention: Auto Duct Dimension (single duct to wall, all duct to wall)
-- Dimensions: Automatic Dimension, Quick Dimension, Copy Dimension Text
-- Annotation: Duct Flow Annotations, Revision Clouds, Copy/Swap Text Notes
+- Auto Dimension: Auto Duct Dimension (single duct to wall, all duct to wall)
+- Dimensions: Automatic Dimension, Automatic Grid Dimensions, Automatic Level Dimensions,
+  Quick Dimension, Copy Dimension Text
+- Annotation: Duct Flow Annotations (+ settings), Revision Clouds, Revision Clouds by Elements
+  (+ settings), Copy/Swap Text Notes, Copy Text Notes
 - Family: Center Annotation
-- Tags: Smart MEP Tags, Rearrange Tags, L-Shape Leader
+- Tags: Smart MEP Tags (+ settings), Create Tags / Stack Tags (+ Create Tags settings),
+  Rearrange Tags (+ Arrange Tags settings), L-Shape Leader, Center Room Tags,
+  Section Mark Visibility
 - Text: Arrange Text in Box
+
+## Tagging tools - which one to use
+
+Four tools place or move tags. They overlap, so the difference matters:
+
+| Tool | Starts from | What one click does |
+| --- | --- | --- |
+| Smart MEP Tags | Elements in the view | Tags everything eligible in one go, automatically |
+| Create Tags | Selected elements | You click a spot per element; nearest untagged one is tagged |
+| Stack Tags | Selected elements | One click tags them all, arranged in a vertical stack |
+| Rearrange Tags | Tags that already exist | Moves existing tags into a stack; creates nothing |
+
+Create Tags and Stack Tags share one eligibility rule set, so they cannot drift apart: an element is
+skipped if it is already tagged in the view, shorter than the configured minimum length, or a vertical
+run (duct, pipe or cable tray). Category list and minimum length live in Create Tags Settings. Stack
+spacing comes from Arrange Tags Settings.
+
+## Game Mode
+
+A first-person walkthrough of the model, inside a real Revit perspective view called "AJ Game View"
+(created once, then reused). Because it is a genuine Revit view, everything you already use to control
+a view shapes the game - visibility/graphics, filters, hide/isolate, section box, display style. That
+includes collision: you can only walk into what is actually visible.
+
+Movement is WASD plus mouse-look, with gravity, stair step-up, Shift to sprint and Space to jump. Doors
+open with E when you are near one; windows are climbed by jumping. F switches to free flight, G passes
+through everything, R respawns, C crouches, and +/- change walking speed.
+
+Right-click cycles five tools:
+
+| Weapon | What it does |
+| --- | --- |
+| Gun | Shoots - purely visual |
+| Laser | Live distance in mm plus the element's identity, system and level |
+| Cleaner | Temporarily hides the element hit (U restores) |
+| Snag | Marks the element red and adds it to a punch list |
+| Selector | Adds the element to Revit's real selection, which survives leaving the game |
+
+Other keys: T teleports along an aimed arc, B saves your position (unlimited slots, number keys jump
+back), O runs a tour of every saved position, K saves a clean screenshot, V is a flashlight night mode,
+J resets element graphics in the view, N is professional mode (hides the weapon permanently, everything
+still works), M mutes. Esc pauses so Revit stays usable; Esc again exits.
+
+Press Esc then S to remap any key - bindings are remembered between sessions.
+
+On exit, any snags you marked are written to a report in Documents\AJ Game Snags. The only model change
+Game Mode ever makes is creating the "AJ Game View" itself - camera movement creates no undo entries.
 
 ## AJ AI Assistant (chat + live model automation)
 
@@ -132,3 +189,15 @@ Notes:
   window or crossing box-select adds only elements sharing that category - it completes as soon as the
   box is drawn, no Finish/Enter step. Press Esc during the first pick to cancel; Esc during the
   follow-up box keeps just the reference element selected.
+- Reassign Reference Level works two ways: Whole Project (pick a FROM level and a TO level) or Selected
+  Elements (pre-select first, then pick only a TO level - each element's own level is read as its FROM,
+  so a mixed-level selection is fine). The Selected Elements option stays disabled, with a tooltip
+  explaining why, until something eligible is selected. Hosted elements are skipped either way.
+- Purge Unplaced and Purge Unused are different questions. Unplaced means "not on a sheet" (views).
+  Unused means "nothing references it" (view templates, filters, group types with no placed instances).
+  Both probe before deleting - a rolled-back delete decides what Revit actually permits, rather than
+  trusting a static scan, which catches cases like a template quietly set as Revit's own default.
+- Transfer tools copy between two open projects. In override mode the copy's sheet placements are
+  restored too - and a Legend placed on several sheets at once gets all of them back.
+- Game Mode needs a 3D-capable model and creates one view the first time it runs. It is the only tool
+  in the suite that is deliberately not about production output.

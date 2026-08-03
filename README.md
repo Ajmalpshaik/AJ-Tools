@@ -4,7 +4,7 @@ AJ Tools is the main development repository for the AJ Tools add-in for Autodesk
 builds for Revit 2020 through 2027; Revit 2020 is the tested baseline and the version the published
 installer currently ships.
 
-Current suite version: **1.23.1** (as reported by `src/Properties/AssemblyInfo.cs` — see
+Current suite version: **1.39.1** (as reported by `src/Properties/AssemblyInfo.cs` — see
 [CHANGELOG.md](CHANGELOG.md) for the release-numbering note)
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
@@ -51,12 +51,16 @@ AJ Tools provides commands for:
 - MEP connection, ceiling-grid snapping, HVAC schematic generation, and domestic water pipe sizing
 - element ID lookup across host and linked models, workset 3D views, and link workset assignment
 - location data assignment and duct standards calculation
-- view template transfer and purge utilities (unplaced views, family parameters)
+- transfer of view templates, schedules, legends, and drafting views between open projects
+- purge utilities for unplaced views (3D, sections, schedules, legends, drafting views), unused
+  view templates, filters, and group types, and family parameters
 - shared-to-family parameter conversion
 - automatic and quick dimensioning of grids, levels, and ducts
 - duct flow annotations, revision clouds, and text-note copy/swap
-- intelligent MEP tagging, tag rearranging, and L-shape leaders
-- a built-in AI Assistant (AJ AI)
+- intelligent MEP tagging, tag creation and stacking, tag rearranging, and L-shape leaders
+- a built-in AI Assistant (AJ AI) with an MCP bridge for external AI agents
+- Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
+  identification, temporary hiding, snag marking, and selection carried back into Revit
 
 ## Repository Layout
 
@@ -73,24 +77,31 @@ Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged D
 The add-in registers **two** ribbon tabs:
 
 - `AJ Tools`: main tool tab with the following panels:
-  - **View** — View Crop, Unhide All, Toggle Link, Filter Pro, Section Mark Visibility
+  - **View** — View Crop, Unhide All, Toggle Links, Filter Pro, Colorize, Highlight Selection
   - **Graphics** — Apply Graphics, Match Graphics, Reset Graphics
   - **Datums** — Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
-  - **Modify** — Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements
+  - **Modify** — Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements, Smart Selection
   - **MEP** — Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
+  - **Opening** — MEP Openings (create openings, opening settings)
   - **Coordination** — Element ID lookup, 3D Views by Workset, Link Workset
   - **Data** — Assign Location, Duct Standard
-  - **Manage** — Transfer View Templates, Purge (unplaced 3D views, unplaced sections, family parameters)
+  - **Manage** — Transfer (View Templates, Schedules, Legends, Drafting Views) and Purge
+    (Unplaced: 3D Views, Sections, Schedules, Legends, Drafting Views · Unused: View Templates,
+    Filters, Groups · Family Parameters)
   - **Family** — Shared to Family
-  - **AI Assistant** — AJ AI
+  - **AI Assistant** — AJ AI (C# chat pane), AJ AI bridge toggle, Run Pinned / Saved Scripts
+  - **Game** — Game Mode
   - **About**
 - `AJ Annotation`: separate annotation tab with the following panels:
-  - **Auto Dimention** — Auto Duct Dimension (single duct to wall, all duct to wall)
-  - **Dimensions** — Automatic Dimension, Quick Dimension, Copy Dimension Text
-  - **Annotation** — Duct Flow Annotations, Revision Clouds, Copy/Swap Text Notes
+  - **Auto Dimension** — Auto Duct Dimension (single duct to wall, all duct to wall)
+  - **Dimensions** — Automatic Dimension, Automatic Grid Dimensions, Automatic Level Dimensions,
+    Quick Dimension, Copy Dimension Text
+  - **Annotation** — Duct Flow Annotations, Revision Clouds, Revision Clouds by Elements,
+    Copy/Swap Text Notes, Copy Text Notes
   - **Text** — Arrange Text in Box
   - **Family** — Center Annotation
-  - **Tags** — Smart MEP Tags, Rearrange Tags, L-Shape Leader
+  - **Tags** — Smart MEP Tags, Create Tags, Stack Tags, Rearrange Tags, L-Shape Leader,
+    Center Room Tags, Section Mark Visibility
 
 The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab plus a dockable **AJ AI** pane — it is not a separate ribbon tab.
 
