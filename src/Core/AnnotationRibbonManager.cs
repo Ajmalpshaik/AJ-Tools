@@ -151,6 +151,16 @@ namespace AJTools.App
                 }
             }
 
+            PulldownButtonData createTagsData = new PulldownButtonData("cmdCreateTagsPulldown", "Create\nTags");
+            RibbonPanelHelper.ApplyIcons(createTagsData, _iconLoader, "cursor.png");
+
+            if (panel.AddItem(createTagsData) is PulldownButton createTagsPulldown)
+            {
+                AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select one or more MEP elements, then click a location for each to create a tag there. Skips elements already tagged in the view, shorter than the configured minimum length, or a vertical run. Press Esc to stop early.", typeof(CmdCreateTags).FullName, "cursor.png");
+                AddChildPushButton(createTagsPulldown, "cmdStackTags", "Stack\nTags", "Select one or more MEP elements, then click one location - a tag is created for every eligible element and the whole batch is arranged into a vertical stack starting there, same as Rearrange Tags. Click again to relocate the whole stack. Uses the same skip rules and settings as Create Tags, plus Arrange Tags Settings' spacing. Press Esc when satisfied.", typeof(CmdStackTags).FullName, "Arrange Tag.png");
+                AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Configure category-wise enable/disable and the minimum length to tag for Create Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
+            }
+
             PushButtonData centerRoomTagsData = new PushButtonData("cmdCenterRoomTags", "Center Room\nTags", _assemblyPath, typeof(CmdCenterRoomTags).FullName)
             {
                 ToolTip = "Move every room tag in the active view to the center of its tagged room. Handles local rooms and loaded linked rooms; skips orphaned, pinned, and unreadable tags."

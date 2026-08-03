@@ -426,7 +426,7 @@ namespace AJTools.Services.SmartTag
         /// Collects all element IDs that already have a tag in the active view.
         /// Done once at the start — never inside a loop.
         /// </summary>
-        private static HashSet<ElementId> CollectAlreadyTaggedElementIds(Document doc, View view)
+        internal static HashSet<ElementId> CollectAlreadyTaggedElementIds(Document doc, View view)
         {
             var taggedIds = new HashSet<ElementId>();
             try
@@ -632,7 +632,7 @@ namespace AJTools.Services.SmartTag
         /// <summary>
         /// Returns the length of an MEP curve element in feet.
         /// </summary>
-        private static double GetCurveLength(MEPCurve mepCurve)
+        internal static double GetCurveLength(MEPCurve mepCurve)
         {
             try
             {
@@ -967,7 +967,7 @@ namespace AJTools.Services.SmartTag
         /// For curve elements: midpoint of the location curve.
         /// For equipment/accessories: centre of the bounding box.
         /// </summary>
-        private static XYZ GetElementMidpoint(Element elem, View view)
+        internal static XYZ GetElementMidpoint(Element elem, View view)
         {
             try
             {

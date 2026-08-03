@@ -274,6 +274,21 @@ namespace AJTools.Services.Purge
                 return view is ViewSection && view.ViewType == ViewType.Section;
             }
 
+            if (string.Equals(viewKind, "Schedule", StringComparison.OrdinalIgnoreCase))
+            {
+                return view is ViewSchedule;
+            }
+
+            if (string.Equals(viewKind, "Legend", StringComparison.OrdinalIgnoreCase))
+            {
+                return view.ViewType == ViewType.Legend;
+            }
+
+            if (string.Equals(viewKind, "Drafting View", StringComparison.OrdinalIgnoreCase))
+            {
+                return view.ViewType == ViewType.DraftingView;
+            }
+
             return false;
         }
 

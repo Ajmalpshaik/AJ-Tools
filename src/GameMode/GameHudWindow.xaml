@@ -1,0 +1,297 @@
+<Window x:Class="AJTools.UI.GameMode.GameHudWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AJ Game Mode"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual"
+        Focusable="True"
+        ShowActivated="True"
+        Width="1000"
+        Height="700">
+
+    <!-- Root background is 1/255 alpha: visually invisible but still receives every click/key,
+         so the game reliably captures input over the whole Revit view area. -->
+    <Grid x:Name="RootGrid" Background="#01000000" TextElement.FontFamily="Segoe UI">
+
+        <!-- ==================== PLAY LAYER ==================== -->
+        <Grid x:Name="PlayLayer">
+
+            <!-- Laser / bullet effects -->
+            <Canvas x:Name="FxCanvas" IsHitTestVisible="False">
+                <Line x:Name="LaserLine" Stroke="#3CE24A" StrokeThickness="2.2" Opacity="0"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                    <Line.Effect>
+                        <DropShadowEffect Color="#3CE24A" BlurRadius="12" ShadowDepth="0" Opacity="0.9"/>
+                    </Line.Effect>
+                </Line>
+                <Line x:Name="TracerLine" Stroke="#FFF3D060" StrokeThickness="2.6" Opacity="0"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                    <Line.Effect>
+                        <DropShadowEffect Color="#FFB347" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
+                    </Line.Effect>
+                </Line>
+                <Ellipse x:Name="BulletDot" Width="9" Height="9" Fill="#FFFFE9A8" Opacity="0">
+                    <Ellipse.Effect>
+                        <DropShadowEffect Color="#FFD060" BlurRadius="8" ShadowDepth="0" Opacity="0.9"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+                <Ellipse x:Name="ImpactRing" Width="46" Height="46" Stroke="#FF6A3D" StrokeThickness="3"
+                         Opacity="0" RenderTransformOrigin="0.5,0.5">
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform x:Name="ImpactScale" ScaleX="0.2" ScaleY="0.2"/>
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+                <Ellipse x:Name="LaserDot" Width="8" Height="8" Fill="#3CE24A" Opacity="0">
+                    <Ellipse.Effect>
+                        <DropShadowEffect Color="#3CE24A" BlurRadius="10" ShadowDepth="0" Opacity="1"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+
+                <!-- VR-style teleport (finalized from Ajmal's reference): thick solid green arc
+                     rising from the muzzle and dropping onto a landing disc flat on the floor -->
+                <Path x:Name="TeleportArc" Stroke="#3CE24A" StrokeThickness="5.5" Opacity="0"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                    <Path.Effect>
+                        <DropShadowEffect Color="#3CE24A" BlurRadius="14" ShadowDepth="0" Opacity="0.85"/>
+                    </Path.Effect>
+                </Path>
+                <Ellipse x:Name="TeleportRing" Width="68" Height="24" Stroke="#3CE24A" StrokeThickness="4"
+                         Opacity="0" RenderTransformOrigin="0.5,0.5">
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform x:Name="TeleportRingScale"/>
+                    </Ellipse.RenderTransform>
+                    <Ellipse.Effect>
+                        <DropShadowEffect Color="#3CE24A" BlurRadius="12" ShadowDepth="0" Opacity="0.9"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+                <Ellipse x:Name="TeleportRingInner" Width="34" Height="12" Stroke="#3CE24A"
+                         StrokeThickness="2.5" Opacity="0"/>
+                <Ellipse x:Name="TeleportRingDot" Width="10" Height="5" Fill="#3CE24A" Opacity="0"/>
+
+            </Canvas>
+
+            <!-- Flashlight night mode (V): dark everywhere except a light circle at the crosshair -->
+            <Rectangle x:Name="FlashlightOverlay" Visibility="Collapsed" IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.55" RadiusY="0.75">
+                        <GradientStop Color="#00000000" Offset="0"/>
+                        <GradientStop Color="#00000000" Offset="0.30"/>
+                        <GradientStop Color="#B4000A14" Offset="0.55"/>
+                        <GradientStop Color="#F0000407" Offset="1"/>
+                    </RadialGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- Crosshair (colored by the active weapon/tool) -->
+            <Grid x:Name="Crosshair" Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsHitTestVisible="False">
+                <Rectangle Width="2" Height="12" Fill="#E600C8FF" VerticalAlignment="Top" HorizontalAlignment="Center"/>
+                <Rectangle Width="2" Height="12" Fill="#E600C8FF" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                <Rectangle Width="12" Height="2" Fill="#E600C8FF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <Rectangle Width="12" Height="2" Fill="#E600C8FF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                <Ellipse Width="3" Height="3" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Teleport aiming text, above the crosshair -->
+            <TextBlock x:Name="TeleportText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="0,0,0,110" FontSize="13.5" FontWeight="Bold" Foreground="#38E0A6"
+                       Visibility="Collapsed" IsHitTestVisible="False">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="4" ShadowDepth="0" Opacity="0.8"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- Laser distance (mm), just under the crosshair -->
+            <TextBlock x:Name="LaserDistanceText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="0,84,0,0" FontSize="14" FontWeight="Bold" Foreground="#4CE85A"
+                       Visibility="Collapsed" IsHitTestVisible="False">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="4" ShadowDepth="0" Opacity="0.8"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- Laser live element identity, under the distance -->
+            <TextBlock x:Name="LaserInfoText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="0,140,0,0" FontSize="12" Foreground="#D9FFDE" MaxWidth="680"
+                       TextAlignment="Center" TextWrapping="Wrap" Visibility="Collapsed"
+                       IsHitTestVisible="False">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="5" ShadowDepth="0" Opacity="0.9"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- Status card, top-left -->
+            <Border CornerRadius="10" Background="#CC101722" BorderBrush="#3300C8FF" BorderThickness="1"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12,0,0"
+                    Padding="12,8" IsHitTestVisible="False">
+                <StackPanel>
+                    <TextBlock x:Name="ModeText" Foreground="#00C8FF" FontSize="13" FontWeight="Bold" Text="WALK"/>
+                    <TextBlock x:Name="WeaponText" Foreground="#F0F4FA" FontSize="11" Margin="0,3,0,0"
+                               Text="Weapon: GUN   (right-click = laser)"/>
+                    <TextBlock x:Name="CompassText" Foreground="#9FD0FF" FontSize="11" Margin="0,3,0,0"/>
+                    <TextBlock x:Name="ClearHeightText" Foreground="#7CE38B" FontSize="11" Margin="0,3,0,0"
+                               Visibility="Collapsed"/>
+                    <TextBlock x:Name="SnagText" Foreground="#FF6A7A" FontSize="11" Margin="0,3,0,0"
+                               Visibility="Collapsed"/>
+                    <TextBlock x:Name="PositionText" Foreground="#8FA0B3" FontSize="11" Margin="0,3,0,0"/>
+                    <TextBlock x:Name="FrameText" Foreground="#5A6B7E" FontSize="10" Margin="0,2,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Door / window hint, bottom-centre -->
+            <Border x:Name="HintCard" CornerRadius="10" Background="#D9241C0A" BorderBrush="#88FFC53D"
+                    BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="0,0,0,120" Padding="16,9" Visibility="Collapsed" IsHitTestVisible="False">
+                <TextBlock x:Name="HintText" Foreground="#FFC53D" FontSize="14" FontWeight="SemiBold"/>
+            </Border>
+
+            <!-- Short status toasts ("Saved position 3", "Hidden: ...", "Photo saved ...") -->
+            <Border x:Name="ToastCard" CornerRadius="10" Background="#E0101722" BorderBrush="#5500C8FF"
+                    BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Top"
+                    Margin="0,14,0,0" Padding="14,8" Visibility="Collapsed" IsHitTestVisible="False"
+                    MaxWidth="760">
+                <TextBlock x:Name="ToastText" Foreground="#F0F4FA" FontSize="12.5" TextWrapping="Wrap"/>
+            </Border>
+
+            <!-- Controls help card (H to toggle) -->
+            <Border x:Name="HelpCard" CornerRadius="12" Background="#E0101722" BorderBrush="#3300C8FF"
+                    BorderThickness="1" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Margin="14,0,0,0" Padding="16,12" IsHitTestVisible="False">
+                <StackPanel>
+                    <TextBlock Text="AJ GAME MODE" Foreground="#00C8FF" FontSize="14" FontWeight="Bold"/>
+                    <TextBlock Foreground="#C9D4E0" FontSize="12" Margin="0,8,0,0" LineHeight="20"
+                               Text="MOVE&#9;W A S D  |  LOOK mouse  |  RUN hold Shift&#10;JUMP&#9;Space (at a window = climb through)  |  CROUCH hold C&#10;DOOR&#9;E when the hint shows  |  FLY F  |  GHOST G&#10;WEAPON&#9;right-click cycles GUN / LASER / CLEANER / SNAG / SELECT&#10;GUN&#9;hold left click - automatic fire  |  sounds M on/off&#10;LASER&#9;live distance (mm) + element name&#10;CLEANER&#9;shot hides that element  |  U brings all back&#10;SNAG&#9;shot paints it red + report on exit&#10;SELECT&#9;shot selects in Revit (again = unselect), stays after exit&#10;RESET&#9;J = reset ALL element colors in the game view&#10;NO GUN&#9;N = professional mode for meetings (remembered)&#10;TELEPORT&#9;hold T - see the jump arc, release = go&#10;POSITIONS&#9;B saves a spot (list left)  |  1..9 = go  |  O = tour&#10;PHOTO&#9;K to Pictures\AJ Game Photos  |  LIGHT V  |  SPEED + / -&#10;SCROLL&#9;down = gun away (laser still works), up = draw&#10;KEYS&#9;change any key: pause (Esc), then press S&#10;RESPAWN&#9;R  |  PAUSE Esc or P  |  EXIT Esc while paused  |  HELP H"/>
+                </StackPanel>
+            </Border>
+
+            <!-- The gun, bottom-right, vector-drawn pistol (no image assets). The pistol is drawn
+                 flat/horizontal inside GunLocal (muzzle at local 0,16 pointing left) and the whole
+                 group is rotated 45 degrees so it aims at the crosshair. -->
+            <Canvas x:Name="GunCanvas" Width="300" Height="240" HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom" Margin="0,0,12,8" IsHitTestVisible="False">
+                <Canvas.RenderTransform>
+                    <TranslateTransform x:Name="GunRecoil"/>
+                </Canvas.RenderTransform>
+
+                <Canvas x:Name="GunLocal" Canvas.Left="64" Canvas.Top="44">
+                    <Canvas.RenderTransform>
+                        <RotateTransform Angle="45"/>
+                    </Canvas.RenderTransform>
+
+                    <!-- bore shadow at the muzzle face -->
+                    <Rectangle Canvas.Left="0" Canvas.Top="10" Width="6" Height="14" Fill="#12161E"/>
+                    <!-- slide (angled nose) -->
+                    <Polygon Points="0,6 14,0 152,0 152,30 0,30" Fill="#2E3542" Stroke="#59657A" StrokeThickness="1"/>
+                    <!-- slide top light edge -->
+                    <Rectangle Canvas.Left="14" Canvas.Top="2" Width="136" Height="3" Fill="#3A4354"/>
+                    <!-- rear slide serrations -->
+                    <Rectangle Canvas.Left="126" Canvas.Top="6" Width="2" Height="20" Fill="#1B212C"/>
+                    <Rectangle Canvas.Left="131" Canvas.Top="6" Width="2" Height="20" Fill="#1B212C"/>
+                    <Rectangle Canvas.Left="136" Canvas.Top="6" Width="2" Height="20" Fill="#1B212C"/>
+                    <Rectangle Canvas.Left="141" Canvas.Top="6" Width="2" Height="20" Fill="#1B212C"/>
+                    <Rectangle Canvas.Left="146" Canvas.Top="6" Width="2" Height="20" Fill="#1B212C"/>
+                    <!-- ejection port -->
+                    <Rectangle Canvas.Left="94" Canvas.Top="7" Width="30" Height="16" Fill="#232935"
+                               Stroke="#1B212C" StrokeThickness="1"/>
+                    <!-- front + rear sights -->
+                    <Rectangle Canvas.Left="6" Canvas.Top="-6" Width="5" Height="6" Fill="#2E3542"/>
+                    <Rectangle Canvas.Left="138" Canvas.Top="-6" Width="9" Height="6" Fill="#2E3542"/>
+                    <!-- hammer -->
+                    <Polygon Points="152,6 165,2 168,10 154,15" Fill="#2E3542" Stroke="#59657A" StrokeThickness="1"/>
+                    <!-- frame -->
+                    <Rectangle Canvas.Left="12" Canvas.Top="30" Width="140" Height="20" Fill="#262D3A"
+                               Stroke="#59657A" StrokeThickness="1"/>
+                    <!-- accent stripe (gun = neon blue, laser = red; swapped in code) -->
+                    <Rectangle x:Name="AccentStripe" Canvas.Left="14" Canvas.Top="32" Width="136" Height="4"
+                               Fill="#00C8FF" Opacity="0.9"/>
+                    <!-- trigger guard -->
+                    <Ellipse Canvas.Left="60" Canvas.Top="42" Width="48" Height="38" Stroke="#262D3A"
+                             StrokeThickness="6"/>
+                    <!-- trigger -->
+                    <Polygon Points="80,50 89,50 86,68 79,66" Fill="#12161E"/>
+                    <!-- beavertail -->
+                    <Polygon Points="150,44 164,40 168,50 156,54" Fill="#262D3A"/>
+                    <!-- grip (raked back) -->
+                    <Polygon Points="116,50 156,50 176,118 140,126" Fill="#1E242E" Stroke="#59657A" StrokeThickness="1"/>
+                    <!-- grip texture lines -->
+                    <Line X1="128" Y1="68" X2="154" Y2="64" Stroke="#12161E" StrokeThickness="2"/>
+                    <Line X1="133" Y1="82" X2="159" Y2="78" Stroke="#12161E" StrokeThickness="2"/>
+                    <Line X1="138" Y1="96" X2="164" Y2="92" Stroke="#12161E" StrokeThickness="2"/>
+                    <!-- magazine base peeking out -->
+                    <Polygon Points="142,122 172,114 175,122 145,130" Fill="#12161E"/>
+                    <!-- muzzle glow (weapon-colored) -->
+                    <Ellipse x:Name="MuzzleGlow" Canvas.Left="-7" Canvas.Top="9" Width="14" Height="14"
+                             Fill="#00C8FF" Opacity="0.9">
+                        <Ellipse.Effect>
+                            <DropShadowEffect Color="#00C8FF" BlurRadius="12" ShadowDepth="0" Opacity="0.9"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                </Canvas>
+
+                <!-- Ajmal's own gun picture (Resources\GameGun.png). Shown instead of the vector
+                     pistol when the file exists beside the DLL; the vector gun is the fallback. -->
+                <Image x:Name="GunImage" Visibility="Collapsed" IsHitTestVisible="False"/>
+                <!-- Ajmal's rifle picture (Resources\GameRifle.png) - shown while the CLEANER
+                     weapon is selected. -->
+                <Image x:Name="RifleImage" Visibility="Collapsed" IsHitTestVisible="False"/>
+                <!-- Ajmal's blaster picture (Resources\GameSnagGun.png) - shown while the SNAG
+                     MARKER weapon is selected. -->
+                <Image x:Name="SnagImage" Visibility="Collapsed" IsHitTestVisible="False"/>
+                <Ellipse x:Name="ImageMuzzleGlow" Width="15" Height="15" Fill="#00C8FF" Opacity="0.9"
+                         Visibility="Collapsed" IsHitTestVisible="False">
+                    <Ellipse.Effect>
+                        <DropShadowEffect Color="#00C8FF" BlurRadius="12" ShadowDepth="0" Opacity="0.9"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+
+                <!-- muzzle flash (animated on shoot) -->
+                <Ellipse x:Name="MuzzleFlash" Width="44" Height="44" Canvas.Left="31" Canvas.Top="33" Opacity="0">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#FFFFF3C0" Offset="0"/>
+                            <GradientStop Color="#B0FF9A3D" Offset="0.55"/>
+                            <GradientStop Color="#00FF9A3D" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+            </Canvas>
+
+            <!-- Saved positions list, left side (press the number to go there) -->
+            <Border x:Name="BookmarkCard" CornerRadius="10" Background="#CC101722" BorderBrush="#3338E0A6"
+                    BorderThickness="1" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                    Margin="14,0,0,40" Padding="12,8" Visibility="Collapsed" IsHitTestVisible="False">
+                <StackPanel>
+                    <TextBlock Text="SAVED POSITIONS  -  press the number to go" Foreground="#38E0A6"
+                               FontSize="10.5" FontWeight="Bold"/>
+                    <StackPanel x:Name="BookmarkList" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Credit line (house standard) -->
+            <TextBlock Text="Created &amp; All Rights Reserved @ Ajmal P.S." FontSize="11"
+                       Foreground="#7A8794" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                       Margin="0,0,0,6" IsHitTestVisible="False"/>
+        </Grid>
+
+        <!-- ==================== PAUSE / END LAYER ==================== -->
+        <Border x:Name="PauseLayer" Background="#F2101722" CornerRadius="14" BorderBrush="#8000C8FF"
+                BorderThickness="1.5" Visibility="Collapsed" Cursor="Hand">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="18,10">
+                <TextBlock x:Name="PauseTitle" Text="PAUSED" Foreground="#00C8FF" FontSize="15"
+                           FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="PauseLine1" Text="Click here to continue playing" Foreground="#F0F4FA"
+                           FontSize="13" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                <TextBlock x:Name="PauseLine2" Text="Revit is free to use now - change VG, filters, anything. Esc here = exit game."
+                           Foreground="#8FA0B3" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0"
+                           TextWrapping="Wrap" MaxWidth="330" TextAlignment="Center"/>
+                <TextBlock Text="Created &amp; All Rights Reserved @ Ajmal P.S." FontSize="10"
+                           Foreground="#66808F" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

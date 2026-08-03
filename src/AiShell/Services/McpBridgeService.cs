@@ -8,10 +8,10 @@
  *                 the standalone "AJ AI" ribbon button (ToggleAiBridgeCommand) starts and stops.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.0
+ * Version       : 1.8.1
  *
  * Created Date  : 2026-07-07
- * Last Updated  : 2026-07-18
+ * Last Updated  : 2026-08-04
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -52,6 +52,14 @@
  *   safety still comes from GeneratedCodeSafetyValidator above.
  *
  * Changelog     :
+ * v1.8.1 (2026-08-04) - GenerateToken() now builds its per-session token with
+ *                       RandomNumberGenerator.Create() instead of RNGCryptoServiceProvider, which
+ *                       .NET 8 (Revit 2025+) reports obsolete via SYSLIB0023 - the last warning in
+ *                       the R25 build. Straight swap to the documented replacement: identical
+ *                       cryptographic strength (both hand back the platform CSPRNG), still 24 bytes,
+ *                       still base64, and Create() exists on .NET Framework 4.7.2 so the Revit
+ *                       2020-2024 builds are byte-for-byte unaffected. Token security is unchanged -
+ *                       no weakening, no format change, existing discovery files stay valid.
  * v1.8.0 (2026-07-18) - Purpose/Notes text updated to match the ribbon rebrand: the connect/disconnect
  *                       control is the standalone "AJ AI" ribbon button now (was described as the
  *                       "AJ AI Bridge" toggle inside the AJ AI pane, both stale after the button-move
@@ -400,7 +408,11 @@ namespace AJTools.AiShell.Services
         private static string GenerateToken()
         {
             var bytes = new byte[24];
-            using (var rng = new RNGCryptoServiceProvider())
+            // RandomNumberGenerator.Create() replaces RNGCryptoServiceProvider, which .NET 8
+            // (Revit 2025+) reports as obsolete via SYSLIB0023. Same cryptographic strength -
+            // both return the platform CSPRNG - and Create() exists on .NET Framework 4.7.2
+            // as well, so the Revit 2020-2024 builds behave exactly as before.
+            using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(bytes);
             }

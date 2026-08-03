@@ -1,0 +1,34 @@
+<Window x:Class="AJTools.UI.GameMode.GameKeySettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AJ Game Mode - Key Settings"
+        Width="520" Height="680" MinWidth="460" MinHeight="480"
+        WindowStartupLocation="CenterOwner" Background="#101722"
+        ShowInTaskbar="False">
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Bottom" Text="Created &amp; All Rights Reserved @ Ajmal P.S."
+                   FontSize="11" Foreground="#7A8794" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="0,6,16,10">
+            <Button x:Name="SaveButton" Content="Save and Close" Padding="16,7" Margin="0,0,10,0"
+                    Background="#00C8FF" Foreground="#0B1220" FontWeight="SemiBold"
+                    BorderThickness="0" Click="OnSaveClick"/>
+            <Button Content="Cancel" Padding="16,7" Background="#26303F" Foreground="#F0F4FA"
+                    BorderThickness="0" IsCancel="True" Click="OnCancelClick"/>
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom" x:Name="ErrorText" Foreground="#FF6A7A" FontSize="12"
+                   Margin="18,0,18,2" TextWrapping="Wrap" MinHeight="18"/>
+
+        <StackPanel DockPanel.Dock="Top" Margin="18,14,18,8">
+            <TextBlock Text="GAME KEY SETTINGS" Foreground="#00C8FF" FontSize="16" FontWeight="Bold"/>
+            <TextBlock Foreground="#8FA0B3" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Text="Click a key button, then press the key you want for that action. Esc cancels the change. Fixed and not changeable: Esc, mouse buttons, scroll wheel, number keys 1-9 and the arrow keys."/>
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12,0,12,0">
+            <StackPanel x:Name="RowsPanel" Margin="6,4,6,10"/>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -1,8 +1,8 @@
 <!--
   Tool Name: Reassign Reference Level - Level Picker
-  Description: Choose the FROM and TO level for the whole-project level reassignment.
+  Description: Choose the scope (whole project or your current selection) and the level(s) for MEP level reassignment.
   Author: Ajmal P.S.
-  Version: 1.0.0
+  Version: 1.1.0
   Last Updated: 2026-07-28
   Revit Version: 2020 - latest
   Dependencies: AJTools.UI.ModernStyles, Autodesk.Revit.DB (Level)
@@ -12,9 +12,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Reassign Level - AJ Tools"
         Width="520"
-        Height="500"
+        Height="560"
         MinWidth="470"
-        MinHeight="470"
+        MinHeight="530"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         ShowInTaskbar="False"
@@ -49,6 +49,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
@@ -59,15 +60,29 @@
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Moves supported MEP elements from one level to another across the whole project. Elements stay exactly where they are."
+                        <TextBlock Text="Moves supported MEP elements from one level to another - across the whole project, or just your current selection. Elements stay exactly where they are."
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondary}"
                                    TextWrapping="Wrap"
                                    Margin="0,4,0,0"/>
                     </StackPanel>
 
-                    <!-- FROM -->
-                    <StackPanel Grid.Row="1">
+                    <!-- Scope -->
+                    <StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                Margin="0,0,0,14">
+                        <RadioButton x:Name="WholeProjectRadio"
+                                     Content="Whole Project"
+                                     IsChecked="True"
+                                     Style="{StaticResource ModernRadioButton}"
+                                     Margin="0,0,20,0"/>
+                        <RadioButton x:Name="SelectedElementsRadio"
+                                     Content="Selected Elements"
+                                     Style="{StaticResource ModernRadioButton}"/>
+                    </StackPanel>
+
+                    <!-- FROM (Whole Project mode) -->
+                    <StackPanel Grid.Row="2" x:Name="FromPanel">
                         <TextBlock Text="FROM level"
                                    FontWeight="SemiBold"
                                    FontSize="12"
@@ -80,8 +95,23 @@
                                   ToolTip="Elements currently referencing this level."/>
                     </StackPanel>
 
+                    <!-- Selection info (Selected Elements mode) -->
+                    <StackPanel Grid.Row="2"
+                                x:Name="SelectionInfoPanel"
+                                Visibility="Collapsed">
+                        <TextBlock Text="Elements to reassign"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,0,0,5"/>
+                        <TextBlock x:Name="SelectionSummaryText"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+
                     <!-- Swap -->
-                    <Button Grid.Row="2"
+                    <Button Grid.Row="3"
                             x:Name="SwapButton"
                             Content="Swap"
                             Style="{StaticResource CompactSecondaryButton}"
@@ -92,7 +122,7 @@
                             ToolTip="Swap the FROM and TO levels."/>
 
                     <!-- TO -->
-                    <StackPanel Grid.Row="3">
+                    <StackPanel Grid.Row="4">
                         <TextBlock Text="TO level"
                                    FontWeight="SemiBold"
                                    FontSize="12"
@@ -106,7 +136,7 @@
                     </StackPanel>
 
                     <!-- Note -->
-                    <Border Grid.Row="4"
+                    <Border Grid.Row="5"
                             Margin="0,14,0,0"
                             Background="{StaticResource BackgroundMedium}"
                             BorderBrush="{StaticResource BorderSoft}"
@@ -119,7 +149,7 @@
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource TextSecondary}"
                                        Margin="0,0,0,4"/>
-                            <TextBlock Text="Applies to the whole project, not just the active view. Hosted family instances are skipped — their level follows the host. You will see the element count and can still cancel before anything changes."
+                            <TextBlock x:Name="NoteBodyText"
                                        FontSize="12"
                                        Foreground="{StaticResource TextPrimary}"
                                        TextWrapping="Wrap"/>
@@ -128,14 +158,14 @@
 
                     <!-- Inline validation message -->
                     <TextBlock x:Name="ErrorText"
-                               Grid.Row="5"
+                               Grid.Row="6"
                                FontSize="12"
                                Foreground="{StaticResource AccentDanger}"
                                TextWrapping="Wrap"
                                Margin="0,10,0,0"/>
 
                     <!-- Buttons -->
-                    <Grid Grid.Row="7" Margin="0,14,0,0">
+                    <Grid Grid.Row="8" Margin="0,14,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
