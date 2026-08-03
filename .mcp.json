@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "aj-tools-aj-ai": {
+      "command": "C:\\Users\\AjmalAlavudheen\\Documents\\node-v24.18.0-win-x64\\node.exe",
+      "args": ["D:\\Ajmal\\Revit Addins\\mcp-server\\index.js"]
+    }
+  }
+}
