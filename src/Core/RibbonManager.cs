@@ -6,10 +6,10 @@
  *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.12.0
+ * Version       : 1.13.6
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-07-29
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,23 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.13.6 (2026-07-29) - Game Mode audit pass: tooltip now covers the SELECTOR weapon and
+ *                       professional mode (N) - both shipped in suite 1.38.0 but never reached the
+ *                       tooltip; stale folder note by AddGameModeTool corrected (the tool lives in
+ *                       src/GameMode since the 1.34.1 restructure). No behaviour change.
+ * v1.13.5 (2026-07-29) - Game Mode tooltip: measuring removed (feature deleted per Ajmal), key
+ *                       settings + graphics reset mentioned.
+ * v1.13.4 (2026-07-29) - Game Mode tooltip: section-box mention removed (feature deleted per
+ *                       Ajmal), saved-positions list mentioned.
+ * v1.13.3 (2026-07-29) - Game Mode tooltip updated for the v1.34.0 "add all" round (teleport,
+ *                       positions, photo, cleaner weapon, section box, holster).
+ * v1.13.2 (2026-07-28) - Game Mode tooltip now also mentions the laser hold-and-release
+ *                       face-to-face measuring (v1.32.0 feature).
+ * v1.13.1 (2026-07-28) - Game Mode tooltip updated for the v1.31.0 weapon rework (hold-to-fire,
+ *                       right-click gun/laser switch, laser identifies elements; L key removed).
+ * v1.13.0 (2026-07-28) - New "Game" panel (between AI Assistant and About) with the single "Game Mode"
+ *                       button (CmdGameMode) - the first-person walkthrough game. Self-contained: the
+ *                       panel entry + AddGameModeTool here are the only ribbon touch points.
  * v1.12.0 (2026-07-21) - Correction on top of v1.11.0/v1.10.0 below: Ajmal watched the "last-used-first"
  *                       sync behavior live and didn't want it - "Create Openings" and "Run Pinned" should
  *                       stay the PERMANENT default face, never swap to "Opening Settings"/"Saved Scripts"
@@ -129,6 +146,7 @@ namespace AJTools.App
             Manage,
             Family,
             Ai,
+            Game,
             About
         }
 
@@ -175,6 +193,7 @@ namespace AJTools.App
                 [PanelKey.Data] = "Data",
                 [PanelKey.Manage] = "Manage",
                 [PanelKey.Ai] = "AI Assistant",
+                [PanelKey.Game] = "Game",
                 [PanelKey.About] = "About"
             };
 
@@ -191,6 +210,7 @@ namespace AJTools.App
                 PanelKey.Manage,
                 PanelKey.Family,
                 PanelKey.Ai,
+                PanelKey.Game,
                 PanelKey.About
             };
 
@@ -209,6 +229,7 @@ namespace AJTools.App
                 new ToolPlacement(PanelKey.Manage, BuildManagePanel),
                 new ToolPlacement(PanelKey.Family, BuildFamilyPanel),
                 new ToolPlacement(PanelKey.Ai, BuildAiPanel),
+                new ToolPlacement(PanelKey.Game, BuildGamePanel),
                 new ToolPlacement(PanelKey.About, BuildAboutPanel)
             };
         }
@@ -333,8 +354,8 @@ namespace AJTools.App
 
         private void BuildManagePanel(RibbonPanel panel)
         {
-            AddTopLevelTool(panel, AddTransferViewTemplatesTool());
-            AddTopLevelTool(panel, AddPurgeFamilyParametersTool());
+            AddTopLevelTool(panel, AddTransferTools());
+            AddTopLevelTool(panel, AddPurgeTools());
         }
 
         private void BuildFamilyPanel(RibbonPanel panel)
@@ -349,9 +370,38 @@ namespace AJTools.App
             AddTopLevelTool(panel, AddRunPinnedTool());
         }
 
+        private void BuildGamePanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddGameModeTool());
+        }
+
         private void BuildAboutPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAboutTool());
+        }
+
+        private TopLevelToolSpec AddGameModeTool()
+        {
+            // The whole Game Mode tool is self-contained (src/GameMode + the Game* images in
+            // Resources + this one entry) so it can be removed cleanly if it is ever unwanted.
+            return CreatePushToolSpec(
+                "Game\nMode",
+                "Walk inside the model like a video game, in a real Revit perspective view " +
+                "(\"AJ Game View\") - so all Visibility/Graphics, filters and section boxes still apply. " +
+                "WASD to walk, mouse to look, Shift to run fast, Space to jump (jump through windows), " +
+                "E to go through doors, F to fly, G for ghost mode (through walls). " +
+                "Hold left-click for automatic gunfire with impact sparks; right-click cycles the " +
+                "weapons - LASER (live distance in mm + element identity), CLEANER (temporarily hides " +
+                "what you shoot, U restores), SNAG MARKER (paints it red + a report on exit; " +
+                "J resets all colors in the game view) and SELECTOR (shoots elements into the live " +
+                "Revit selection - it stays after exit). More: T teleports with a jump arc, B + 1-9 " +
+                "save and revisit positions (O tours them all), K saves a clean photo, N hides the " +
+                "gun for meetings (professional mode), and every shortcut key can be changed - " +
+                "pause (Esc) and press S for Key Settings. Esc pauses (Revit stays usable), Esc " +
+                "again exits - or click this button again to stop the game.",
+                typeof(AJTools.Commands.GameMode.CmdGameMode),
+                "GameMode.png",
+                "GameMode.png");
         }
 
         private TopLevelToolSpec AddAiTool()
@@ -584,7 +634,7 @@ namespace AJTools.App
                     "3D Views.png"));
         }
 
-        private TopLevelToolSpec AddTransferViewTemplatesTool()
+        private TopLevelToolSpec AddTransferTools()
         {
             return CreatePulldownToolSpec(
                 "Transfer",
@@ -595,6 +645,24 @@ namespace AJTools.App
                     "Transfer View Templates",
                     "Transfer selected view templates between open project documents, with optional override.",
                     typeof(CmdTransferViewTemplates),
+                    "Transfer View Template.png",
+                    "Transfer View Template.png"),
+                CreateSplitChildTool(
+                    "Transfer Schedules",
+                    "Transfer selected schedules between open project documents, with optional override that keeps sheet placements.",
+                    typeof(CmdTransferSchedules),
+                    "Transfer View Template.png",
+                    "Transfer View Template.png"),
+                CreateSplitChildTool(
+                    "Transfer Legends",
+                    "Transfer selected legends between open project documents, with optional override that keeps sheet placements.",
+                    typeof(CmdTransferLegends),
+                    "Transfer View Template.png",
+                    "Transfer View Template.png"),
+                CreateSplitChildTool(
+                    "Transfer Drafting Views",
+                    "Transfer selected drafting views between open project documents, with optional override that keeps sheet placements.",
+                    typeof(CmdTransferDraftingViews),
                     "Transfer View Template.png",
                     "Transfer View Template.png"));
         }
@@ -752,7 +820,7 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "Reassign\nReference Level",
-                "Reassign supported MEP elements from one level to another without moving them physically.",
+                "Reassign supported MEP elements from one level to another without moving them physically - whole project, or just your current selection.",
                 typeof(CmdReassignLevel),
                 "Reassign Level.png",
                 "Reassign Level.png");
@@ -844,7 +912,7 @@ namespace AJTools.App
                 "Duct Standards.png");
         }
 
-        private TopLevelToolSpec AddPurgeFamilyParametersTool()
+        private TopLevelToolSpec AddPurgeTools()
         {
             return CreatePulldownToolSpec(
                 "Purge",
@@ -862,6 +930,48 @@ namespace AJTools.App
                     "Purge Unplaced\nSections",
                     "Preview and delete selected unplaced section views in the active project.",
                     typeof(CmdPurgeUnplacedSections),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
+                    "Purge Unplaced\nSchedules",
+                    "Preview and delete selected schedules that are not placed on any sheet in the active project.",
+                    typeof(CmdPurgeUnplacedSchedules),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
+                    "Purge Unplaced\nLegends",
+                    "Preview and delete selected legends that are not placed on any sheet in the active project.",
+                    typeof(CmdPurgeUnplacedLegends),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
+                    "Purge Unplaced\nDrafting Views",
+                    "Preview and delete selected drafting views that are not placed on any sheet in the active project.",
+                    typeof(CmdPurgeUnplacedDraftingViews),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
+                    "Purge Unused\nView Templates",
+                    "Preview and delete selected view templates that are not assigned to any view in the active project.",
+                    typeof(CmdPurgeUnusedViewTemplates),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
+                    "Purge Unused\nFilters",
+                    "Preview and delete selected view/selection filters that are not applied on any view or view template in the active project.",
+                    typeof(CmdPurgeUnusedFilters),
+                    "Remove.png",
+                    "Remove.png",
+                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
+                CreateSplitChildTool(
+                    "Purge Unused\nGroups",
+                    "Preview and delete selected Model Group and Detail Group types with zero placed instances in the active project.",
+                    typeof(CmdPurgeUnusedGroups),
                     "Remove.png",
                     "Remove.png",
                     pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),

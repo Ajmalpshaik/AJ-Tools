@@ -3,15 +3,16 @@
  * Tool Name     : Reassign Reference Level
  * File Name     : ReassignLevelService.cs
  * Purpose       : Implements the level-reassignment engine for MEP curves, free-standing family
- *                 instances, and spaces - candidate collection, eligibility checks, per-category
- *                 host-offset compensation, and per-parameter space copying used to re-point
- *                 elements from one level to another without moving them physically.
+ *                 instances, and spaces - candidate collection (whole-project FROM level, or an
+ *                 explicit selection), eligibility checks, per-category host-offset compensation,
+ *                 and per-parameter space copying used to re-point elements from one level to
+ *                 another without moving them physically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-07-17
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-07-28
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -19,13 +20,14 @@
  *
  * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, AJTools.Utils
  *
- * Input         : Document, candidate Elements, source/target Level, and an OffsetHelper built from
- *                 the active Revit version - all supplied by CmdReassignLevel.cs, which owns UI
- *                 prompting, the confirmation dialog, and the transaction.
- * Output        : Candidate element list for a given FROM level (plus a hosted-instance skip count),
- *                 and per-element reassignment - elements re-pointed to the target level with host
- *                 offset compensated so they stay put; boolean success/failure per element for the
- *                 caller to tally.
+ * Input         : Document, candidate Elements (from a FROM level or from a selection), source/target
+ *                 Level, and an OffsetHelper built from the active Revit version - all supplied by
+ *                 CmdReassignLevel.cs, which owns UI prompting, the confirmation dialog, and the
+ *                 transaction.
+ * Output        : Candidate element list for a given FROM level, or for an explicit selection (each
+ *                 with a hosted/unsupported skip count), and per-element reassignment - elements
+ *                 re-pointed to the target level with host offset compensated so they stay put;
+ *                 boolean success/failure per element for the caller to tally.
  *
  * Notes         :
  * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
@@ -36,6 +38,12 @@
  * Changelog     :
  * v1.0.0 (2026-07-17) - Initial extraction from CmdReassignLevel.cs (code review cleanup pass) -
  *                       no behavior change.
+ * v1.1.0 (2026-07-28) - Added the Selected Elements scope: CollectCandidatesFromSelection (same
+ *                       eligibility rules as CollectCandidates, keyed by explicit ids instead of a
+ *                       FROM level) and ReassignElementToLevel (reassigns using each element's own
+ *                       current level as FROM, since a selection can span several levels at once).
+ *                       Both are additive; CollectCandidates/ReassignElement are unchanged and still
+ *                       used as-is by the Whole Project scope.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -120,6 +128,118 @@ namespace AJTools.Services.ReassignLevel
 
             skippedHostedCount = skippedHosted;
             return candidates;
+        }
+
+        /// <summary>
+        /// Collects every supported element (MEP curve, free-standing family instance, space) among
+        /// the given selection ids, regardless of which level each currently references - used by the
+        /// Selected Elements scope, where the caller already knows exactly which elements to touch and
+        /// there is no single FROM level. Hosted family instances and anything not of a supported type
+        /// (or with no resolvable level) are excluded and counted separately, so the caller can report
+        /// exactly what will and will not be touched before running.
+        /// </summary>
+        internal static List<Element> CollectCandidatesFromSelection(
+            Document doc,
+            ICollection<ElementId> selectedIds,
+            out int skippedHostedCount,
+            out int skippedUnsupportedCount)
+        {
+            var candidates = new List<Element>();
+            int skippedHosted = 0;
+            int skippedUnsupported = 0;
+
+            if (doc != null && selectedIds != null)
+            {
+                foreach (ElementId id in selectedIds)
+                {
+                    Element element = doc.GetElement(id);
+                    if (element == null)
+                    {
+                        skippedUnsupported++;
+                        continue;
+                    }
+
+                    FamilyInstance hostedFamily = element as FamilyInstance;
+                    if (hostedFamily != null && hostedFamily.Host != null)
+                    {
+                        skippedHosted++;
+                        continue;
+                    }
+
+                    bool isSupportedType = element is MEPCurve || element is FamilyInstance || element is Space;
+
+                    if (isSupportedType && GetCurrentLevelId(element) != null)
+                    {
+                        candidates.Add(element);
+                    }
+                    else
+                    {
+                        skippedUnsupported++;
+                    }
+                }
+            }
+
+            skippedHostedCount = skippedHosted;
+            skippedUnsupportedCount = skippedUnsupported;
+            return candidates;
+        }
+
+        /// <summary>
+        /// Determines the level id a supported element (MEP curve, free-standing family instance,
+        /// space) currently references. Returns null when the element type is unsupported or no level
+        /// can be resolved. Used by the Selected Elements scope, where the FROM level is not known up
+        /// front and must be read per element instead.
+        /// </summary>
+        private static ElementId GetCurrentLevelId(Element element)
+        {
+            MEPCurve mepCurve = element as MEPCurve;
+            if (mepCurve != null)
+            {
+                try
+                {
+                    if (mepCurve.ReferenceLevel != null)
+                    {
+                        return mepCurve.ReferenceLevel.Id;
+                    }
+                }
+                catch
+                {
+                    // Ignore and continue with fallback checks.
+                }
+
+                if (mepCurve.LevelId != null && mepCurve.LevelId != ElementId.InvalidElementId)
+                {
+                    return mepCurve.LevelId;
+                }
+
+                Parameter startLevel = mepCurve.get_Parameter(BuiltInParameter.RBS_START_LEVEL_PARAM);
+                if (startLevel != null && startLevel.StorageType == StorageType.ElementId)
+                {
+                    return startLevel.AsElementId();
+                }
+
+                return null;
+            }
+
+            FamilyInstance familyInstance = element as FamilyInstance;
+            if (familyInstance != null && familyInstance.Host == null)
+            {
+                Parameter levelParam = GetFamilyLevelParameter(familyInstance);
+                if (levelParam != null && levelParam.StorageType == StorageType.ElementId)
+                {
+                    return levelParam.AsElementId();
+                }
+
+                return familyInstance.LevelId;
+            }
+
+            Space space = element as Space;
+            if (space != null)
+            {
+                return space.LevelId;
+            }
+
+            return null;
         }
 
         private static bool ElementOnFromLevel(Element element, ElementId fromId)
@@ -319,6 +439,45 @@ namespace AJTools.Services.ReassignLevel
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Reassigns a single element to the TO level, determining its current (FROM) level itself
+        /// rather than requiring the caller to know it up front - used by the Selected Elements scope,
+        /// where one selection can contain elements from several different levels at once. Returns
+        /// false with <paramref name="alreadyOnTarget"/> true when the element already references the
+        /// TO level; that is not a failure, just nothing to do, and the caller should skip it silently
+        /// rather than counting it as failed.
+        /// </summary>
+        internal static bool ReassignElementToLevel(
+            Document doc,
+            Element element,
+            Level toLevel,
+            ElementId toId,
+            OffsetHelper offsetHelper,
+            out bool alreadyOnTarget)
+        {
+            alreadyOnTarget = false;
+
+            ElementId fromId = GetCurrentLevelId(element);
+            if (fromId == null || fromId == ElementId.InvalidElementId)
+            {
+                return false;
+            }
+
+            if (fromId == toId)
+            {
+                alreadyOnTarget = true;
+                return false;
+            }
+
+            Level fromLevel = doc?.GetElement(fromId) as Level;
+            if (fromLevel == null)
+            {
+                return false;
+            }
+
+            return ReassignElement(doc, element, fromLevel, toLevel, fromId, toId, offsetHelper);
         }
 
         private static void CopySpaceParameters(Space sourceSpace, Space targetSpace, ElementId toId)

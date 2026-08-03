@@ -3,17 +3,22 @@
 // Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.1.0
 // Created      : 2026-05-11
-// Last Updated : 2026-05-11
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Last Updated : 2026-07-28
+// Target       : Revit 2020 - latest
+// Framework    : .NET Framework 4.7.2 (2020) / .NET 8 (2025-2026) / .NET 10 (2027+)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Active Revit document and user purge options.
 // Output       : Safe purge result with final report.
 // Notes        : Added under AJ Tools Purge panel.
 // Changelog    : v1.0.0 - Converted from Interactive Python Shell script.
+//                v1.1.0 (2026-07-28) - Added Schedules/Legends/DraftingViews modes. Schedules are placed
+//                via ScheduleSheetInstance (a different mechanism to Viewport), so they get their own
+//                placed-id set (GetPlacedScheduleIds) and candidate check (IsUnplacedScheduleCandidate);
+//                Legends/DraftingViews reuse the existing Viewport-based GetPlacedViewIds/
+//                IsUnplacedViewCandidate unchanged. ThreeDViews/SectionViews behaviour unchanged.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -31,6 +36,9 @@ namespace AJTools.Services.Purge
     {
         private const string ThreeDViewKind = "3D View";
         private const string SectionViewKind = "Section";
+        private const string ScheduleKind = "Schedule";
+        private const string LegendKind = "Legend";
+        private const string DraftingViewKind = "Drafting View";
 
         private readonly Document _doc;
         private readonly ElementId _activeViewId;
@@ -48,16 +56,30 @@ namespace AJTools.Services.Purge
 
         public IList<UnplacedViewPurgeItem> Collect()
         {
-            var placedViewIds = GetPlacedViewIds();
             var items = new List<UnplacedViewPurgeItem>();
 
-            if (_mode == UnplacedViewPurgeMode.ThreeDViews)
+            if (_mode == UnplacedViewPurgeMode.Schedules)
             {
-                AddUnplaced3DViews(items, placedViewIds);
+                AddUnplacedSchedules(items, GetPlacedScheduleIds());
             }
             else
             {
-                AddUnplacedSectionViews(items, placedViewIds);
+                var placedViewIds = GetPlacedViewIds();
+                switch (_mode)
+                {
+                    case UnplacedViewPurgeMode.ThreeDViews:
+                        AddUnplaced3DViews(items, placedViewIds);
+                        break;
+                    case UnplacedViewPurgeMode.SectionViews:
+                        AddUnplacedSectionViews(items, placedViewIds);
+                        break;
+                    case UnplacedViewPurgeMode.Legends:
+                        AddUnplacedLegends(items, placedViewIds);
+                        break;
+                    default:
+                        AddUnplacedDraftingViews(items, placedViewIds);
+                        break;
+                }
             }
 
             return items
@@ -72,6 +94,11 @@ namespace AJTools.Services.Purge
             if (viewId == null || viewId == ElementId.InvalidElementId)
             {
                 return false;
+            }
+
+            if (_mode == UnplacedViewPurgeMode.Schedules)
+            {
+                return GetPlacedScheduleIds().Contains(viewId.IntValue());
             }
 
             return GetPlacedViewIds().Contains(viewId.IntValue());
@@ -111,6 +138,57 @@ namespace AJTools.Services.Purge
             }
         }
 
+        private void AddUnplacedLegends(ICollection<UnplacedViewPurgeItem> items, ISet<int> placedViewIds)
+        {
+            IEnumerable<View> views = new FilteredElementCollector(_doc)
+                .OfClass(typeof(View))
+                .Cast<View>();
+
+            foreach (View view in views)
+            {
+                if (!IsUnplacedViewCandidate(view, ViewType.Legend, placedViewIds))
+                {
+                    continue;
+                }
+
+                items.Add(CreateItem(view, LegendKind));
+            }
+        }
+
+        private void AddUnplacedDraftingViews(ICollection<UnplacedViewPurgeItem> items, ISet<int> placedViewIds)
+        {
+            IEnumerable<View> views = new FilteredElementCollector(_doc)
+                .OfClass(typeof(View))
+                .Cast<View>();
+
+            foreach (View view in views)
+            {
+                if (!IsUnplacedViewCandidate(view, ViewType.DraftingView, placedViewIds))
+                {
+                    continue;
+                }
+
+                items.Add(CreateItem(view, DraftingViewKind));
+            }
+        }
+
+        private void AddUnplacedSchedules(ICollection<UnplacedViewPurgeItem> items, ISet<int> placedScheduleIds)
+        {
+            IEnumerable<ViewSchedule> schedules = new FilteredElementCollector(_doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>();
+
+            foreach (ViewSchedule schedule in schedules)
+            {
+                if (!IsUnplacedScheduleCandidate(schedule, placedScheduleIds))
+                {
+                    continue;
+                }
+
+                items.Add(CreateItem(schedule, ScheduleKind));
+            }
+        }
+
         private bool IsUnplacedViewCandidate(View view, ViewType expectedViewType, ISet<int> placedViewIds)
         {
             if (view == null)
@@ -126,6 +204,23 @@ namespace AJTools.Services.Purge
             return view.Id != null &&
                    view.Id != ElementId.InvalidElementId &&
                    !placedViewIds.Contains(view.Id.IntValue());
+        }
+
+        private static bool IsUnplacedScheduleCandidate(ViewSchedule schedule, ISet<int> placedScheduleIds)
+        {
+            if (schedule == null || schedule.IsTemplate)
+            {
+                return false;
+            }
+
+            if (schedule.IsTitleblockRevisionSchedule || schedule.IsInternalKeynoteSchedule)
+            {
+                return false;
+            }
+
+            return schedule.Id != null &&
+                   schedule.Id != ElementId.InvalidElementId &&
+                   !placedScheduleIds.Contains(schedule.Id.IntValue());
         }
 
         private UnplacedViewPurgeItem CreateItem(View view, string viewKind)
@@ -185,6 +280,28 @@ namespace AJTools.Services.Purge
             }
 
             return placedViewIds;
+        }
+
+        private HashSet<int> GetPlacedScheduleIds()
+        {
+            var placedScheduleIds = new HashSet<int>();
+            IEnumerable<ScheduleSheetInstance> placements = new FilteredElementCollector(_doc)
+                .OfClass(typeof(ScheduleSheetInstance))
+                .Cast<ScheduleSheetInstance>();
+
+            foreach (ScheduleSheetInstance placement in placements)
+            {
+                if (placement == null ||
+                    placement.ScheduleId == null ||
+                    placement.ScheduleId == ElementId.InvalidElementId)
+                {
+                    continue;
+                }
+
+                placedScheduleIds.Add(placement.ScheduleId.IntValue());
+            }
+
+            return placedScheduleIds;
         }
 
         private static bool IsDefault3DView(View view)

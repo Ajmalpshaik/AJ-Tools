@@ -3,10 +3,12 @@
  * Tool Name     : Reassign Reference Level
  * File Name     : CmdReassignLevel.cs
  * Purpose       : Reassigns supported MEP elements (MEP curves, free-standing family instances, spaces)
- *                 from one level to another across the whole project without moving them physically.
+ *                 from one level to another without moving them physically - either across the whole
+ *                 project (FROM level -> TO level), or just the elements already selected in Revit
+ *                 (TO level only; each element's own current level is used as its FROM).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.0
+ * Version       : 1.4.0
  *
  * Created Date  : 2026-04-14
  * Last Updated  : 2026-07-28
@@ -18,14 +20,21 @@
  * Dependencies  : Autodesk Revit API, AJTools.Utils, AJTools.Services.ReassignLevel,
  *                 AJTools.UI.ReassignLevel.ReassignLevelWindow (WPF)
  *
- * Input         : Full Project - FROM level and TO level chosen in a dialog.
+ * Input         : Whole Project - FROM level and TO level chosen in a dialog. OR Selected Elements -
+ *                 whatever is already selected in Revit when the tool is run, plus a TO level.
  * Output        : Matching elements re-pointed to the TO level (host offset compensated so they stay put);
- *                 single undo step; final report of reassigned / failed / skipped counts.
+ *                 single undo step; final report of reassigned / failed / already-on-target / skipped counts.
  *
  * Notes         :
  * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
- * - Scope is Full Project, so a confirmation dialog states how many elements will change before any edit.
- * - Hosted family instances are intentionally skipped (their level follows the host) and reported.
+ * - Whole Project scope: a confirmation dialog states how many elements will change before any edit.
+ * - Selected Elements scope: uses whatever was already selected in Revit before the tool was run (the
+ *   picker window is modal, so Revit's selection can't change while it's open); if nothing eligible is
+ *   selected, that option is disabled in the window with an explanatory tooltip rather than a dead-end
+ *   Run click.
+ * - Hosted family instances are intentionally skipped (their level follows the host) and reported; in
+ *   Selected Elements scope, unsupported selected items and elements already on the TO level are also
+ *   reported separately (not counted as failures).
  * - All reassignments run inside ONE transaction, so a single Ctrl+Z reverses the whole operation.
  * - Thin command wrapper: context/selection validation, transaction handling, and result dialogs live
  *   here; the level-reassignment algorithm itself lives in Services/ReassignLevel/ReassignLevelService.cs.
@@ -46,6 +55,11 @@
  *                       the fixed-size intro label could clip long text (now wraps). Added a Swap button
  *                       and an up-front note that the scope is the whole project and hosted elements are
  *                       skipped - previously only discoverable from the report after the fact.
+ * v1.4.0 (2026-07-28) - Added a Selected Elements scope: pick elements in Revit (or already have them
+ *                       selected), choose just a TO level, and only those elements are reassigned - no
+ *                       FROM level needed since it is read per element. Whole Project path is unchanged
+ *                       byte-for-byte; the new path is an additional branch using the new
+ *                       ReassignLevelService.CollectCandidatesFromSelection/ReassignElementToLevel.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -96,15 +110,34 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            if (!TryPromptLevels(commandData.Application, allLevels, out Level fromLevel, out Level toLevel))
+            ICollection<ElementId> preSelectedIds = uidoc.Selection.GetElementIds() ?? new List<ElementId>();
+            int totalSelectedCount = preSelectedIds.Count;
+            List<Element> selectedCandidates = ReassignLevelService.CollectCandidatesFromSelection(
+                doc, preSelectedIds, out int selSkippedHosted, out int selSkippedUnsupported);
+
+            if (!TryPromptScope(
+                    commandData.Application,
+                    allLevels,
+                    totalSelectedCount,
+                    selectedCandidates.Count,
+                    out ReassignScope scope,
+                    out Level fromLevel,
+                    out Level toLevel))
             {
                 return Result.Cancelled;
             }
 
-            ElementId fromId = fromLevel.Id;
-            ElementId toId = toLevel.Id;
             bool isRevit2020OrAbove = ReassignLevelService.IsRevit2020OrAbove(commandData.Application);
             var offsetHelper = new ReassignLevelService.OffsetHelper(doc, isRevit2020OrAbove);
+
+            if (scope == ReassignScope.SelectedElements)
+            {
+                return ExecuteSelectedElementsScope(
+                    doc, toLevel, selectedCandidates, selSkippedHosted, selSkippedUnsupported, offsetHelper, ref message);
+            }
+
+            ElementId fromId = fromLevel.Id;
+            ElementId toId = toLevel.Id;
 
             List<Element> candidates = ReassignLevelService.CollectCandidates(doc, fromId, out int skippedHosted);
 
@@ -191,16 +224,129 @@ namespace AJTools.Commands
             return Result.Succeeded;
         }
 
-        private static bool TryPromptLevels(
+        /// <summary>
+        /// Runs the Selected Elements scope: reassigns only the already-eligible candidates gathered
+        /// from Revit's selection before the window opened, to the single TO level chosen there. Each
+        /// element's own current level is used as its FROM (a selection can span several levels at
+        /// once), via ReassignLevelService.ReassignElementToLevel.
+        /// </summary>
+        private static Result ExecuteSelectedElementsScope(
+            Document doc,
+            Level toLevel,
+            List<Element> candidates,
+            int skippedHosted,
+            int skippedUnsupported,
+            ReassignLevelService.OffsetHelper offsetHelper,
+            ref string message)
+        {
+            if (candidates.Count == 0)
+            {
+                DialogHelper.ShowInfo(ToolTitle, "None of the currently selected elements can be reassigned.");
+                return Result.Cancelled;
+            }
+
+            string confirmMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                "This will reassign {0} of your selected element(s) to \"{1}\".\n\n" +
+                "Elements stay in the same physical position. Continue?",
+                candidates.Count,
+                toLevel.Name);
+            if (!DialogHelper.ShowYesNo(ToolTitle, confirmMessage))
+            {
+                return Result.Cancelled;
+            }
+
+            int okCount = 0;
+            int failCount = 0;
+            int alreadyOnTargetCount = 0;
+            ElementId toId = toLevel.Id;
+
+            try
+            {
+                using (var tx = new Transaction(doc, string.Format(CultureInfo.CurrentCulture, "Reassign Level: Selection to {0}", toLevel.Name)))
+                {
+                    tx.Start();
+
+                    foreach (Element element in candidates)
+                    {
+                        try
+                        {
+                            if (ReassignLevelService.ReassignElementToLevel(doc, element, toLevel, toId, offsetHelper, out bool alreadyOnTarget))
+                            {
+                                okCount++;
+                            }
+                            else if (alreadyOnTarget)
+                            {
+                                alreadyOnTargetCount++;
+                            }
+                            else
+                            {
+                                failCount++;
+                            }
+                        }
+                        catch
+                        {
+                            failCount++;
+                        }
+                    }
+
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
+
+            string resultMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                "{0} element(s) reassigned\n\nTO : {1}",
+                okCount,
+                toLevel.Name);
+
+            if (failCount > 0)
+            {
+                resultMessage += string.Format(CultureInfo.CurrentCulture, "\n\n{0} element(s) failed.", failCount);
+            }
+
+            if (alreadyOnTargetCount > 0)
+            {
+                resultMessage += string.Format(CultureInfo.CurrentCulture, "\n\n{0} element(s) were already on this level.", alreadyOnTargetCount);
+            }
+
+            if (skippedHosted > 0)
+            {
+                resultMessage += string.Format(CultureInfo.CurrentCulture, "\n\n{0} hosted element(s) in your selection were skipped.", skippedHosted);
+            }
+
+            if (skippedUnsupported > 0)
+            {
+                resultMessage += string.Format(
+                    CultureInfo.CurrentCulture,
+                    "\n\n{0} selected item(s) are not supported by this tool (only MEP curves, free-standing families, and spaces can be reassigned).",
+                    skippedUnsupported);
+            }
+
+            resultMessage += "\n\nElements should stay in the same physical location.";
+            DialogHelper.ShowInfo("Reassign Level - Complete", resultMessage);
+            return Result.Succeeded;
+        }
+
+        private static bool TryPromptScope(
             UIApplication uiapp,
             IList<Level> levels,
+            int totalSelectedCount,
+            int eligibleSelectedCount,
+            out ReassignScope scope,
             out Level fromLevel,
             out Level toLevel)
         {
+            scope = ReassignScope.WholeProject;
             fromLevel = null;
             toLevel = null;
 
-            var window = new ReassignLevelWindow(levels);
+            var window = new ReassignLevelWindow(levels, totalSelectedCount, eligibleSelectedCount);
 
             if (uiapp != null)
             {
@@ -213,11 +359,15 @@ namespace AJTools.Commands
             if (window.ShowDialog() != true)
                 return false;
 
+            scope = window.Scope;
             fromLevel = window.FromLevel;
             toLevel = window.ToLevel;
 
-            // The window disables Run unless both are set and different; re-check anyway.
-            if (fromLevel == null || toLevel == null || fromLevel.Id == toLevel.Id)
+            if (toLevel == null)
+                return false;
+
+            // The window disables Run unless the combination is valid; re-check anyway.
+            if (scope == ReassignScope.WholeProject && (fromLevel == null || fromLevel.Id == toLevel.Id))
                 return false;
 
             return true;

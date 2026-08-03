@@ -1217,7 +1217,7 @@ namespace AJTools.Services.SmartTag
         /// After placement, registers the new tag's bounding box in the annotation list
         /// so subsequent tags avoid clashing with it.
         /// </summary>
-        private static bool ApplyLeaderBehavior(
+        internal static bool ApplyLeaderBehavior(
             Document doc,
             IndependentTag tag,
             View view,

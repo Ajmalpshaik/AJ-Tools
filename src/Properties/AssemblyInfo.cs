@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.25.8
+ * Version       : 1.39.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-08-04
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,347 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.39.1 (2026-08-04) - Build hygiene, ZERO behaviour change - no tool touched. The Revit 2025+
+ *                       configurations (net8.0-windows / net10.0-windows) were emitting 11 CA1416
+ *                       platform warnings on Windows-only WinForms calls in AiShell and
+ *                       GraphicsTools (ColorDialog, FolderBrowserDialog, Screen), the last remnant
+ *                       of the count this changelog has tracked down from 682 (v1.25.3) through
+ *                       490 (v1.25.4) and 274 (v1.25.5). Root cause was never the call sites: the
+ *                       .csproj sets GenerateAssemblyInfo=false because this file is hand-maintained,
+ *                       which suppresses the SDK's automatic [SupportedOSPlatform("windows")] stamp
+ *                       that a net8.0-windows target would otherwise carry - so the analyzer treated
+ *                       an add-in that only ever runs inside Revit on Windows as if it might run on
+ *                       Linux. Declared the attribute explicitly at the foot of this file, guarded
+ *                       with #if NET5_0_OR_GREATER so the net472/net48 builds (Revit 2020-2024),
+ *                       which have no such attribute type, are untouched. Release (2020) and
+ *                       Release R25 both rebuilt 0 errors / 0 warnings. Also records that v1.39.0's
+ *                       pending build verification is now done - both configurations build clean.
+ *                       Not click-tested in Revit.
+ * v1.39.0 (2026-07-30) - Game Mode: the laser identity line now also shows the element's SYSTEM and
+ *                       LEVEL (Ajmal picked this from the audit's idea list: "Laser also shows
+ *                       System and Level i need it"). System = the System Name parameter (e.g.
+ *                       "SAD 5"), falling back to the system classification ("Supply Air"); Level =
+ *                       the same LevelId/reference-level/family-level ladder ReassignLevelService
+ *                       uses. Linked elements resolve both against their own linked document.
+ *                       Elements with neither (walls, floors) show the same line as before. Because
+ *                       every weapon's element text funnels through the one Describe() method, the
+ *                       cleaner/snag/selector toasts and the snag punch-list report gain System +
+ *                       Level automatically too. Both new BuiltInParameters byte-scan-verified in
+ *                       the real installed 2020 AND 2027 RevitAPI.dll before use (bridge was down).
+ *                       See GameCollisionService.cs v1.2.0. Build verification pending (same
+ *                       permission-system outage as 1.38.4); not click-tested in Revit.
+ * v1.38.4 (2026-07-29) - Game Mode full audit pass ("check that tool entirely"), ZERO behaviour
+ *                       change - no logic bug found; every fix is documentation/cleanup: (1) ribbon
+ *                       tooltip now covers the SELECTOR weapon and professional mode (N), both
+ *                       shipped in 1.38.0 but never added to the tooltip (RibbonManager v1.13.6);
+ *                       (2) dead PxToDip helper removed from the HUD Render partial - orphaned when
+ *                       measuring was deleted in 1.37.0 (GameHudWindow v1.9.4); (3) missing file
+ *                       changelog entries stamped: GameSession v1.8.1 (ResyncViewQueued) and
+ *                       GameMotionEngine v1.7.1 (ZoomToFit aim sync) - both referenced by the
+ *                       1.38.2 suite entry but never written into the files; (4) eight stale header/
+ *                       comment blocks corrected (engine header still listed the deleted Measure
+ *                       partial and section box; Extras/Weapons/Render purposes named deleted or
+ *                       outdated features; CmdGameMode + RibbonManager still described the old
+ *                       Commands/Services/UI folder split); (5) CHANGELOG.md backfilled - it had
+ *                       stopped at 1.25.8, missing every version from 1.26.0 to 1.38.3. Also
+ *                       verified clean: transactions all named "AJ Tools - ...", no success popups,
+ *                       ElementIdHelper used at every id compare, credit line on both HUD layers +
+ *                       Key Settings, all 4 game images exist, help card and key list match the
+ *                       real bindings. Build verification pending (permission-system outage during
+ *                       the audit session); not click-tested in Revit this pass.
+ * v1.38.3 (2026-07-29) - Game Mode: Ajmal's final weapon color scheme, applied everywhere -
+ *                       GUN amber, LASER green (beam, dot and readouts now green), CLEANER black &
+ *                       white (white crosshair bars with black edges), SNAG red, SELECTOR blue.
+ *                       See GameHudWindow v1.9.3.
+ * v1.38.2 (2026-07-29) - Game Mode: (1) AIM/DISPLAY SYNC FIX for Ajmal's live report (shots landing
+ *                       beside the crosshair on a fresh start, self-fixing when the Properties
+ *                       palette resized the view): Revit can 2D-zoom/pan perspective views like a
+ *                       photo, moving the picture centre off the camera axis - the engine now
+ *                       forces UIView.ZoomToFit on the game view at start, on every resume from
+ *                       pause and on every view resize, keeping crosshair and true aim identical.
+ *                       (2) The crosshair is now colored by the active tool (blue/red/amber/
+ *                       magenta/green) - visible weapon indicator even in professional mode.
+ *                       See GameSession v1.8.1, GameMotionEngine v1.7.1, GameHudWindow v1.9.2.
+ * v1.38.1 (2026-07-29) - Game Mode: teleport visual finalized to Ajmal's VR reference (Workshop-
+ *                       XR-like) - thick solid green ballistic arc from the muzzle dropping onto
+ *                       a double landing disc drawn flat on the floor, matching the approved
+ *                       sample render. See GameHudWindow v1.9.1.
+ * v1.38.0 (2026-07-29) - Game Mode round 17, two features from Ajmal: (1) PROFESSIONAL MODE -
+ *                       press N (remappable) and NO gun ever shows, permanently (remembered in
+ *                       AppData\AJTools\ajgame-prefs.txt across sessions): presentable in front of
+ *                       a manager or in a meeting, while EVERY tool keeps working - laser, cleaner
+ *                       hide, snag marking, selecting - with beams starting from the bottom of the
+ *                       view like a laser pointer; muzzle flash, recoil and the scroll-holster are
+ *                       disabled while on; N again brings the guns back. (2) SELECTOR - a 5th
+ *                       weapon (right-click cycle, green): the shot SELECTS the element in Revit's
+ *                       live selection (shot again unselects; toast shows the running count), and
+ *                       the selection STAYS after exiting the game, ready for editing. Linked
+ *                       elements are refused with an explanation, like the other tool weapons.
+ *                       See GamePrefs.cs v1.0.0, GameKeyBindings (new Professional action),
+ *                       GameSession v1.8.0, GameMotionEngine v1.7.0, GameHudWindow v1.9.0. Built
+ *                       clean; not yet click-tested.
+ * v1.37.0 (2026-07-29) - Game Mode round 16, three changes from Ajmal: (1) MEASURING REMOVED
+ *                       entirely ("not working properly") - rubber-band line, dimension badge,
+ *                       measure card, engine measure/projection code and the Measure partial file
+ *                       all deleted; the laser keeps its live distance (mm) + element identity.
+ *                       (2) J is now a full "Reset Element Graphics in View" inside the game -
+ *                       every element override in the game view resets (the existing Reset tool's
+ *                       proven approach), so red snag marks from EARLIER sessions clear too; U
+ *                       stays the temporary-hide reset. (3) REMAPPABLE KEYS: new Key Settings
+ *                       window (pause with Esc, then press S) lists every game action - click its
+ *                       key button, press the new key, Save; stored in AppData\AJTools\
+ *                       ajgame-keys.txt and loaded every game start. Esc/mouse/wheel/1-9/arrows
+ *                       stay fixed; duplicates and reserved keys are rejected inline. See
+ *                       GameKeyBindings.cs + GameKeySettingsWindow.xaml(.cs) v1.0.0,
+ *                       GameSession.cs v1.7.0, GameMotionEngine.cs v1.6.0, GameHudWindow v1.8.0,
+ *                       RibbonManager v1.13.5. Built clean; not yet click-tested.
+ * v1.36.4 (2026-07-29) - Game Mode: CLEANER rifle rotated 16 degrees and repositioned so its
+ *                       barrel and the shot/aim line form ONE straight line to the crosshair
+ *                       (Ajmal spotted the angle mismatch in the preview; snag blaster confirmed
+ *                       perfect, untouched). See GameHudWindow v1.7.3.
+ * v1.36.3 (2026-07-29) - Game Mode: the SNAG MARKER now shows Ajmal's blue/orange BLASTER picture
+ *                       (his "SNAG gun .png"; shipped untouched as Resources\GameSnagGun.png -
+ *                       real transparency confirmed, residual green keyed). Every weapon has its
+ *                       own gun now: pistol (gun + laser), rifle (cleaner), blaster (snag);
+ *                       glow/flash/tracer/laser follow whichever muzzle is active. See
+ *                       GameHudWindow v1.7.2.
+ * v1.36.2 (2026-07-29) - Game Mode: the CLEANER weapon now shows Ajmal's RIFLE picture instead of
+ *                       the pistol (rifle.png supplied at Y:\Ajmal Ps\icon; shipped untouched as
+ *                       Resources\GameRifle.png - it already had real transparency, only residual
+ *                       green keyed out and RGB blanked under the alpha). Muzzle glow, flash,
+ *                       tracer and laser all start from the rifle's flash-hider tip while the
+ *                       cleaner is selected; pistol returns on the other weapons. See
+ *                       GameHudWindow v1.7.1.
+ * v1.36.1 (2026-07-29) - Saved positions are now UNLIMITED (Ajmal: tour must run "until how much we
+ *                       have"): B keeps counting 10, 11, 12... instead of rotating back over 1-9,
+ *                       the tour (O) visits EVERY saved slot in order, and the left-side list shows
+ *                       them all (slots above 9 marked "tour only" since number keys stop at 9).
+ * v1.36.0 (2026-07-29) - Game Mode round 11, per Ajmal ("add all" + measure correction). (1) The
+ *                       measure is now a TRUE rubber band: hold on the first face and a GREEN laser
+ *                       line stays anchored to that face while you aim the second one, with the mm
+ *                       dimension riding the middle of the line; after release the locked line
+ *                       stays glued to both faces as you walk (engine projects the 3D points to
+ *                       screen every frame - GetZoomCorners calibration, assumed-FOV fallback).
+ *                       (2) SNAG MARKER 4th weapon (right-click cycles GUN/LASER/CLEANER/SNAG):
+ *                       shot paints the element red in the game view and adds it to a punch list
+ *                       with position; J clears the marks; on exiting the game a snag report
+ *                       (.txt) is saved to Documents\AJ Game Snags and the end screen says so.
+ *                       (3) Tour mode (O): flies smoothly through the saved positions in order,
+ *                       adopting each saved look; any move key stops it. (4) Compass + level line
+ *                       ("Facing N | Level 03") in the status card. (5) Crouch: hold C while
+ *                       walking = 1000 mm eye height (collision rays adapt). (6) Speed dial: + / -
+ *                       adjust walking/flying speed x0.4..x3.0 live. (7) Flashlight night mode (V)
+ *                       - dark vignette except where you look. (8) Synthesized gunshot sound per
+ *                       shot (no sound files; M mutes). See GameSession.cs v1.6.0,
+ *                       GameMotionEngine.cs v1.5.0 (+Movement/Measure/Extras partials),
+ *                       GameHudWindow v1.7.0. Built clean; not yet click-tested - the projection
+ *                       calibration (rubber-band anchor accuracy) is the main thing to check live.
+ * v1.35.1 (2026-07-29) - Removed the follow-me section box entirely (Ajmal: "X no need, remove
+ *                       that") - X key, engine logic, help line and tooltip mention all gone; the
+ *                       game is back to zero undo entries in every mode. See GameSession.cs v1.5.1,
+ *                       GameMotionEngine.cs v1.4.1, RibbonManager.cs v1.13.4.
+ * v1.35.0 (2026-07-29) - Game Mode teleport rework, modelled on Autodesk Workshop XR at Ajmal's
+ *                       request (he tested teleport live and asked for the XR feel): HOLD T shows
+ *                       a glowing dashed JUMP ARC to the crosshair with a pulsing landing ring and
+ *                       the jump distance in mm; RELEASE T = confirm and go (gray arc + "aim at a
+ *                       surface" when nothing valid is aimed). And the saved positions are now
+ *                       VISIBLE: a left-side "SAVED POSITIONS" panel lists each B-saved spot with
+ *                       its number and X/Y/Z coordinates in mm - press that number to go there.
+ *                       Engine feeds the aim target every frame while T is held (any weapon). See
+ *                       GameSession.cs v1.5.0, GameMotionEngine.cs v1.4.0, GameHudWindow v1.6.0.
+ *                       Built clean; awaiting Ajmal's live test.
+ * v1.34.1 (2026-07-29) - Game Mode restructure, ZERO behaviour change, per Ajmal's own idea ("keep
+ *                       it entirely in one folder... each feature separate .cs file... editing
+ *                       also it will be easy"): everything now lives in ONE folder, src/GameMode/
+ *                       (was spread over Commands/Services/UI GameMode subfolders), and the two
+ *                       big classes are split into small per-feature partial files - engine: core
+ *                       + Movement + Measure + Extras; HUD: core + Controls + Weapons + Render +
+ *                       Photo. 13 files total, each one focused. Namespaces and all code kept
+ *                       byte-identical (only 'partial' added), so nothing else in the project was
+ *                       touched. Removing the game is now: delete src/GameMode/, Resources/
+ *                       GameMode.png + GameGun.png, and the one "Game" block in RibbonManager.cs.
+ * v1.34.0 (2026-07-29) - Game Mode "add all" round - all six offered extras accepted by Ajmal:
+ *                       (1) TELEPORT: T jumps you to the point under the crosshair. (2) SAVED
+ *                       POSITIONS: B stores the current spot + look direction into rotating slots
+ *                       1-9; the number keys jump back. In-session only (not saved with the model).
+ *                       (3) PHOTO MODE: K hides the HUD for a frame and saves a clean PNG of the
+ *                       view area to Pictures\AJ Game Photos. (4) CLEANER weapon (right-click now
+ *                       cycles GUN / LASER / CLEANER): one shot temporarily hides the element hit
+ *                       (Revit's own temporary hide - host elements only, linked ones refused with
+ *                       an explanation; U restores everything). (5) CLEAR HEIGHT: live floor-to-
+ *                       obstruction height in mm in the status card while walking. (6) FOLLOW-ME
+ *                       SECTION BOX: X toggles a 10x10x7 m section box centred on you, re-centred
+ *                       every 2.5 m walked - honest note: each re-centre commits one transaction,
+ *                       so this mode adds undo entries (everything else in the game still adds
+ *                       none). Plus toast messages for all of the above. See GameSession.cs v1.4.0,
+ *                       GameMotionEngine.cs v1.3.0, GameHudWindow.xaml(.cs) v1.5.0,
+ *                       RibbonManager.cs v1.13.3. Built clean; not yet click-tested in Revit -
+ *                       HideElementsTemporary/SetSectionBox transaction behaviour uses
+ *                       try-direct-then-transaction fallbacks since Revit was closed during
+ *                       development.
+ * v1.33.0 (2026-07-29) - Game Mode, two features from Ajmal: (1) scroll-wheel HOLSTER - scroll down
+ *                       and the gun slides away off-screen (no shooting; laser and measuring keep
+ *                       working, the beam rising from the bottom of the view like a handheld
+ *                       pointer); scroll up - or a click - draws it back. Scrolling is ignored
+ *                       mid-measurement so a wheel touch cannot spoil a held measure. (2) The
+ *                       measure card now shows the BIM-360-style axis breakdown: Total on top,
+ *                       then X / Y / Z deltas and the plan distance, all in mm. See GameSession.cs
+ *                       v1.3.0, GameMotionEngine.cs v1.2.1, GameHudWindow.xaml(.cs) v1.4.0. Built
+ *                       clean; not yet click-tested in Revit.
+ * v1.32.2 (2026-07-28) - Game Mode: laser/bullet/flash start point moved to the gun's REAL barrel
+ *                       tip (top-left nose, by the single-dot front sight) - v1.32.1 had them
+ *                       starting from the striker back plate at the rear of the slide, which Ajmal
+ *                       spotted immediately ("laser is coming from the back side"). Muzzle
+ *                       fractions (0.650, 0.343) -> (0.041, 0.081). See GameHudWindow.xaml.cs
+ *                       v1.3.2. No other change.
+ * v1.32.1 (2026-07-28) - Game Mode gun art correction, per Ajmal's direct reference image: the gun
+ *                       now displays EXACTLY as he generated it - no flip, no tilt (v1.31.1 had
+ *                       mirrored + rotated it toward the crosshair; he rejected that). Processing
+ *                       is background removal + trim only; muzzle re-tracked to fractions
+ *                       (0.650, 0.343); display height 300, corner bleed 40/60. See
+ *                       GameHudWindow.xaml.cs v1.3.1.
+ * v1.32.0 (2026-07-28) - Game Mode: laser MEASURING, per Ajmal ("like the BIM 360 distance
+ *                       feature"). With the laser weapon selected: HOLD left-click while the laser
+ *                       dot is on the first face, keep holding and aim at the second face, release
+ *                       to lock. A green card shows Total, Horizontal (plan) and Vertical (level
+ *                       difference) distances in mm - live while holding, frozen on screen after
+ *                       release until the next measurement. Uses the exact 3D laser hit points on
+ *                       the real faces (linked models included); read-only, no model changes. Also
+ *                       retuned the gun picture after a rendered preview: smaller (height 340->260)
+ *                       and tucked deeper into the corner so the arm's cut end stays off-screen.
+ *                       See GameSession.cs / GameMotionEngine.cs v1.2.0, GameHudWindow.xaml(.cs)
+ *                       v1.3.0, RibbonManager.cs v1.13.2. Built clean; not yet click-tested.
+ * v1.31.1 (2026-07-28) - Game Mode polish, both from Ajmal: (1) the HUD gun is now his own
+ *                       AI-generated pistol picture (Y:\Ajmal Ps\icon\gun.png) - green background
+ *                       removed by chroma-key with fringe cleanup, flipped + tilted 60 degrees so
+ *                       the barrel aims at the crosshair, muzzle position tracked through every
+ *                       transform so the flash/tracer/laser start exactly at the barrel; ships as
+ *                       Resources\GameGun.png, and the old vector pistol stays as automatic
+ *                       fallback if that file is ever missing. (2) Freshly created "AJ Game View"
+ *                       views now come with Crop View OFF and the crop region boundary OFF - he
+ *                       was switching both off by hand on every new model. See CmdGameMode.cs
+ *                       v1.1.0, GameHudWindow.xaml(.cs) v1.2.0.
+ * v1.31.0 (2026-07-28) - AJ Game Mode weapon + speed rework, from Ajmal's feedback after first
+ *                       playing v1.30.0 ("this is great game"): (1) hold left-click = AUTOMATIC fire
+ *                       (~7.7 shots/s) instead of one bullet per click; (2) every bullet impact now
+ *                       bursts a spark splash at the crosshair (8 flying sparks + expanding ring,
+ *                       timed to land with the bullet); (3) right-click switches the weapon between
+ *                       GUN and LASER - the L key is gone, and in laser mode the gun's accent stripe
+ *                       and muzzle glow turn red; (4) shooting no longer pops the element-info card -
+ *                       instead the LASER continuously shows BOTH the distance in mm AND the identity
+ *                       of whatever it touches (category, family/type, Size, Element ID, linked
+ *                       marker), live under the crosshair; (5) the pistol was redrawn realistically
+ *                       (slide with serrations, ejection port, front/rear sights, hammer, trigger
+ *                       guard, raked textured grip, magazine base) and recoil now kicks along the
+ *                       barrel axis; (6) sprint speed raised - Shift now runs at 3.0x walking speed
+ *                       (was 2.2x), in fly mode too. See GameSession.cs, GameMotionEngine.cs,
+ *                       GameCollisionService.cs v1.1.0, GameHudWindow.xaml(.cs) v1.1.0,
+ *                       RibbonManager.cs v1.13.1 (tooltip). Built clean; not yet click-tested in
+ *                       Revit.
+ * v1.30.0 (2026-07-28) - New tool: AJ Game Mode ("Game" panel, AJ Tools tab) - a first-person,
+ *                       video-game style walkthrough inside a REAL Revit perspective view
+ *                       ("AJ Game View", created once and reused), so every Revit view control
+ *                       (VG, filters, hide/isolate, section box, display style) shapes the game
+ *                       world - including collision, which raycasts only what is visible.
+ *                       WASD+mouse-look walking with gravity, stairs step-up, Shift sprint, Space
+ *                       jump; walls/slabs/everything visible blocks movement; doors are passed
+ *                       with E when near; windows are climbed by jumping; F toggles free flight,
+ *                       G toggles ghost mode (through everything), R respawns. HUD overlay
+ *                       (transparent WPF window glued pixel-exact over the view) draws a
+ *                       crosshair, a vector-drawn gun with muzzle flash/recoil, a visible bullet
+ *                       tracer per shot, and a red laser with live distance readout in mm;
+ *                       shooting identifies the element hit (category, family/type, Size, distance,
+ *                       Element ID, linked-model marker). Esc pauses to a small "click to continue"
+ *                       pill so Revit stays fully usable mid-game; Esc again (or the ribbon button,
+ *                       which toggles) exits. KEY TECHNIQUE (verified live on Revit 2020,
+ *                       2026-07-28): View3D.SetOrientation needs NO transaction - camera moves are
+ *                       navigation, create zero undo entries and zero model changes; and
+ *                       ReferenceIntersector works fine on a perspective view (~0.1 ms/ray) with
+ *                       FindReferencesInRevitLinks resolving linked architecture. The only model
+ *                       change this tool ever makes is creating the "AJ Game View" itself. Fully
+ *                       self-contained for easy removal: Commands/GameMode, Services/GameMode,
+ *                       UI/GameMode, Resources/GameMode.png + one ribbon block (RibbonManager
+ *                       v1.13.0). See CmdGameMode.cs, GameSession.cs, GameCollisionService.cs,
+ *                       GameMotionEngine.cs, GameHudWindow.xaml(.cs) v1.0.0. Built clean; not yet
+ *                       click-tested in Revit.
+ * v1.29.1 (2026-07-28) - Stack Tags fix + ribbon move (Ajmal tested v1.29.0 live). Fix: Stack Tags'
+ *                       first-click tag creation was borrowing Smart MEP Tag's leader routine
+ *                       (SmartTagPlacementEngine.ApplyLeaderBehavior), which nudges the elbow outside
+ *                       the tag's own text box and falls back to toggling the leader end condition -
+ *                       neither of which Rearrange Tags does (its own TryApplyLShapeLeader comment:
+ *                       "do not toggle leader end condition as fallback"). Replaced with a new local
+ *                       ApplyFreshLeader in StackTagsService.cs: plain ComputeElbow + TrySetLeaderElbow,
+ *                       matching Rearrange Tags exactly - only kept the L1 rollback-probe fallback
+ *                       (a Revit API read quirk, not a style choice). Create Tags' own leader technique
+ *                       is untouched - it's deliberately modeled on Smart MEP Tag, not Rearrange Tags.
+ *                       Ribbon: moved Stack Tags from a standalone button into the Create Tags pulldown
+ *                       as a third child (Create Tags / Stack Tags / Create Tags Settings), per Ajmal's
+ *                       request.
+ * v1.29.0 (2026-07-28) - New tool: Stack Tags, alongside Create Tags on AJ Annotation - Tags panel.
+ *                       Select MEP elements, click ONE location, and a tag is created for every
+ *                       eligible element, arranged into a vertical stack starting there - exactly
+ *                       Rearrange Tags' own single-click, whole-batch stacking behaviour, but starting
+ *                       from raw elements instead of pre-existing tags. Click again to relocate the
+ *                       whole stack (moves the tags this run already created rather than creating
+ *                       duplicates - the first click creates, every later click moves). Same
+ *                       eligibility rules and Settings as Create Tags (already tagged / too short /
+ *                       vertical; category + minimum length); stack spacing comes from Arrange Tags
+ *                       Settings, unchanged - no new settings window for this tool. Extracted the
+ *                       shared "which selected elements are eligible" logic out of CreateTagsService
+ *                       into CreateTagsEligibilityFilter.cs so Create Tags and Stack Tags can't
+ *                       quietly drift apart on the rules. See CmdStackTags.cs, StackTagsService.cs,
+ *                       CreateTagsEligibilityFilter.cs v1.0.0.
+ * v1.28.0 (2026-07-28) - 9 new tools across the Transfer and Purge pulldowns (Manage panel), all built
+ *                       on two new shared engines so future variants stay cheap to add:
+ *                       Transfer: added Transfer Schedules, Transfer Legends, Transfer Drafting Views
+ *                       alongside the existing Transfer View Templates (untouched). Same copy-between-
+ *                       open-projects UX; override mode now also restores the copy's sheet placement(s)
+ *                       (Viewport for Legends/Drafting Views, ScheduleSheetInstance for Schedules - a
+ *                       Legend can be placed on several sheets at once, all are restored). New shared
+ *                       engine: TransferViewsCommandRunner + TransferViewsWindow + TransferElementCollector
+ *                       (Models/Transfer, Services/Transfer, UI/Transfer). See CmdTransferSchedules.cs,
+ *                       CmdTransferLegends.cs, CmdTransferDraftingViews.cs v1.0.0.
+ *                       Purge: added Purge Unused View Templates, Purge Unused Filters, and Purge Unused
+ *                       Groups (Model + Detail Group types with zero placed instances, shown together via
+ *                       a kind filter) - a different shape of "unused" to the existing Purge Unplaced
+ *                       family (not-referenced-anywhere vs not-on-a-sheet), same probe-before-delete
+ *                       safety net (a rolled-back Document.Delete decides what Revit really allows, not
+ *                       just this tool's static usage scan - catches cases like a template silently set
+ *                       as Revit's own default for a view type). New shared engine:
+ *                       UnusedElementPurgeCommandRunner + PurgeUnusedElementsWindow + UnusedElementCollector
+ *                       + UnusedElementPurgeService (Models/Purge, Services/Purge, UI/Purge). See
+ *                       CmdPurgeUnusedViewTemplates.cs, CmdPurgeUnusedFilters.cs, CmdPurgeUnusedGroups.cs
+ *                       v1.0.0. Also extended the existing Purge Unplaced family (UnplacedViewPurgeMode)
+ *                       with 3 more kinds - Schedules, Legends, Drafting Views - reusing the same
+ *                       collector/service/window unchanged (ThreeDViews/SectionViews behaviour untouched).
+ *                       See CmdPurgeUnplacedSchedules.cs, CmdPurgeUnplacedLegends.cs,
+ *                       CmdPurgeUnplacedDraftingViews.cs v1.0.0.
+ * v1.27.0 (2026-07-28) - New tool: Create Tags, on AJ Annotation - Tags panel. Select one or more
+ *                       MEP elements (duct, pipe, mechanical equipment, duct/pipe accessory, cable
+ *                       tray), then click a location for each in turn (nearest untagged-in-this-run
+ *                       element wins each click, Esc stops early) - same click-loop rhythm as
+ *                       Rearrange Tags, but creates a fresh tag with an L-shaped leader instead of
+ *                       moving an existing one. Auto-skips an element that's already tagged in the
+ *                       view, shorter than the configured minimum length, or a vertical run (duct,
+ *                       pipe, OR cable tray - broader than Smart MEP Tag's own duct-only vertical
+ *                       check, per Ajmal's confirmed answer). New Create Tags Settings window
+ *                       (category grid + a minimum-length mm field - unlike Smart MEP Tag Settings,
+ *                       which hardcodes its size thresholds today). Reuses SmartMepTagService's
+ *                       pre-flight checks, tag-family resolution, and its already-tagged/curve-length/
+ *                       midpoint helpers, plus SmartTagPlacementEngine's leader-attachment routine (4
+ *                       methods widened private->internal for reuse, zero behaviour change to Smart
+ *                       MEP Tag itself). See CmdCreateTags.cs, CmdCreateTagsSettings.cs,
+ *                       CreateTagsService.cs, CreateTagsSettingsTracker.cs,
+ *                       CreateTagsSettingsWindow.xaml(.cs) v1.0.0.
+ * v1.26.0 (2026-07-28) - Reassign Reference Level: added a Selected Elements scope alongside the
+ *                       existing Whole Project scope. Pre-select elements in Revit, open the tool,
+ *                       and only those elements are reassigned to a single TO level - each element's
+ *                       own current level is read as its FROM, so a mixed-level selection is fine.
+ *                       The option is disabled with an explanatory tooltip until something eligible
+ *                       is selected, so there is no dead-end Run click. Whole Project path (FROM
+ *                       level -> TO level, across the whole model) is unchanged. See
+ *                       CmdReassignLevel.cs v1.4.0, ReassignLevelService.cs v1.1.0,
+ *                       ReassignLevelWindow.xaml(.cs) v1.1.0.
  * v1.25.8 (2026-07-28) - HVAC Schematic error dialogs now show the exception type and the failing
  *                       AJ Tools method/line (trimmed stack trace) instead of a bare message, so a
  *                       live crash pinpoints its own source. Written while the v1.25.7 "key not
@@ -583,5 +924,18 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.25.8.0")]
-[assembly: AssemblyFileVersion("1.25.8.0")]
+[assembly: AssemblyVersion("1.39.1.0")]
+[assembly: AssemblyFileVersion("1.39.1.0")]
+
+// AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
+// On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
+// [SupportedOSPlatform("windows")] automatically because the TargetFramework is
+// net8.0-windows / net10.0-windows - but GenerateAssemblyInfo is false in the .csproj (this
+// file is maintained by hand), which suppresses that stamp. Without it the CA1416 analyzer
+// treats every Windows-only WinForms/WPF call (ColorDialog, FolderBrowserDialog, Screen) as
+// if it might run on Linux and warns. Declaring it here states the truth and keeps the
+// newer-Revit configurations as warning-free as the 2020 baseline.
+// Guarded: net472 / net48 (Revit 2020-2024) have no such attribute type.
+#if NET5_0_OR_GREATER
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("windows")]
+#endif
