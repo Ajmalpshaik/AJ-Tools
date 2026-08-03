@@ -5,6 +5,171 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-07-30
+
+- **Added**: Game Mode laser now also shows the element's System and Level in its identity line
+  (e.g. "Duct - Default - Size 400x250 - SAD 5 - Level 03 - Id 919700"). Works for linked elements
+  with their own model's names; non-MEP elements without a system simply omit it. The cleaner /
+  snag / selector messages and the snag punch-list report gain the same detail automatically.
+
+## [1.38.4] - 2026-07-29
+
+- **Changed**: Game Mode full audit pass, zero behaviour change - no logic bug found. Ribbon tooltip
+  now covers the SELECTOR weapon and professional mode (N); a dead helper left over from the removed
+  measuring feature was deleted; missing per-file changelog entries were stamped; eight stale header
+  comments (deleted features, old folder layout) were corrected; and this changelog was backfilled -
+  it had stopped at 1.25.8 while the suite moved on to 1.38.3 (every entry from 1.26.0 below was
+  written in this pass, from the AssemblyInfo version history).
+
+## [1.38.3] - 2026-07-29
+
+- **Changed**: Game Mode - final weapon color scheme applied everywhere (crosshair, beams, glows,
+  texts): GUN amber, LASER green, CLEANER black & white, SNAG red, SELECTOR blue.
+
+## [1.38.2] - 2026-07-29
+
+- **Fixed**: Game Mode aim/display sync - shots could land beside the crosshair when Revit had
+  2D-zoomed/panned the perspective view; the game now re-fits the picture (ZoomToFit) on start, on
+  resume and on every window resize so the crosshair and the real aim always match.
+- **Changed**: The crosshair is colored by the active tool - the weapon indicator that survives
+  professional mode.
+
+## [1.38.1] - 2026-07-29
+
+- **Changed**: Game Mode teleport visual finalized to the approved VR reference - solid green
+  ballistic arc dropping onto a landing disc drawn flat on the floor.
+
+## [1.38.0] - 2026-07-29
+
+- **Added**: Game Mode PROFESSIONAL MODE (N, remembered across sessions) - no gun ever shows,
+  presentable in meetings, every tool keeps working with beams rising from the bottom of the view.
+- **Added**: Game Mode 5th weapon SELECTOR - the shot selects the element in Revit's live selection
+  (shot again unselects); the selection stays after exiting the game, ready for editing.
+
+## [1.37.0] - 2026-07-29
+
+- **Removed**: Game Mode measuring (not working properly) - the laser keeps its live distance in mm
+  and element identity.
+- **Changed**: J now resets ALL element colors in the game view (existing Reset tool's approach), so
+  snag marks from earlier sessions clear too.
+- **Added**: Remappable keys - pause (Esc) then S opens the new Key Settings window; every game
+  action can be given a new key, saved to AppData. Esc, mouse, wheel, 1-9 and arrows stay fixed.
+
+## [1.36.4] - 2026-07-29
+
+- **Fixed**: Game Mode CLEANER rifle rotated and repositioned so barrel and beam form one straight
+  line to the crosshair.
+
+## [1.36.3] - 2026-07-29
+
+- **Changed**: Game Mode SNAG MARKER now shows Ajmal's blaster picture - every weapon has its own
+  gun: pistol (gun + laser), rifle (cleaner), blaster (snag).
+
+## [1.36.2] - 2026-07-29
+
+- **Changed**: Game Mode CLEANER weapon now shows Ajmal's rifle picture instead of the pistol.
+
+## [1.36.1] - 2026-07-29
+
+- **Changed**: Game Mode saved positions are now unlimited - B keeps counting past 9, the tour (O)
+  visits every slot, the left-side list shows them all (slots above 9 are tour-only).
+
+## [1.36.0] - 2026-07-29
+
+- **Added**: Game Mode round 11 - true rubber-band measure line (superseded - removed in 1.37.0),
+  SNAG MARKER weapon (paints red + punch-list report saved to Documents\AJ Game Snags on exit),
+  tour mode (O), compass + level line, crouch (hold C), live speed dial (+/-), flashlight night
+  mode (V), and a synthesized gunshot sound (M mutes).
+
+## [1.35.1] - 2026-07-29
+
+- **Removed**: Game Mode follow-me section box (X) - the game is back to zero undo entries in every
+  mode.
+
+## [1.35.0] - 2026-07-29
+
+- **Changed**: Game Mode teleport reworked to the Autodesk Workshop XR feel - hold T for a glowing
+  jump arc with landing ring and distance, release to go.
+- **Added**: Left-side SAVED POSITIONS panel listing every B-saved spot with its coordinates in mm.
+
+## [1.34.1] - 2026-07-29
+
+- **Changed**: Game Mode restructure, zero behaviour change - everything now lives in one folder
+  (src/GameMode) with one small file per feature (partial classes), per Ajmal's own request.
+
+## [1.34.0] - 2026-07-29
+
+- **Added**: Game Mode "add all" round - teleport (T), saved positions (B / 1-9), photo mode (K, to
+  Pictures\AJ Game Photos), CLEANER weapon (temporary hide, U restores), live clear-height readout,
+  follow-me section box (removed again in 1.35.1), and toast messages.
+
+## [1.33.0] - 2026-07-29
+
+- **Added**: Game Mode scroll-wheel holster (gun slides away; scroll up or click to draw), and the
+  measure card's axis breakdown (Total, X/Y/Z deltas and plan distance in mm).
+
+## [1.32.2] - 2026-07-28
+
+- **Fixed**: Game Mode laser/bullet/flash now start at the gun picture's real barrel tip (they were
+  starting from the striker plate at the rear - Ajmal spotted it immediately).
+
+## [1.32.1] - 2026-07-28
+
+- **Fixed**: Game Mode gun picture now displays exactly as generated - no flip, no tilt.
+
+## [1.32.0] - 2026-07-28
+
+- **Added**: Game Mode laser measuring, BIM-360 style - hold on the first face, release on the
+  second; Total / Horizontal / Vertical in mm (superseded - removed in 1.37.0).
+
+## [1.31.1] - 2026-07-28
+
+- **Changed**: Game Mode HUD gun is now Ajmal's own pistol picture (vector pistol stays as
+  fallback); freshly created "AJ Game View" views come with Crop View and crop boundary already OFF.
+
+## [1.31.0] - 2026-07-28
+
+- **Changed**: Game Mode weapon + speed rework after Ajmal's first play - hold left-click for
+  automatic fire with impact sparks, right-click switches GUN/LASER, the laser continuously shows
+  distance + element identity, realistic pistol redraw, sprint raised to 3x.
+
+## [1.30.0] - 2026-07-28
+
+- **Added**: New tool - AJ Game Mode ("Game" panel, AJ Tools tab). First-person walkthrough in a
+  real Revit perspective view ("AJ Game View"): WASD + mouse-look, gravity, stairs, sprint, jump,
+  doors with E, windows by jumping, fly (F), ghost (G), respawn (R); transparent HUD overlay with
+  crosshair, gun, tracer and laser rangefinder identifying the element hit. Camera moves create no
+  undo entries and no model changes; the only model change ever is creating the game view itself.
+
+## [1.29.1] - 2026-07-28
+
+- **Fixed**: Stack Tags' first-click tags now use Rearrange Tags' exact leader routine (no leader
+  end-condition fallback). Stack Tags moved into the Create Tags pulldown.
+
+## [1.29.0] - 2026-07-28
+
+- **Added**: New tool - Stack Tags (AJ Annotation, Tags panel): select MEP elements, click once, a
+  tag per eligible element is created and stacked there; click again to relocate the whole stack.
+
+## [1.28.0] - 2026-07-28
+
+- **Added**: 9 new tools across the Transfer and Purge pulldowns (Manage panel) - Transfer
+  Schedules / Legends / Drafting Views, Purge Unused View Templates / Filters / Groups, and Purge
+  Unplaced Schedules / Legends / Drafting Views - all built on two new shared engines, with the
+  probe-before-delete safety net deciding what Revit really allows.
+
+## [1.27.0] - 2026-07-28
+
+- **Added**: New tool - Create Tags (AJ Annotation, Tags panel): select MEP elements, click a
+  location for each in turn; creates fresh tags with L-shaped leaders, auto-skipping already-tagged,
+  too-short and vertical runs. Own Settings window (categories + minimum length).
+
+## [1.26.0] - 2026-07-28
+
+- **Added**: Reassign Reference Level now has a Selected Elements scope alongside Whole Project -
+  pre-select elements and only those move to the chosen level; the option is disabled with an
+  explanatory tooltip until something eligible is selected.
+
 ## [1.25.8] - 2026-07-28
 
 - **Changed**: HVAC Schematic error dialogs now name the exact failing method and line (exception
