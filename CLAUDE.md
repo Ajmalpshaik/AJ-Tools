@@ -20,11 +20,17 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated
 output (`src/bin`, `src/obj`, `dist/release`).
 
-**Git here is not normal — check before assuming.** The root `.git` folder is hollow (no commits, no
-branches; git commands fail at the root even though the folder exists). The only working git
-repository sits *inside* the do-not-edit `AJ Tools\` folder (branch `master`, pushed to GitHub, holds
-the tagged releases). Do not `git init` at the root and do not improvise a way to commit root changes —
-ask Ajmal how he wants it handled, via the `aj-tools-github` skill.
+**Git — the root IS the working repository now (changed 2026-08-05).** The root `.git` used to be
+hollow (hooks/ and info/ only), so nothing done in the live `src/` tree was recorded anywhere. It was
+replaced with a copy of the repository that had been sitting inside `AJ Tools\`, so the root now
+carries the full history (183 commits, 47 tags) on branch `master`, pushed to
+`https://github.com/Ajmalpshaik/AJ-Tools.git` (private). Normal git commands work at the root.
+
+`AJ Tools\` still contains its own `.git` pointing at the same remote — it was copied, not moved, so
+that tree stayed untouched per the do-not-edit rule. **Ignore it: commit from the root only.**
+`.gitignore` excludes both `AJ Tools/` and `AJ-Tools-Installer/` (the installer is its own separate
+repository). All GitHub/git work still goes through the `aj-tools-github` skill, and pushing still
+needs Ajmal's explicit yes.
 
 ## Who you're working with, and how
 
