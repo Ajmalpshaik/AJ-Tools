@@ -197,6 +197,7 @@ Repo         : AJ-Tools
                             <CheckBox Grid.Column="0"
                                       HorizontalAlignment="Center"
                                       VerticalAlignment="Center"
+                                      Style="{StaticResource ModernListCheckBox}"
                                       IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
 
                             <TextBlock Grid.Column="1"

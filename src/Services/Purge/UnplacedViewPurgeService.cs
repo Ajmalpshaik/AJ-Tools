@@ -45,12 +45,32 @@ namespace AJTools.Services.Purge
             _collector = new UnplacedViewCollector(_doc, _activeViewId, mode);
         }
 
-        public IList<UnplacedViewPurgeItem> Scan()
+        /// <summary>
+        /// Collects the candidates and works out which of them Revit will actually let go.
+        /// </summary>
+        /// <param name="onProgress">
+        /// Optional (done, total) callback, raised once per candidate - purely for a progress bar. It
+        /// cannot change what is scanned or what the scan concludes, and existing callers that pass
+        /// nothing behave exactly as before. Worth having because every candidate costs a trial delete
+        /// inside a rolled-back transaction.
+        /// </param>
+        public IList<UnplacedViewPurgeItem> Scan(Action<int, int> onProgress = null)
         {
             IList<UnplacedViewPurgeItem> items = _collector.Collect();
+
+            int done = 0;
+            int total = items.Count;
+
             foreach (UnplacedViewPurgeItem item in items)
             {
                 ProbeDelete(item);
+
+                done++;
+                if (onProgress != null)
+                {
+                    try { onProgress(done, total); }
+                    catch { /* A reporting fault must never abort the scan. */ }
+                }
             }
 
             return items

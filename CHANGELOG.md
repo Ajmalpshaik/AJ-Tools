@@ -5,6 +5,22 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.40.3] - 2026-08-05
+
+- **Changed**: The tick boxes inside the scrolling lists (View Crop target views, Section Mark views) now
+  match the rest of AJ Tools too. Their tick appears instantly rather than animating, on purpose - those
+  rows are rebuilt as you scroll, so an animated tick would flicker down the list.
+- **Added**: **Purge Unplaced Views** now shows the same progress bar and live count as Purge Unused
+  Elements. These two are the only tools that genuinely sit silent for seconds, because both have to try
+  deleting every candidate and undo it again to find out what Revit will release.
+- **Changed**: The boxes you type in on Graphics Settings Manager now light up on hover and focus like
+  every other field in the suite. They were the last ones that didn't.
+- **Note**: Three things were deliberately left alone. Sliding panels open and shut inside a window would
+  make those windows resize while animating, because they size themselves to their contents. The AJ AI
+  docked panel has no arrival animation because that one file loads during Revit's startup - a fault
+  there stops the whole add-in loading, which has happened before, and a fade on a panel isn't worth
+  that risk. And the tick column in the Duct Standards table keeps its own behaviour.
+
 ## [1.40.2] - 2026-08-05
 
 - **Changed**: **Tick boxes and radio buttons now look like AJ Tools.** They were the last thing in the

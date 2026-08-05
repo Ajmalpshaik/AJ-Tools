@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.40.2
+ * Version       : 1.40.3
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-05
@@ -24,6 +24,41 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.40.3 (2026-08-05) - Closes out the UI motion and polish pass. NO tool behaviour changed anywhere.
+ *                       LIST TICK BOXES: new ModernListCheckBox (ModernStyles v1.5.0) - the same house
+ *                       box, but with an INSTANT tick - applied to the two list checkboxes that were
+ *                       still raw Windows chrome (View Crop target views, Section Mark views). The tick
+ *                       is instant there on purpose: those rows are created and recycled by a
+ *                       virtualized list, so an animated tick would replay every time a row scrolled
+ *                       into view. Hover/press/focus still animate - those fire on user action, not on
+ *                       materialization.
+ *                       PROGRESS: Purge Unplaced Views' scan now reports progress too, same shape as
+ *                       Purge Unused Elements in v1.40.1 - an OPTIONAL Action<int,int> on Scan() that
+ *                       defaults to null, so existing callers are untouched, wrapped in try/catch so a
+ *                       reporting fault can never abort a scan. These are the two services that trial
+ *                       -delete every candidate inside a rolled-back transaction, i.e. the only genuine
+ *                       multi-second freezes in the suite.
+ *                       GRAPHICS OVERRIDE TEXT BOXES: the last field in the project that did not light
+ *                       up. It had no Template at all, so its focus edge was an instant BorderBrush
+ *                       swap; now a fading hover ring and focus ring like every other field. Padding
+ *                       still drives the content inset, so anything sitting over those boxes is
+ *                       unmoved.
+ *                       DELIBERATELY NOT DONE, and these are decisions rather than omissions:
+ *                       (a) Show/hide panel transitions (Reassign Level's scope toggle, View Crop
+ *                       options) - those windows are SizeToContent, so animating a panel in or out
+ *                       makes the whole window resize mid-animation. Fixing that means giving them
+ *                       fixed sizes, which touches resizing - Ajmal's one hard constraint.
+ *                       (b) An entrance for the AJ AI docked pane. AiShellPaneProvider constructs
+ *                       AiShellView unconditionally during Revit's OnStartup, so a fault there takes
+ *                       the WHOLE add-in down, not just that pane - it already did once, in v1.16.0.
+ *                       A fade on a docked panel is not worth touching the highest-blast-radius file
+ *                       in the project for.
+ *                       (c) The Duct Standards grid tick column - DataGridCheckBoxColumn generates its
+ *                       own checkbox with its own editing flow, and it is one column in one window.
+ *                       Verified: all 24 shared styles build (tools/verify-wpf-styles.ps1 now covers the
+ *                       new list variant), plus the window-local, exit-motion and tab-motion checks.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
  * v1.40.2 (2026-08-05) - Tick boxes, radio buttons and the toggle switch finally templated
  *                       (UI/ModernStyles.xaml v1.4.0). These three were setter-only since v1.0, so every
  *                       tick box in the suite drew RAW WINDOWS CHROME inside an otherwise soft, rounded,
@@ -1215,8 +1250,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.40.2.0")]
-[assembly: AssemblyFileVersion("1.40.2.0")]
+[assembly: AssemblyVersion("1.40.3.0")]
+[assembly: AssemblyFileVersion("1.40.3.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
