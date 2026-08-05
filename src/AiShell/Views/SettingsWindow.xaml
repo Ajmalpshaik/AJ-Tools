@@ -1,15 +1,20 @@
 <!--
 Tool Name : C# Settings
-Purpose   : Modal popup window for the "C#" AI shell's provider settings (Gemini/OpenAI/Claude
-            API keys, OpenAI/Claude model choice, local scripts folder) - moved out of the docked
-            pane's inline collapsible panel per Ajmal's request ("settings coming inside this
+Purpose   : Modal popup window for the "C#" AI shell's provider settings (Gemini/OpenAI/Claude/NVIDIA
+            API keys, OpenAI/Claude/NVIDIA model choice, local scripts folder) - moved out of the
+            docked pane's inline collapsible panel per Ajmal's request ("settings coming inside this
             window, I need a separate window popup"). Binds directly to the same AiShellViewModel
             instance the pane already uses - no new ViewModel, no Revit API access (pure local
             config), so a plain ShowDialog() is safe without an ExternalEvent.
 Author    : Ajmal P.S.
-Version   : 1.1.1
-Last Updated : 2026-07-25
-Changelog : v1.1.1 (2026-07-25) - Merge with the GitHub line (which had added its own plainer
+Version   : 1.2.0
+Last Updated : 2026-08-05
+Changelog : v1.2.0 (2026-08-05) - NVIDIA NIM added as the fourth provider: dropdown entry, masked key
+            field with reveal toggle, and a model picker that is a shortlist ComboBox PLUS a plain
+            TextBox rather than one editable ComboBox - SoftComboBoxStyle's ControlTemplate has no
+            PART_EditableTextBox, so IsEditable would render nothing to type into (full reasoning in
+            SettingsWindow.xaml.cs v1.2.0). Both controls bind TwoWay to NvidiaModel.
+            v1.1.1 (2026-07-25) - Merge with the GitHub line (which had added its own plainer
             Claude section, no key masking): provider dropdown entry renamed "Anthropic" ->
             "Claude" to match the GitHub provider-key naming used in AiShellViewModel/
             AiShellConfig; this file's masked key fields (v1.1.0) kept for all three providers.
@@ -59,6 +64,7 @@ Changelog : v1.1.1 (2026-07-25) - Merge with the GitHub line (which had added it
                         <ComboBoxItem Content="Gemini"/>
                         <ComboBoxItem Content="OpenAI"/>
                         <ComboBoxItem Content="Claude"/>
+                        <ComboBoxItem Content="NVIDIA"/>
                     </ComboBox>
                 </StackPanel>
 
@@ -133,6 +139,46 @@ Changelog : v1.1.1 (2026-07-25) - Merge with the GitHub line (which had added it
                         <ComboBoxItem Content="claude-haiku-4-5"/>
                         <ComboBoxItem Content="claude-fable-5"/>
                     </ComboBox>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,12" Visibility="{Binding IsNvidiaSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="NVIDIA API Key (nvapi-... from build.nvidia.com)" Style="{StaticResource FieldLabelStyle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <PasswordBox x:Name="NvidiaKeyBox" Style="{StaticResource SoftPasswordBoxStyle}"
+                                     PasswordChanged="NvidiaKeyBox_PasswordChanged"/>
+                        <TextBox x:Name="NvidiaKeyRevealBox" Grid.Column="0" Style="{StaticResource SoftTextBoxStyle}"
+                                 Text="{Binding NvidiaApiKeyInput, UpdateSourceTrigger=PropertyChanged}"
+                                 Visibility="Collapsed" IsReadOnly="True"/>
+                        <Button x:Name="NvidiaShowToggle" Grid.Column="1" Content="👁" Width="34"
+                                Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,0,0"
+                                ToolTip="Show/hide the key" Click="ShowKeyToggle_Click" Tag="Nvidia"/>
+                    </Grid>
+
+                    <!-- Quick pick + free-text box, rather than one IsEditable ComboBox: SoftComboBoxStyle
+                         defines its own ControlTemplate with no PART_EditableTextBox, so an editable combo
+                         would render with nothing to type into. Both controls bind to the same NvidiaModel
+                         property - picking from the list fills the box, and any other id can be pasted
+                         straight off a build.nvidia.com model card (the catalog is ~130 models). -->
+                    <TextBlock Text="NVIDIA Model — quick pick" Style="{StaticResource FieldLabelStyle}" Margin="0,10,0,4"/>
+                    <ComboBox SelectedValue="{Binding NvidiaModel, Mode=TwoWay}" SelectedValuePath="Content"
+                              Style="{StaticResource SoftComboBoxStyle}" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="z-ai/glm-5.2"/>
+                        <ComboBoxItem Content="qwen/qwen3-coder-480b-a35b-instruct"/>
+                        <ComboBoxItem Content="deepseek-ai/deepseek-v3.1"/>
+                        <ComboBoxItem Content="nvidia/llama-3.3-nemotron-super-49b-v1.5"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Model id in use (paste any model from build.nvidia.com)"
+                               Style="{StaticResource FieldLabelStyle}" Margin="0,10,0,4"/>
+                    <TextBox Style="{StaticResource SoftTextBoxStyle}"
+                             Text="{Binding NvidiaModel, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Free tier, about 40 requests per minute. Reasoning models such as glm-5.2 think before answering, so replies take longer than Claude."
+                               TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0"
+                               Foreground="{StaticResource MutedBrush}"/>
                 </StackPanel>
 
                 <StackPanel>

@@ -1,0 +1,11 @@
+# Keep the knowledge graph scoped to the LIVE trees only.
+#
+# "AJ Tools/" is an old copy of the project and "_backup/" is a pre-multiversion snapshot.
+# Both are do-not-edit trees (see CLAUDE.md). Indexing them makes the graph half-duplicate
+# and wrong: MepOpeningService appeared twice, AJTools.Utils reported 315 edges instead of
+# its real 162, and communities came out in mirrored pairs.
+#
+# This file exists so a plain `graphify update .` is safe. Before it existed, every update
+# silently pulled the stale trees back in and the scoping had to be redone by hand.
+AJ Tools/
+_backup/
