@@ -53,6 +53,23 @@ powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepo
 - `releases\AJ-Tools-vX.Y.Z.zip`
 - `releases\SHA256SUMS.txt`
 
+   **Write the installer `CHANGELOG.md` entry by hand.** `prepare-release.ps1` updates the version
+   references in `README.md` and `INSTALL.md` only — it does **not** touch `CHANGELOG.md`, even though
+   step 7 stages it. Nothing warns you if it is missing, so the release publishes with no notes.
+   Write it in the installer repo's own plain, non-developer voice (it is what end users read), not by
+   copying the source repo's entry.
+
+   Worth verifying before publishing, since users trust both:
+
+```powershell
+# every payload carries the intended version
+Get-ChildItem "dist\release\AJ-Tools-vX.Y.Z" -Recurse -Filter "AJ Tools.dll" |
+    ForEach-Object { "{0,-8} {1}" -f $_.Directory.Name, $_.VersionInfo.FileVersion }
+
+# the listed checksum actually matches the zip
+(Get-FileHash "AJ-Tools-Installer\releases\AJ-Tools-vX.Y.Z.zip" -Algorithm SHA256).Hash.ToLower()
+```
+
 7. Publish the installer repository release:
 
 ```powershell
