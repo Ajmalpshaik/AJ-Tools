@@ -299,6 +299,17 @@ place rather than leaving stale info sitting next to the new truth.
   long tools (the two other Purge windows, Transfer Views, the tagging services) are the same shape and
   can reuse this helper unchanged.
 
+**The suite version lives in SIX places and WILL drift — run `toolserify-version-consistency.ps1`**
+- The six: `AssemblyInfo.cs` header `Version :`, its `[assembly: AssemblyVersion]` and
+  `[AssemblyFileVersion]` attributes, its newest changelog entry, `CHANGELOG.md`'s newest `## [x.y.z]`,
+  and `README.md`'s "Current suite version". The AssemblyVersion attribute is the source of truth.
+- **Proof this needs a script, not discipline**: an audit caught `README.md` ten versions behind
+  (1.39.1 vs 1.40.3) on 2026-08-05. It was fixed by hand — and drifted AGAIN one version later in the
+  same session, because the next bump updated AssemblyInfo and CHANGELOG but not the README. A hand-fix
+  does not solve a recurring drift.
+- Run it after every version bump, before committing: exit 0 = all six agree. It also reports the
+  deployed DLL version, informational only (it lags whenever a bump happened after the last deploy).
+
 **A dispatcher pump lets the X button and Esc through — a busy window MUST veto its own close (v1.40.4)**
 - `Dispatcher.Invoke(..., DispatcherPriority.Render)` on the calling thread waits by pushing a **nested
   dispatcher frame**, and that frame runs a **real Win32 message loop**. Measured 2026-08-05 both ways:
