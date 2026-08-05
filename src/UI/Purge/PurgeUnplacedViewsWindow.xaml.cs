@@ -1,4 +1,4 @@
-// ==================================================
+﻿// ==================================================
 // Tool Name    : Purge Unplaced Views
 // Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
 // Author       : Ajmal P.S.
@@ -31,6 +31,7 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using AJTools.Models.Purge;
 using AJTools.Services.Purge;
+using AJTools.Utils;
 
 namespace AJTools.UI.Purge
 {
@@ -55,6 +56,13 @@ namespace AJTools.UI.Purge
             _rows = new ObservableCollection<UnplacedViewPurgeItem>();
 
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             ConfigureForMode();
 
             _rowsView = CollectionViewSource.GetDefaultView(_rows);

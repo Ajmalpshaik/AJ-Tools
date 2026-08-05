@@ -74,6 +74,15 @@ Repo          : AJ-Tools
         <SolidColorBrush x:Key="DangerBorderBrush" Color="#FF7A2828"/>
         <SolidColorBrush x:Key="DangerHoverBrush" Color="#FF8B2B2B"/>
 
+        <!-- Interaction easing, same curve and timing budget as the shared theme (UI/ModernStyles.xaml
+             v1.3.0): hover under 100ms, press 110ms, settle 200-240ms.
+             THIS WINDOW KEEPS ITS OWN HOVER COLOURS. Unlike the shared theme, its hover states are real
+             colour steps that carry meaning (accent -> brighter accent, danger -> brighter red), and a
+             neutral wash would not reproduce the danger step. So hover stays an instant colour change
+             here and the motion added below is the part that was missing: press, focus and the states
+             that previously just appeared. Nothing animates Background or Foreground. -->
+        <CubicEase x:Key="MotionEaseOut" EasingMode="EaseOut"/>
+
         <Style TargetType="{x:Type TextBlock}">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -107,26 +116,101 @@ Repo          : AJ-Tools
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                              RecognizesAccessKey="True"/>
-                        </Border>
+                        <Grid x:Name="RootHost" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="PressScale" ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  RecognizesAccessKey="True"/>
+                            </Border>
+                            <Border x:Name="PressShade" CornerRadius="4" Background="#33000000"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                            <Border x:Name="FocusRing" CornerRadius="4" BorderThickness="1"
+                                    BorderBrush="#99FFFFFF" Opacity="0" IsHitTestVisible="False"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Opacity" Value="0.96"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.82"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PressShade" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.97" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.97" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PressShade" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.18"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.14"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
                                 <Setter Property="Foreground" Value="{StaticResource TextDisabledBrush}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="RootHost" Storyboard.TargetProperty="Opacity"
+                                                             To="0.45" Duration="0:0:0.12"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="RootHost" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.12"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -150,11 +234,42 @@ Repo          : AJ-Tools
                         <Border x:Name="Root"
                                 Background="{TemplateBinding Background}">
                             <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                                              VerticalAlignment="Center"
+                                              RenderTransformOrigin="0.5,0.5">
+                                <ContentPresenter.RenderTransform>
+                                    <ScaleTransform x:Name="CaptionPressScale" ScaleX="1" ScaleY="1"/>
+                                </ContentPresenter.RenderTransform>
+                            </ContentPresenter>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Root" Property="Opacity" Value="0.82"/>
+                                <!-- The glyph dips, not the whole caption cell - a caption button fills
+                                     the corner of the window, so scaling the cell would show a gap. -->
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CaptionPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.86" Duration="0:0:0.10"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="CaptionPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.86" Duration="0:0:0.10"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CaptionPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.22"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="CaptionPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.22"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -262,17 +377,79 @@ Repo          : AJ-Tools
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
+                        <!-- A swatch IS its colour, so it must never be washed or tinted on hover -
+                             that would misreport the colour being picked. It grows instead. -->
                         <Border x:Name="Root"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2"/>
+                                CornerRadius="2"
+                                RenderTransformOrigin="0.5,0.5">
+                            <!-- TWO transforms, not one: hover owns the first, press owns the second.
+                                 With a single shared transform, pressing and then dragging off the
+                                 swatch fires both exit animations and whichever lands last wins - which
+                                 could leave a swatch stuck enlarged. One driver per property. -->
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="SwatchHoverScale" ScaleX="1" ScaleY="1"/>
+                                    <ScaleTransform x:Name="SwatchPressScale" ScaleX="1" ScaleY="1"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
+                        </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchHoverScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1.2" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchHoverScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1.2" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchHoverScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.18"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchHoverScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.18"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Root" Property="Opacity" Value="0.80"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.85" Duration="0:0:0.10"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.85" Duration="0:0:0.10"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.20"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="SwatchPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.20"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -311,7 +488,12 @@ Repo          : AJ-Tools
                       HorizontalAlignment="Right"
                       VerticalAlignment="Center"
                       Margin="0,0,9,0"
-                      Stretch="Uniform"/>
+                      Stretch="Uniform"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <RotateTransform x:Name="ArrowRotate" Angle="0"/>
+                    </Path.RenderTransform>
+                </Path>
             </Border>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
@@ -320,6 +502,24 @@ Repo          : AJ-Tools
                 <Trigger Property="IsChecked" Value="True">
                     <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
                     <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource AccentBrush}"/>
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ArrowRotate" Storyboard.TargetProperty="Angle"
+                                                 To="180" Duration="0:0:0.18"
+                                                 EasingFunction="{StaticResource MotionEaseOut}"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ArrowRotate" Storyboard.TargetProperty="Angle"
+                                                 To="0" Duration="0:0:0.18"
+                                                 EasingFunction="{StaticResource MotionEaseOut}"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -415,14 +615,35 @@ Repo          : AJ-Tools
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ComboBoxItem}">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            </Border>
+                            <Border x:Name="HighlightGlow" Background="#1FFFFFFF"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="{StaticResource TitleBarBrush}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HighlightGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HighlightGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.15"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentBrush}"/>
@@ -451,14 +672,35 @@ Repo          : AJ-Tools
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                            </Border>
+                            <Border x:Name="HoverGlow" CornerRadius="3" Background="#1FFFFFFF"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="{StaticResource TitleBarBrush}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.15"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -466,6 +708,11 @@ Repo          : AJ-Tools
             </Setter>
         </Style>
 
+        <!-- NOTE: this checkbox's tick is deliberately INSTANT, unlike the standalone one further down.
+             These live inside the virtualized category ListBox, so their containers are created and
+             recycled in bulk as the list loads and scrolls - an animated tick would replay every time a
+             row scrolls into view and read as a flicker running down the list. Same reason selected rows
+             stay instant in the shared theme: animate what the user changed, not what merely appeared. -->
         <Style x:Key="CategoryCheckBoxStyle" TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="FontSize" Value="11"/>
@@ -542,11 +789,18 @@ Repo          : AJ-Tools
                                     BorderThickness="1"
                                     Background="Transparent"
                                     CornerRadius="2">
+                                <!-- Opacity + scale instead of Visibility, so the tick can animate.
+                                     The box is a fixed 14x14, so nothing about the layout changes. -->
                                 <Path x:Name="CheckMark"
                                       Data="M 2 7 L 5 10 L 11 3"
                                       Stroke="{StaticResource TextPrimaryBrush}"
                                       StrokeThickness="2"
-                                      Visibility="Collapsed"/>
+                                      Opacity="0"
+                                      RenderTransformOrigin="0.5,0.5">
+                                    <Path.RenderTransform>
+                                        <ScaleTransform x:Name="CheckScale" ScaleX="0.5" ScaleY="0.5"/>
+                                    </Path.RenderTransform>
+                                </Path>
                             </Border>
                             <ContentPresenter Grid.Column="1"
                                               VerticalAlignment="Center"
@@ -557,7 +811,36 @@ Repo          : AJ-Tools
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Box" Property="Background" Value="{StaticResource AccentBrush}"/>
                                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
-                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CheckMark" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.12"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="CheckScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="CheckScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CheckMark" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.1"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="CheckScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.5" Duration="0:0:0.12"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="CheckScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.5" Duration="0:0:0.12"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -570,6 +853,9 @@ Repo          : AJ-Tools
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <!-- The knob used to JUMP from one end to the other by swapping its alignment.
+                             It now slides: same two end positions, 200ms between them. Track 40 wide,
+                             knob 12 with a 4 margin, so the travel is 40 - 4 - 12 - 4 = 20. -->
                         <Grid Width="40" Height="20">
                             <Border x:Name="Track"
                                     Background="#FF666666"
@@ -579,13 +865,33 @@ Repo          : AJ-Tools
                                      Height="12"
                                      Fill="{StaticResource TextPrimaryBrush}"
                                      HorizontalAlignment="Left"
-                                     Margin="4,0,0,0"/>
+                                     Margin="4,0,0,0">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="ThumbSlide" X="0"/>
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Track" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ThumbSlide" Storyboard.TargetProperty="X"
+                                                             To="20" Duration="0:0:0.2"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ThumbSlide" Storyboard.TargetProperty="X"
+                                                             To="0" Duration="0:0:0.2"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -615,7 +921,43 @@ Repo          : AJ-Tools
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Thumb}">
                         <Border Background="{StaticResource AccentBrush}"
-                                CornerRadius="2"/>
+                                CornerRadius="2"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="ThumbGrow" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- Grows a little under the pointer so a 8px-wide handle is easier to see
+                                 you have hold of. Dragging keeps the pointer over it, so one trigger
+                                 covers both hover and drag. -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ThumbGrow" Storyboard.TargetProperty="ScaleX"
+                                                             To="1.35" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="ThumbGrow" Storyboard.TargetProperty="ScaleY"
+                                                             To="1.15" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ThumbGrow" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.2"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="ThumbGrow" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.2"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -684,17 +1026,21 @@ Repo          : AJ-Tools
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TabItem}">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="Transparent"
-                                BorderThickness="0,0,0,2"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter x:Name="Content"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              ContentSource="Header"
-                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0,0,0,2"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter x:Name="Content"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  ContentSource="Header"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            </Border>
+                            <Border x:Name="HoverGlow" Background="#14FFFFFF"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{StaticResource ShellBrush}"/>
@@ -703,6 +1049,24 @@ Repo          : AJ-Tools
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

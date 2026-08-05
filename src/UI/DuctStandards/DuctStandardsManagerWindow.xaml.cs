@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -41,6 +41,16 @@ namespace AJTools.UI.DuctStandards
             _uidoc = uidoc;
             _doc = uidoc.Document;
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
+
+            // Shared tab-change transition (fade + short rise on the panel). Cosmetic only.
+            TabMotionHelper.AttachTabTransitions(this);
             LoadConfigAndPopulateUI();
         }
 

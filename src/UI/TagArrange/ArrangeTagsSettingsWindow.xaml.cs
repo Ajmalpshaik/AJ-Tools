@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Arrange Tags - Settings (Window)
  * File Name     : ArrangeTagsSettingsWindow.xaml.cs
@@ -37,6 +37,7 @@ using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using AJTools.Utils;
 
 namespace AJTools.UI.TagArrange
 {
@@ -65,6 +66,13 @@ namespace AJTools.UI.TagArrange
         public ArrangeTagsSettingsWindow(double currentSpacingMm, double defaultSpacingMm, int viewScale)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _defaultSpacingMm = defaultSpacingMm > 0 ? defaultSpacingMm : 12.0;
             _viewScale = viewScale > 0 ? viewScale : 0;

@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Section Mark Visibility
  * File Name     : SectionMarkVisibilityViewsWindow.xaml.cs
@@ -40,6 +40,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using Autodesk.Revit.DB;
 using AJTools.Models.SectionMarkVisibility;
+using AJTools.Utils;
 
 namespace AJTools.UI.SectionMarkVisibility
 {
@@ -56,6 +57,13 @@ namespace AJTools.UI.SectionMarkVisibility
         internal SectionMarkVisibilityViewsWindow(IList<SectionMarkVisibilityViewItem> items)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _allItems = items ?? new List<SectionMarkVisibilityViewItem>();
 

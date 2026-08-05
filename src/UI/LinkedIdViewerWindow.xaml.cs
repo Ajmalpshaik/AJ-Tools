@@ -1,4 +1,4 @@
-// Tool Name: Linked ID Viewer UI
+﻿// Tool Name: Linked ID Viewer UI
 // Description: WPF dialog showing picked element ID and model source with copy support.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using AJTools.Utils;
 
 namespace AJTools.UI
 {
@@ -18,6 +19,13 @@ namespace AJTools.UI
         public LinkedIdViewerWindow(string elementId, string modelSource)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             ElementIdBox.Text = elementId ?? string.Empty;
             ModelSourceBox.Text = modelSource ?? "Current Model";
         }

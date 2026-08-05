@@ -1,6 +1,7 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using AJTools.Models.RevisionCloud;
+using AJTools.Utils;
 
 namespace AJTools.UI.RevisionCloud
 {
@@ -12,6 +13,13 @@ namespace AJTools.UI.RevisionCloud
         public RevisionCloudSettingsWindow(RevisionCloudSettings settings)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             Settings = settings;
 
             txtOffset.Text = Settings.OffsetDistanceMm.ToString(CultureInfo.InvariantCulture);

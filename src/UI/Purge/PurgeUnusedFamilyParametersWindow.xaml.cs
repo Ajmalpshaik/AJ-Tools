@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,6 +11,7 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using AJTools.Models.Purge;
 using AJTools.Services.Purge;
+using AJTools.Utils;
 
 namespace AJTools.UI.Purge
 {
@@ -30,6 +31,13 @@ namespace AJTools.UI.Purge
             _limitations = new List<string>();
 
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _rowsView = CollectionViewSource.GetDefaultView(_rows);
             _rowsView.Filter = FilterRows;

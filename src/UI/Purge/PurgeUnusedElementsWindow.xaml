@@ -261,8 +261,27 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <!-- Rows added INSIDE this existing grid on purpose. Adding a row to the window's root
+                     Grid instead would shift every Grid.Row index below it. Both progress elements are
+                     Collapsed, so they take no space at all until a scan or delete is running. -->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <TextBlock x:Name="ProgressText"
+                           Grid.Row="0" Grid.ColumnSpan="2"
+                           Visibility="Collapsed"
+                           Foreground="{StaticResource TextSecondary}"
+                           FontSize="11"
+                           Margin="0,0,0,4"/>
+                <ProgressBar x:Name="ScanProgressBar"
+                             Grid.Row="1" Grid.ColumnSpan="2"
+                             Visibility="Collapsed"
+                             Margin="0,0,0,10"/>
+
+                <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
                     <Button x:Name="btnScan"
                             Content="Scan"
                             Width="110"
@@ -282,7 +301,7 @@
                             Click="OnUnselectAllClick"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="btnDeleteSelected"
                             Content="Delete Selected"
                             Width="140"

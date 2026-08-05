@@ -5,6 +5,130 @@
         Width="520" Height="680" MinWidth="460" MinHeight="480"
         WindowStartupLocation="CenterOwner" Background="#101722"
         ShowInTaskbar="False">
+    <Window.Resources>
+        <!-- This window had no styles at all, so every button used raw Windows chrome: a square box
+             that ignores its own colour on hover and turns Aero blue instead. One implicit style gives
+             all of them - Save, Cancel, and the key buttons built in code-behind - the house look and
+             the same motion as the rest of the suite.
+             The colours stay TemplateBound: the code-behind still recolours a key button to amber while
+             it waits for a key press and back to cyan afterwards, exactly as before. Nothing here
+             animates Background or Foreground, which is what makes that safe. -->
+        <CubicEase x:Key="MotionEaseOut" EasingMode="EaseOut"/>
+
+        <Style TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="PressScale" ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+                            <Border x:Name="Fill"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            </Border>
+                            <Border x:Name="HoverGlow" CornerRadius="6" Background="#1FFFFFFF"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                            <Border x:Name="PressShade" CornerRadius="6" Background="#33000000"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                            <Border x:Name="FocusRing" CornerRadius="6" BorderThickness="1"
+                                    BorderBrush="#99FFFFFF" Opacity="0" IsHitTestVisible="False"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PressShade" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.97" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.97" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PressShade" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.18"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="PressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.14"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <DockPanel>
         <TextBlock DockPanel.Dock="Bottom" Text="Created &amp; All Rights Reserved @ Ajmal P.S."
                    FontSize="11" Foreground="#7A8794" HorizontalAlignment="Center" Margin="0,0,0,8"/>

@@ -10,7 +10,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        ResizeMode="CanResizeWithGrip"
+        ResizeMode="CanResize"
         MaxWidth="{x:Static SystemParameters.MaximizedPrimaryScreenWidth}"
         MaxHeight="{x:Static SystemParameters.MaximizedPrimaryScreenHeight}">
 
@@ -25,6 +25,12 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#00C8FF"/>
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#37D7FF"/>
         <SolidColorBrush x:Key="SuccessBrush" Color="#22C55E"/>
+
+        <!-- Interaction easing. This window is the "showcase" tier, so its hover motion is a slide/lift
+             rather than the working dialogs' wash - but the same decelerating curve, and the same rule:
+             nothing here animates Background or Foreground, because ShowSection() sets both directly on
+             the active nav button from code-behind and an animation would outrun those local values. -->
+        <CubicEase x:Key="MotionEaseOut" EasingMode="EaseOut"/>
 
         <Style x:Key="NavButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="42"/>
@@ -41,14 +47,75 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <!-- The label slides in a little on hover and the tile dips on press. Motion
+                             only - the colour change below stays a Setter, so the ACTIVE item's
+                             code-behind colours still win exactly as before. The transform lives on
+                             this template child, so it never touches the entrance TranslateTransform
+                             each nav Button carries on itself. -->
+                        <Border x:Name="NavRoot"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10">
+                                CornerRadius="10"
+                                RenderTransformOrigin="0,0.5">
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="NavPressScale" ScaleX="1" ScaleY="1"/>
+                                    <TranslateTransform x:Name="NavSlide" X="0"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
                             <ContentPresenter VerticalAlignment="Center"
                                               HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               Margin="{TemplateBinding Padding}"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="NavSlide" Storyboard.TargetProperty="X"
+                                                             To="4" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="NavSlide" Storyboard.TargetProperty="X"
+                                                             To="0" Duration="0:0:0.22"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="NavPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.98" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="NavPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.98" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="NavPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="NavPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -110,13 +177,70 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <!-- Footer links lift slightly on hover and dip on press. Colours stay Setters. -->
+                        <Border x:Name="LinkRoot"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10">
+                                CornerRadius="10"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="LinkPressScale" ScaleX="1" ScaleY="1"/>
+                                    <TranslateTransform x:Name="LinkLift" Y="0"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="LinkLift" Storyboard.TargetProperty="Y"
+                                                             To="-2" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="LinkLift" Storyboard.TargetProperty="Y"
+                                                             To="0" Duration="0:0:0.22"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="LinkPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.96" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="LinkPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.96" Duration="0:0:0.11"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="LinkPressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="LinkPressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.24"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -143,13 +267,43 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="ChromeBtnBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="8">
+                                CornerRadius="8"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="ChromePressScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ChromeBtnBorder" Property="Background" Value="#1D2635"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ChromePressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.88" Duration="0:0:0.10"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="ChromePressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.88" Duration="0:0:0.10"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ChromePressScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.22"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="ChromePressScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.22"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -162,24 +316,357 @@
             </Style.Triggers>
         </Style>
 
+        <!-- ==================== MOTION ====================
+             Personality: Premium (dark neon/clay surface = heavy, damped, no bounce),
+             with one bounded exception noted on the logo tile.
+             Duration palette: quick 260ms / standard 320ms / slow 380ms.
+             Signature easing: CubicEase EaseOut for entrances, CubicEase EaseIn for exits.
+             These three are started from code-behind (cloned first, so a frozen
+             resource can never block .Completed / .Stop). The entrance lives in
+             Window.Triggers below. -->
+
+        <!-- Exit: accelerate away, sink back down the way it rose, no overshoot.
+             260ms = 46% shorter than the 380ms entrance (users care about what appears). -->
+        <Storyboard x:Key="WindowExitStoryboard">
+            <DoubleAnimation Storyboard.TargetName="RootShell"
+                             Storyboard.TargetProperty="Opacity"
+                             To="0"
+                             Duration="0:0:0.20">
+                <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="ShellScale"
+                             Storyboard.TargetProperty="ScaleX"
+                             To="0.985"
+                             Duration="0:0:0.26">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="ShellScale"
+                             Storyboard.TargetProperty="ScaleY"
+                             To="0.985"
+                             Duration="0:0:0.26">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="ShellTranslate"
+                             Storyboard.TargetProperty="Y"
+                             To="12"
+                             Duration="0:0:0.26">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Section swap: same rise-and-settle language as the entrance, one notch quicker.
+             Target is set in code-behind (Storyboard.SetTarget) so all five panels share this. -->
+        <Storyboard x:Key="SectionEnterStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0"
+                             To="1"
+                             Duration="0:0:0.26">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                             From="10"
+                             To="0"
+                             Duration="0:0:0.30">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Ambient layer: the "System Operational" dot breathes so the window is never
+             fully dead. Sine both ends = seamless loop. Opacity only - the green is untouched. -->
+        <Storyboard x:Key="StatusPulseStoryboard" BeginTime="0:0:0.9">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="1"
+                             To="0.45"
+                             Duration="0:0:1.2"
+                             AutoReverse="True"
+                             RepeatBehavior="Forever">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
     </Window.Resources>
 
-    <Border Background="{StaticResource WindowBgBrush}"
+    <!-- Entrance. Declared inline (not via StaticResource) because a root element cannot
+         resolve a resource from its own dictionary - see the house note on that crash. -->
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="Window.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+
+                    <!-- PRIMARY: the shell itself. Fade leads (260ms) so nothing pops;
+                         scale + rise run longer (380ms) so the window settles after it
+                         is already readable. Quintic-out = strong decelerate, the
+                         "emphasized" curve, right for a heavy 980x580 surface. -->
+                    <DoubleAnimation Storyboard.TargetName="RootShell"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1"
+                                     Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="ShellScale"
+                                     Storyboard.TargetProperty="ScaleX"
+                                     From="0.965" To="1"
+                                     Duration="0:0:0.38">
+                        <DoubleAnimation.EasingFunction>
+                            <QuinticEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="ShellScale"
+                                     Storyboard.TargetProperty="ScaleY"
+                                     From="0.965" To="1"
+                                     Duration="0:0:0.38">
+                        <DoubleAnimation.EasingFunction>
+                            <QuinticEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="ShellTranslate"
+                                     Storyboard.TargetProperty="Y"
+                                     From="20" To="0"
+                                     Duration="0:0:0.38">
+                        <DoubleAnimation.EasingFunction>
+                            <QuinticEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <!-- SECONDARY, beat 1 (90ms) - the hero. Everything else in this
+                         window is text; the logo tile is the only object, so it leads.
+                         BackEase A=0.7 over a 0.88->1.0 range peaks at ~1.017, i.e. a
+                         1.7% overshoot (~1px on 56px): just enough for the clay surface
+                         to read as soft rather than rigid, still inside the 0-3% ceiling
+                         a professional tool should respect. The only overshoot in the file. -->
+                    <DoubleAnimation Storyboard.TargetName="LogoTile"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1"
+                                     BeginTime="0:0:0.09"
+                                     Duration="0:0:0.24">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="LogoScale"
+                                     Storyboard.TargetProperty="ScaleX"
+                                     From="0.88" To="1"
+                                     BeginTime="0:0:0.09"
+                                     Duration="0:0:0.36">
+                        <DoubleAnimation.EasingFunction>
+                            <BackEase EasingMode="EaseOut" Amplitude="0.7"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="LogoScale"
+                                     Storyboard.TargetProperty="ScaleY"
+                                     From="0.88" To="1"
+                                     BeginTime="0:0:0.09"
+                                     Duration="0:0:0.36">
+                        <DoubleAnimation.EasingFunction>
+                            <BackEase EasingMode="EaseOut" Amplitude="0.7"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="LogoTranslate"
+                                     Storyboard.TargetProperty="Y"
+                                     From="12" To="0"
+                                     BeginTime="0:0:0.09"
+                                     Duration="0:0:0.34">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <!-- Beat 2 (150ms / 190ms) - wordmark then tagline, 40ms apart so the
+                         name lands before its own subtitle. Same upward vector as the shell. -->
+                    <DoubleAnimation Storyboard.TargetName="BrandName"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1"
+                                     BeginTime="0:0:0.15"
+                                     Duration="0:0:0.28">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BrandName"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="12" To="0"
+                                     BeginTime="0:0:0.15"
+                                     Duration="0:0:0.32">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BrandTagline"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1"
+                                     BeginTime="0:0:0.19"
+                                     Duration="0:0:0.28">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BrandTagline"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="12" To="0"
+                                     BeginTime="0:0:0.19"
+                                     Duration="0:0:0.32">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <!-- Beat 3 (200ms) - the content body. Starts while the sidebar is
+                         still arriving so the two halves feel simultaneous, not sequential. -->
+                    <DoubleAnimation Storyboard.TargetName="ContentHost"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1"
+                                     BeginTime="0:0:0.20"
+                                     Duration="0:0:0.32">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="ContentHost"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="18" To="0"
+                                     BeginTime="0:0:0.20"
+                                     Duration="0:0:0.38">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <!-- Beat 4 (230ms +45ms each) - nav micro-cascade. 45ms step x 4 gaps
+                         = 180ms span, inside the sub-200ms "micro cascade" budget; the five
+                         buttons read as one gesture travelling down the rail, not five events. -->
+                    <DoubleAnimation Storyboard.TargetName="BtnGeneral"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.230" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BtnGeneral"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="14" To="0" BeginTime="0:0:0.230" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <DoubleAnimation Storyboard.TargetName="BtnDeveloper"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.275" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BtnDeveloper"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="14" To="0" BeginTime="0:0:0.275" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <DoubleAnimation Storyboard.TargetName="BtnTools"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.320" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BtnTools"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="14" To="0" BeginTime="0:0:0.320" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <DoubleAnimation Storyboard.TargetName="BtnUpdates"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.365" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BtnUpdates"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="14" To="0" BeginTime="0:0:0.365" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <DoubleAnimation Storyboard.TargetName="BtnLicense"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.410" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="BtnLicense"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="14" To="0" BeginTime="0:0:0.410" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <!-- Beat 5 (420ms / 460ms) - the two footer links close the cascade.
+                         Last start is 460ms, under the 500ms total-stagger ceiling. -->
+                    <DoubleAnimation Storyboard.TargetName="SideLinkGitHub"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.420" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="SideLinkGitHub"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="10" To="0" BeginTime="0:0:0.420" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                    <DoubleAnimation Storyboard.TargetName="SideLinkSupport"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" BeginTime="0:0:0.460" Duration="0:0:0.26">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="SideLinkSupport"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="10" To="0" BeginTime="0:0:0.460" Duration="0:0:0.30">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+
+    <!-- Opacity/scale/offset below are the entrance's start frame, not a style change:
+         the Loaded trigger above drives every one of them back to its resting value. -->
+    <Border x:Name="RootShell"
+            Background="{StaticResource WindowBgBrush}"
             BorderBrush="#202838"
             BorderThickness="1"
             CornerRadius="22"
-            SnapsToDevicePixels="True">
+            SnapsToDevicePixels="True"
+            Opacity="0"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <TransformGroup>
+                <ScaleTransform x:Name="ShellScale" ScaleX="0.965" ScaleY="0.965"/>
+                <TranslateTransform x:Name="ShellTranslate" Y="20"/>
+            </TransformGroup>
+        </Border.RenderTransform>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="250"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
+            <!-- Corner radii here are 21, not 22, on purpose. A Border does NOT clip its
+                 children to its own CornerRadius, so every child that touches a window corner
+                 has to round itself. The child sits inside the shell's 1px BorderThickness,
+                 so its concentric radius is 22 - 1 = 21; using 22 would bleed a hairline of
+                 child colour outside the shell's curve. -->
+            <Border x:Name="SidebarPanel"
+                    Grid.Column="0"
                     Background="{StaticResource SidebarBgBrush}"
                     BorderBrush="{StaticResource BorderBrushDark}"
                     BorderThickness="0,0,1,0"
-                    CornerRadius="22,0,0,22">
+                    CornerRadius="21,0,0,21">
                 <Grid Margin="18">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -188,11 +675,20 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Margin="0,8,0,18">
-                        <Border Width="56"
+                        <Border x:Name="LogoTile"
+                                Width="56"
                                 Height="56"
                                 Background="White"
                                 CornerRadius="16"
-                                HorizontalAlignment="Left">
+                                HorizontalAlignment="Left"
+                                Opacity="0"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="LogoScale" ScaleX="0.88" ScaleY="0.88"/>
+                                    <TranslateTransform x:Name="LogoTranslate" Y="12"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
                             <TextBlock Text="AJ"
                                        Foreground="Black"
                                        FontWeight="Black"
@@ -201,29 +697,58 @@
                                        HorizontalAlignment="Center"/>
                         </Border>
 
-                        <TextBlock Text="AJ TOOLS"
+                        <TextBlock x:Name="BrandName"
+                                   Text="AJ TOOLS"
                                    Foreground="White"
                                    FontSize="20"
                                    FontWeight="Bold"
-                                   Margin="0,16,0,2"/>
+                                   Margin="0,16,0,2"
+                                   Opacity="0">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform Y="12"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
 
-                        <TextBlock Text="Revit Productivity Suite"
+                        <TextBlock x:Name="BrandTagline"
+                                   Text="Revit Productivity Suite"
                                    Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="11"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold"
+                                   Opacity="0">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform Y="12"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1">
-                        <Button x:Name="BtnGeneral" Tag="general" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="System Info"/>
-                        <Button x:Name="BtnDeveloper" Tag="developer" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="Developer"/>
-                        <Button x:Name="BtnTools" Tag="tools" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="Core Tools"/>
-                        <Button x:Name="BtnUpdates" Tag="updates" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="Updates"/>
-                        <Button x:Name="BtnLicense" Tag="license" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="License"/>
+                        <!-- Each nav button carries its own TranslateTransform. A Style Setter
+                             would hand all five the SAME transform instance and they would
+                             cascade as one block instead of in sequence. -->
+                        <Button x:Name="BtnGeneral" Tag="general" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="System Info" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="14"/></Button.RenderTransform>
+                        </Button>
+                        <Button x:Name="BtnDeveloper" Tag="developer" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="Developer" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="14"/></Button.RenderTransform>
+                        </Button>
+                        <Button x:Name="BtnTools" Tag="tools" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="Core Tools" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="14"/></Button.RenderTransform>
+                        </Button>
+                        <Button x:Name="BtnUpdates" Tag="updates" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="Updates" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="14"/></Button.RenderTransform>
+                        </Button>
+                        <Button x:Name="BtnLicense" Tag="license" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}" Content="License" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="14"/></Button.RenderTransform>
+                        </Button>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                        <Button Style="{StaticResource LinkButtonStyle}" Click="GitHubButton_Click" Content="GitHub Repository"/>
-                        <Button Style="{StaticResource LinkButtonStyle}" Click="SupportButton_Click" Content="Support / Email" Margin="0,8,0,0"/>
+                        <Button x:Name="SideLinkGitHub" Style="{StaticResource LinkButtonStyle}" Click="GitHubButton_Click" Content="GitHub Repository" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="10"/></Button.RenderTransform>
+                        </Button>
+                        <Button x:Name="SideLinkSupport" Style="{StaticResource LinkButtonStyle}" Click="SupportButton_Click" Content="Support / Email" Margin="0,8,0,0" Opacity="0">
+                            <Button.RenderTransform><TranslateTransform Y="10"/></Button.RenderTransform>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -235,10 +760,12 @@
                     <RowDefinition Height="44"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0"
+                <Border x:Name="HeaderBar"
+                        Grid.Row="0"
                         Background="#0F1520"
                         BorderBrush="{StaticResource BorderBrushDark}"
                         BorderThickness="0,0,0,1"
+                        CornerRadius="0,21,0,0"
                         MouseLeftButtonDown="Header_MouseLeftButtonDown">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -279,8 +806,15 @@
                 </Border>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="28">
+                    <Grid x:Name="ContentHost" Margin="28" Opacity="0">
+                        <Grid.RenderTransform>
+                            <TranslateTransform Y="18"/>
+                        </Grid.RenderTransform>
+
+                        <!-- Every panel carries a TranslateTransform so the section-swap
+                             storyboard can rise it into place. -->
                         <StackPanel x:Name="GeneralPanel">
+                            <StackPanel.RenderTransform><TranslateTransform/></StackPanel.RenderTransform>
                             <Border Background="#162030"
                                     BorderBrush="#21445A"
                                     BorderThickness="1"
@@ -289,7 +823,7 @@
                                     HorizontalAlignment="Left"
                                     Margin="0,0,0,14">
                                 <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="System Operational"
                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                FontSize="11"
@@ -349,6 +883,7 @@
                         </StackPanel>
 
                         <StackPanel x:Name="DeveloperPanel" Visibility="Collapsed">
+                            <StackPanel.RenderTransform><TranslateTransform/></StackPanel.RenderTransform>
                             <TextBlock Text="Developer" Style="{StaticResource SectionTitleStyle}"/>
 
                             <Border Style="{StaticResource CardBorderStyle}">
@@ -397,6 +932,7 @@
                         </StackPanel>
 
                         <StackPanel x:Name="ToolsPanel" Visibility="Collapsed">
+                            <StackPanel.RenderTransform><TranslateTransform/></StackPanel.RenderTransform>
                             <TextBlock Text="Core Tools" Style="{StaticResource SectionTitleStyle}"/>
 
                             <Border Style="{StaticResource CardBorderStyle}">
@@ -424,6 +960,7 @@
                         </StackPanel>
 
                         <StackPanel x:Name="UpdatesPanel" Visibility="Collapsed">
+                            <StackPanel.RenderTransform><TranslateTransform/></StackPanel.RenderTransform>
                             <TextBlock Text="Updates" Style="{StaticResource SectionTitleStyle}"/>
 
                             <Border Style="{StaticResource CardBorderStyle}">
@@ -444,6 +981,7 @@
                         </StackPanel>
 
                         <StackPanel x:Name="LicensePanel" Visibility="Collapsed">
+                            <StackPanel.RenderTransform><TranslateTransform/></StackPanel.RenderTransform>
                             <TextBlock Text="License" Style="{StaticResource SectionTitleStyle}"/>
 
                             <Border Style="{StaticResource CardBorderStyle}">
@@ -474,10 +1012,12 @@
                     </Grid>
                 </ScrollViewer>
 
-                <Border Grid.Row="2"
+                <Border x:Name="FooterBar"
+                        Grid.Row="2"
                         Background="#0F1520"
                         BorderBrush="{StaticResource BorderBrushDark}"
-                        BorderThickness="0,1,0,0">
+                        BorderThickness="0,1,0,0"
+                        CornerRadius="0,0,21,0">
                     <Grid Margin="18,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

@@ -245,6 +245,294 @@ place rather than leaving stale info sitting next to the new truth.
   `System.Windows.Visibility.Visible`/`.Collapsed` any time this kind of assignment is written inside a
   `UIElement`-derived class.
 
+**WPF motion / Storyboard rules (established on the About window entrance+exit pass, 2026-08-05)**
+- **A `Button` that is BOTH `Click="Handler"` (where the handler calls `Close()`) AND `IsCancel="True"`
+  raises `Closing` TWICE per click.** The Click handler closes, then WPF's cancel-button logic sets
+  `DialogResult = false`, whose setter calls `Close()` again. This breaks any single-flag
+  "already handled" guard in `Closing`: the second pass sails through and the window dies mid-animation.
+  **Fix**: two flags, not one — `_isExitPlaying` (a close is in flight, keep cancelling) and
+  `_isReadyToClose` (the animation's own completion callback asked for the real close, let it through).
+  `AboutWindow.AboutWindow_Closing` is the reference implementation. Applies to any window that needs to
+  defer its own close — exit animations, save prompts, async cleanup. Caught by reasoning through the
+  close path before shipping, not by hitting it live.
+- **A `Storyboard` stored in a `ResourceDictionary` can be frozen**, and a frozen `Freezable` throws on
+  both `+= Completed` and `.Stop()`. **Always `.Clone()` a storyboard resource before adding handlers or
+  keeping a reference to it.** Cloning also lets one storyboard resource be retargeted per call via
+  `Storyboard.SetTarget(clone, element)` — that is how all five About sections share one swap animation.
+- **Never set a `RenderTransform` through a `Style` `Setter` when the elements must animate
+  independently** — a Setter's value is a single shared instance, so all N elements get the SAME
+  transform object and move as one block instead of staggering. Declare the transform inline on each
+  element (see the five nav buttons in `AboutWindow.xaml`).
+- Entrance storyboards belong in `<Window.Triggers>` on `Window.Loaded`, declared **inline** rather than
+  via `{StaticResource}` — see the root-element resource-lookup crash noted above. Storyboards that code
+  must reach (exit, swap, ambient) live in `Window.Resources` and are fetched at runtime with
+  `FindResource`, which is safe because the dictionary is fully populated by then.
+- An infinite (`RepeatBehavior="Forever"`) ambient animation must be `.Stop()`ed when the window closes.
+  Revit is a long-lived process; a live clock holds a reference to the target element and the dead window
+  with it, so repeated opens accumulate leaks.
+- `x:Name` on a transform nested inside a `<TransformGroup>` DOES register in the window namescope and
+  generate a field — verified in the generated `obj\R2020\Release\UI\AboutWindow.g.cs`. Targeting a named
+  transform (`Storyboard.TargetName="ShellScale"`, `TargetProperty="ScaleX"`) is far more readable than
+  the indexed path form, and works.
+
+**Progress reporting in a long tool — `ProgressReporter`, and why it is NOT a background thread (v1.40.1)**
+- **Never move Revit work to a worker thread to "keep the UI responsive."** The Revit API must be called
+  on Revit's own UI thread; a background thread throws or corrupts the document. Progress reporting here
+  means the work stays exactly where it is and the window repaints part-way through it.
+- Setting `ProgressBar.Value` inside a UI-thread loop changes the number but **paints nothing** — the loop
+  starves WPF's render pass. After updating the values, pump the dispatcher with an empty `Invoke` at
+  `DispatcherPriority.Render`. (Same technique already recorded for the AI shell's progress bar.)
+- **Render priority, specifically.** `Input` sits BELOW `Render`, so a Render pump repaints *without*
+  processing clicks or keystrokes — the user cannot re-enter the loop by clicking a button half way
+  through a delete. A `DoEvents`-style pump at Input priority WOULD allow exactly that re-entrancy.
+- Throttle to ~33 ms between repaints, but always paint the first and last item so the bar visibly starts
+  empty and finishes full. Measured cost: 500 reports = 86 ms total, against one trial-delete transaction
+  per item — noise.
+- **Wire it in without breaking callers**: give the service method an OPTIONAL `Action<int,int>` callback
+  defaulting to `null`, and wrap the invocation in try/catch so a reporting fault can never abort the
+  work. Existing callers then compile and behave unchanged.
+- **Adding the progress row to a window**: put the new rows INSIDE an existing inner grid, never as a new
+  row on the window's root `Grid` — that shifts every `Grid.Row` index below it (same trap as the credit
+  footer). Keep both elements `Collapsed` when idle so the window looks unchanged.
+- First use: `PurgeUnusedElementsWindow` scan. `UnusedElementPurgeService.Scan()` trial-deletes every
+  candidate inside a rolled-back transaction, which is the longest silent freeze in the suite. The other
+  long tools (the two other Purge windows, Transfer Views, the tagging services) are the same shape and
+  can reuse this helper unchanged.
+
+**Exit animations — `DialogResult` does NOT survive a cancelled close (measured 2026-08-05, v1.40.0)**
+- **The finding, and it is the whole reason exit motion is dangerous**: an exit animation must cancel the
+  window's own `Closing`, animate, then re-issue the close — and **WPF discards `DialogResult` when a
+  close is cancelled**. Measured on real dialogs: set `DialogResult = true`, cancel the `Closing`, close
+  again → `ShowDialog()` returns **False**. Every AJ Tools command is written as
+  `if (window.ShowDialog() == true) { …do the work… }`, so the naive implementation makes **every Run
+  button behave like Cancel** — window opens, window closes, tool silently does nothing, no error
+  anywhere. This is a silent, data-shaped failure; never "check it by eye".
+- **The fix**: capture `window.DialogResult` **before** setting `e.Cancel = true`, and restore it when the
+  animation finishes — assigning it re-issues the close by itself. Wrap both in try/catch: the setter
+  throws on a modeless window, where a plain `Close()` is correct instead.
+- **Three flags, not one.** `IsExitPlaying` (a close is in flight → keep cancelling), `IsReadyToClose`
+  (our own callback asked for the real close → allow), `IsFinished` (issue the close exactly once, since
+  the animation's `Completed` and the backstop timer both land there). The two-flag version from the
+  About window pass is not enough once a timer is involved.
+- **Always arm a backstop timer BEFORE starting the animation.** If the animation never completes the
+  window can never close, and a dialog the user cannot dismiss is far worse than no animation. The close
+  must never depend solely on an animation completing.
+- **Audit `Closing` handlers before attaching an exit to a new window**: cancelling makes `Closing` fire
+  2–3 times, so any existing handler runs that many times. As of 2026-08-05 only `PipeSizingWindow` has
+  one (`SaveState()`, a full overwrite — idempotent, so repeats are harmless). A handler that appends,
+  prompts, or counts would break. Also check nothing outside the window calls `Close()` on it and then
+  depends on it being gone (only the AI toast/banner do that, and neither carries this helper).
+- `tools\verify-exit-motion.ps1` runs the **real** helper against real dialogs and asserts the returned
+  result matches a no-animation control for Run(true), Cancel(false), plain `Close()`, and the
+  Click+`IsCancel` double-close. Run it after ANY change to `WindowMotionHelper`.
+
+**Window motion is TWO tiers — do not collapse them into one (2026-08-05, suite v1.39.3)**
+- **Working-dialog tier (the default, 33 windows)**: `WindowMotionHelper.AttachStandardEntrance(this)`,
+  one call right after `InitializeComponent()`. Content fades in over 220 ms while rising 12 px over
+  280 ms, `CubicEase` `EaseOut`. Any new AJ Tools window should get this line — that is the house default.
+- **Showcase tier (AboutWindow only)**: the staged ~750 ms entrance with the nav cascade. **Never copy
+  this onto a working dialog.** A settings window opened many times a day must feel instant; a staged
+  reveal there reads as waiting, not polish. This distinction is the whole point of the split — if a
+  future pass "unifies" the two it will make the everyday tools feel slower.
+- **Excluded**: `GameHudWindow` (real-time overlay with its own code-behind animation, frame budget
+  matters) and the AiShell warning bar (already animated).
+- **`Window.Opacity` only has a visual effect when `AllowsTransparency="True"`** — WPF needs a layered
+  window for it. Only 7 of 35 AJ Tools windows set that, so the helper animates the window's **root
+  content element** instead, which works on every window regardless of chrome style. Don't "simplify"
+  it to `Window.Opacity`: it will silently do nothing on most windows.
+- **Exit added 2026-08-05 (v1.40.0), on Ajmal's explicit go-ahead** — `WindowMotionHelper.AttachStandardExit(this)`,
+  150 ms fade + 6 px sink, `CubicEase` `EaseIn` (exits accelerate, entrances decelerate), on the same 33
+  windows. It is shorter than the entrance on purpose. **Read the `DialogResult` section above before
+  touching it** — the naive version silently turns every Run button into Cancel.
+- The helper skips any window whose root already carries a `RenderTransform`, and every failure path
+  restores the window to fully visible — motion can never stop a window from opening.
+
+**Interaction motion lives in the shared style dictionaries — two rules that keep it safe (2026-08-05, suite v1.39.4)**
+- Hover / press / focus / enable-disable motion belongs in `src/UI/ModernStyles.xaml` (29 windows) and
+  `src/AiShell/Views/SoftUiStyles.xaml` (3 windows), as animated `Trigger.EnterActions` /
+  `ExitActions` — **not repeated per window**. One edit there lands everywhere. Only a window carrying
+  its own local styles and inheriting nothing (AboutWindow, GraphicsOverrideWindow,
+  GameKeySettingsWindow, GameHudWindow) needs its own copy.
+- **Rule 1 — never animate `Background` or `Foreground` in a shared style.** A running animation outruns
+  a locally-set value, so any window that colours a control from code-behind would break. Real cases in
+  this repo: `AboutWindow.ShowSection` sets nav-button `Background`/`Foreground` for the active item, and
+  `PipeSizingWindow.ApplyToggleBrush`/`ResetToggle` sets both on its mode buttons. Animate an **overlay
+  element's `Opacity`** or a **`RenderTransform`** inside the `ControlTemplate` instead — both are
+  template-internal, so no code-behind can collide with them. Keep colour changes as plain `Setter`s: a
+  Setter correctly loses to a code-behind local value, which is exactly what's wanted.
+- **Rule 2 — one trigger per animated property.** Give hover, press and focus each their own overlay
+  element. Several of these states are true at once (hovering while pressed, pressing while focused), and
+  if two triggers animate the same property, whichever storyboard ran last wins — behaviour that then
+  depends on trigger declaration order and breaks silently when someone reorders them.
+- A `RenderTransform` declared **inside a `ControlTemplate`** is safe to animate per control — the
+  template's visual tree is instantiated per instance, so each control gets its own transform. This is
+  the opposite of the Style-`Setter` case noted below, where one shared instance is handed to every
+  element. `Storyboard.TargetName` inside `ControlTemplate.Triggers` resolves in the template namescope,
+  so two different templates may reuse the same part name (`HoverGlow`) without clashing.
+- House timing (from the `motion-design` skill): hover in 90 ms / out 160 ms, press 110 ms, release and
+  settle 200–240 ms, focus ring 140 ms, enable/disable fade 120 ms, dropdown-arrow rotation 180 ms.
+  All decelerate through one shared `CubicEase EaseOut` exposed as the resource key `MotionEaseOut`.
+  Same "working dialog" philosophy as the window-entrance tier: quick enough to feel instant.
+- **Selection stays instant, deliberately** (list items, combo items, tab headers). Selection is often set
+  programmatically in bulk when a window loads, so animating it turns a Purge/Transfer list of hundreds
+  of pre-ticked rows into a wave. Hover animates; selection does not.
+- Before adding motion to any shared style, check that nothing reaches into the template from code —
+  `GetTemplateChild` / `Template.FindName`. As of 2026-08-05 there are **zero** such calls in `src/`, so
+  template parts can be restructured freely; if that ever changes, re-check first.
+- **Tick boxes / radio buttons / the toggle switch are templated as of v1.40.2** (`ModernCheckBox`,
+  `ModernRadioButton`, `ToggleSwitchCheckBox`). They were setter-only until then, drawing raw Windows
+  chrome inside the soft UI. They stay **keyed, never implicit**: an implicit `TargetType="CheckBox"`
+  style would also capture the `CheckBox` that `DataGridCheckBoxColumn` generates (Duct Standards has
+  one), where the animated tick would replay on every scroll. Every original Setter is preserved so no
+  layout moved. Checked first that nothing uses `IsThreeState`/`IsChecked="{x:Null}"`, so the templates
+  need no indeterminate visual — re-check that if one is ever added.
+- Both dictionaries now define the same `MotionEaseOut` key with the same timings **on purpose**, so the
+  AI shell and the tool windows feel like one product. Retune both together or neither. The four
+  standalone windows (About, Graphics Override, Game Key Settings, Game HUD) each declare their own
+  `MotionEaseOut` with the same curve — they merge nothing, so there is no shared key to reach.
+- **"One trigger per animated property" is the rule that actually bites.** It was violated once during
+  the v1.39.6 pass (the Graphics Override colour swatch had hover AND press driving one shared
+  `ScaleTransform`): press, then drag off the control, and BOTH exit animations fire — whichever lands
+  last wins, so the control can be stranded mid-state. Fixed with two transforms in a `TransformGroup`,
+  one per trigger. Any control where two states can be true at once needs this.
+- **Motion goes on what the user CHANGED, never on what merely appeared.** Selection in the shared lists,
+  and the tick in Graphics Override's category checkboxes, stay instant — those containers are created
+  and recycled in bulk by a virtualized `ListBox`, so an animated state would replay on every scroll and
+  read as flicker. The standalone `CutLinkCheckBoxStyle` tick does animate, because it is a single
+  checkbox the user clicks. Judge each case by "does this fire on user action, or on materialization?"
+- **Not every window needs motion — check before assuming.** `GameHudWindow` has every element set
+  `IsHitTestVisible="False"`: it is a pure non-interactive overlay with no buttons, so there is nothing
+  to hover or press. Verified 2026-08-05; don't re-audit it looking for controls to animate.
+- **Two windows keep instant hover colours on purpose, for two different reasons.** Graphics Override:
+  its hover steps carry meaning and a neutral wash can't reproduce them (12% white over the danger fill
+  `#5B1C1C` gives `#692C2C`, nowhere near the intended `#8B2B2B`). AboutWindow: `ShowSection()` sets the
+  active nav button's `Background`/`Foreground` from code-behind, so those must stay Setters. Both get
+  motion through transforms instead — About's sidebar slides, Graphics Override's controls dip and grow.
+
+**Verifying a window that keeps its styles in its own `<Window.Resources>` — `tools\verify-window-styles.ps1`**
+- The pack-URI trick used by `verify-wpf-styles.ps1` only reaches standalone `ResourceDictionary` files,
+  and instantiating one of these windows directly would drag in Revit. This script instead lifts the
+  `<Window.Resources>` block out of the XAML **source**, re-parses it as a standalone dictionary with
+  `XamlReader.Parse`, then applies every `Style`/`ControlTemplate` to a real control and forces
+  `ApplyTemplate()`. 35 styles across About / Graphics Override / Game Key Settings pass as of v1.39.6.
+- It discovers what to test from each entry's `TargetType`, so **new styles are covered automatically** —
+  there is no list to keep in sync, unlike the shared-dictionary script.
+- Works because a `<Window.Resources>` block never references code-behind (no `Click=` handlers live in
+  it). If a future window puts something code-behind-dependent in its resources, that entry will fail to
+  parse — that is a finding, not a script bug.
+
+**Verify a restyled window WITHOUT launching Revit — `tools\verify-wpf-styles.ps1` (built 2026-08-05)**
+- A clean `msbuild` proves the XAML parses; it does **not** prove the styles work. BAML compilation never
+  resolves `{StaticResource}` against the runtime resource tree, so a missing key compiles fine and throws
+  `XamlParseException` the first time a template is applied — the failure mode that took the whole add-in
+  down during `OnStartup` in v1.16.0. The script closes that gap: it loads both compiled dictionaries out
+  of the built DLL by pack URI and forces every style to build its `ControlTemplate`, which is the moment
+  WPF resolves the resources inside it. All 28 styles pass as of v1.39.5.
+- Run it after ANY edit to `ModernStyles.xaml` / `SoftUiStyles.xaml`, and add new style keys to its lists:
+  `powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File tools\verify-wpf-styles.ps1` (exit 0 = clean).
+  **`-STA` is required** — WPF refuses to create controls on an MTA thread.
+- **PowerShell trap that cost a debug cycle**: `ResourceDictionary` implements `IDictionary`, so
+  `$rd.Source = $uri` adds a dictionary **entry** named "Source" instead of setting the property, and the
+  dictionary silently loads with 1 key and no error. Set it through reflection:
+  `[System.Windows.ResourceDictionary].GetProperty('Source').SetValue($rd, $uri, $null)`.
+  Same trap applies to any `IDictionary`-derived WPF type touched from PowerShell.
+- A style that sets no `Template` (colours only) legitimately builds no visual tree outside a real window —
+  don't score that as a failure; the script checks the style's own and inherited setters first.
+
+**`ProgressBar` can be safely retemplated — the control does the width math (verified 2026-08-05)**
+- An earlier note in `SoftUiStyles.xaml` claimed a custom `ProgressBar` template "needs real Track-width
+  math to avoid silently showing wrong progress". **That is wrong** — corrected in place. Reflection over
+  the real `PresentationFramework.dll` shows `ProgressBar` declares
+  `[TemplatePart] PART_Track / PART_Indicator / PART_GlowRect` and sizes the indicator itself in its
+  private `SetProgressBarIndicatorLength()`. A custom template only has to use those part names.
+- Measured on the house bar (`ModernStyles.xaml` v1.3.0) to confirm: on a 200 px track, values 25/50/100
+  give exactly 50/100/200 px of indicator.
+- The one real caveat: **indeterminate**. WPF's default chrome carries its own sliding-glow animation, and
+  a custom template loses it — supply your own (the house template pulses the indicator's opacity). This
+  is why the AI shell's `ProgressBarStyle` deliberately keeps default chrome: `AiShellView`'s busy strip is
+  `IsIndeterminate="True"` and its animation already works.
+
+**Tab-change motion — `TabMotionHelper`, and the routed-event trap it exists for (2026-08-05, v1.39.7)**
+- `TabMotionHelper.AttachTabTransitions(this)`, one call after `InitializeComponent()`, gives every
+  `TabControl` in the window a fade (180 ms) + 8 px rise (220 ms) on tab change. Wired into the five
+  tabbed windows: Colorize, Duct Standards Manager, Filter Pro, Graphics Override, Location Data
+  Assigner. Deliberately shorter than the 220/280 ms window entrance — a window opens once, a tab is
+  clicked repeatedly in one sitting.
+- **The trap: `Selector.SelectionChanged` is a ROUTED event.** A `ComboBox`/`ListBox` *inside* a tab
+  bubbles its own selection change up to the `TabControl`, so a naive handler replays the entire tab
+  transition every time the user picks a value from a dropdown inside the tab — and four of these five
+  windows are full of dropdowns. Guard by requiring `ReferenceEquals(e.OriginalSource, tabControl)`.
+  Never set `e.Handled` — these windows have their own `SelectionChanged` logic that must still run.
+  `tools\verify-tab-motion.ps1` is the regression guard: it asserts a dropdown change does NOT animate
+  while a tab change does, and that neither selection is disturbed.
+- **`PART_SelectedContentHost` is a `ContentPresenter` in all three cases** — the default WPF `TabControl`
+  template, `ModernStyles.xaml`'s implicit style (setters only, so still the default template), and
+  `GraphicsOverrideWindow`'s own custom template. Verified at runtime 2026-08-05, which is why one helper
+  covers every tabbed window. A future window that templates its `TabControl` with a different part name
+  just gets no transition — the helper finds nothing and does nothing.
+- Attaches by walking the visual tree **on `Loaded`** (templates are guaranteed applied by then) rather
+  than by `x:Name`, so no XAML has to change and a window with two `TabControl`s gets both.
+- **Show/hide panel transitions were considered and rejected** (Reassign Level's scope toggle, View Crop
+  options, Purge lists): most of those windows are `SizeToContent`, so animating a panel in or out makes
+  the whole window resize mid-animation. If one is ever wanted, give that window a fixed size first.
+
+**Rounded-corner windows — `CornerRadius` does NOT clip children (found on the About window, 2026-08-05)**
+- **A WPF `Border` draws its own rounded corner but does not clip its child content to it.** Any child
+  that reaches a window corner paints a SQUARE corner straight over the curve. On the About window the
+  sidebar had `CornerRadius="22,0,0,22"` so the LEFT corners looked right, while the header and footer
+  bars had none — so the top-right and bottom-right rendered square inside a rounded outline.
+  **Fix**: give every corner-touching child its own matching `CornerRadius`. Cheaper and far more
+  predictable than the `OpacityMask` + `VisualBrush` clipping trick, which also costs a full-surface
+  composite every frame — bad when the window already animates its opacity.
+- **Concentric radius rule: inner radius = outer radius − BorderThickness.** The child is laid out
+  inside the shell's border, so against a `CornerRadius="22"` + `BorderThickness="1"` shell the children
+  must use **21**, not 22. Using 22 bleeds a hairline of child colour outside the shell's curve.
+- **`ResizeMode="CanResizeWithGrip"` is wrong for a rounded window** — the dotted grip is drawn by the
+  window chrome at the square bottom-right, outside the curve. Use `CanResize`: resizing from every edge
+  and corner still works, only the glyph goes.
+- **A maximized `WindowStyle="None"` + `AllowsTransparency="True"` window must flatten its corners to 0**,
+  or the desktop shows through all four. Hook the window's `StateChanged` (NOT the maximize button's
+  Click) so header double-click, Win+Up, and any external restore are all covered. See
+  `AboutWindow.AboutWindow_StateChanged`.
+- `WindowState == System.Windows.WindowState.Maximized` — fully qualify, same reason as the
+  `Visibility` CS0176 note above (`Window` has an instance property of the same name).
+- **`WindowChromeHelper.ApplyStateChrome(window, rootBorder)` is now the single place that reconciles a
+  borderless window's shell with its state** (shadow margin + corner radius). It remembers each border's
+  design radius in an attached property, so a window with a different radius keeps its own. Call it from
+  the window's **`OnStateChanged` override**, not only from the maximize button — `ToggleMaximize` is
+  bypassed entirely by Win+Up and top-edge snap. Don't re-implement this per window.
+- **Audit result, 2026-08-05 — do not re-audit this from scratch.** All 38 XAML files under `src/` were
+  checked. `AllowsTransparency="True"` matched 10, but **3 are false positives**: `ModernStyles.xaml` and
+  `SoftUiStyles.xaml` (ResourceDictionaries) and `LinkedSearchWindow.xaml`, where it sits on a `Popup`
+  inside a dropdown template — that window uses standard OS chrome and has no custom corners at all.
+  Of the 7 real `WindowStyle="None"` windows, **AboutWindow was the only one with the clipping defect**.
+  The others are correct for a specific reason each: `GameHudWindow` (root `Padding="12,8"` insulates the
+  corners, `NoResize`), `GraphicsOverrideWindow` (`CornerRadius="0"` by design), and the 4 View Crop
+  windows (every filled `Border` already rounds itself; their title bar is a `Background="Transparent"`
+  hit-test `Grid`, which paints nothing and so cannot square a corner). The View Crop four DID need the
+  maximize fix above — they all call `WindowChromeHelper.ToggleMaximize` from a real maximize button.
+
+**Skill routing note (2026-08-05)**
+- The `ui-ux-pro-max:ui-styling` plugin skill is React / Tailwind / shadcn only — **not applicable to this
+  repo**, and `revit-ui-design` explicitly forbids a web UI stack for Revit add-ins. For AJ Tools window
+  work use `revit-ui-design` (Neumorphism + Claymorphism + Neon Blue house style) and, for animation,
+  the `motion-design` skill. Don't burn a turn loading `ui-styling` for WPF.
+
+**Build command correction — the .sln only knows `Release`/`Debug` (found 2026-08-05)**
+- `AJ Tools.sln` carries ONLY `Debug|Release` x `Any CPU|x64|x86`. The per-version configs
+  (`Release R21` … `Release R27`) are **project-level**, from `Directory.Build.props`. So the
+  Definition-of-done command in CLAUDE.md works for the 2020 baseline but **fails for every newer
+  config** with `MSB4126: The specified solution configuration "Release R25|x64" is invalid`.
+- Build newer versions against the **csproj**, not the sln:
+  `msbuild "src\AJ Tools.csproj" -p:Configuration="Release R25" -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true`
+- `msbuild` is not on PATH on this machine. Resolve it with
+  `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe"`
+  → currently `C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe`.
+- **`Release R27` cannot be built on this machine right now**: the installed .NET SDK is 9.0.316 and R27
+  targets `net10.0-windows` → `NETSDK1045: The current .NET SDK does not support targeting .NET 10.0`.
+  This is an environment gap, not a code fault — don't chase it as a regression. R25 (`net8.0-windows`)
+  is the newest config that currently compiles here.
+
 **Feature-folder layout for big multi-file tools (Ajmal's own rule, 2026-07-29)**
 - A large tool (Game Mode is the template) lives in ONE folder under src/ (like AiShell), NOT spread
   across Commands/Services/UI subfolders - and each feature gets its own small .cs file, using

@@ -1,4 +1,4 @@
-// Tool Name: Transfer Views UI (Schedules / Legends / Drafting Views)
+﻿// Tool Name: Transfer Views UI (Schedules / Legends / Drafting Views)
 // Description: Code-behind for selecting source/target projects and the Schedules/Legends/Drafting Views
 //              to transfer. Generalizes the same shape as TransferViewTemplatesWindow for the three kinds
 //              handled by TransferViewsCommandRunner.
@@ -18,6 +18,7 @@ using System.Windows;
 using Autodesk.Revit.DB;
 using AJTools.Models.Transfer;
 using AJTools.Services.Transfer;
+using AJTools.Utils;
 
 namespace AJTools.UI.Transfer
 {
@@ -44,6 +45,13 @@ namespace AJTools.UI.Transfer
         public TransferViewsWindow(IList<Document> projectDocuments, TransferViewKind kind)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             if (projectDocuments == null || projectDocuments.Count == 0)
             {

@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : View Crop
  * File Name     : ViewCropTargetViewsWindow.xaml.cs
@@ -55,6 +55,13 @@ namespace AJTools.UI.ViewCrop
         internal ViewCropTargetViewsWindow(IEnumerable<ViewCropTargetViewItem> items)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _items = (items ?? Enumerable.Empty<ViewCropTargetViewItem>()).ToList();
             foreach (ViewCropTargetViewItem item in _items)
@@ -129,6 +136,17 @@ namespace AJTools.UI.ViewCrop
         {
             DialogResult = false;
             Close();
+        }
+
+        /// <summary>
+        /// Keeps the shell's shadow margin and corner radius in step with the window state. Overriding
+        /// OnStateChanged rather than hooking only the maximize button also covers Win+Up and snapping
+        /// the window to the top edge.
+        /// </summary>
+        protected override void OnStateChanged(System.EventArgs e)
+        {
+            base.OnStateChanged(e);
+            WindowChromeHelper.ApplyStateChrome(this, RootBorder);
         }
 
         private void OnTitleBarDrag(object sender, MouseButtonEventArgs e)

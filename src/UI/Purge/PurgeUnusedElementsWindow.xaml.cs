@@ -1,4 +1,4 @@
-// Tool Name: Purge Unused Elements UI (View Templates / Filters / Groups)
+﻿// Tool Name: Purge Unused Elements UI (View Templates / Filters / Groups)
 // Description: Code-behind for scanning, filtering, and deleting selected unused elements. Generalizes the
 //              same shape as PurgeUnplacedViewsWindow for the three modes handled by UnusedElementPurgeService.
 // Author: Ajmal P.S.
@@ -20,6 +20,7 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using AJTools.Models.Purge;
 using AJTools.Services.Purge;
+using AJTools.Utils;
 
 namespace AJTools.UI.Purge
 {
@@ -39,6 +40,13 @@ namespace AJTools.UI.Purge
             _rows = new ObservableCollection<UnusedElementPurgeItem>();
 
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             ConfigureForMode();
 
             _rowsView = CollectionViewSource.GetDefaultView(_rows);
@@ -115,12 +123,23 @@ namespace AJTools.UI.Purge
         private void ScanElements()
         {
             SetBusy(true);
+
+            // The scan trial-deletes every candidate inside a rolled-back transaction, so on a busy model
+            // it can sit for several seconds. The work stays on Revit's UI thread exactly as before -
+            // this only makes the window repaint part-way through it. See ProgressReporter's header.
+            var progress = new ProgressReporter(ScanProgressBar, ProgressText);
+
             try
             {
                 ClearRows();
 
                 var service = new UnusedElementPurgeService(_doc, _mode);
-                IList<UnusedElementPurgeItem> scanResult = service.Scan();
+
+                progress.Begin(1, "Collecting elements...");
+                IList<UnusedElementPurgeItem> scanResult = service.Scan(delegate(int done, int total)
+                {
+                    progress.Report(done, total, "Checking element " + done + " of " + total + "...");
+                });
 
                 foreach (UnusedElementPurgeItem row in scanResult)
                 {
@@ -142,6 +161,8 @@ namespace AJTools.UI.Purge
             }
             finally
             {
+                // In the finally so the row disappears even if the scan threw.
+                progress.End();
                 SetBusy(false);
             }
         }

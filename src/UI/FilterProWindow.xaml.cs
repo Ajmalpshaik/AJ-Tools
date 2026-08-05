@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Filter Pro
  * File Name     : FilterProWindow.xaml.cs
@@ -73,6 +73,16 @@ namespace AJTools.UI
         public FilterProWindow(Document doc, View activeView)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
+
+            // Shared tab-change transition (fade + short rise on the panel). Cosmetic only.
+            TabMotionHelper.AttachTabTransitions(this);
             _doc = doc;
             _activeView = activeView;
             _dataProvider = new FilterProDataProvider(_doc);

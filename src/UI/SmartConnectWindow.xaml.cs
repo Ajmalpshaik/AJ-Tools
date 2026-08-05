@@ -1,4 +1,4 @@
-// Tool Name: Smart Connect Settings Window
+﻿// Tool Name: Smart Connect Settings Window
 // Description: Code-behind for Smart Connect routing and angle settings UI.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -14,6 +14,7 @@ using System.Windows;
 using System.Windows.Controls;
 using AJTools.Models;
 using AJTools.Services.SmartConnect;
+using AJTools.Utils;
 
 namespace AJTools.UI
 {
@@ -34,6 +35,13 @@ namespace AJTools.UI
         public SmartConnectWindow(SmartConnectSettings initialSettings)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             CustomAnglesList.ItemsSource = _customAngles;
             CustomAnglesList.DisplayMemberPath = nameof(AngleItem.DisplayName);

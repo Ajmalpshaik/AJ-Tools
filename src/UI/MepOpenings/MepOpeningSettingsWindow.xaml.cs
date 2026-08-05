@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Opening Settings
  * File Name     : MepOpeningSettingsWindow.xaml.cs
@@ -41,6 +41,7 @@ using System.Windows;
 using Autodesk.Revit.DB;
 using AJTools.Models.MepOpenings;
 using AJTools.Services.MepOpenings;
+using AJTools.Utils;
 
 namespace AJTools.UI.MepOpenings
 {
@@ -65,6 +66,13 @@ namespace AJTools.UI.MepOpenings
         public MepOpeningSettingsWindow(Document doc)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             OpeningModeChoices = new ObservableCollection<OpeningModeChoice>(CreateOpeningModeChoices());
             OpeningSelectionMethodChoices = new ObservableCollection<OpeningSelectionMethodChoice>(CreateOpeningSelectionMethodChoices());
             OpeningLinkChoices = new ObservableCollection<OpeningLinkChoice>(CollectOpeningLinkChoices(doc));
