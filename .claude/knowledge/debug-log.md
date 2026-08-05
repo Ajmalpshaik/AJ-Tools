@@ -8,6 +8,32 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-05 (v1.40.6 released end-to-end — and RELEASE_PROCESS.md had stale paths that would have broken it)
+- Full release run straight after the Game Mode fix below. Source repo committed (`b076bf6`) + tagged
+  `v1.40.6` + pushed; installer repo committed (`1c15597`) + tagged + pushed to `main`; GitHub Actions
+  published the public release, verified live via `Invoke-RestMethod` — "AJ Tools v1.40.6", draft false,
+  both assets present (`AJ-Tools-v1.40.6.zip` 53.67 MB + `SHA256SUMS.txt`). All 8 payloads (2020-2027)
+  read back at 1.40.6.0 before packaging. Both working trees clean afterwards, local HEAD == remote.
+- **Stale-path trap in `RELEASE_PROCESS.md`, fixed in the same session**: steps 5 and 8 still said
+  `Set-Location ..\AJ-Tools-Installer` and `-SourceRepoPath "..\AJ Tools"` / `Set-Location ..\AJ Tools`.
+  That was correct only while the git working copy lived inside the `AJ Tools\` subfolder. Since
+  2026-08-05 **the repo root IS the working copy** and `AJ-Tools-Installer` is a gitignored sibling
+  checkout *inside* it, so those relative paths resolve to the wrong places. Now written as absolute
+  paths, with a note that the source branch is `master` while the installer branch is `main` — they
+  differ, and assuming one name for both is an easy way to push nothing. Also added the API
+  verification step (`gh` is still not installed on this machine).
+- **`msbuild` is not on PATH in this shell.** Find it with
+  `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe"`
+  → `C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe`.
+- **The `Release R21`..`R27` configurations exist on the PROJECT, not the solution.** `AJ Tools.sln`
+  only carries `Debug`/`Release`, so `msbuild "AJ Tools.sln" -p:Configuration="Release R25"` fails with
+  MSB4126 "invalid solution configuration". Build the csproj directly for any R-config:
+  `msbuild "src\AJ Tools.csproj" -p:Configuration="Release R25"`.
+- **Known pre-existing warning, NOT from this release**: `Release R27` builds with 2 × CS0618 —
+  `Space.Zone` is deprecated in Revit 2027 (`src\UI\LocationDataAssignerWindow.xaml.cs:1030`). The
+  2020 and R25 configs are warning-free. Flagged to Ajmal, not fixed — it needs a version-safe helper
+  around `GenericZone` and real API verification, which is its own task. → 2026-08-05.
+
 ### 2026-08-05 (Game Mode SELECTOR gun: camera flies/jumps on every shot — FIXED, suite 1.40.6)
 - **Symptom (Ajmal's words)**: "in the game mode tool for the selection gun there is issue if i shoot
   that to anyting after that the camara is going flying or jumbing someting like that". Only the
