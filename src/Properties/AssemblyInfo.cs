@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.40.6
+ * Version       : 1.41.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-05
@@ -24,6 +24,55 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.41.0 (2026-08-05) - NVIDIA NIM added as a FOURTH AI provider in the "C#" shell, on Ajmal's
+ *                       request: he wants the free build.nvidia.com catalog to cut API cost and to
+ *                       try specific open models. New NvidiaApiService v1.0.0; default model
+ *                       z-ai/glm-5.2. Minor bump - new capability, nothing existing changed.
+ *                       PURELY ADDITIVE: SelectedProvider still defaults to "Gemini" and Gemini/
+ *                       OpenAI/Claude are untouched, so the pane behaves exactly as before until the
+ *                       provider dropdown is changed. ErrorCorrectionService needed no change either
+ *                       - it uses whichever IAiProviderService it is handed, so it follows
+ *                       GetActiveService() automatically.
+ *                       NIM is OpenAI-wire-compatible, so the service is the OpenAiApiService shape
+ *                       with a different address. FOUR SETTINGS DIFFER, all because the default model
+ *                       is a REASONING model (glm-5.2, 753B) rather than a straight chat model, and
+ *                       all four were verified against NVIDIA's own published sample rather than
+ *                       assumed: (1) its OWN HttpClient at 180s, not the 60s the other three share -
+ *                       a reasoning model can genuinely exceed a minute and the shared timeout
+ *                       surfaced as an error that reads like a bad key; (2) max_tokens 16384, because
+ *                       reasoning tokens come out of the SAME budget as the answer, so a low cap
+ *                       truncates the generated script after the model has spent the allowance
+ *                       thinking; (3) temperature/top_p 1, NOT OpenAiApiService's 0.2 - clamping a
+ *                       reasoning model degrades its chain of thought, and 1/1 is what NVIDIA ships;
+ *                       (4) NO seed, deliberately dropping the seed=42 in NVIDIA's sample, because a
+ *                       fixed seed makes a retry return the IDENTICAL broken script and the auto-fix
+ *                       retry loop depends on a retry being a fresh attempt.
+ *                       Also handled: HttpClient reports its own timeout as TaskCanceledException,
+ *                       indistinguishable from the user pressing Stop unless the token is checked -
+ *                       so a timeout would have been reported as "you cancelled this". And a reply
+ *                       that finishes with finish_reason "length" and no content now raises a plain
+ *                       "used its whole budget on reasoning" message instead of returning empty and
+ *                       failing later as a confusing compile error.
+ *                       CAUGHT BEFORE IT SHIPPED, by checking the style rather than trusting it: the
+ *                       model picker was designed as one editable ComboBox, but SoftComboBoxStyle
+ *                       replaces the ComboBox ControlTemplate and that template has NO
+ *                       PART_EditableTextBox - IsEditable="True" would have rendered a control with
+ *                       nothing to type into, killing the one feature (paste any model id) it existed
+ *                       for. Patching the shared dictionary was rejected: the docked pane merges it
+ *                       during Revit's OnStartup, where a fault takes the whole add-in down (v1.16.0).
+ *                       Shipped as a shortlist ComboBox plus a plain TextBox, both bound TwoWay to
+ *                       NvidiaModel - same result, no shared-style risk.
+ *                       Model ids in the shortlist were confirmed against live sources, not recalled:
+ *                       z-ai/glm-5.2, qwen/qwen3-coder-480b-a35b-instruct, deepseek-ai/deepseek-v3.1,
+ *                       nvidia/llama-3.3-nemotron-super-49b-v1.5. Others that get named around (Kimi
+ *                       K2, Mistral Large 3) were left out precisely because their exact id strings
+ *                       were NOT verified - a wrong id is a 404 with no useful message.
+ *                       STREAMING DEFERRED, not forgotten: NVIDIA's sample uses stream=True, but that
+ *                       only changes delivery, not content, and IAiProviderService is a single-reply
+ *                       contract shared by all four providers. Ajmal chose to try it without
+ *                       streaming first and see whether the wait is actually a problem.
+ *                       See NvidiaApiService v1.0.0, AiShellViewModel v1.13.0, SettingsWindow
+ *                       v1.2.0 / .xaml.cs v1.2.0.
  * v1.40.6 (2026-08-05) - Game Mode SELECTOR camera-whip fix (GameHudWindow v1.9.5). Reported symptom:
  *                       shooting anything with the selection gun sends the camera flying/jumping.
  *                       Root cause was input, not physics. The selector is the only weapon that
@@ -1343,8 +1392,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.40.6.0")]
-[assembly: AssemblyFileVersion("1.40.6.0")]
+[assembly: AssemblyVersion("1.41.0.0")]
+[assembly: AssemblyFileVersion("1.41.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

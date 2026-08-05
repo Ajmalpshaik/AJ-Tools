@@ -5,6 +5,24 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.41.0] - 2026-08-05
+
+- **Added**: **NVIDIA is now a fourth AI option in the C# panel**, alongside Gemini, OpenAI and Claude.
+  NVIDIA's site (build.nvidia.com) gives away around 130 AI models on a free tier — GLM, Qwen Coder,
+  DeepSeek, Nemotron and more — so this is a no-cost way to use the C# panel. Open **Settings** in the
+  panel, choose **NVIDIA**, and paste the key you get from that site (it starts with `nvapi-`).
+- **Added**: A model picker for it. Four good models are listed to choose from, and there is also a box
+  where you can paste **any** model name copied off the NVIDIA site — so you can try a new model without
+  waiting for an update. It starts on **GLM-5.2**, the strongest of them for writing Revit code.
+- **Note**: **Replies will feel slower than Claude, and that is normal, not a fault.** GLM-5.2 is a
+  "thinking" model — it works the problem through before it answers. Three settings were adjusted just
+  for this reason: it is given three minutes to answer instead of one, a much bigger answer allowance so
+  a long script does not get cut off half way, and its creativity left at NVIDIA's own recommended
+  setting rather than the tighter one used for OpenAI.
+- **Note**: Nothing else changed. The panel still starts on Gemini and Gemini/OpenAI/Claude behave
+  exactly as before — nothing switches over until you pick NVIDIA yourself. Builds clean on Revit 2020
+  and 2025; **not yet tested inside Revit** — please paste your key and ask it something to confirm.
+
 ## [1.40.6] - 2026-08-05
 
 - **Fixed**: **Game Mode — the camera flew off every time you shot something with the SELECTOR gun.**

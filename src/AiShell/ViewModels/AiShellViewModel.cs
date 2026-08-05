@@ -3,22 +3,22 @@
  * Tool Name     : C#
  * File Name     : AiShellViewModel.cs
  * Purpose       : WPF ViewModel driving the "C#" dockable pane — takes a plain-English prompt,
- *                 sends it (with live Revit context) to Gemini, OpenAI, or Claude, extracts the
- *                 returned C# script, runs it safely against the open Revit document, and
+ *                 sends it (with live Revit context) to Gemini, OpenAI, Claude, or NVIDIA, extracts
+ *                 the returned C# script, runs it safely against the open Revit document, and
  *                 auto-retries a failed run with the AI's help up to a fixed attempt limit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.12.1
+ * Version       : 1.13.0
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-25
+ * Last Updated  : 2026-08-05
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in (WPF, no direct Revit API calls — all Revit access goes through
  *                 RevitContextExtractionService / RevitExecutionService via ExternalEvent)
  *
- * Dependencies  : IAiProviderService (Gemini/OpenAI/Claude), RevitExecutionService, RevitContextExtractionService,
+ * Dependencies  : IAiProviderService (Gemini/OpenAI/Claude/NVIDIA), RevitExecutionService, RevitContextExtractionService,
  *                 GeneratedCodeSafetyValidator, ErrorCorrectionService
  *
  * Input         : User prompt text, live Revit selection context
@@ -36,6 +36,18 @@
  *   addition to the XAML now disabling the action buttons while a request is in flight.
  *
  * Changelog     :
+ * v1.13.0 (2026-08-05) - Added NVIDIA as a FOURTH provider (NvidiaApiService), giving the pane the
+ *                       ~130-model NIM catalog on build.nvidia.com's free tier - Ajmal asked for it
+ *                       to cut API cost and to try specific open models. Same additive shape as the
+ *                       v1.11.0 Claude addition: IsNvidiaSelected / NvidiaApiKeyInput / NvidiaModel,
+ *                       one line in GetActiveService(), nothing else touched. SelectedProvider still
+ *                       defaults to "Gemini", so nothing changes until he picks NVIDIA in Settings.
+ *                       Default model z-ai/glm-5.2. ONE UI DIFFERENCE from the other three, and it is
+ *                       deliberate: NvidiaModel binds to an EDITABLE dropdown, because a fixed list
+ *                       cannot represent a 130-model catalog - the list is a verified shortlist and
+ *                       any other id can be pasted straight off a model card without a rebuild.
+ *                       ErrorCorrectionService needed no change: it takes whichever IAiProviderService
+ *                       it is constructed with, so it follows GetActiveService() automatically.
  * v1.12.1 (2026-07-25) - Merge of the local and GitHub lines of this file (both had independently
  *                       added the same third-provider feature). Provider key string unified to
  *                       "Claude" (GitHub naming; shown in the Settings dropdown), default model
@@ -209,6 +221,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         private readonly IAiProviderService _geminiService;
         private readonly IAiProviderService _openAiService;
         private readonly IAiProviderService _anthropicService;
+        private readonly IAiProviderService _nvidiaService;
         private readonly RevitExecutionService _executionService;
         private readonly RevitContextExtractionService _contextService;
         private readonly ReplSessionService _replService;
@@ -244,6 +257,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             IAiProviderService geminiService,
             IAiProviderService openAiService,
             IAiProviderService anthropicService,
+            IAiProviderService nvidiaService,
             RevitExecutionService executionService,
             RevitContextExtractionService contextService,
             ReplSessionService replService,
@@ -253,6 +267,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             _geminiService = geminiService;
             _openAiService = openAiService;
             _anthropicService = anthropicService;
+            _nvidiaService = nvidiaService;
             _executionService = executionService;
             _contextService = contextService;
             _replService = replService;
@@ -268,6 +283,8 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             OpenAiModel = _config.OpenAiModel;
             AnthropicApiKeyInput = _config.GetAnthropicApiKey();
             AnthropicModel = _config.AnthropicModel;
+            NvidiaApiKeyInput = _config.GetNvidiaApiKey();
+            NvidiaModel = _config.NvidiaModel;
             ScriptsFolderPath = _config.ScriptsFolderPath;
 
             SaveSettingsCommand = new RelayCommand(SaveSettings);
@@ -293,6 +310,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         {
             if (SelectedProvider == "OpenAI") return _openAiService;
             if (SelectedProvider == "Claude") return _anthropicService;
+            if (SelectedProvider == "NVIDIA") return _nvidiaService;
             return _geminiService;
         }
 
@@ -436,6 +454,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 OnPropertyChanged(nameof(IsGeminiSelected));
                 OnPropertyChanged(nameof(IsOpenAiSelected));
                 OnPropertyChanged(nameof(IsAnthropicSelected));
+                OnPropertyChanged(nameof(IsNvidiaSelected));
                 OnPropertyChanged(nameof(ProviderStatusText));
             }
         }
@@ -443,6 +462,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         public bool IsGeminiSelected => SelectedProvider == "Gemini";
         public bool IsOpenAiSelected => SelectedProvider == "OpenAI";
         public bool IsAnthropicSelected => SelectedProvider == "Claude";
+        public bool IsNvidiaSelected => SelectedProvider == "NVIDIA";
 
         /// <summary>Plain-language provider + key status for the top bar — never shows the key itself.</summary>
         public string ProviderStatusText =>
@@ -481,6 +501,22 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         {
             get => _anthropicModel;
             set => SetProperty(ref _anthropicModel, value);
+        }
+
+        private string _nvidiaApiKeyInput;
+        public string NvidiaApiKeyInput
+        {
+            get => _nvidiaApiKeyInput;
+            set => SetProperty(ref _nvidiaApiKeyInput, value);
+        }
+
+        /// <summary>Bound to an EDITABLE dropdown, unlike the OpenAI/Claude model pickers - NVIDIA's
+        /// catalog is ~130 models, so the list is a shortlist and any other id can be pasted in.</summary>
+        private string _nvidiaModel;
+        public string NvidiaModel
+        {
+            get => _nvidiaModel;
+            set => SetProperty(ref _nvidiaModel, value);
         }
 
         private string _scriptsFolderPath;
@@ -632,6 +668,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             _config.SetGeminiApiKey(GeminiApiKeyInput);
             _config.SetOpenAiApiKey(OpenAiApiKeyInput);
             _config.SetAnthropicApiKey(AnthropicApiKeyInput);
+            _config.SetNvidiaApiKey(NvidiaApiKeyInput);
             if (!string.IsNullOrWhiteSpace(OpenAiModel))
             {
                 _config.OpenAiModel = OpenAiModel.Trim();
@@ -639,6 +676,10 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             if (!string.IsNullOrWhiteSpace(AnthropicModel))
             {
                 _config.AnthropicModel = AnthropicModel.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(NvidiaModel))
+            {
+                _config.NvidiaModel = NvidiaModel.Trim();
             }
             _config.Save();
             StatusText = "Settings saved securely.";

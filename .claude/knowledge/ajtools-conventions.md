@@ -737,3 +737,55 @@ API migration needing Ajmal's sign-off, same class as the pending `ElementIdHelp
 - `BridgeStatusToast` animates `Window.Opacity` **directly** — correct there because it sets
   `AllowsTransparency = true`. Do not copy that to a normal window: most AJ Tools windows do not set it,
   which is the whole reason `WindowMotionHelper` animates the root content element instead.
+
+**Adding an AI provider to the "C#" shell — the five places (done 4x: Gemini, OpenAI, Claude, NVIDIA)**
+`IAiProviderService` is a 3-member contract (`ProviderName`, `SendMessageAsync`, `IsConfigured`), so a new
+provider is additive and touches exactly five files. In order:
+1. `AiShell/Services/<Name>ApiService.cs` — the service itself.
+2. `AiShell/Configuration/AiShellConfig.cs` — `Encrypted<Name>ApiKey` + `Set/Get` pair (DPAPI, per-user)
+   and a `<Name>Model` default.
+3. `AiShell/ViewModels/AiShellViewModel.cs` — field, ctor param, load-on-construct, one line in
+   `GetActiveService()`, `Is<Name>Selected`, key/model properties, and the `SaveSettings()` writes.
+   Also add `OnPropertyChanged(nameof(Is<Name>Selected))` to the `SelectedProvider` setter — forgetting
+   it means the Settings panel never shows when that provider is picked.
+4. `AiShell/Views/SettingsWindow.xaml` + `.xaml.cs` — dropdown entry, key `PasswordBox` +
+   `PasswordChanged` handler + the `ShowKeyToggle_Click` `Tag` case, model picker.
+5. `AiShell/DockablePane/AiShellPaneProvider.cs` — construct it and pass it to the ViewModel ctor.
+
+`ErrorCorrectionService` needs **no** change — it takes whichever `IAiProviderService` it is constructed
+with, so it follows `GetActiveService()` automatically. `SelectedProvider` is a plain string compared in
+`GetActiveService()`; the string in the XAML `ComboBoxItem` must match it exactly.
+
+**TRAP: `SoftComboBoxStyle` cannot be made editable (found 2026-08-05, v1.41.0)**
+`AiShell/Views/SoftUiStyles.xaml` replaces the `ComboBox` `ControlTemplate` and that template contains
+**no `PART_EditableTextBox`** — only a hit-test-disabled `ContentSite` presenter. So setting
+`IsEditable="True"` on any ComboBox using this style renders a control with **nothing to type into**, and
+it fails silently: it builds clean, `verify-wpf-styles.ps1` still passes (the template itself is valid),
+and the damage only shows when a user tries to type. `ModernStyles.xaml` should be assumed to have the
+same shape until checked.
+**Do not "just add the part" to the shared dictionary.** `SoftUiStyles` is merged by `AiShellView`, which
+`AiShellPaneProvider` constructs during Revit's `OnStartup` — a fault there takes the WHOLE add-in down,
+not just that pane (it did once, v1.16.0). The house pattern when a free-text-plus-shortlist picker is
+needed is **two controls**: a non-editable ComboBox of the shortlist and a plain `SoftTextBoxStyle`
+TextBox, both bound `TwoWay` to the same property. Picking fills the box; typing anything else just
+leaves the ComboBox unselected, which is the correct display for "custom value". See the NVIDIA model
+picker in `SettingsWindow.xaml` for the worked example.
+
+**Reasoning models are not drop-in chat models (found 2026-08-05, v1.41.0)**
+When a provider's default model *thinks* before answering (GLM, DeepSeek-R1, Qwen thinking modes), four
+settings copied from a chat-model service are wrong, and all four fail in ways that look like something
+else:
+- **Timeout.** The other three services share a 60s `HttpClient`. A reasoning model can exceed that
+  legitimately, and `HttpClient` reports its own timeout as `TaskCanceledException` — identical to the
+  user pressing Stop unless `cancellationToken.IsCancellationRequested` is checked. Give the service its
+  own client (raising the shared one would slow every provider) and catch that case explicitly.
+- **`max_tokens`.** Reasoning tokens spend the SAME budget as the answer, so a cap sized for a chat
+  model truncates the generated script *after* the allowance went on thinking. Check
+  `finish_reason == "length"` and say so plainly rather than returning an empty/half reply that fails
+  later as a confusing compile error.
+- **`temperature`.** Clamping it (the 0.2 `OpenAiApiService` uses) degrades the reasoning chain. Use the
+  provider's own published sample value.
+- **`seed`.** NVIDIA's sample sets `seed=42`. Never copy that here — a fixed seed makes a retry return
+  the IDENTICAL broken script, and the auto-fix retry loop depends on a retry being a fresh attempt.
+Reasoning text arrives either in a separate `reasoning_content` field (clean — the normal parse already
+skips it) or inlined as `<think>…</think>` (must be stripped, or `CodeExtractionHelper` reads it as script).

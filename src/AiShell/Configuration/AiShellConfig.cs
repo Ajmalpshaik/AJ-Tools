@@ -16,14 +16,20 @@ namespace AJTools.AiShell.Configuration
 
         private static readonly object _fileLock = new object();
 
-        public string SelectedProvider { get; set; } = "Gemini"; // "Gemini", "OpenAI", or "Claude"
+        public string SelectedProvider { get; set; } = "Gemini"; // "Gemini", "OpenAI", "Claude", or "NVIDIA"
 
         public string EncryptedGeminiApiKey { get; set; }
         public string EncryptedOpenAiApiKey { get; set; }
         public string EncryptedAnthropicApiKey { get; set; }
+        public string EncryptedNvidiaApiKey { get; set; }
 
         public string OpenAiModel { get; set; } = "gpt-4o";
         public string AnthropicModel { get; set; } = "claude-sonnet-5";
+
+        /// <summary>NVIDIA NIM model id, exactly as shown on the build.nvidia.com model card
+        /// (e.g. "z-ai/glm-5.2"). Free-text rather than a fixed list - the catalog runs to ~130
+        /// models, so the Settings dropdown is editable and anything can be pasted in.</summary>
+        public string NvidiaModel { get; set; } = "z-ai/glm-5.2";
 
         public string ScriptsFolderPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AJTools_Scripts");
 
@@ -91,9 +97,16 @@ namespace AJTools.AiShell.Configuration
             Save();
         }
 
+        public void SetNvidiaApiKey(string key)
+        {
+            EncryptedNvidiaApiKey = Protect(key);
+            Save();
+        }
+
         public string GetGeminiApiKey() => Unprotect(EncryptedGeminiApiKey);
         public string GetOpenAiApiKey() => Unprotect(EncryptedOpenAiApiKey);
         public string GetAnthropicApiKey() => Unprotect(EncryptedAnthropicApiKey);
+        public string GetNvidiaApiKey() => Unprotect(EncryptedNvidiaApiKey);
 
         private static string Protect(string clearText)
         {
