@@ -1,10 +1,10 @@
-<!--
+﻿<!--
 ==================================================
 Tool Name    : AJ Tools - Shared UI Theme
 Purpose      : Suite-wide WPF resource dictionary (soft dark UI, Neon Blue primary). Used by every AJ Tools window.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.4.0
+Version      : 1.5.0
 Created      : 2025-12-10
 Last Updated : 2026-08-05
 Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
@@ -12,7 +12,9 @@ Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026
 Platform     : C# Revit Add-in (WPF)
 Notes        : Brush KEY names are kept stable - every window binds to them. Only values are tuned to the AJ skill.
                Style = Neumorphism + Claymorphism soft UI; Neon Blue primary; orange = warning; red = danger; green = success.
-Changelog    : v1.4.0 - Tick boxes, radio buttons and the toggle switch are properly templated at last.
+Changelog    : v1.5.0 - Adds ModernListCheckBox: the same box with an INSTANT tick, for checkboxes
+               inside scrolling lists, where an animated tick would replay on every scroll.
+               v1.4.0 - Tick boxes, radio buttons and the toggle switch are properly templated at last.
                They were setter-only, so they drew raw Windows chrome inside an otherwise soft rounded
                Neon Blue UI - the last big visual inconsistency in the suite. Now: an 18px rounded box
                that fills accent-blue with a tick that scales in, a matching radio with a dot that pops,
@@ -1057,6 +1059,110 @@ Repo         : AJ-Tools
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="BoxFocus" Storyboard.TargetProperty="Opacity"
                                                          To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{StaticResource TextDisabled}"/>
+                            <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The list variant: identical box, but the TICK IS INSTANT. Use this for any checkbox inside a
+         scrolling list or a DataTemplate. Those containers are created and recycled as rows scroll into
+         view, so an animated tick would replay on every scroll and read as flicker running down the
+         list. Hover, press and focus still animate - those fire on user action, not on materialization.
+         Same rule as list selection and the Graphics Override category list. -->
+    <Style x:Key="ModernListCheckBox" TargetType="CheckBox" BasedOn="{StaticResource ModernCheckBox}">
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid x:Name="Root" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Width="18" Height="18" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="BoxPressScale" ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+                            <Border x:Name="Box" CornerRadius="4"
+                                    Background="{StaticResource BackgroundDark}"
+                                    BorderBrush="{StaticResource BorderStrong}" BorderThickness="1"/>
+                            <Border x:Name="BoxFill" CornerRadius="4"
+                                    Background="{StaticResource AccentBlue}" Opacity="0"/>
+                            <Border x:Name="BoxHover" CornerRadius="4"
+                                    BorderBrush="{StaticResource AccentBlue}" BorderThickness="1"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                            <Path x:Name="Tick"
+                                  Data="M 0 4 L 4 8 L 11 0"
+                                  Width="11" Height="8" Stretch="Uniform"
+                                  Stroke="{StaticResource TextOnAccent}" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="0"/>
+                        </Grid>
+
+                        <ContentPresenter Grid.Column="1" Margin="8,0,0,0"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- Plain Setters, not storyboards - this is the whole point of this variant. -->
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="BoxFill" Property="Opacity" Value="1"/>
+                            <Setter TargetName="Tick" Property="Opacity" Value="1"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="BoxHover" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.09"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="BoxHover" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="BoxPressScale" Storyboard.TargetProperty="ScaleX"
+                                                         To="0.88" Duration="0:0:0.11"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        <DoubleAnimation Storyboard.TargetName="BoxPressScale" Storyboard.TargetProperty="ScaleY"
+                                                         To="0.88" Duration="0:0:0.11"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="BoxPressScale" Storyboard.TargetProperty="ScaleX"
+                                                         To="1" Duration="0:0:0.24"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        <DoubleAnimation Storyboard.TargetName="BoxPressScale" Storyboard.TargetProperty="ScaleY"
+                                                         To="1" Duration="0:0:0.24"
                                                          EasingFunction="{StaticResource MotionEaseOut}"/>
                                     </Storyboard>
                                 </BeginStoryboard>

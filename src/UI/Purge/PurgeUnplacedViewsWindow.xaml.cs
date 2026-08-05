@@ -134,12 +134,23 @@ namespace AJTools.UI.Purge
         private void ScanViews()
         {
             SetBusy(true);
+
+            // Every candidate costs a trial delete inside a rolled-back transaction, so this can run for
+            // several seconds. The work stays on Revit's UI thread exactly as before - this only makes
+            // the window repaint part-way through it. See ProgressReporter's header.
+            var progress = new ProgressReporter(ScanProgressBar, ProgressText);
+
             try
             {
                 ClearRows();
 
                 var service = new UnplacedViewPurgeService(_doc, _activeViewId, _mode);
-                IList<UnplacedViewPurgeItem> scanResult = service.Scan();
+
+                progress.Begin(1, "Collecting views...");
+                IList<UnplacedViewPurgeItem> scanResult = service.Scan(delegate(int done, int total)
+                {
+                    progress.Report(done, total, "Checking view " + done + " of " + total + "...");
+                });
 
                 foreach (UnplacedViewPurgeItem row in scanResult)
                 {
@@ -161,6 +172,8 @@ namespace AJTools.UI.Purge
             }
             finally
             {
+                // In the finally so the row disappears even if the scan threw.
+                progress.End();
                 SetBusy(false);
             }
         }

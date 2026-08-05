@@ -467,11 +467,71 @@ Repo          : AJ-Tools
             <Setter Property="Padding" Value="28,4,8,4"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="10"/>
-            <Style.Triggers>
-                <Trigger Property="IsKeyboardFocused" Value="True">
-                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
-                </Trigger>
-            </Style.Triggers>
+            <!-- The last text box in the suite that did not light up. It had no Template at all, so the
+                 focus edge was an instant BorderBrush swap; it is now two rings that fade, one owned by
+                 hover and one by focus, exactly like every other field. Padding still drives the content
+                 inset, so whatever sits over these boxes stays where it was. -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Grid SnapsToDevicePixels="True">
+                            <Border x:Name="FieldFill"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3">
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <Border x:Name="HoverRing" CornerRadius="3" BorderThickness="1"
+                                    BorderBrush="{StaticResource AccentBrush}" Opacity="0" IsHitTestVisible="False"/>
+                            <Border x:Name="FocusRing" CornerRadius="3" BorderThickness="1"
+                                    BorderBrush="{StaticResource AccentBrush}" Opacity="0" IsHitTestVisible="False"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverRing" Storyboard.TargetProperty="Opacity"
+                                                             To="0.55" Duration="0:0:0.09"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverRing" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.14"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.16"
+                                                             EasingFunction="{StaticResource MotionEaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <ControlTemplate x:Key="ComboToggleTemplate" TargetType="{x:Type ToggleButton}">

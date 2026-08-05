@@ -1888,3 +1888,19 @@ changelog.
   tick there would replay on every scroll, the same rule as list selection. Verified nothing uses
   IsThreeState before templating, and all three added to tools\verify-wpf-styles.ps1. Clean on Release +
   R25, deployed to both 2020 addin folders. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.40.3 closed out the UI motion pass. New ModernListCheckBox (same house box, INSTANT
+  tick) applied to the two virtualized-list checkboxes that were still raw Windows chrome — instant
+  because those rows are recycled on scroll and an animated tick would flicker down the list; hover/
+  press/focus still animate since they fire on user action. Purge Unplaced Views' scan got the same
+  progress reporting as Purge Unused Elements (optional Action<int,int>, defaults null, try/caught) —
+  those two are the only genuine multi-second freezes, both trial-deleting every candidate in a
+  rolled-back transaction. Graphics Override's text boxes finally got hover/focus rings; they had no
+  Template at all, so the focus edge was an instant BorderBrush swap.
+  THREE DELIBERATE NON-ACTIONS, recorded so nobody "finishes" them by accident: (a) show/hide panel
+  transitions stay out because those windows are SizeToContent and would resize mid-animation — fixing
+  that means touching resizing, Ajmal's one hard constraint; (b) NO entrance for the AJ AI docked pane,
+  because AiShellPaneProvider constructs AiShellView during Revit's OnStartup and a fault there takes the
+  whole add-in down (it already did once, v1.16.0) — a fade on a docked panel is not worth touching the
+  highest-blast-radius file in the project; (c) the Duct Standards DataGridCheckBoxColumn keeps its own
+  editing flow. Clean on Release + R25, all four verification scripts pass, deployed to both 2020 addin
+  folders. Not loaded in Revit by the assistant.
