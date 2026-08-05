@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : AJ AI Bridge Status Toast
  * File Name     : BridgeStatusToast.cs
@@ -46,6 +46,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using FormsScreen = System.Windows.Forms.Screen;
@@ -58,6 +59,15 @@ namespace AJTools.AiShell.Helpers
         private const double ToastWidth = 320;
         private const double ToastHeight = 56;
         private static readonly TimeSpan VisibleDuration = TimeSpan.FromSeconds(1.8);
+
+        /// <summary>Fade in. Short, so the message is readable almost immediately.</summary>
+        private const double FadeInMilliseconds = 180.0;
+
+        /// <summary>Fade out. Exits accelerate away, matching the rest of the suite.</summary>
+        private const double FadeOutMilliseconds = 220.0;
+
+        /// <summary>Backstop margin past the fade. A toast that never closes would sit over Revit forever.</summary>
+        private const double FadeSafetyMarginMilliseconds = 250.0;
 
         public static void Show(string message, bool connected)
         {
@@ -140,15 +150,77 @@ namespace AJTools.AiShell.Helpers
                 toast.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
 
+            // This toast sets AllowsTransparency, so Window.Opacity genuinely works here - unlike most
+            // AJ Tools windows, where WindowMotionHelper has to animate the root content instead.
+            toast.Opacity = 0.0;
             toast.Show();
+
+            toast.BeginAnimation(
+                UIElement.OpacityProperty,
+                new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(FadeInMilliseconds))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                });
 
             var timer = new DispatcherTimer { Interval = VisibleDuration };
             timer.Tick += (sender, args) =>
             {
                 timer.Stop();
-                toast.Close();
+                FadeOutAndClose(toast);
             };
             timer.Start();
+        }
+
+        /// <summary>
+        /// Fades the toast away and then closes it. Nothing else owns this window's lifetime and the
+        /// user cannot click it, so there is no DialogResult or veto to preserve - only the guarantee
+        /// that it definitely goes away.
+        /// </summary>
+        private static void FadeOutAndClose(Window toast)
+        {
+            bool closed = false;
+            Action close = delegate
+            {
+                if (closed)
+                {
+                    return;
+                }
+
+                closed = true;
+                try { toast.Close(); }
+                catch { /* Already gone - nothing to do. */ }
+            };
+
+            try
+            {
+                // Backstop armed BEFORE the animation: the close must never depend on a fade completing.
+                var safety = new DispatcherTimer(DispatcherPriority.Normal, toast.Dispatcher)
+                {
+                    Interval = TimeSpan.FromMilliseconds(FadeOutMilliseconds + FadeSafetyMarginMilliseconds)
+                };
+                safety.Tick += delegate
+                {
+                    safety.Stop();
+                    close();
+                };
+                safety.Start();
+
+                var fade = new DoubleAnimation(toast.Opacity, 0.0, TimeSpan.FromMilliseconds(FadeOutMilliseconds))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                fade.Completed += delegate
+                {
+                    safety.Stop();
+                    close();
+                };
+
+                toast.BeginAnimation(UIElement.OpacityProperty, fade);
+            }
+            catch
+            {
+                close();
+            }
         }
     }
 }

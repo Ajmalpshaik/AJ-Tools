@@ -1921,3 +1921,15 @@ changelog.
   windows declare MotionEaseOut" claim (Game HUD does not), inconsistent style counts, and a README stuck
   at 1.39.1. LESSON: exact counts in prose rot fast — let the scripts report them.
   Clean on Release + R25, all verification scripts pass. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.40.5 — closed the last uncovered UI surface, found by ENUMERATING every surface instead
+  of trusting the running list. Full tally now recorded in ajtools-conventions.md: 35 XAML windows (33
+  with motion, About own, GameHud excluded), 1 dockable UserControl, and 2 windows built purely in C#
+  with no .xaml. Those last two are the blind spot — any sweep that globs *.xaml misses them, which is
+  exactly how BridgeStatusToast passed through the entire motion pass with zero animation while
+  AiTaskWarningBarService's banner already had its own. The toast now fades in 180ms / out 220ms,
+  animating Window.Opacity DIRECTLY (valid there because it sets AllowsTransparency=true — not valid for
+  normal windows, hence WindowMotionHelper's root-content approach), with a backstop timer armed before
+  the fade so it definitely disappears. Simpler than the window exit on purpose: nothing else owns its
+  lifetime and it cannot be clicked, so there is no DialogResult or veto to preserve. Also confirmed zero
+  WinForms UI left in src/. Clean on Release + R25, all five verification scripts pass. Not loaded in
+  Revit by the assistant.
