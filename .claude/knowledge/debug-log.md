@@ -8,6 +8,49 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-05 (Game Mode SELECTOR gun: camera flies/jumps on every shot — FIXED, suite 1.40.6)
+- **Symptom (Ajmal's words)**: "in the game mode tool for the selection gun there is issue if i shoot
+  that to anyting after that the camara is going flying or jumbing someting like that". Only the
+  SELECTOR weapon; gun/laser/cleaner/snag were not reported.
+- **First instinct was wrong, and checking it first saved the session**: "shot → camera rockets" reads
+  exactly like an unclamped frame-delta game loop (slow frame → huge `dt` → player launched). It is not.
+  `GameMotionEngine.Execute` already clamps `dt` to 0.005–0.25 s (`GameMotionEngine.cs:199-202`), so a
+  slow frame cannot move the player far. **Rule out physics before touching it — the symptom lies about
+  the layer.** Nothing in the selector branch (`GameMotionEngine.Extras.cs:159-196`) touches `position`
+  either; it only calls `uidoc.Selection.SetElementIds`.
+- **Root cause — an INPUT bug, and the trigger is Revit's own window chrome**: the selector is the only
+  weapon that changes the Revit **selection**. Changing the selection makes Revit re-lay-out its chrome
+  (the Options Bar slides in/out, the contextual "Modify | ..." tab swaps in), which changes what
+  `UIView.GetWindowRectangle()` returns for the game view. The HUD follows that rectangle each tick
+  (`GameHudWindow.xaml.cs` `OnTick` → `ApplyPixelRect(..., remember: true)`), which updates
+  `_fullLeft/_fullTop/_fullRight/_fullBottom` — **and the mouse-look centre is derived from those four
+  fields** (`OnGameMouseMove`: `centerX = (_fullLeft + _fullRight) / 2`). The physical pointer was still
+  parked on the OLD centre from the previous `SetCursorPos`, and **nothing anywhere re-centred it when
+  the rectangle moved**. So the next mouse move measured `(old centre − new centre)` as genuine aiming
+  and applied it as yaw/pitch at `MouseDegPerPixel = 0.15`. A chrome shift of a few dozen px is several
+  degrees; if the Properties palette opens too, `centerX` moves ~150 px = **~22° of instant yaw whip**.
+  Hold a movement key while that happens and you genuinely fly off across the model.
+- **Fix** (`GameHudWindow.xaml.cs` v1.9.5 + `GameHudWindow.Controls.cs`): (1) `ApplyPixelRect` re-centres
+  the pointer whenever a *remembered* rectangle moves the centre and the look is active — it compares
+  edge **sums**, so a resize about a fixed middle correctly does nothing. (2) `StartLook` centres the
+  pointer *before* setting `_mouseLookActive`, so the move event WPF raises on `CaptureMouse()` can't be
+  read as a turn. (3) `OnGameMouseMove` drops (and re-centres on) any single step beyond
+  `MaxLookStepPx` = 400 px — a backstop for DPI changes / remote-session cursor warps, not the fix.
+- **Deliberately NOT changed**: `UpdateViewRectangle`'s `uiView.ZoomToFit()` on rectangle change. It
+  fires on every selector shot too (same trigger), but it is v1.38.2's aim/display sync fix — removing
+  it would bring back "shots land beside the crosshair". It re-fits the picture; it does not move the
+  eye, and `SetOrientation` re-applies the camera every frame regardless.
+- **General lesson worth carrying**: in this HUD, *any* screen geometry the mouse-look centre is derived
+  from is load-bearing. If a change moves `_full*` while the look is captured, it MUST re-centre the
+  cursor in the same breath, or it silently becomes a camera input. Watch for this in any future work
+  that repositions the overlay.
+- **Verified how**: code-review + clean builds only — `Release` (2020/net472) and `Release R25` (.NET 8)
+  both 0 errors / 0 warnings; `tools\verify-version-consistency.ps1` clean on all six references (it
+  caught README.md still saying 1.40.5 — exactly what it was added for). Revit was closed, so the fix
+  was rebuilt and **deployed** to the 2020 AppData payload (`AJ Tools.20260805192607865`, read back at
+  1.40.6.0). **Not click-tested in Revit** — Ajmal re-tests by shooting a few elements with the SELECTOR
+  and confirming the view stays put. → 2026-08-05.
+
 ### 2026-07-28 (Revision Cloud By Elements: cloud outline comes out tilted/angled on schematic symbols — DIAGNOSED (hypothesis), no fix applied yet)
 - **Symptom (Ajmal's screenshot + follow-up clarification)**: ran Revision Cloud By Elements on an HVAC
   schematic (6 branch-end device symbols, each a box+arrows group) — got 6 separate small clouds, one

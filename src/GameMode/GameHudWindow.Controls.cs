@@ -26,9 +26,13 @@ namespace AJTools.UI.GameMode
 
         private void StartLook()
         {
-            _mouseLookActive = CaptureMouse();
+            // Park the pointer on the look centre BEFORE arming the look. Capturing the mouse makes
+            // WPF deliver a move event straight away; with the look already armed, that event would
+            // be measured from wherever the pointer happened to be sitting and snap the camera round.
+            bool captured = CaptureMouse();
             Cursor = Cursors.None;
             CenterCursor();
+            _mouseLookActive = captured;
         }
 
         private void ReleaseLook()
@@ -71,6 +75,20 @@ namespace AJTools.UI.GameMode
             int dy = cursor.Y - centerY;
             if (dx == 0 && dy == 0)
             {
+                return;
+            }
+
+            // Backstop against a pointer that is out of step with the look centre. A single mouse
+            // step this large is not real aiming - it means something moved the centre out from
+            // under the cursor (the Revit view was resized, the display DPI changed, a remote
+            // session re-warped the pointer). Turning it into rotation throws the camera across the
+            // model; re-centre and drop the step instead. ApplyPixelRect re-centres on every
+            // remembered rectangle change, so this should stay quiet - it is the safety net, not
+            // the fix.
+            if (Math.Abs(dx) > MaxLookStepPx || Math.Abs(dy) > MaxLookStepPx)
+            {
+                GameNative.SetCursorPos(centerX, centerY);
+                e.Handled = true;
                 return;
             }
 

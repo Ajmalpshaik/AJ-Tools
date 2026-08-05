@@ -12,10 +12,10 @@
  *                   GameHudWindow.Photo.cs    - K photo mode
  *
  * Author        : Ajmal P.S.
- * Version       : 1.9.4
+ * Version       : 1.9.5
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-29
+ * Last Updated  : 2026-08-05
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -39,6 +39,25 @@
  * - ALL instance fields and consts of the class live in THIS file (partial-class house style).
  *
  * Changelog     :
+ * v1.9.5 (2026-08-05) - Camera-whip fix (suite 1.40.6), Ajmal's report: "in the selection gun, if I
+ *                       shoot anything the camera goes flying/jumping". The SELECTOR is the only
+ *                       weapon that changes the Revit SELECTION, and changing the selection makes
+ *                       Revit re-lay-out its own chrome (Options Bar in/out, contextual "Modify |
+ *                       ..." tab), which moves the game view's window rectangle. The HUD follows
+ *                       that rectangle in OnTick via ApplyPixelRect(remember: true), which silently
+ *                       moved _full* - and the look centre is derived from _full*. The physical
+ *                       pointer was still parked on the OLD centre from the previous SetCursorPos,
+ *                       so the next mouse move measured (old centre - new centre) as real aiming
+ *                       and turned it straight into yaw/pitch at 0.15 deg/px. Nothing re-centred
+ *                       the pointer when the rectangle moved. Three changes: (1) ApplyPixelRect
+ *                       re-centres the pointer whenever a remembered rectangle moves the centre and
+ *                       the look is active (comparing edge SUMS, so a resize about a fixed middle
+ *                       is left alone); (2) StartLook centres before arming _mouseLookActive, so
+ *                       the move event WPF raises on capture cannot be read as a turn; (3)
+ *                       OnGameMouseMove drops any single step beyond MaxLookStepPx (400 px) and
+ *                       re-centres - a backstop for DPI changes / remote-session cursor warps, not
+ *                       the fix itself. Physics were ruled out: the engine's dt is already clamped
+ *                       to 0.25 s, so a slow frame cannot rocket the player.
  * v1.9.4 (2026-07-29) - Audit pass, zero behaviour change: removed the dead PxToDip helper from
  *                       the Render partial (orphaned when measuring was deleted in v1.8.0) and
  *                       corrected the stale partial-file headers (Weapons listed 3 weapons, Render
@@ -141,6 +160,7 @@ namespace AJTools.UI.GameMode
         private const int PillHeightPx = 160;
         private const int FireIntervalMs = 130;   // automatic fire cadence while left button held
         private const int ImpactDelayMs = 100;    // splash lands when the bullet visually arrives
+        private const int MaxLookStepPx = 400;    // largest believable single mouse-look step (see OnGameMouseMove)
 
         private readonly GameSession _session;
         private readonly ExternalEvent _frameEvent;
@@ -486,11 +506,31 @@ namespace AJTools.UI.GameMode
         {
             if (remember)
             {
+                // Does this rectangle move the CENTRE (the origin every mouse-look delta is measured
+                // from)? Compare the sums rather than the edges: a pure resize that keeps the middle
+                // where it is needs no re-centre.
+                bool centreMoved = _haveFullRect &&
+                                   ((left + right) != (_fullLeft + _fullRight) ||
+                                    (top + bottom) != (_fullTop + _fullBottom));
+
                 _fullLeft = left;
                 _fullTop = top;
                 _fullRight = right;
                 _fullBottom = bottom;
                 _haveFullRect = true;
+
+                // Revit moves the view rectangle whenever its own chrome changes - and changing the
+                // SELECTION does exactly that (the Options Bar appears/disappears, the contextual
+                // "Modify | ..." tab swaps in). The SELECTOR weapon is the only one that touches the
+                // Revit selection, so every selector shot shifted this rectangle. The look centre
+                // moved with it while the pointer stayed parked on the OLD centre, so the very next
+                // mouse move was read as one huge turn and the camera flew off across the model
+                // (Ajmal's report). Put the pointer back on the new centre so the next delta is
+                // measured from where the pointer actually is.
+                if (centreMoved && _mouseLookActive)
+                {
+                    CenterCursor();
+                }
             }
 
             MoveWindowPixels(left, top, Math.Max(200, right - left), Math.Max(150, bottom - top));
