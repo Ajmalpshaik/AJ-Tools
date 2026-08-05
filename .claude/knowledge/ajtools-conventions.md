@@ -299,6 +299,25 @@ place rather than leaving stale info sitting next to the new truth.
   long tools (the two other Purge windows, Transfer Views, the tagging services) are the same shape and
   can reuse this helper unchanged.
 
+**A dispatcher pump lets the X button and Esc through — a busy window MUST veto its own close (v1.40.4)**
+- `Dispatcher.Invoke(..., DispatcherPriority.Render)` on the calling thread waits by pushing a **nested
+  dispatcher frame**, and that frame runs a **real Win32 message loop**. Measured 2026-08-05 both ways:
+  a `DispatcherOperation` queued at `Input` priority does NOT run during the loop, **but** a posted
+  `WM_CLOSE` fires the window's `Closing` DURING it. So "Render priority means input can't be processed"
+  is only half true, and the dangerous half is the untrue one.
+- **Consequence**: any window that pumps to repaint progress can be closed mid-run by the title-bar X or
+  Esc, while its loop keeps running underneath. **Disabling the buttons does not cover this** — neither
+  the X nor Esc goes through a button. Guard `Closing` on a busy flag, and subscribe that guard
+  **before** `WindowMotionHelper.AttachStandardExit` so the veto is already on the event args when the
+  motion helper runs. `PurgeUnusedElementsWindow` / `PurgeUnplacedViewsWindow` are the reference.
+- `AttachStandardExit` now returns early when `e.Cancel` is already true, so a veto from any other
+  handler (busy guard, unsaved-changes prompt, validation refusal) is respected instead of being
+  overridden by the animation. `toolserify-exit-motion.ps1` has a permanent case for this.
+- **Nulling `FocusVisualStyle` obliges the template to draw its own focus ring.** `ModernListCheckBox`
+  and `ToggleSwitchCheckBox` inherited `{x:Null}` from `ModernCheckBox` without one, leaving five
+  controls with no keyboard marker at all (found by audit, fixed v1.40.4). Check this whenever a style
+  sets `FocusVisualStyle="{x:Null}"`.
+
 **Exit animations — `DialogResult` does NOT survive a cancelled close (measured 2026-08-05, v1.40.0)**
 - **The finding, and it is the whole reason exit motion is dangerous**: an exit animation must cancel the
   window's own `Closing`, animate, then re-issue the close — and **WPF discards `DialogResult` when a
@@ -377,8 +396,10 @@ place rather than leaving stale info sitting next to the new truth.
   programmatically in bulk when a window loads, so animating it turns a Purge/Transfer list of hundreds
   of pre-ticked rows into a wave. Hover animates; selection does not.
 - Before adding motion to any shared style, check that nothing reaches into the template from code —
-  `GetTemplateChild` / `Template.FindName`. As of 2026-08-05 there are **zero** such calls in `src/`, so
-  template parts can be restructured freely; if that ever changes, re-check first.
+  `GetTemplateChild` / `Template.FindName`. **This is no longer "zero" (corrected by audit, 2026-08-05):**
+  `TabMotionHelper.cs` looks up `PART_SelectedContentHost` on a `TabControl`, added the same day the
+  original note was written. So renaming or removing that part silently kills tab motion in all five
+  tabbed windows. Re-run the grep before restructuring any template rather than trusting a stale count.
 - **Tick boxes / radio buttons / the toggle switch are templated as of v1.40.2** (`ModernCheckBox`,
   `ModernRadioButton`, `ToggleSwitchCheckBox`). They were setter-only until then, drawing raw Windows
   chrome inside the soft UI. They stay **keyed, never implicit**: an implicit `TargetType="CheckBox"`
@@ -388,8 +409,9 @@ place rather than leaving stale info sitting next to the new truth.
   need no indeterminate visual — re-check that if one is ever added.
 - Both dictionaries now define the same `MotionEaseOut` key with the same timings **on purpose**, so the
   AI shell and the tool windows feel like one product. Retune both together or neither. The four
-  standalone windows (About, Graphics Override, Game Key Settings, Game HUD) each declare their own
-  `MotionEaseOut` with the same curve — they merge nothing, so there is no shared key to reach.
+  standalone windows that received motion (About, Graphics Override, Game Key Settings) each declare
+  their own `MotionEaseOut` with the same curve — they merge nothing, so there is no shared key to
+  reach. Game HUD does NOT declare one: it was left untouched and has no motion styles at all.
 - **"One trigger per animated property" is the rule that actually bites.** It was violated once during
   the v1.39.6 pass (the Graphics Override colour swatch had hover AND press driving one shared
   `ScaleTransform`): press, then drag off the control, and BOTH exit animations fire — whichever lands
@@ -400,9 +422,14 @@ place rather than leaving stale info sitting next to the new truth.
   and recycled in bulk by a virtualized `ListBox`, so an animated state would replay on every scroll and
   read as flicker. The standalone `CutLinkCheckBoxStyle` tick does animate, because it is a single
   checkbox the user clicks. Judge each case by "does this fire on user action, or on materialization?"
-- **Not every window needs motion — check before assuming.** `GameHudWindow` has every element set
-  `IsHitTestVisible="False"`: it is a pure non-interactive overlay with no buttons, so there is nothing
-  to hover or press. Verified 2026-08-05; don't re-audit it looking for controls to animate.
+- **Not every window needs motion — but get the REASON right.** `GameHudWindow` is excluded because it
+  is a real-time overlay with its own code-behind animation and a frame budget. **CORRECTION (audit,
+  2026-08-05):** an earlier version of this note claimed it "has every element set
+  `IsHitTestVisible="False"` … a pure non-interactive overlay". That is WRONG and backwards. Its root
+  `RootGrid` carries `Background="#01000000"` — 1/255 alpha — precisely so it *does* receive every click
+  and key over the whole Revit view; `PlayLayer` has no hit-test attribute either; and `PauseLayer` is a
+  click-to-resume surface with `Cursor="Hand"` wired to `PreviewMouseDown`. Only the "no `<Button>`"
+  half was true. Do not reason about the HUD's input from that old claim.
 - **Two windows keep instant hover colours on purpose, for two different reasons.** Graphics Override:
   its hover steps carry meaning and a neutral wash can't reproduce them (12% white over the danger fill
   `#5B1C1C` gives `#692C2C`, nowhere near the intended `#8B2B2B`). AboutWindow: `ShowSection()` sets the

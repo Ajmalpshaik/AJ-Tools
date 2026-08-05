@@ -5,6 +5,26 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.40.4] - 2026-08-05
+
+- **Fixed**: **You could close a Purge window while it was still scanning.** The progress bar added in
+  1.40.1 has a side effect nobody intended - it lets the window notice the X button and the Esc key
+  mid-scan, so the window could shut while the scan carried on running underneath it. Greying out the
+  buttons never covered that, because the X and Esc don't go through a button. Both Purge windows now
+  refuse to close until the scan or delete has finished.
+- **Fixed**: A related problem that had not bitten yet: if any window ever refused to close, the closing
+  animation would have played and then forced it shut anyway, overriding the refusal. It now respects it.
+- **Fixed**: Five controls had lost their keyboard outline - the two list tick boxes and the three on/off
+  switches. If you Tab through those windows there was no marker showing where you were. Restored.
+- **Fixed**: Linked Search's **Models** picker was the last control still wearing plain Windows chrome,
+  and its label went almost unreadable while the dropdown was open. It now matches the rest and stays
+  readable.
+- **Fixed**: Several of my own written notes were wrong and have been corrected - most importantly one
+  claiming the Game Mode HUD cannot receive clicks, when catching clicks is exactly what it does. Also
+  the README still advertised version 1.39.1.
+- **Note**: All of the above came from an independent audit of the whole UI pass rather than from
+  testing in Revit. It confirmed ten problems and threw out four other claims as wrong.
+
 ## [1.40.3] - 2026-08-05
 
 - **Changed**: The tick boxes inside the scrolling lists (View Crop target views, Section Mark views) now
@@ -116,7 +136,7 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
   flickering down the list.
 - **Added (internal)**: A second checking script, `tools/verify-window-styles.ps1`, for windows that keep
   their styles inside themselves. It pulls the styles out of the window file, rebuilds them on their own
-  and forces each one to run. 35 checked across the three windows, all pass.
+  and forces each one to run. All pass.
 
 ## [1.39.5] - 2026-08-05
 
@@ -135,7 +155,7 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 - **Added (internal)**: A checking script, `tools/verify-wpf-styles.ps1`. Building the add-in proves the
   window styles are *spelled* correctly but not that they *work* - that only shows up when a window
   opens, and this exact gap once stopped AJ Tools loading at Revit startup. The script now loads the
-  built file and forces all 28 styles to build, catching that in seconds without opening Revit. All 28
+  built file and forces every style to build, catching that in seconds without opening Revit. All 28
   pass.
 - **Fixed (note only)**: A comment in the AI style file claimed a custom progress bar would show wrong
   progress. That was checked against the real Windows library and is not true - and the new progress bar

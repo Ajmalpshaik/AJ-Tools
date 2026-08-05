@@ -81,6 +81,7 @@
                                Grid.Row="3"/>
                     <Grid Grid.Row="4" Margin="0,6,0,10">
                         <ToggleButton x:Name="ModelDropdownButton"
+                                      Style="{StaticResource ModernDropdownToggle}"
                                       Height="34"
                                       Background="{StaticResource BackgroundLight}"
                                       Foreground="{StaticResource TextPrimary}"

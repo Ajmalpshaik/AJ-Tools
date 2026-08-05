@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.40.3
+ * Version       : 1.40.4
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-05
@@ -24,6 +24,53 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.40.4 (2026-08-05) - Fixes found by an independent audit of the v1.39.2 -> v1.40.3 UI pass. Ten
+ *                       defects were confirmed (four further claims were refuted on inspection); three
+ *                       were code, the rest were false statements in this project's own notes.
+ *                       1. REAL BUG, introduced by v1.40.1's progress reporting. ProgressReporter's own
+ *                       comment claimed the Render-priority pump means "the user cannot click a button
+ *                       half way through a delete loop". THAT WAS WRONG. Measured both halves:
+ *                       (a) a DispatcherOperation queued at Input priority does NOT run during the loop
+ *                       - that half was right; (b) Dispatcher.Invoke on the calling thread waits by
+ *                       pushing a nested dispatcher frame, which runs a REAL Win32 message loop - so a
+ *                       posted WM_CLOSE was observed firing the window's Closing DURING the scan loop.
+ *                       So the title-bar X and Esc could close a purge window mid-scan while the scan
+ *                       carried on running underneath it. Disabling the buttons never covered those two,
+ *                       because neither goes through a button.
+ *                       FIX: both purge windows now refuse to close while busy (Closing guarded on an
+ *                       _isBusy flag, subscribed BEFORE the motion helpers so its veto is already set).
+ *                       2. LATENT BUG THAT EXPOSED, in WindowMotionHelper.AttachStandardExit: it did not
+ *                       check e.Cancel, so if ANY other handler vetoed a close - a busy guard, an
+ *                       unsaved-changes prompt, a validation refusal - the exit animation would play and
+ *                       then force the window shut anyway, overriding the veto. Now returns early when
+ *                       the close is already cancelled. This was latent before the purge guard existed.
+ *                       3. ACCESSIBILITY REGRESSION from v1.40.2/1.40.3: ModernListCheckBox and
+ *                       ToggleSwitchCheckBox inherit FocusVisualStyle="{x:Null}" from ModernCheckBox but
+ *                       had no focus ring of their own, so five controls had NO keyboard-focus marker at
+ *                       all. Nulling the OS focus rectangle obliges the template to draw its own; both
+ *                       now do.
+ *                       4. MISSED CONTROL: Linked Search's model picker was a bare ToggleButton with no
+ *                       template - the last raw Windows chrome in the suite, and its label went barely
+ *                       readable while the dropdown was open because the default checked state repaints
+ *                       it. New shared ModernDropdownToggle never touches Foreground/Background, so the
+ *                       label stays put in both states and "open" shows as an accent ring.
+ *                       5. FALSE NOTES CORRECTED (they would have misled the next session):
+ *                       - The claim that GameHudWindow "has every element IsHitTestVisible=False, a pure
+ *                         non-interactive overlay" was backwards. RootGrid's Background="#01000000" is
+ *                         1/255 alpha precisely SO IT CAPTURES every click and key, and PauseLayer is a
+ *                         click-to-resume surface. Only "no <Button" was true. The exclusion still
+ *                         stands, but on the frame-budget reason. Corrected here and in conventions.md.
+ *                       - "Zero GetTemplateChild/Template.FindName in src/" was made false the same day
+ *                         by TabMotionHelper looking up PART_SelectedContentHost. Corrected.
+ *                       - "All four standalone windows declare their own MotionEaseOut" - Game HUD does
+ *                         not; it was never touched. Corrected.
+ *                       - Style counts disagreed between files (24 vs 33, 28 vs 23). The brittle exact
+ *                         counts are gone; the scripts report the real number when run.
+ *                       - README.md still advertised 1.39.1, ten versions behind. Updated.
+ *                       tools/verify-exit-motion.ps1 gains a permanent case proving a busy window can
+ *                       veto its own close and that the exit helper respects it.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
  * v1.40.3 (2026-08-05) - Closes out the UI motion and polish pass. NO tool behaviour changed anywhere.
  *                       LIST TICK BOXES: new ModernListCheckBox (ModernStyles v1.5.0) - the same house
  *                       box, but with an INSTANT tick - applied to the two list checkboxes that were
@@ -55,7 +102,7 @@
  *                       in the project for.
  *                       (c) The Duct Standards grid tick column - DataGridCheckBoxColumn generates its
  *                       own checkbox with its own editing flow, and it is one column in one window.
- *                       Verified: all 24 shared styles build (tools/verify-wpf-styles.ps1 now covers the
+ *                       Verified: every shared style builds (tools/verify-wpf-styles.ps1 now covers the
  *                       new list variant), plus the window-local, exit-motion and tab-motion checks.
  *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
  *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
@@ -214,10 +261,14 @@
  *                       implicit style now gives Save, Cancel and the code-behind-built key buttons the
  *                       house look and the standard motion. The code-behind still recolours a key button
  *                       to amber while it waits for a key press, untouched.
- *                       GAME HUD: NOTHING TO DO, verified rather than assumed - every element in it is
- *                       IsHitTestVisible="False". It is a pure non-interactive overlay with no buttons,
- *                       so there is nothing to hover or press, and its own frame-budget animation is
- *                       left alone.
+ *                       GAME HUD: NOTHING TO DO - it is a real-time overlay with its own frame-budget
+ *                       animation, and it contains no <Button at all (that part was verified).
+ *                       CORRECTED 2026-08-05 by audit: this entry originally also claimed "every element
+ *                       in it is IsHitTestVisible=False ... a pure non-interactive overlay". That was
+ *                       WRONG and backwards - RootGrid's Background="#01000000" exists precisely so the
+ *                       HUD DOES capture every click and key, and PauseLayer is a click-to-resume
+ *                       surface. The exclusion still stands on the frame-budget reason; do not reason
+ *                       about the HUD's input handling from the original wording.
  *                       CAUGHT WHILE WRITING IT: the colour swatch first had hover and press driving ONE
  *                       shared transform. Pressing then dragging off fires both exit animations and the
  *                       last one to land wins, which could strand a swatch enlarged. Split into two
@@ -258,7 +309,7 @@
  *                       v1.39.4's house bar directly: 25/50/100% give exactly 50/100/200px of a 200px
  *                       track. The comment now records the real reason (the indeterminate strip).
  *                       VERIFIED WITHOUT LAUNCHING REVIT: new tools/verify-wpf-styles.ps1 loads both
- *                       compiled dictionaries out of the built DLL and forces all 23 styles to build
+ *                       compiled dictionaries out of the built DLL and forces every style to build
  *                       their templates - all pass, every StaticResource resolves. This catches the
  *                       XamlParseException class of bug that a clean msbuild provably cannot, and which
  *                       took the whole add-in down at startup once before (v1.16.0). It matters most for
@@ -1250,8 +1301,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.40.3.0")]
-[assembly: AssemblyFileVersion("1.40.3.0")]
+[assembly: AssemblyVersion("1.40.4.0")]
+[assembly: AssemblyFileVersion("1.40.4.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

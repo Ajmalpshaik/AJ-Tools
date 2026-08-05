@@ -453,6 +453,108 @@ Repo         : AJ-Tools
         <Setter Property="FontSize" Value="11"/>
     </Style>
 
+    <!-- A dropdown-style ToggleButton (Linked Search's model picker). It had NO template, so it drew
+         default Windows chrome AND repainted itself on the checked state, which left the label barely
+         readable while the dropdown was open. This template never touches Foreground or Background, so
+         the caller's colours - and the label - stay exactly as set in both states; "open" is shown with
+         an accent ring instead. -->
+    <Style x:Key="ModernDropdownToggle" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid x:Name="Root">
+                        <Border x:Name="Fill"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <Border x:Name="HoverGlow" CornerRadius="4" Background="#1FFFFFFF"
+                                Opacity="0" IsHitTestVisible="False"/>
+                        <Border x:Name="OpenRing" CornerRadius="4"
+                                BorderBrush="{StaticResource AccentBlue}" BorderThickness="1"
+                                Opacity="0" IsHitTestVisible="False"/>
+                        <Border x:Name="FocusRing" CornerRadius="4"
+                                BorderBrush="#99FFFFFF" BorderThickness="1"
+                                Opacity="0" IsHitTestVisible="False"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.09"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverGlow" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="OpenRing" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="OpenRing" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Inputs -->
     <Style x:Key="ModernTextBox" TargetType="TextBox">
         <Setter Property="Background" Value="{StaticResource CardBackground}"/>
@@ -1102,6 +1204,12 @@ Repo         : AJ-Tools
                             <Border x:Name="BoxHover" CornerRadius="4"
                                     BorderBrush="{StaticResource AccentBlue}" BorderThickness="1"
                                     Opacity="0" IsHitTestVisible="False"/>
+                            <!-- This style inherits FocusVisualStyle="{x:Null}" from ModernCheckBox, so
+                                 without this ring a keyboard user would have NO indication of where
+                                 they are. Nulling the OS focus rectangle obliges us to draw our own. -->
+                            <Border x:Name="BoxFocus" CornerRadius="4"
+                                    BorderBrush="#99FFFFFF" BorderThickness="1"
+                                    Opacity="0" IsHitTestVisible="False"/>
                             <Path x:Name="Tick"
                                   Data="M 0 4 L 4 8 L 11 0"
                                   Width="11" Height="8" Stretch="Uniform"
@@ -1168,6 +1276,26 @@ Repo         : AJ-Tools
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="BoxFocus" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="BoxFocus" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource TextDisabled}"/>
                             <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
@@ -1201,6 +1329,11 @@ Repo         : AJ-Tools
                                     Background="{StaticResource AccentBlue}" Opacity="0"/>
                             <Border x:Name="TrackHover" CornerRadius="10"
                                     BorderBrush="{StaticResource AccentBlue}" BorderThickness="1"
+                                    Opacity="0" IsHitTestVisible="False"/>
+                            <!-- Same obligation as the list box above: FocusVisualStyle is nulled by
+                                 the base style, so the keyboard marker has to be drawn here. -->
+                            <Border x:Name="TrackFocus" CornerRadius="10"
+                                    BorderBrush="#99FFFFFF" BorderThickness="1"
                                     Opacity="0" IsHitTestVisible="False"/>
                             <Ellipse x:Name="Knob" Width="14" Height="14"
                                      Fill="{StaticResource TextPrimary}"
@@ -1257,6 +1390,26 @@ Repo         : AJ-Tools
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="TrackHover" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.16"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="TrackFocus" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource MotionEaseOut}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="TrackFocus" Storyboard.TargetProperty="Opacity"
                                                          To="0" Duration="0:0:0.16"
                                                          EasingFunction="{StaticResource MotionEaseOut}"/>
                                     </Storyboard>
