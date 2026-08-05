@@ -239,6 +239,14 @@ namespace AJTools.Utils
                 if (state.IsReadyToClose)
                     return;
 
+                // Another handler has already vetoed this close - a busy guard, an unsaved-changes
+                // prompt, a validation refusal. Respect it and do nothing: without this the exit
+                // animation would run and then force the window shut, overriding the veto. Window's
+                // own handlers run first (they subscribe during InitializeComponent), so by the time
+                // this runs their decision is already on the event args.
+                if (e.Cancel)
+                    return;
+
                 // Any further Closing while the exit plays - most commonly the second one raised by a
                 // button that is both Click= and IsCancel="True".
                 if (state.IsExitPlaying)

@@ -68,6 +68,40 @@ public static class ExitHarness
         };
         return w;
     }
+
+    // A window that is BUSY must be able to veto its own close, and the exit animation must respect
+    // that veto instead of animating and then forcing the window shut anyway. This matters because a
+    // progress-reporting loop pumps the dispatcher, which runs a real Win32 message loop - so the
+    // title-bar X and Esc DO reach the window mid-scan (measured). Returns true if the veto held.
+    public static bool VetoHolds(Action<Window> attachExit)
+    {
+        Window w = new Window();
+        w.Width = 240; w.Height = 140; w.ShowInTaskbar = false;
+        w.Content = new Grid();
+
+        bool busy = true;
+        int closeAttempts = 0;
+
+        // Subscribed BEFORE the exit helper, exactly as the purge windows do it.
+        w.Closing += delegate(object s, System.ComponentModel.CancelEventArgs e)
+        {
+            closeAttempts++;
+            if (busy) e.Cancel = true;
+        };
+        attachExit(w);
+
+        bool stillOpenWhileBusy = false;
+        w.Loaded += delegate
+        {
+            w.Close();                                   // user hits X mid-scan
+            stillOpenWhileBusy = w.IsVisible;            // must still be open
+            busy = false;                                // scan finishes
+            w.Close();                                   // now it may close
+        };
+
+        w.ShowDialog();
+        return stillOpenWhileBusy && closeAttempts >= 2;
+    }
 }
 "@
 
@@ -98,8 +132,13 @@ $e2 = Run-Case "Cancel sets DialogResult=false"  "false" $false $true
 $e3 = Run-Case "plain Close(), no result"        "none"  $false $true
 $e4 = Run-Case "Click + IsCancel double-close"   "true"  $true  $true
 
+Write-Host "--- busy window must be able to veto its own close ---"
+$vetoHeld = [ExitHarness]::VetoHolds([Action[System.Windows.Window]]{ param($w) $attachExit.Invoke($null, @([System.Windows.Window]$w)) })
+Write-Host ("  {0,-38} veto held={1}" -f "close attempted while busy", $vetoHeld)
+
 Write-Host ""
 $mismatch = @()
+if (-not $vetoHeld) { $mismatch += "a busy window could NOT refuse its close - the exit helper overrode the veto" }
 if ($e1[0] -ne $c1[0]) { $mismatch += "Run(true): control=$($c1[0]) exit=$($e1[0])" }
 if ($e2[0] -ne $c2[0]) { $mismatch += "Cancel(false): control=$($c2[0]) exit=$($e2[0])" }
 if ($e3[0] -ne $c3[0]) { $mismatch += "plain Close: control=$($c3[0]) exit=$($e3[0])" }

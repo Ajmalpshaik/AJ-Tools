@@ -29,10 +29,18 @@
  *   pass, so setting ProgressBar.Value inside it changes the number but paints nothing - the window
  *   still looks frozen. The fix, already established in this project, is to pump the dispatcher at
  *   DispatcherPriority.Render after setting the values, which forces the repaint to happen now.
- * - WHY Render PRIORITY SPECIFICALLY. Input priority is LOWER than Render, so a Render-priority pump
- *   repaints without processing mouse or keyboard input. That matters: the user cannot click a button
- *   half way through a delete loop and re-enter it. A DoEvents-style pump at Input priority WOULD allow
- *   that, and is exactly the re-entrancy bug this avoids.
+ * - WHY Render PRIORITY. Input priority is LOWER than Render, so the pump does not drain queued
+ *   Input-priority dispatcher work. Measured 2026-08-05: a DispatcherOperation queued at Input priority
+ *   does NOT run during the loop. That is the half this buys.
+ * - WHAT IT DOES NOT BUY - READ THIS BEFORE RELYING ON IT. An earlier version of this comment claimed
+ *   the user "cannot click a button half way through a delete loop". THAT WAS WRONG, and measuring it
+ *   proved so: Dispatcher.Invoke on the calling thread waits by pushing a nested dispatcher frame,
+ *   which runs a real Win32 message loop - so WM_CLOSE and friends are still dispatched to the window
+ *   mid-loop. A posted WM_CLOSE was observed firing the window's Closing DURING the loop.
+ *   Consequence: a window that pumps must REFUSE TO CLOSE while it is busy, or the user can shut it
+ *   mid-scan while the loop keeps running underneath. Both purge windows now guard their Closing on a
+ *   busy flag. Any new window using this class must do the same - disabling the buttons is not enough,
+ *   because the title-bar X and Esc never go through a button.
  * - THROTTLED ON PURPOSE. Repainting on every one of several thousand items would cost more than the
  *   work itself, so a repaint happens at most every 33ms (about 30 a second, which reads as smooth).
  *   The first and last items always paint, so the bar visibly starts at 0 and finishes full.

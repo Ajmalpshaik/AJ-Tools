@@ -1904,3 +1904,20 @@ changelog.
   highest-blast-radius file in the project; (c) the Duct Standards DataGridCheckBoxColumn keeps its own
   editing flow. Clean on Release + R25, all four verification scripts pass, deployed to both 2020 addin
   folders. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.40.4 — fixes from an INDEPENDENT AUDIT of the whole v1.39.2 -> v1.40.3 UI pass (six
+  lenses, findings adversarially refuted before counting: 10 confirmed, 4 thrown out). Worth knowing that
+  the audit caught things the author's own verification did not, including a false safety claim.
+  THE REAL BUG: ProgressReporter's comment claimed a Render-priority pump means the user "cannot click a
+  button half way through a delete loop". Half right, and the dangerous half wrong — Dispatcher.Invoke on
+  the calling thread pushes a nested frame that runs a real Win32 message loop, so a posted WM_CLOSE was
+  measured firing Closing DURING the scan loop. Both purge windows now veto their own close while busy,
+  and AttachStandardExit now respects an existing e.Cancel (a latent bug: it would previously animate and
+  then force a vetoed window shut). Also fixed: five controls left with NO keyboard focus marker because
+  they inherited FocusVisualStyle="{x:Null}" without drawing their own ring; and Linked Search's bare
+  ToggleButton, the last raw Windows chrome in the suite, whose label went unreadable when open.
+  FALSE NOTES CORRECTED — the GameHud "every element IsHitTestVisible=False / non-interactive" claim was
+  backwards (its RootGrid exists to CAPTURE input; PauseLayer is click-to-resume), the "zero
+  GetTemplateChild in src/" claim was falsified the same day by TabMotionHelper, the "all four standalone
+  windows declare MotionEaseOut" claim (Game HUD does not), inconsistent style counts, and a README stuck
+  at 1.39.1. LESSON: exact counts in prose rot fast — let the scripts report them.
+  Clean on Release + R25, all verification scripts pass. Not loaded in Revit by the assistant.

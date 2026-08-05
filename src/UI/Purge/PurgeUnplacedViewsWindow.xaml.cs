@@ -57,6 +57,12 @@ namespace AJTools.UI.Purge
 
             InitializeComponent();
 
+            // A scan/delete pumps the dispatcher to repaint its progress bar, and that pump runs a
+            // real Win32 message loop - so the title-bar X and Esc DO reach this window mid-run
+            // (measured, see ProgressReporter's header). Disabling the buttons does not cover those.
+            // Subscribed before the motion helpers so this veto is already set when they run.
+            Closing += RefuseCloseWhileBusy;
+
             // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
             WindowMotionHelper.AttachStandardEntrance(this);
 
@@ -205,8 +211,20 @@ namespace AJTools.UI.Purge
             txtSelectedCount.Text = _rows.Count(r => r.IsSelected && r.CanSelectForDeletion).ToString();
         }
 
+        /// <summary>True while a scan or delete is running on the UI thread.</summary>
+        private bool _isBusy;
+
+        private void RefuseCloseWhileBusy(object sender, CancelEventArgs e)
+        {
+            if (_isBusy)
+            {
+                e.Cancel = true;
+            }
+        }
+
         private void SetBusy(bool busy)
         {
+            _isBusy = busy;
             Mouse.OverrideCursor = busy ? Cursors.Wait : null;
 
             btnScan.IsEnabled = !busy;
