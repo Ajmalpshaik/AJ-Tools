@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.40.5
+ * Version       : 1.40.6
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-05
@@ -24,6 +24,27 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.40.6 (2026-08-05) - Game Mode SELECTOR camera-whip fix (GameHudWindow v1.9.5). Reported symptom:
+ *                       shooting anything with the selection gun sends the camera flying/jumping.
+ *                       Root cause was input, not physics. The selector is the only weapon that
+ *                       changes the Revit SELECTION, and that makes Revit re-lay-out its own chrome
+ *                       (Options Bar appears/disappears, contextual "Modify | ..." tab swaps in),
+ *                       which moves the game view's window rectangle. The HUD follows that rectangle
+ *                       in OnTick -> ApplyPixelRect(remember: true), which updated _full* - and the
+ *                       mouse-look centre is derived from _full*. The pointer was still parked on
+ *                       the OLD centre from the previous SetCursorPos, so the next mouse move read
+ *                       (old centre - new centre) as genuine aiming and applied it as yaw/pitch at
+ *                       0.15 deg/px. Nothing anywhere re-centred the pointer when the rectangle
+ *                       moved. FIX: ApplyPixelRect now re-centres the pointer whenever a remembered
+ *                       rectangle moves the centre while the look is active; StartLook centres
+ *                       before arming _mouseLookActive; OnGameMouseMove drops (and re-centres on)
+ *                       any single step beyond 400 px as a backstop for DPI/remote-session cursor
+ *                       warps. Physics ruled out first: the engine's dt is already clamped to
+ *                       0.25 s, so a slow frame cannot rocket the player. The ZoomToFit re-fit on
+ *                       rectangle change (v1.38.2's aim/display sync) was left alone deliberately -
+ *                       removing it would bring back the shots-land-beside-the-crosshair bug.
+ *                       Builds clean on Release (2020/net472) and Release R25. NOT loaded in Revit
+ *                       by the assistant - Ajmal verifies on screen.
  * v1.40.5 (2026-08-05) - The last uncovered UI surface, found by enumerating them rather than trusting
  *                       the running list. Every AJ Tools UI surface is now accounted for:
  *                       35 XAML windows (33 with entrance+exit motion; AboutWindow has its own staged
@@ -1322,8 +1343,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.40.5.0")]
-[assembly: AssemblyFileVersion("1.40.5.0")]
+[assembly: AssemblyVersion("1.40.6.0")]
+[assembly: AssemblyFileVersion("1.40.6.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

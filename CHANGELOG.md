@@ -5,6 +5,23 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.40.6] - 2026-08-05
+
+- **Fixed**: **Game Mode — the camera flew off every time you shot something with the SELECTOR gun.**
+  The selector is the only weapon that changes what is *selected* in Revit, and selecting something makes
+  Revit rearrange its own toolbar area (the Options Bar slides in, the "Modify" tab swaps in). That makes
+  the drawing window a little shorter, so the middle of the view moves — and the middle of the view is
+  exactly the point the game measures your mouse against. The mouse pointer was left sitting on the *old*
+  middle, so the game read that gap as you yanking the mouse and spun the view to match. The pointer is
+  now put back on the new middle the moment the window changes, so the shot no longer moves your view.
+- **Fixed**: Two related weak spots in the same place, so this cannot come back another way — the mouse
+  is now centred *before* the look-around is switched on when you resume, and any single mouse step too
+  big to be real (a monitor DPI change, a remote-desktop session moving the pointer) is ignored instead
+  of being turned into a spin.
+- **Note**: The physics were checked first and cleared — a slow frame cannot launch the player, that was
+  already capped. Verified by code review and a clean build on Revit 2020 and 2025; **not yet tested
+  inside Revit** — please shoot a few elements with the selector and confirm the view now stays put.
+
 ## [1.40.5] - 2026-08-05
 
 - **Added**: The little **AJ AI Bridge status pop-up** now fades in and out instead of appearing and
