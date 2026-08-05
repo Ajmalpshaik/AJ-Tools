@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.40.4
+ * Version       : 1.40.5
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-05
@@ -24,6 +24,27 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.40.5 (2026-08-05) - The last uncovered UI surface, found by enumerating them rather than trusting
+ *                       the running list. Every AJ Tools UI surface is now accounted for:
+ *                       35 XAML windows (33 with entrance+exit motion; AboutWindow has its own staged
+ *                       pair; GameHudWindow excluded as a real-time overlay), 1 dockable UserControl
+ *                       (AiShellView - styled, no entrance by design), and 2 windows built purely in C#
+ *                       with no XAML. Those last two are the ones a .xaml sweep silently misses:
+ *                       AiTaskWarningBarService's banner already animated, but BridgeStatusToast had
+ *                       NO motion at all - it popped onto the screen and vanished.
+ *                       It now fades in over 180ms and out over 220ms (EaseOut in, EaseIn out, matching
+ *                       the suite). This one animates Window.Opacity DIRECTLY, which is correct here and
+ *                       wrong almost everywhere else: it sets AllowsTransparency = true, so the layered
+ *                       window makes Window.Opacity real. Most AJ Tools windows do not, which is why
+ *                       WindowMotionHelper animates the root content element instead.
+ *                       A backstop DispatcherTimer is armed BEFORE the fade, so the toast definitely
+ *                       goes away even if the animation never completes - same rule as the window exit.
+ *                       Simpler than the window case on purpose: nothing else owns this toast's lifetime
+ *                       and the user cannot click it, so there is no DialogResult and no veto to
+ *                       preserve, only the guarantee that it disappears.
+ *                       Also confirmed while enumerating: zero WinForms UI remains anywhere in src/.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
  * v1.40.4 (2026-08-05) - Fixes found by an independent audit of the v1.39.2 -> v1.40.3 UI pass. Ten
  *                       defects were confirmed (four further claims were refuted on inspection); three
  *                       were code, the rest were false statements in this project's own notes.
@@ -1301,8 +1322,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.40.4.0")]
-[assembly: AssemblyFileVersion("1.40.4.0")]
+[assembly: AssemblyVersion("1.40.5.0")]
+[assembly: AssemblyFileVersion("1.40.5.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

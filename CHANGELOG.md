@@ -5,6 +5,15 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.40.5] - 2026-08-05
+
+- **Added**: The little **AJ AI Bridge status pop-up** now fades in and out instead of appearing and
+  vanishing. It was the one piece of AJ Tools UI the whole motion pass had missed - it is built entirely
+  in code with no layout file, so it never showed up in any of the sweeps that found the windows.
+- **Note**: Found by listing every UI surface in the add-in and checking them off one by one, rather
+  than trusting the running list. The tally: 35 windows, one docked panel, and two pop-ups built in
+  code. All are now accounted for, and there is no old-style Windows Forms UI left anywhere.
+
 ## [1.40.4] - 2026-08-05
 
 - **Fixed**: **You could close a Purge window while it was still scanning.** The progress bar added in

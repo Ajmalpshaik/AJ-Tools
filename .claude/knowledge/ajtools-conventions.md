@@ -722,3 +722,18 @@ API migration needing Ajmal's sign-off, same class as the pending `ElementIdHelp
   `GenericZone`. One call site: `src/UI/LocationDataAssignerWindow.xaml.cs`.
 
 `Release` (2020 baseline) and `Release R25` both build **0 warnings / 0 errors** and must stay that way.
+
+**Every AJ Tools UI surface, and the two a `.xaml` sweep MISSES (enumerated 2026-08-05, v1.40.5)**
+- **35 XAML `<Window>` files** under `src/` — 33 carry `AttachStandardEntrance` + `AttachStandardExit`;
+  `AboutWindow` has its own staged pair; `GameHudWindow` is excluded (real-time overlay, frame budget).
+- **1 dockable `UserControl`** — `AiShell/Views/AiShellView.xaml`. Styled via `SoftUiStyles`, no entrance
+  motion by design (it is constructed during Revit's `OnStartup`; a fault there kills the whole add-in).
+- **2 windows built entirely in C# with NO `.xaml`** — `AiShell/Helpers/BridgeStatusToast.cs` and
+  `AiShell/Services/AiTaskWarningBarService.cs`. **These are the blind spot**: every sweep that finds
+  windows by globbing `*.xaml` misses them, which is exactly how `BridgeStatusToast` went through the
+  whole motion pass with no animation at all. When auditing UI coverage, search for `new Window` /
+  `: Window` in `.cs` files that have no matching `.xaml`, not just the XAML.
+- **Zero WinForms UI remains** anywhere in `src/` (confirmed 2026-08-05).
+- `BridgeStatusToast` animates `Window.Opacity` **directly** — correct there because it sets
+  `AllowsTransparency = true`. Do not copy that to a normal window: most AJ Tools windows do not set it,
+  which is the whole reason `WindowMotionHelper` animates the root content element instead.
