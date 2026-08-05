@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Pipe Sizing
  * File Name     : PipeSizingWindow.xaml.cs
@@ -43,6 +43,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using AJTools.Models.PipeSizing;
 using AJTools.Services.PipeSizing;
+using AJTools.Utils;
 
 namespace AJTools.UI.PipeSizing
 {
@@ -61,6 +62,13 @@ namespace AJTools.UI.PipeSizing
             _fixtureNames = PipeSizingData.GetSortedFixtureNames();
 
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             LoadInitialState();
             CalculateSizing();
         }

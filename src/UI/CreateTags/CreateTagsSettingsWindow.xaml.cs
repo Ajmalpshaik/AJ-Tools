@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Create Tags - Settings (Window)
  * File Name     : CreateTagsSettingsWindow.xaml.cs
@@ -46,6 +46,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.UI.CreateTags
 {
@@ -77,6 +78,13 @@ namespace AJTools.UI.CreateTags
         public CreateTagsSettingsWindow(IList<CreateTagsCategoryRow> rows, double currentMinLengthMm)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _rows = (rows ?? new List<CreateTagsCategoryRow>())
                 .Where(row => row != null)

@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : AJ Game Mode (key settings window)
  * File Name     : GameKeySettingsWindow.xaml.cs
@@ -41,6 +41,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using AJTools.Services.GameMode;
+using AJTools.Utils;
 
 namespace AJTools.UI.GameMode
 {
@@ -67,6 +68,13 @@ namespace AJTools.UI.GameMode
         {
             _bindings = bindings;
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             foreach (GameKeyAction action in GameKeyBindings.Actions)
             {

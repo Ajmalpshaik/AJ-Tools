@@ -1,4 +1,4 @@
-// Tool Name: Transfer View Templates UI
+﻿// Tool Name: Transfer View Templates UI
 // Description: Code-behind for selecting source/target projects and view templates to transfer.
 // Author: Ajmal P.S.
 // Version: 1.1.0
@@ -14,6 +14,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.UI
 {
@@ -39,6 +40,13 @@ namespace AJTools.UI
         public TransferViewTemplatesWindow(IList<Document> projectDocuments)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             if (projectDocuments == null || projectDocuments.Count == 0)
             {

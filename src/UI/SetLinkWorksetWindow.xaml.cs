@@ -1,4 +1,4 @@
-// Tool Name: Set Link Workset UI
+﻿// Tool Name: Set Link Workset UI
 // Description: Dialog to assign Revit links and CAD imports to a workset.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -29,6 +29,13 @@ namespace AJTools.UI
         public SetLinkWorksetWindow(Document doc)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _linkItems = new ObservableCollection<LinkWorksetItem>(CollectLinkItems(_doc));

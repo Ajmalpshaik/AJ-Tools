@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Smart MEP Tagging - Settings (Window)
  * File Name     : SmartMepTagSettingsWindow.xaml.cs
@@ -43,6 +43,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using Autodesk.Revit.DB;
+using AJTools.Utils;
 
 namespace AJTools.UI.SmartMepTag
 {
@@ -66,6 +67,13 @@ namespace AJTools.UI.SmartMepTag
         public SmartMepTagSettingsWindow(IList<SmartTagCategoryRow> rows)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _rows = (rows ?? new List<SmartTagCategoryRow>())
                 .Where(row => row != null)

@@ -1,4 +1,4 @@
-// Tool Name: Shared Parameter to Family Parameter - UI
+﻿// Tool Name: Shared Parameter to Family Parameter - UI
 // Description: Window logic for selecting shared parameters to convert.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -15,6 +15,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using AJTools.Models;
+using AJTools.Utils;
 
 namespace AJTools.UI
 {
@@ -26,6 +27,13 @@ namespace AJTools.UI
         internal SharedParamToFamilyParamWindow(IList<SharedParamToFamilyParamItem> sharedParameters)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _availableParameters = new ObservableCollection<SharedParamToFamilyParamItem>();
             _selectedParameters = new ObservableCollection<SharedParamToFamilyParamItem>();

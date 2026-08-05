@@ -5,6 +5,183 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.40.2] - 2026-08-05
+
+- **Changed**: **Tick boxes and radio buttons now look like AJ Tools.** They were the last thing in the
+  suite still drawing plain grey Windows squares inside otherwise soft, rounded, blue windows - about 90
+  of them across 21 windows. A tick box is now a rounded box that fills blue with the tick scaling in;
+  a radio button is a matching circle with a dot that pops in. Both light up on hover, press in when
+  clicked, and fade when they grey out.
+- **Changed**: The three "overwrite existing" options (Filter Pro, Transfer Views, Transfer View
+  Templates) are now real **on/off switches** with a knob that slides across, matching the switch in
+  Graphics Settings Manager. They were always named switches internally; they just never looked like one.
+- **Note**: Nothing moved. All the original spacing and sizing is kept, so every window lays out exactly
+  as before - only the boxes themselves are redrawn.
+- **Note**: The tick column in the Duct Standards table is deliberately left as it was. It is inside a
+  scrolling table, where an animated tick would replay every time a row scrolled into view.
+
+## [1.40.1] - 2026-08-05
+
+- **Added**: **Purge Unused Elements** now shows a progress bar and a running count while it scans -
+  "Checking element 340 of 1,200..." - instead of freezing behind an hourglass with no idea how long is
+  left. This was the longest silent wait in the suite: the scan has to try deleting every candidate and
+  undo it again, just to find out what Revit will actually let go.
+- **Note**: The scan itself is not faster, and it does not run in the background. Revit only allows its
+  own work on its own thread, so the scan runs exactly where it always did - the window just repaints
+  part-way through now instead of looking dead. Same elements checked, same answers.
+- **Note**: You still cannot click anything mid-scan. That is deliberate: the repainting is done in a way
+  that redraws the window without accepting clicks, so a button press cannot land in the middle of a scan
+  or a delete.
+- **Note**: The progress row only appears while something is running and takes no space otherwise, so the
+  window looks exactly as it did before.
+
+## [1.40.0] - 2026-08-05
+
+- **Added**: Windows now close with a short fade and a slight sink, instead of vanishing. It is quicker
+  than the opening motion on purpose - about a seventh of a second - so closing feels decisive rather
+  than slow. All 33 tool windows. The About window keeps its own longer closing motion.
+- **Important**: **Every window still returns exactly the same answer as before.** Click Run and the tool
+  runs; click Cancel and nothing happens. This was measured on every combination rather than eyeballed,
+  and there is now a permanent check that re-proves it.
+- **Fixed before it ever shipped**: the obvious way to build a closing animation would have **broken
+  every Run button in the suite**. To animate on close, the window has to stop itself closing, play the
+  animation, then close for real - and Windows throws away the window's answer when a close is stopped
+  that way. Every tool asks "did the user click Run?" before doing anything, so the answer would have
+  come back as "no" every time: the window would open, close, and the tool would silently do nothing,
+  with no error to tell you why. The answer is now saved before the close is stopped and put back
+  afterwards.
+- **Safety**: if the animation ever fails to finish, a timer closes the window anyway. A window you
+  cannot close would be far worse than a missing animation, so closing never depends on the animation.
+- **Note**: Checked first that no window does anything on closing that would be harmed by running twice.
+  Only Pipe Sizing does anything at all - it saves your entries - and saving the same entries twice
+  changes nothing.
+
+## [1.39.7] - 2026-08-05
+
+- **Added**: Switching tabs no longer hard-cuts. The new panel fades in while rising slightly, so it
+  reads as the panel arriving rather than the window flicking to something else. It affects the five
+  windows that have tabs: Colorize, Duct Standards Manager, Filter Pro, Graphics Settings Manager and
+  Location Data Assigner.
+- **Note**: It is quicker than the window-opening motion on purpose. A window opens once; a tab gets
+  clicked over and over while you work.
+- **Note**: Picking a value from a dropdown *inside* a tab does not replay the transition. Windows
+  treat a dropdown's selection change as if it came from the tab strip, so the obvious way to build this
+  would make the whole panel re-animate every time you chose a value from a list - and four of these five
+  windows are full of dropdowns. There is now a permanent check in place so that stays fixed.
+- **Note**: Nothing about how the tabs work changed - same tabs, same order, same content, and any
+  existing logic that runs when you switch tab still runs.
+
+## [1.39.6] - 2026-08-05
+
+- **Added**: The last four windows that have their own separate styling now react to the mouse too, so
+  the whole suite is consistent.
+- **Added (About window)**: The sidebar items slide a little to the right as the mouse passes over them
+  and press in when clicked; the two footer links lift slightly; the window buttons press in. The
+  currently-selected sidebar item never showed any hover reaction before - now it does.
+- **Added (Graphics Settings Manager)**: This is the biggest one - 26 separate styles. Buttons press in,
+  show a ring when the keyboard is on them, and fade when they grey out. The colour swatches **grow**
+  under the pointer instead of changing colour, because tinting a swatch would misrepresent the colour
+  you are about to pick. The dropdown arrow turns, dropdown rows and category rows fade their highlight,
+  tab headers fade, the transparency slider handle grows when you grab it, and **the on/off switch now
+  slides across instead of jumping from one end to the other.**
+- **Added (Game Key Settings)**: This window had no styling at all, so its buttons were plain square
+  Windows buttons that turned Windows-blue on hover regardless of their own colour. They now match the
+  rest of AJ Tools and press in properly. Setting a key still works exactly as before, amber prompt and
+  all.
+- **Note (Game Mode HUD)**: Nothing changed, and that is the correct answer rather than an oversight -
+  the HUD is a see-through overlay with no buttons in it at all, so there is nothing to hover or press.
+  Its own animation was left untouched.
+- **Note**: The Graphics Settings Manager keeps its own hover colours rather than the standard glow. Its
+  hover colours mean something there (the red Reset button in particular goes to a distinctly brighter
+  red), and the standard glow could not reproduce that. So on that window hover still changes colour and
+  what was added is the pressing, focus and sliding.
+- **Note**: The tick boxes in the long category list still tick instantly, on purpose. They are in a
+  scrolling list, so an animated tick would replay every time a row scrolled into view and look like
+  flickering down the list.
+- **Added (internal)**: A second checking script, `tools/verify-window-styles.ps1`, for windows that keep
+  their styles inside themselves. It pulls the styles out of the window file, rebuilds them on their own
+  and forces each one to run. 35 checked across the three windows, all pass.
+
+## [1.39.5] - 2026-08-05
+
+- **Added**: The AJ AI shell now reacts the same way the tool windows do. Its buttons glow on hover and
+  press in when clicked, the prompt box and the API key box light up with a blue edge when you hover or
+  click into them, and the dropdown arrow turns to point up while the list is open. Same speed and feel
+  as the rest of the suite, so it doesn't feel like a separate program.
+- **Added**: The AI dropdowns now show a blue edge when you hover over them. Before this they gave no
+  sign at all that they could be clicked.
+- **Changed**: The AI shell's three button colours (blue, grey, amber) now all behave identically. The
+  amber one used to dim on hover while the other two changed colour - now all three glow the same way.
+  The colours themselves land within a shade of what they were.
+- **Note**: The AI progress bars are deliberately untouched. The thin busy strip that runs while the AI
+  is thinking uses Windows' own sliding animation, and swapping that for a hand-written one would risk
+  breaking something that already works.
+- **Added (internal)**: A checking script, `tools/verify-wpf-styles.ps1`. Building the add-in proves the
+  window styles are *spelled* correctly but not that they *work* - that only shows up when a window
+  opens, and this exact gap once stopped AJ Tools loading at Revit startup. The script now loads the
+  built file and forces all 28 styles to build, catching that in seconds without opening Revit. All 28
+  pass.
+- **Fixed (note only)**: A comment in the AI style file claimed a custom progress bar would show wrong
+  progress. That was checked against the real Windows library and is not true - and the new progress bar
+  from 1.39.4 was measured showing exactly the right length at 25%, 50% and 100%. The note now records
+  the real reason that one bar was left alone.
+
+## [1.39.4] - 2026-08-05
+
+- **Added**: Buttons now react when you touch them. Hovering brings up a soft glow, pressing pushes the
+  button in slightly and it springs back when you let go. Small and quick - under a fifth of a second -
+  so it feels responsive rather than slow.
+- **Added**: When a button turns grey because something isn't filled in yet (and back again when it is),
+  it now fades instead of flicking. Same for the Run button on every settings window.
+- **Added**: Text boxes light up with a blue edge that fades in when you hover over them, and a stronger
+  one when you click into them.
+- **Added**: The little arrow on a dropdown now turns to point up while the list is open, and back down
+  when it closes.
+- **Added**: Rows in lists, items in dropdowns and tab headers fade their highlight in as the mouse
+  passes over them instead of flashing.
+- **Added**: The minimise, maximise and close buttons at the top of a window press in when clicked. The
+  close button still turns red on hover exactly as before.
+- **Changed**: Progress bars now use the AJ Tools look (blue, rounded) instead of the old Windows one.
+  The only tool with a progress bar today is Location Data Assigner.
+- **Note**: This was done once in the shared theme file, so all 29 windows that use it got it together.
+  Nothing about how any tool works changed - same buttons, same results, same validation. No window was
+  made non-resizable, and no button changed size or moved.
+- **Note**: Selected rows still highlight instantly. A list that opens with hundreds of rows already
+  ticked would otherwise animate as a wave, which would look worse, not better.
+
+## [1.39.3] - 2026-08-05
+
+- **Added**: Every AJ Tools window now opens with a short fade and a small upward settle instead of
+  snapping onto the screen. It is deliberately quick - about a fifth of a second - so a window you open
+  twenty times a day still feels instant. 33 windows in total.
+- **Note**: The About window keeps its longer, staged entrance. That one is opened occasionally and can
+  carry a slower reveal; the same timing on a settings dialog would feel like waiting rather than
+  polish. Game Mode's HUD is left alone because it already has its own animation.
+- **Note**: Opening motion only. Closing is untouched, so nothing changed about how a window returns its
+  result, validates, or cancels. No window was made non-resizable.
+
+## [1.39.2] - 2026-08-05
+
+- **Added**: The About window now animates. It fades in while growing and rising gently into place, then
+  the logo, the AJ TOOLS wordmark, the content area, the five sidebar buttons and the two footer links
+  arrive one after another. Closing it sinks and fades out, faster than it came in. Switching sections
+  slides the new panel up instead of hard-cutting, and the green "System Operational" dot breathes
+  slowly. Entrances slow down as they land, the exit speeds up as it leaves.
+- **Fixed**: The About window's top-right and bottom-right corners looked square inside a rounded
+  outline. A rounded panel in WPF does not clip what sits inside it, so the header and footer bars were
+  painting square corners straight over the curve; both now round themselves. The inner pieces also use
+  a slightly tighter radius so they sit truly inside the outer edge instead of bleeding a hairline past
+  it, and the dotted resize grip that sat outside the curve is gone. **The window is still fully
+  resizable from every edge and corner.**
+- **Fixed**: The four View Crop windows kept their rounded corners while maximized, which let the
+  desktop show through all four corners. They now square off when maximized and round again when
+  restored - including when maximized with Win+Up or by snapping to the top edge, not just via the
+  maximize button. Handled once in the shared `WindowChromeHelper` so every custom-chrome window
+  behaves the same.
+- **Note**: No tool behaviour changed, and no window was made non-resizable. A project-wide check of all
+  38 UI files found About was the only window with the corner-clipping problem - the others were already
+  correct.
+
 ## [1.39.1] - 2026-08-04
 
 - **Fixed**: The Revit 2025, 2026 and 2027 builds now compile with zero warnings, matching the 2020

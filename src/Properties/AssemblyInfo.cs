@@ -1,14 +1,14 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : AJ Tools Assembly Metadata
  * File Name     : AssemblyInfo.cs
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.39.1
+ * Version       : 1.40.2
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-04
+ * Last Updated  : 2026-08-05
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,297 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.40.2 (2026-08-05) - Tick boxes, radio buttons and the toggle switch finally templated
+ *                       (UI/ModernStyles.xaml v1.4.0). These three were setter-only since v1.0, so every
+ *                       tick box in the suite drew RAW WINDOWS CHROME inside an otherwise soft, rounded,
+ *                       Neon Blue UI - the last big visual inconsistency left, and roughly 90 controls
+ *                       across 21 windows.
+ *                       NOW: an 18px rounded box whose accent fill and tick fade+scale in; a matching
+ *                       radio with a dot that pops; and ToggleSwitchCheckBox drawn as the switch its
+ *                       name has always claimed - knob sliding 20px across a 40px track - matching the
+ *                       switch in Graphics Settings Manager. All three gain hover ring, press dip,
+ *                       keyboard-focus ring and disabled fade, on the suite timings.
+ *                       LAYOUT UNCHANGED: every original Setter (Foreground/VerticalAlignment/FontSize/
+ *                       Margin) is kept, so nothing moves on any window.
+ *                       LEFT KEYED, NOT IMPLICIT, ON PURPOSE: an implicit TargetType="CheckBox" style
+ *                       would also capture the CheckBox that DataGridCheckBoxColumn generates (Duct
+ *                       Standards has one), where an animated tick would replay every time a row
+ *                       scrolled into view. Same rule as list selection and the Graphics Override
+ *                       category list - animate what the user changed, not what merely appeared.
+ *                       CHECKED FIRST: nothing in the project uses IsThreeState or sets IsChecked to
+ *                       null, so there is no indeterminate state the new templates could fail to draw.
+ *                       Verified: all three build their templates and resolve every resource
+ *                       (tools/verify-wpf-styles.ps1, now covering them).
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.40.1 (2026-08-05) - Real progress reporting, starting with the slowest tool. New shared
+ *                       Helpers/ProgressReporter.cs v1.0.0, wired into Purge Unused Elements' scan.
+ *                       WHAT IT IS NOT: the Revit work has NOT been moved to a background thread. The
+ *                       Revit API must be called on Revit's own UI thread, so a worker thread is not an
+ *                       option - it throws or corrupts the document. The scan runs exactly where and how
+ *                       it did; this only makes the window repaint part-way through instead of sitting
+ *                       frozen behind an hourglass. Same elements checked, same conclusions, same result.
+ *                       HOW: setting ProgressBar.Value inside a UI-thread loop changes the number but
+ *                       paints nothing, because the loop starves WPF's render pass. So after updating
+ *                       the values the reporter pumps the dispatcher with an empty Invoke at
+ *                       DispatcherPriority.Render - this project's already-established technique.
+ *                       Render priority is chosen deliberately: Input priority sits BELOW Render, so the
+ *                       pump repaints WITHOUT processing clicks or keystrokes, and the user cannot
+ *                       re-enter the loop by clicking a button half way through a delete. A DoEvents
+ *                       -style pump at Input priority would allow exactly that.
+ *                       Throttled to one repaint per 33ms (~30/sec), with the first and last always
+ *                       painted so the bar visibly starts empty and finishes full. Measured: 500 reports
+ *                       cost 86ms in total, against one trial-delete transaction PER ITEM - noise.
+ *                       WHY THIS TOOL FIRST: UnusedElementPurgeService.Scan() trial-deletes every
+ *                       candidate inside a rolled-back transaction, so on a busy model it is the longest
+ *                       silent freeze in the suite.
+ *                       BEHAVIOUR-SAFE BY CONSTRUCTION: Scan() gained an OPTIONAL Action<int,int>
+ *                       callback defaulting to null, so every existing caller compiles and behaves
+ *                       unchanged; the callback is wrapped in try/catch so a reporting fault can never
+ *                       abort a scan; and the progress row is Collapsed when idle, so it takes no space.
+ *                       The two new rows were added INSIDE the existing button grid, not to the window's
+ *                       root Grid, which would have shifted every Grid.Row index below it.
+ *                       Verified: reporter reaches the exact final value despite throttling, hides
+ *                       afterwards, and survives a zero-item scan without dividing by zero.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.40.0 (2026-08-05) - Exit animations, on Ajmal's explicit go-ahead. Content fades out over 150ms
+ *                       while sinking 6px, CubicEase EaseIn - exits accelerate away where entrances
+ *                       decelerate in, and the exit is deliberately shorter than the 220/280ms entrance.
+ *                       WindowMotionHelper v1.1.0 (AttachStandardExit), wired into the same 33 windows
+ *                       that carry the entrance. AboutWindow keeps its own 260ms exit; GameHudWindow
+ *                       stays excluded. Minor bump, not patch: this one changes the close PATH, which is
+ *                       a bigger structural change than the motion passes before it.
+ *                       THE BUG THIS NEARLY SHIPPED, found by measuring instead of assuming: an exit
+ *                       animation must CANCEL the window's own Closing, animate, then re-issue the close
+ *                       - and WPF THROWS DialogResult AWAY when a close is cancelled. Measured on real
+ *                       dialogs: set DialogResult = true, cancel the Closing, close again -> ShowDialog()
+ *                       returns FALSE. Every AJ Tools command is written as
+ *                       `if (window.ShowDialog() == true) { ...do the work... }`, so the naive version
+ *                       would have made EVERY Run button behave like Cancel: window opens, window closes,
+ *                       tool silently does nothing, no error anywhere. Fixed by capturing
+ *                       window.DialogResult BEFORE cancelling and restoring it after the animation
+ *                       (restoring it re-issues the close by itself).
+ *                       Also carried over from the About window lesson: a Button that is BOTH Click= and
+ *                       IsCancel="True" raises Closing TWICE per click, so the guard needs three pieces
+ *                       of state (IsExitPlaying / IsReadyToClose / IsFinished), not one flag.
+ *                       GameKeySettingsWindow's Cancel button is exactly that shape and is covered.
+ *                       SAFETY NET: a DispatcherTimer is armed BEFORE the animation starts and forces
+ *                       the close regardless of what happens to the animation. A dialog that cannot be
+ *                       dismissed would be far worse than a missing flourish, so the close never depends
+ *                       on an animation completing. Whichever of the two fires first wins, once.
+ *                       AUDITED FIRST: cancelling makes Closing fire 2-3 times, so any window with its
+ *                       own Closing logic runs it that many times. Only PipeSizingWindow has any, and it
+ *                       is a full-overwrite SaveState() - idempotent, so repeats are harmless. Re-check
+ *                       this before attaching the exit to a NEW window whose Closing has a real side
+ *                       effect. Also confirmed nothing outside a window calls Close() on one of these 33
+ *                       and then depends on it being gone (only the AI toast/banner do that, and neither
+ *                       is in this set).
+ *                       VERIFIED: new tools/verify-exit-motion.ps1 runs the REAL helper against real
+ *                       dialogs and asserts the returned result matches a no-animation control group for
+ *                       Run(true), Cancel(false), plain Close() and the Click+IsCancel double-close.
+ *                       All four match. Kept as a regression guard - this is a silent, data-shaped
+ *                       failure with no error message, so it must never be checked by eye again.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.39.7 (2026-08-05) - Tab-change transitions. NO behaviour changed: no tool result, no validation, no
+ *                       DialogResult, no selection logic, and no window made non-resizable.
+ *                       New shared Helpers/TabMotionHelper.cs v1.0.0 - the selected panel fades in over
+ *                       180ms while rising 8px over 220ms, same CubicEase EaseOut as the rest of the
+ *                       suite. Wired with ONE call after InitializeComponent() into the five tabbed
+ *                       windows: Colorize, Duct Standards Manager, Filter Pro, Graphics Settings Manager,
+ *                       Location Data Assigner. Chosen as the step-4 target because a tab switch is the
+ *                       most-repeated state change left in the suite and it was still a hard cut.
+ *                       DELIBERATELY SHORTER than the 220/280ms window entrance: a window opens once, a
+ *                       tab is clicked over and over in one sitting.
+ *                       THE TRAP THIS HELPER EXISTS FOR: Selector.SelectionChanged is a ROUTED event, so
+ *                       a ComboBox or ListBox INSIDE a tab bubbles its own selection change up to the
+ *                       TabControl. Hooking it naively replays the entire tab transition every time the
+ *                       user picks a value from a dropdown inside the tab - and four of these five
+ *                       windows are full of dropdowns. Guarded by requiring e.OriginalSource to be the
+ *                       TabControl itself. The handler never sets e.Handled, so existing SelectionChanged
+ *                       logic in these windows keeps running untouched.
+ *                       Attaches by walking the visual tree on Loaded rather than by x:Name, so NO XAML
+ *                       changed in any of the five windows and a window with two TabControls gets both.
+ *                       VERIFIED, not assumed, on the real WPF library: PART_SelectedContentHost is a
+ *                       ContentPresenter in the default TabControl template AND under ModernStyles'
+ *                       implicit style AND in GraphicsOverrideWindow's own custom template - which is
+ *                       why one helper covers every tabbed window here. Then functionally tested via new
+ *                       tools/verify-tab-motion.ps1: changing a dropdown inside a tab does NOT animate,
+ *                       switching a tab DOES, and neither selection is disturbed. Kept as a regression
+ *                       guard because that trap is easy to reintroduce.
+ *                       NOT DONE, on purpose: (a) show/hide panel transitions (Reassign Level's scope
+ *                       toggle, View Crop options, Purge lists) - most of those windows are
+ *                       SizeToContent, so animating a panel in or out would make the whole window
+ *                       resize mid-animation; (b) exit animations - still needs Ajmal's explicit
+ *                       go-ahead, since an exit must cancel and re-issue the window's own close;
+ *                       (c) wiring real progress reporting into long-running tools - that needs
+ *                       dispatcher/threading work, which is a behaviour change, not motion.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.39.6 (2026-08-05) - Interaction motion finished off in the four windows that carry their OWN local
+ *                       styles and merge nothing. NO behaviour changed in any of them.
+ *                       ABOUT (showcase tier - deliberately NOT the working-dialog wash): sidebar items
+ *                       slide 4px right on hover and dip on press; footer links lift 2px and dip; the
+ *                       min/max/close glyphs dip to 88%. Hover COLOURS stay plain Setters because
+ *                       ShowSection() sets Background/Foreground directly on the active nav button - the
+ *                       one place in the project where animating colour would provably break state.
+ *                       A side effect worth knowing: the active item never showed hover feedback before
+ *                       (its local colours outrank a trigger Setter); it now does, via motion.
+ *                       GRAPHICS OVERRIDE (26 local styles, the biggest surface in the project): press
+ *                       dip + shade, keyboard-focus ring and an eased enable/disable on the base button
+ *                       style (which 5 button variants inherit); caption-button glyph dip; colour
+ *                       swatches grow 20% under the pointer and dip on click - never washed or tinted,
+ *                       because a swatch IS the colour being picked; dropdown arrow rotates; dropdown
+ *                       and category rows fade their highlight; TAB headers fade a hover wash; the
+ *                       slider handle grows under the pointer; and the toggle switch's knob now SLIDES
+ *                       its 20px instead of jumping ends by swapping alignment.
+ *                       This window KEEPS its own instant hover colours on purpose - unlike the shared
+ *                       theme, its hover steps carry meaning (accent -> brighter accent, danger ->
+ *                       brighter red) and a neutral wash cannot reproduce the danger step (measured:
+ *                       12% white over #5B1C1C gives #692C2C, nowhere near the intended #8B2B2B).
+ *                       So hover stays a colour change here and the ADDED motion is what was missing.
+ *                       GAME KEY SETTINGS: had no styles at all, so every button used raw Windows chrome
+ *                       - square, and ignoring its own colour on hover in favour of Aero blue. One
+ *                       implicit style now gives Save, Cancel and the code-behind-built key buttons the
+ *                       house look and the standard motion. The code-behind still recolours a key button
+ *                       to amber while it waits for a key press, untouched.
+ *                       GAME HUD: NOTHING TO DO, verified rather than assumed - every element in it is
+ *                       IsHitTestVisible="False". It is a pure non-interactive overlay with no buttons,
+ *                       so there is nothing to hover or press, and its own frame-budget animation is
+ *                       left alone.
+ *                       CAUGHT WHILE WRITING IT: the colour swatch first had hover and press driving ONE
+ *                       shared transform. Pressing then dragging off fires both exit animations and the
+ *                       last one to land wins, which could strand a swatch enlarged. Split into two
+ *                       transforms - the "one trigger per animated property" rule, which this pass now
+ *                       violates nowhere.
+ *                       ALSO DELIBERATE: the category checkboxes' ticks stay instant while the standalone
+ *                       one animates. They sit in a virtualized list, so an animated tick would replay
+ *                       every time a row scrolled into view. Same reason selection stays instant in the
+ *                       shared theme - animate what the user changed, not what merely appeared.
+ *                       VERIFIED: new tools/verify-window-styles.ps1 lifts each window's <Window.Resources>
+ *                       out of the XAML source, re-parses it standalone and forces every style and
+ *                       template to build - 35 of them across the three windows, all pass. It discovers
+ *                       the styles from their TargetType, so new ones are covered with no list to update.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.39.5 (2026-08-05) - Same interaction motion carried into the AJ AI shell's own theme
+ *                       (src/AiShell/Views/SoftUiStyles.xaml v1.1.0), shared by the docked AI pane,
+ *                       AI Settings and Saved Scripts. NO behaviour changed anywhere.
+ *                       Identical timings and easing to ModernStyles v1.3.0 on purpose, so the AI shell
+ *                       and the tool windows read as one product: hover wash, press dip to 97% + shade,
+ *                       keyboard-focus ring, enable/disable fade on buttons; hover + focus rings on the
+ *                       text and password fields; dropdown arrow rotates while the list is open, with
+ *                       hover/open rings on the field (the dropdown previously had no hover feedback at
+ *                       all). The instant Background swaps on Primary/Secondary/Warning buttons are gone,
+ *                       replaced by the shared animated overlays - measured to land within a shade of
+ *                       the old colours (Primary pressed: overlay gives ~#00A0CC vs the old #009FCC), and
+ *                       all three buttons now behave identically instead of the Warning one dimming while
+ *                       the other two swapped colour.
+ *                       LEFT ALONE DELIBERATELY: the AI progress bars keep WPF's default chrome. The busy
+ *                       strip is IsIndeterminate="True" and relies on WPF's own sliding-glow animation;
+ *                       replacing that would swap something that works for something unproven, on the
+ *                       indicator Ajmal watches during an AI run.
+ *                       CORRECTED A STALE NOTE while here: SoftUiStyles claimed a custom ProgressBar
+ *                       template "needs real Track-width math to avoid silently showing wrong progress".
+ *                       Not true - verified by reflection over the real PresentationFramework.dll that
+ *                       ProgressBar declares [TemplatePart] PART_Track/PART_Indicator/PART_GlowRect and
+ *                       sizes the indicator itself in SetProgressBarIndicatorLength(). Then measured
+ *                       v1.39.4's house bar directly: 25/50/100% give exactly 50/100/200px of a 200px
+ *                       track. The comment now records the real reason (the indeterminate strip).
+ *                       VERIFIED WITHOUT LAUNCHING REVIT: new tools/verify-wpf-styles.ps1 loads both
+ *                       compiled dictionaries out of the built DLL and forces all 23 styles to build
+ *                       their templates - all pass, every StaticResource resolves. This catches the
+ *                       XamlParseException class of bug that a clean msbuild provably cannot, and which
+ *                       took the whole add-in down at startup once before (v1.16.0). It matters most for
+ *                       this file: AiShellPaneProvider builds the AI pane during Revit's OnStartup.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.39.4 (2026-08-05) - Interaction motion in the shared theme (src/UI/ModernStyles.xaml v1.3.0), which
+ *                       29 windows merge - so this lands everywhere at once instead of being repeated
+ *                       per window. NO tool behaviour changed; no window made non-resizable; no close
+ *                       path touched; no control added, removed, renamed or re-ordered.
+ *                       WHAT MOVES NOW: buttons take a soft wash on hover (90ms), dip to 97% with a
+ *                       shade on press (110ms) and settle back over 240ms; keyboard focus draws a ring
+ *                       (140ms); enabling/disabling fades over 120ms instead of snapping (this is the
+ *                       validation state Ajmal sees most - the Run button greying out). Window
+ *                       min/max/close buttons dip to 88% on press. Text boxes fade a blue hover ring
+ *                       and a blue focus ring in. The dropdown arrow rotates 180 degrees while the list
+ *                       is open. Dropdown items, list items and tab headers fade their hover in.
+ *                       Everything decelerates (one shared CubicEase EaseOut, key MotionEaseOut).
+ *                       TWO RULES THIS FILE NOW ENFORCES, both written into the XAML as comments:
+ *                       (1) nothing animates Background or Foreground - only an overlay element's
+ *                       Opacity or a RenderTransform inside a ControlTemplate - because a running
+ *                       animation outruns a locally-set value and would break windows that colour
+ *                       controls from code-behind (About's nav buttons, PipeSizing's mode toggles);
+ *                       (2) one trigger per animated property, each state owning its own overlay, so
+ *                       hover/press/focus cannot fight when several are true at once.
+ *                       Layout is untouched: the button template still keeps the padding and the
+ *                       content inside the same fill Border, so no button changed size.
+ *                       ALSO: a house ProgressBar style (the default WPF bar is the old Aero one) with
+ *                       a slow breathe when indeterminate. Only the Location Data Assigner uses a
+ *                       progress bar today, and it is determinate-only, so the pulse is future cover.
+ *                       Selection stays instant on purpose - a list loading hundreds of already-selected
+ *                       rows would otherwise animate as a wave.
+ *                       Checked before writing any of it: no code anywhere reaches into a template part
+ *                       (zero GetTemplateChild/Template.FindName in src/), and PipeSizing's colour-set
+ *                       buttons are ToggleButtons, which these styles do not target.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.39.3 (2026-08-05) - Window entrance motion rolled out across the suite. NO tool behaviour changed;
+ *                       no window made non-resizable; no close path touched.
+ *                       New WindowMotionHelper v1.0.0 gives a shared entrance - content fades in over
+ *                       220ms while rising 12px over 280ms, CubicEase EaseOut - wired into 33 windows
+ *                       with one call after InitializeComponent(). AboutWindow keeps its own staged
+ *                       ~750ms showcase entrance and GameHudWindow is excluded (real-time overlay with
+ *                       its own animation).
+ *                       DELIBERATELY NOT a copy of About's timing: About is opened occasionally and can
+ *                       carry a staged reveal, while a settings dialog opened many times a day must feel
+ *                       instant - a 750ms cascade there reads as waiting, not polish. Two tiers, one
+ *                       shared constant block each, so either can be retuned in one place.
+ *                       Animates the ROOT CONTENT element, not Window.Opacity: Window.Opacity only has a
+ *                       visual effect when AllowsTransparency="True", which only 7 of the 35 windows set.
+ *                       Entrance only. An exit animation must cancel and re-issue the window's own close,
+ *                       which is real risk on dialogs that validate or set DialogResult on close (see the
+ *                       IsCancel double-Closing trap in v1.39.2) - not worth it for a 200ms flourish.
+ *                       Skips any window whose root already carries a RenderTransform, and every failure
+ *                       path restores the window to fully visible, so motion can never stop one opening.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
+ * v1.39.2 (2026-08-05) - About window motion + a project-wide rounded-corner audit. NO tool behaviour
+ *                       changed; nothing was made non-resizable.
+ *                       ABOUT WINDOW - motion: staggered entrance on Loaded (shell fade/scale/rise,
+ *                       then logo, wordmark, content, a 45ms nav cascade, footer links; last stagger
+ *                       starts at 460ms), an exit storyboard on close, a section-swap rise, and an
+ *                       ambient pulse on the status dot. Entrances decelerate (Cubic/Quintic EaseOut),
+ *                       the exit accelerates (CubicEase EaseIn, 260ms). Found and fixed while writing
+ *                       it: the Close button is BOTH Click= and IsCancel="True", so one click raises
+ *                       Closing twice and a single-flag guard let the second pass kill the window
+ *                       mid-animation - now two flags (see ajtools-conventions.md).
+ *                       ABOUT WINDOW - corners: a Border does not clip children to its own
+ *                       CornerRadius, so the header and footer bars painted square corners over the
+ *                       22px curve (top-right and bottom-right looked square; Ajmal reported it).
+ *                       Header/footer now round themselves, children use 21 not 22 (concentric =
+ *                       outer minus the 1px border), the resize grip glyph that sat outside the curve
+ *                       is gone (CanResize - still fully resizable), and corners flatten while
+ *                       maximized.
+ *                       PROJECT AUDIT - all 38 XAML files checked; 10 matched AllowsTransparency but
+ *                       3 were false hits (2 style dictionaries + a Popup inside LinkedSearchWindow's
+ *                       dropdown, which uses standard OS chrome). Of the 7 real custom-chrome windows,
+ *                       About was the ONLY one with the clipping defect: GameHudWindow and
+ *                       LinkedSearchWindow insulate children with root Padding, GraphicsOverrideWindow
+ *                       is CornerRadius=0 by design, and the 4 View Crop windows already round every
+ *                       filled Border (their title bar is a transparent hit-test Grid).
+ *                       WindowChromeHelper v1.1.0 - the 4 View Crop windows DO maximize, and their 8px
+ *                       shell kept its radius while maximized, showing the desktop through all four
+ *                       corners. New ApplyStateChrome squares the radius and drops the shadow margin
+ *                       while maximized, remembering each border's design radius in an attached
+ *                       property. Each window calls it from an OnStateChanged override so Win+Up and
+ *                       top-edge snap are covered, not just the maximize button.
+ *                       Builds clean (zero warnings) on Release (2020/net472) and Release R25
+ *                       (net8.0-windows). Release R27 could not be built: this machine's .NET SDK is
+ *                       9.0.316 and cannot target net10.0 - environment gap, not a code fault.
+ *                       NOT loaded in Revit by the assistant - Ajmal verifies on screen.
  * v1.39.1 (2026-08-04) - Build hygiene, ZERO behaviour change - no tool touched. The Revit 2025+
  *                       configurations (net8.0-windows / net10.0-windows) were emitting 11 CA1416
  *                       platform warnings on Windows-only WinForms calls in AiShell and
@@ -924,8 +1215,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.39.1.0")]
-[assembly: AssemblyFileVersion("1.39.1.0")]
+[assembly: AssemblyVersion("1.40.2.0")]
+[assembly: AssemblyFileVersion("1.40.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

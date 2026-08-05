@@ -1,4 +1,4 @@
-// Tool Name: Linked Element Search UI
+﻿// Tool Name: Linked Element Search UI
 // Description: WPF dialog to search by Element ID across host and linked models and zoom to the result.
 // Author: Ajmal P.S.
 // Version: 1.0.0
@@ -37,6 +37,13 @@ namespace AJTools.UI
         public LinkedSearchWindow(UIDocument uiDoc, Document hostDoc, View activeView, IEnumerable<RevitLinkInstance> links)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             _uiDoc = uiDoc;
             _hostDoc = hostDoc;

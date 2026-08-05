@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Section Mark Visibility
  * File Name     : SectionMarkVisibilityWindow.xaml.cs
@@ -55,6 +55,13 @@ namespace AJTools.UI.SectionMarkVisibility
         internal SectionMarkVisibilityWindow(SectionMarkVisibilitySettings initialSettings)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             SectionMarkVisibilitySettings settings = (initialSettings ?? new SectionMarkVisibilitySettings()).Clone();
             SelectedSettings = settings;

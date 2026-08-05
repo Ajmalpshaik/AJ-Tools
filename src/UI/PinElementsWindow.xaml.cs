@@ -1,4 +1,4 @@
-// Tool Name: Pin Elements UI
+﻿// Tool Name: Pin Elements UI
 // Description: Code-behind for grouped pin/unpin selection dialog.
 // Author: Ajmal P.S.
 // Version: 1.3.0
@@ -16,6 +16,7 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using AJTools.Models.PinTools;
 using AJTools.Services.PinTools;
+using AJTools.Utils;
 
 namespace AJTools.UI
 {
@@ -37,6 +38,13 @@ namespace AJTools.UI
             _isSheetContext = PinElementsService.IsSheetContext(_activeView);
 
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
 
             SheetCategoryListBox.ItemsSource = _sheetItems;
             ModelCategoryListBox.ItemsSource = _modelItems;

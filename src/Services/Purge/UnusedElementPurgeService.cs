@@ -58,12 +58,32 @@ namespace AJTools.Services.Purge
             _collector = new UnusedElementCollector(_doc, mode);
         }
 
-        public IList<UnusedElementPurgeItem> Scan()
+        /// <summary>
+        /// Collects the candidates and works out which of them Revit will actually let go.
+        /// </summary>
+        /// <param name="onProgress">
+        /// Optional (done, total) callback, raised once per candidate. Purely for a progress bar - it
+        /// cannot change what is scanned or what the scan concludes. Existing callers pass nothing and
+        /// behave exactly as before. Worth having because every candidate costs a trial delete inside a
+        /// rolled-back transaction, so a busy model can sit here for several seconds.
+        /// </param>
+        public IList<UnusedElementPurgeItem> Scan(Action<int, int> onProgress = null)
         {
             IList<UnusedElementPurgeItem> items = _collector.Collect();
+
+            int done = 0;
+            int total = items.Count;
+
             foreach (UnusedElementPurgeItem item in items)
             {
                 ProbeDelete(item);
+
+                done++;
+                if (onProgress != null)
+                {
+                    try { onProgress(done, total); }
+                    catch { /* A reporting fault must never abort the scan. */ }
+                }
             }
 
             return items

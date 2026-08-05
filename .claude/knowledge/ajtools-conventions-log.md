@@ -1766,3 +1766,125 @@ changelog.
   associations). No `.cs` recipe harvested — the bifurcation build itself is still mid-recovery from this
   bug, so there's no proven working script yet to save.
 - 2026-07-28: v1.25.6 full-project UI audit pass (mechanical: resources, grids, owners, caps, popups, ribbon). 18 fixes / 22 files, behaviour preserved; all checks now clean. New rule applied everywhere: every modal window gets a Revit owner; borderless+maximize windows get the AboutWindow MaxWidth/MaxHeight caps.
+- 2026-08-05: v1.39.2 About window motion pass + project-wide rounded-corner audit. Motion: staggered
+  entrance/exit/section-swap/ambient storyboards on AboutWindow (motion-design skill; entrances
+  decelerate, exit accelerates, nav cascade 45ms step, last stagger start 460ms). Corners: a WPF Border
+  does NOT clip children to its CornerRadius — About's header/footer painted square corners over the 22px
+  curve; fixed with concentric radii (21 = 22 - 1px border). Audit of all 38 XAML files found About was
+  the ONLY window with that defect (reasons per window recorded in ajtools-conventions.md — don't
+  re-audit). Real finding elsewhere: the 4 View Crop windows kept an 8px radius while maximized, showing
+  desktop through the corners → new shared `WindowChromeHelper.ApplyStateChrome` (v1.1.0) + an
+  OnStateChanged override per window so Win+Up/snap are covered too. Two bugs caught by reasoning before
+  shipping, not live: the IsCancel+Click double-Closing trap, and frozen ResourceDictionary storyboards
+  refusing .Completed/.Stop (must .Clone()). Behaviour preserved; no window made non-resizable (Ajmal's
+  explicit constraint). Clean on Release + R25; R27 blocked by this machine's .NET SDK 9.0.316. Not
+  loaded in Revit by the assistant.
+- 2026-08-05: v1.39.3 window entrance motion rolled out suite-wide. New shared `WindowMotionHelper`
+  (220ms fade + 12px rise, CubicEase EaseOut) wired into 33 windows with one call after
+  InitializeComponent(); About keeps its own ~750ms showcase entrance, Game HUD excluded. TWO TIERS ON
+  PURPOSE — a working dialog must feel instant, so About's staged timing is never copied onto one (see
+  ajtools-conventions.md). Animates the root CONTENT element, not Window.Opacity, because Window.Opacity
+  only works with AllowsTransparency=True (7 of 35 windows). Entrance only — no close path touched, so
+  DialogResult/validate-on-close flows are untouched; no window made non-resizable (Ajmal's constraint).
+  Applied by script + dry run, then verified: 33 call sites, zero duplicates, all correctly placed.
+  Clean on Release + R25. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.39.4 interaction motion added to the shared theme `src/UI/ModernStyles.xaml` (v1.3.0),
+  which 29 windows merge — hover wash, press dip (97%) + shade, keyboard-focus ring, enable/disable fade
+  on buttons; press dip on the window min/max/close buttons; hover + focus rings on text boxes; dropdown
+  arrow rotation; hover fades on list items, combo items and tab headers; plus a house `ProgressBar`
+  style with a breathe when indeterminate. One shared `CubicEase EaseOut` (`MotionEaseOut`); timings per
+  the motion-design skill (hover 90, press 110, settle 240). TWO SAFETY RULES established and written
+  into the XAML as comments — never animate Background/Foreground in a shared style (a running animation
+  outruns a code-behind local value; About's nav buttons and PipeSizing's mode toggles both set those),
+  and one trigger per animated property so hover/press/focus never fight. Layout untouched, selection
+  left instant on purpose. Verified beforehand that nothing in `src/` reaches into a template part
+  (zero GetTemplateChild/Template.FindName). Behaviour preserved; nothing made non-resizable; no close
+  path touched. Clean on Release + R25, deployed to both 2020 addin folders. Not loaded in Revit by the
+  assistant.
+- 2026-08-05: v1.39.5 carried the same interaction motion into `src/AiShell/Views/SoftUiStyles.xaml`
+  (v1.1.0) — the AJ AI pane, AI Settings and Saved Scripts — with timings identical to ModernStyles so
+  the shell stops feeling like a separate app. The Primary/Secondary/Warning buttons' instant Background
+  swaps were replaced by the shared animated overlays (measured to land within a shade of the old
+  colours), which also made all three behave alike; the Warning one had been dimming while the other two
+  swapped colour. Dropdowns gained hover feedback they never had. AI progress bars deliberately left on
+  WPF's default chrome because the busy strip is IsIndeterminate and already animates.
+  TWO THINGS WORTH MORE THAN THE MOTION ITSELF: (1) built `tools\verify-wpf-styles.ps1`, which loads the
+  compiled dictionaries out of the built DLL and forces all 28 styles to instantiate their templates —
+  catching the XamlParseException class of bug that a clean build provably cannot and that once broke
+  Revit startup (v1.16.0); all 28 pass. (2) disproved a stale comment claiming a custom ProgressBar
+  template needs its own width math — reflection over the real PresentationFramework.dll shows the
+  control declares PART_Track/PART_Indicator and sizes the indicator itself, and v1.39.4's house bar
+  measured exact at 25/50/100%. Both facts are in ajtools-conventions.md. Clean on Release + R25,
+  deployed to both 2020 addin folders. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.39.6 finished the interaction-motion pass on the four windows that carry their own local
+  styles and merge nothing. About (showcase tier) got a sidebar slide + link lift + chrome dip rather than
+  the working-dialog wash; Graphics Override (26 local styles, the project's biggest UI surface) got press
+  dip/shade, focus ring, eased disable, growing colour swatches, rotating dropdown arrow, fading row and
+  tab highlights, a growing slider handle, and a toggle switch whose knob SLIDES instead of jumping ends;
+  Game Key Settings had no styles at all, so its raw Windows buttons were replaced by one implicit house
+  style. Game HUD needed nothing — verified every element is IsHitTestVisible="False" (pure overlay, no
+  buttons), which is a finding, not a skip.
+  THREE JUDGEMENTS WORTH KEEPING: (1) Graphics Override and About deliberately keep INSTANT hover colours
+  — About because ShowSection() sets them from code-behind, Graphics Override because its danger-hover
+  step (#5B1C1C -> #8B2B2B) cannot be reproduced by a neutral wash; both get motion via transforms
+  instead. (2) The category checkbox ticks stay instant (virtualized list — an animated tick replays on
+  every scroll), while the standalone one animates. (3) Caught mid-pass: the colour swatch had hover and
+  press sharing ONE transform, which can strand it enlarged if you press then drag off — split into two,
+  restoring the one-trigger-per-property rule. All three are in ajtools-conventions.md.
+  Also built tools\verify-window-styles.ps1, which lifts a window's <Window.Resources> out of the source,
+  re-parses it standalone and forces all 35 styles/templates to build — it finds them via TargetType, so
+  new styles need no list update. Clean on Release + R25, deployed to both 2020 addin folders. Not loaded
+  in Revit by the assistant.
+- 2026-08-05: v1.39.7 added tab-change transitions via a new shared `TabMotionHelper` (180ms fade + 8px
+  rise), wired with one call into the five tabbed windows — Colorize, Duct Standards Manager, Filter Pro,
+  Graphics Override, Location Data Assigner. Chosen as the step-4 target because a tab switch was the
+  most-repeated state change left in the suite and still a hard cut. Attaches by walking the visual tree
+  on Loaded, so zero XAML changed. THE REASON THE HELPER EXISTS: Selector.SelectionChanged is routed, so
+  a dropdown inside a tab bubbles up and a naive handler replays the whole tab transition on every
+  dropdown pick — guarded via e.OriginalSource, with tools\verify-tab-motion.ps1 kept as a regression
+  check (it proves a dropdown change does NOT animate, a tab change does, and neither selection is
+  disturbed). Verified on the real WPF library that PART_SelectedContentHost exists in the default
+  template, under ModernStyles' implicit style, and in GraphicsOverride's custom template — one helper
+  covers all five. Rejected deliberately: show/hide panel transitions (those windows are SizeToContent,
+  so the window would resize mid-animation) and exit animations (still awaiting Ajmal's go-ahead). Clean
+  on Release + R25, deployed to both 2020 addin folders. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.40.0 added exit animations (150ms fade + 6px sink, CubicEase EaseIn) to the same 33
+  windows that carry the entrance, on Ajmal's explicit go-ahead. Minor bump rather than patch because it
+  changes the close PATH, not just appearance.
+  THE NEAR-MISS THAT JUSTIFIES THE WHOLE "measure, don't assume" RULE: an exit animation must cancel the
+  window's own Closing, animate, then re-issue the close — and WPF DISCARDS DialogResult when a close is
+  cancelled. Measured on real dialogs before writing any helper code: DialogResult=true + cancelled
+  Closing -> ShowDialog() returns FALSE. Since every command reads `if (window.ShowDialog() == true)`,
+  the naive implementation would have made EVERY Run button in the suite behave like Cancel — open,
+  close, do nothing, no error. Fixed by capturing DialogResult before the cancel and restoring it after;
+  verified against a no-animation control group in all four shapes (Run/Cancel/plain Close/Click+IsCancel
+  double-close). Three flags needed, not the two from the About pass, because the animation's Completed
+  and a backstop DispatcherTimer both race to issue the close. The backstop is armed BEFORE the animation
+  so a dialog can never be left un-closable. Audited beforehand that only PipeSizingWindow has its own
+  Closing handler (idempotent SaveState) and that nothing external closes these windows and depends on it.
+  tools\verify-exit-motion.ps1 keeps all of it honest. Full rule set in ajtools-conventions.md. Clean on
+  Release + R25, deployed to both 2020 addin folders. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.40.1 added real progress reporting, starting with the slowest tool. New shared
+  `ProgressReporter` helper wired into Purge Unused Elements' scan (which trial-deletes every candidate
+  in a rolled-back transaction — the longest silent freeze in the suite). KEY POINT FOR FUTURE SESSIONS:
+  this is NOT a background thread and must never become one — the Revit API only runs on Revit's UI
+  thread. The work stays put; the window repaints part-way through via an empty dispatcher Invoke at
+  DispatcherPriority.Render, which redraws WITHOUT processing input, so a click cannot re-enter a delete
+  loop mid-run (Input priority sits below Render — a DoEvents-style pump would allow exactly that).
+  Throttled to ~33ms with first/last always painted; measured 500 reports = 86ms total. Behaviour kept
+  safe by construction: the service method gained an OPTIONAL Action<int,int> defaulting to null (all
+  existing callers unchanged), the callback is try/caught so reporting can never abort a scan, and the
+  progress rows went INSIDE the existing button grid rather than the window's root Grid (which would
+  have shifted every Grid.Row below it). Same helper fits the other Purge windows, Transfer Views and
+  the tagging services — not yet wired, awaiting Ajmal's go-ahead. Clean on Release + R25, deployed to
+  both 2020 addin folders. Not loaded in Revit by the assistant.
+- 2026-08-05: v1.40.2 templated the last un-styled controls — ModernCheckBox, ModernRadioButton and
+  ToggleSwitchCheckBox in ModernStyles.xaml (v1.4.0). They had been setter-only since v1.0, so ~90 tick
+  boxes across 21 windows were drawing raw Windows chrome inside the soft Neon Blue UI. Now a rounded
+  box with an accent fill and a tick that fades+scales in, a matching radio with a popping dot, and
+  ToggleSwitchCheckBox finally drawn as the switch its name always claimed (knob slides 20px), matching
+  Graphics Override's. All original Setters kept so no layout moved. Deliberately left KEYED rather than
+  implicit so DataGridCheckBoxColumn's generated checkbox (Duct Standards) is untouched — an animated
+  tick there would replay on every scroll, the same rule as list selection. Verified nothing uses
+  IsThreeState before templating, and all three added to tools\verify-wpf-styles.ps1. Clean on Release +
+  R25, deployed to both 2020 addin folders. Not loaded in Revit by the assistant.

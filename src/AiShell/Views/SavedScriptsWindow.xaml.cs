@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : C# Saved Scripts
  * File Name     : SavedScriptsWindow.xaml.cs
@@ -43,6 +43,7 @@ using Autodesk.Revit.UI;
 using AJTools.AiShell.Commands;
 using AJTools.AiShell.Configuration;
 using AJTools.AiShell.Models;
+using AJTools.Utils;
 
 namespace AJTools.AiShell.Views
 {
@@ -54,6 +55,13 @@ namespace AJTools.AiShell.Views
         public SavedScriptsWindow(AiShellConfig config, ExternalCommandData commandData)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
+            WindowMotionHelper.AttachStandardEntrance(this);
+
+            // Shared AJ Tools window exit (fade + short sink). The window's result,
+            // validation and close behaviour are unchanged - see WindowMotionHelper's header.
+            WindowMotionHelper.AttachStandardExit(this);
             _config = config;
             _commandData = commandData;
             RefreshList();
