@@ -38,11 +38,14 @@ powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Relea
 
 - `dist\release\AJ-Tools-vX.Y.Z.zip`
 
-5. Prepare the installer repository:
+5. Prepare the installer repository. `AJ-Tools-Installer` is a sibling checkout *inside* this
+   repository's folder (it is gitignored here and is its own repo), so `-SourceRepoPath` points back at
+   this repository root — since 2026-08-05 that root IS the git working copy, not the old `AJ Tools\`
+   subfolder:
 
 ```powershell
-Set-Location ..\AJ-Tools-Installer
-powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepoPath "..\AJ Tools" -Version X.Y.Z
+Set-Location "D:\Ajmal\Revit Addins\AJ-Tools-Installer"
+powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepoPath "D:\Ajmal\Revit Addins" -Version X.Y.Z
 ```
 
 6. Review the installer payload:
@@ -59,12 +62,19 @@ git tag vX.Y.Z
 git push origin main --tags
 ```
 
-8. Push the source repository branch and matching tag:
+8. Push the source repository branch and matching tag. The source branch is `master` (the installer
+   repo's is `main` — they differ, do not assume one name for both):
 
 ```powershell
-Set-Location ..\AJ Tools
+Set-Location "D:\Ajmal\Revit Addins"
 git push origin HEAD
 powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -Push
+```
+
+9. Confirm the public release actually published (`gh` is NOT installed on this machine — use the API):
+
+```powershell
+Invoke-RestMethod -Uri "https://api.github.com/repos/Ajmalpshaik/AJ-Tools-Installer/releases/latest" -Headers @{ "User-Agent"="aj-tools" }
 ```
 
 ## Important Notes
