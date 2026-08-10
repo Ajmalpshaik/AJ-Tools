@@ -127,10 +127,18 @@ namespace AJTools.AiShell.Services
         }
 
         /// <summary>
-        /// Turns a raw bridge result into something worth hearing. A count comes back as a bare
-        /// number, which is exactly the useful case - "Forty two" tells Ajmal the answer without him
-        /// looking. Anything long is a report to be read on screen, not listened to, so it collapses
-        /// to a single word.
+        /// Turns a raw bridge result into something worth hearing.
+        ///
+        /// The whole point of this voice is to say the ANSWER - "Four" when Ajmal asks how many
+        /// doors. The first version only read out a result that was a bare number, on the assumption
+        /// that a count comes back as one. It does not: a real count returns
+        ///
+        ///     Matched 4 element(s) in 'Doors'.
+        ///     Count: 4
+        ///
+        /// - words, punctuation and a line break. So every single answer fell through to "Done", and
+        /// Ajmal heard nothing but "done, done, done" (reported 2026-08-11). The number is right
+        /// there and is what he actually wants; it just has to be dug out of the sentence.
         /// </summary>
         private static string ComposeLine(bool success, string output)
         {
@@ -145,19 +153,53 @@ namespace AJTools.AiShell.Services
                 return "Done.";
             }
 
+            string spokenNumber = ExtractCount(text);
+            if (spokenNumber != null)
+            {
+                return spokenNumber + ".";
+            }
+
+            // Not a count. A short one-liner is worth hearing verbatim; a long report is meant to be
+            // read on screen, not sat through, so it collapses to a single word.
+            string firstLine = text.Split('\n')[0].Trim();
+            bool isShortAndPlain =
+                firstLine.Length > 0 &&
+                firstLine.Length <= MaxSpokenResultLength &&
+                firstLine.IndexOf('{') < 0 &&
+                firstLine.IndexOf('[') < 0;
+
+            return isShortAndPlain ? firstLine.TrimEnd('.') + "." : "Done.";
+        }
+
+        /// <summary>
+        /// Digs the number out of a bridge result, or returns null when there is not one to say.
+        /// Handles a bare number, the "Count: 4" line the count tools emit, and a leading
+        /// "Matched 4 element(s)..." sentence - in that order of trust.
+        /// </summary>
+        private static string ExtractCount(string text)
+        {
             long number;
             if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
             {
-                return number.ToString(CultureInfo.InvariantCulture) + ".";
+                return number.ToString(CultureInfo.InvariantCulture);
             }
 
-            bool isShortAndPlain =
-                text.Length <= MaxSpokenResultLength &&
-                text.IndexOf('\n') < 0 &&
-                text.IndexOf('{') < 0 &&
-                text.IndexOf('[') < 0;
+            // "Count: 4" is the explicit, machine-meant line - trust it ahead of any prose.
+            var countLine = System.Text.RegularExpressions.Regex.Match(
+                text, @"(?im)^\s*count\s*[:=]\s*(-?\d+)\s*$");
+            if (countLine.Success)
+            {
+                return countLine.Groups[1].Value;
+            }
 
-            return isShortAndPlain ? text.TrimEnd('.') + "." : "Done.";
+            var matched = System.Text.RegularExpressions.Regex.Match(
+                text, @"(?i)\bmatched\s+(-?\d+)\b");
+            if (matched.Success)
+            {
+                return matched.Groups[1].Value;
+            }
+
+            return null;
         }
 
         /// <summary>
