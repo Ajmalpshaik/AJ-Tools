@@ -8,17 +8,17 @@
  *                 the standalone "AJ AI" ribbon button (ToggleAiBridgeCommand) starts and stops.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.1
+ * Version       : 1.9.0
  *
  * Created Date  : 2026-07-07
- * Last Updated  : 2026-08-04
+ * Last Updated  : 2026-08-11
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : System.IO.Pipes, Newtonsoft.Json, RevitExecutionService, GeneratedCodeSafetyValidator,
- *                 AiTaskWarningBarService
+ *                 AiTaskWarningBarService, AiVoiceService
  *
  * Input         : Newline-delimited JSON requests on a local named pipe (never a network socket)
  * Output        : Newline-delimited JSON responses; model changes only via RevitExecutionService
@@ -52,6 +52,13 @@
  *   safety still comes from GeneratedCodeSafetyValidator above.
  *
  * Changelog     :
+ * v1.9.0 (2026-08-11) - Each completed request now also speaks its result aloud through the new
+ *                       AiVoiceService, in a different voice from the assistant's own narration, so
+ *                       Ajmal can follow a running job by ear instead of watching the screen. Added
+ *                       at the point where the result exists (beside the audit-log write) rather than
+ *                       beside the activity banner, which only knows that work started. Speech is
+ *                       queued on a background thread and every failure inside it is swallowed, so
+ *                       this cannot slow, fail or roll back a model edit. Health probes stay silent.
  * v1.8.1 (2026-08-04) - GenerateToken() now builds its per-session token with
  *                       RandomNumberGenerator.Create() instead of RNGCryptoServiceProvider, which
  *                       .NET 8 (Revit 2025+) reports obsolete via SYSLIB0023 - the last warning in
@@ -387,7 +394,15 @@ namespace AJTools.AiShell.Services
             {
                 var result = await _executionService.ExecuteAsync(request.Code).ConfigureAwait(false);
                 if (!isHealthProbe)
+                {
                     AppendAuditLogEntry(request.Code, result.Success, result.Output, result.ErrorMessage);
+
+                    // Says the answer out loud in the Revit voice - "Forty two", "Done", "That failed".
+                    // Placed here rather than next to the activity banner on purpose: the banner marks
+                    // that work is HAPPENING, this reports what the work RETURNED, and only this point
+                    // has the result to report. Fire-and-forget inside; it cannot fail this request.
+                    AiVoiceService.SpeakResult(result.Success, result.Output);
+                }
                 return new McpBridgeResponse { Success = result.Success, Output = result.Output, Error = result.ErrorMessage };
             }
             finally
