@@ -3,6 +3,40 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-11 (Releasing is AUTOMATED — do not publish by hand, it breaks the pipeline)
+
+**Read this before any release.** Learned by getting it wrong on v1.42.0 and failing the CI run.
+
+Releases are published by a GitHub Actions workflow in the **separate installer repo**, not by hand and
+not from this repo:
+
+- Repo: `Ajmalpshaik/AJ-Tools-Installer` (cloned locally at `D:\Ajmal\Revit Addins\AJ-Tools-Installer`).
+  This code repo (`AJ-Tools`) carries **tags only** — it has old releases up to v1.3.4 from April 2026,
+  but every version since publishes on the installer repo instead.
+- Workflow `.github/workflows/publish-release.yml`, triggered by pushing a `v*` tag. It:
+  1. `awk`s `CHANGELOG.md` for a `## [X.Y.Z] - YYYY-MM-DD` section and turns it into the release notes
+     (`Released: <date>` + the section body). **An empty result fails the job on `test -s`.**
+  2. Verifies `releases/AJ-Tools-vX.Y.Z.zip` and `releases/SHA256SUMS.txt` exist and that
+     `sha256sum -c` passes.
+  3. Creates *or updates* the release via `softprops/action-gh-release`, attaching both files.
+
+**So the correct order is:** run `dist\package.ps1 -Version X.Y.Z` → copy the zip into the installer
+repo's `releases/` (it holds **one** zip at a time, replacing the previous) → write `SHA256SUMS.txt`
+**with an LF ending** (`.gitattributes` enforces it; Linux CI runs `sha256sum -c` and CRLF breaks it) →
+add the `## [X.Y.Z]` changelog section → commit and push → **then** push the tag.
+
+**What went wrong:** the release was created manually with `gh release create` and the files uploaded
+directly. That published a release that *looked* right while the repo held none of it, and the tag push
+fired the workflow, which failed at the notes step because no changelog section existed. Repaired by
+committing the payload properly and moving the tag onto that commit — the workflow then updated the
+same release in place, so the URL never changed. **A hand-made release that bypasses a pipeline is not a
+shortcut; it is a release with no record behind it and a red X on the repo.**
+
+**Also worth knowing:** `dist\package.ps1` reads `${env:ProgramFiles(x86)}` to find `vswhere`. That
+variable is absent in some non-interactive shells (an MCP/automation shell here), and the script dies in
+under a second with a null-argument error on `Join-Path`. The script is fine — set the variable before
+launching rather than "fixing" it.
+
 ### 2026-08-11 (AJ AI Voice — v1.42.0, added and DELETED the same day)
 - **Final state: `AiVoiceService.cs` is deleted**, `McpBridgeService` v1.10.0 no longer calls it, and
   nothing in AJ Tools speaks any more. Ajmal: *"totally remove that female voice feature, only men
