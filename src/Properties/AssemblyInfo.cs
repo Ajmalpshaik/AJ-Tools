@@ -24,6 +24,24 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.42.0 (2026-08-11) - AJ AI Voice (Revit side) added and REMOVED again on the same day. Recorded
+ *                       here because it briefly existed in a build and because it never should have
+ *                       reached one silently: AiVoiceService shipped on 2026-08-11 with no suite bump
+ *                       and no entry in this file at all - grepping it for "voice" returned nothing.
+ *                       A capability reached the ribbon with no record that it existed, which is the
+ *                       exact failure this changelog exists to prevent.
+ *                       What it did: spoke a one-line confirmation of what each AJ AI Bridge request
+ *                       returned, in a second voice, so a running job could be followed by ear.
+ *                       Why it is gone: the AJ AI Brain's own voice already announces every job
+ *                       before it runs and reads the answer at the end, so this was a second speaker
+ *                       confirming news Ajmal had just been given - "totally remove that female voice
+ *                       feature, only men voice ... remove everything, even the code also related to
+ *                       this." An off-by-default toggle was built first and he asked for removal
+ *                       instead, which was the better call: a feature nobody wants is not improved by
+ *                       making it optional, it just leaves dead code and a switch to explain.
+ *                       AiVoiceService.cs is deleted and McpBridgeService (v1.10.0) no longer calls
+ *                       it. Nothing else changed - the bridge, the activity banner, the audit log,
+ *                       the safety validator and every model operation are untouched.
  * v1.41.0 (2026-08-05) - NVIDIA NIM added as a FOURTH AI provider in the "C#" shell, on Ajmal's
  *                       request: he wants the free build.nvidia.com catalog to cut API cost and to
  *                       try specific open models. New NvidiaApiService v1.0.0; default model
@@ -1392,8 +1410,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.41.0.0")]
-[assembly: AssemblyFileVersion("1.41.0.0")]
+[assembly: AssemblyVersion("1.42.0.0")]
+[assembly: AssemblyFileVersion("1.42.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
