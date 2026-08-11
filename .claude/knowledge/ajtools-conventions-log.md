@@ -3,6 +3,44 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-11 (AJ AI Voice — v1.42.0, added and DELETED the same day)
+- **Final state: `AiVoiceService.cs` is deleted**, `McpBridgeService` v1.10.0 no longer calls it, and
+  nothing in AJ Tools speaks any more. Ajmal: *"totally remove that female voice feature, only men
+  voice ... remove everything, even the code also related to this."*
+- **A toggle was built first and it was the wrong answer.** The entry below describes an off-by-default
+  switch file, delivered an hour before he asked for outright removal. **A feature nobody wants is not
+  improved by making it optional** — it leaves dead code, a switch to document, and a second thing that
+  can break. When the ask is "I don't want this", offer removal first and the toggle only if he wants it
+  back later. The switch-file design notes below are kept because the *reasoning* is reusable (an
+  unwanted output defaults to OFF; "cannot tell" also means OFF), not because that code still exists.
+
+### 2026-08-11 (superseded — the off-by-default toggle, kept for its reasoning)
+- **A whole capability reached the ribbon with no changelog entry and no version bump.**
+  `AiVoiceService` shipped 2026-08-11 (speaks each bridge result aloud) and `AssemblyInfo.cs` had no
+  mention of it — grepping for "voice" returned nothing at all. Found while making a small change to
+  it. Recorded now as v1.42.0 rather than quietly backfilled. **When adding a service that changes what
+  the add-in DOES at runtime, the changelog entry is part of the work, not paperwork after it** — this
+  one was invisible to any later session reading the version history to find out what exists.
+- **Ajmal asked for the voice off the same day he first heard it work**: *"the man is saying that this
+  work is done, that is notifying, so we can remove that female feature, this is unwanted."* The AJ AI
+  Brain already announces each job and reads the answer at the end, so this was a second speaker
+  confirming news he had just been given. General rule that came out of it: **a second voice earns its
+  place only when it says something the first one cannot.**
+- **New convention — an unwanted output defaults to OFF, and "I cannot tell" also means OFF.**
+  `AiVoiceService` v1.1.0 checks for the PRESENCE of `%LOCALAPPDATA%\AJTools\voice\revit-voice-on`
+  before every line: present = speaks, absent = silent, and an exception reading it returns silent too.
+  Deliberately an *enable* flag, not a *disable* flag — a wrong colour override waits until you look at
+  it, an unwanted voice interrupts you, so a fresh install or a corrupt profile must resolve to quiet.
+- **Why the switch had to be a FILE, and had to live in this repo.** The Brain first tried to mute the
+  voice from its own side by dropping those lines out of the shared queue. That cannot work:
+  `TryEnqueue` falls back to speaking directly through Windows whenever no drainer is running, and the
+  Brain cannot influence that state — its own processes are sandboxed and cannot write the lock file
+  that would signal one. The mute passed its unit test and silenced nothing, because the test never
+  covered the path the voice actually takes. **Lesson for any cross-repo control: verify against the
+  fallback path, not just the happy path — the fallback is where an "off" switch goes to die.** A file
+  (not a config entry) because it must be togglable while Revit is open, from anything, with nothing to
+  parse and no restart; checked per call so on/off lands on the next answer.
+
 ### 2026-07-29 (Game Mode round 20 — v1.38.3, Ajmal's final weapon color scheme)
 - Ajmal's fixed color mapping, applied everywhere the weapon color appears (crosshair, laser beam/
   dot/readouts, gun accent stripes, muzzle glows, weapon text): GUN amber #FFC53D, LASER green

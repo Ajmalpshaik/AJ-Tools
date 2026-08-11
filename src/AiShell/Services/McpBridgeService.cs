@@ -8,7 +8,7 @@
  *                 the standalone "AJ AI" ribbon button (ToggleAiBridgeCommand) starts and stops.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.9.0
+ * Version       : 1.10.0
  *
  * Created Date  : 2026-07-07
  * Last Updated  : 2026-08-11
@@ -18,7 +18,7 @@
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : System.IO.Pipes, Newtonsoft.Json, RevitExecutionService, GeneratedCodeSafetyValidator,
- *                 AiTaskWarningBarService, AiVoiceService
+ *                 AiTaskWarningBarService
  *
  * Input         : Newline-delimited JSON requests on a local named pipe (never a network socket)
  * Output        : Newline-delimited JSON responses; model changes only via RevitExecutionService
@@ -52,6 +52,18 @@
  *   safety still comes from GeneratedCodeSafetyValidator above.
  *
  * Changelog     :
+ * v1.10.0 (2026-08-11) - The spoken result is GONE - v1.9.0 below is reverted and AiVoiceService.cs
+ *                       is deleted, at Ajmal's request the same day he first heard it working:
+ *                       "totally remove that female voice feature, only men voice ... remove
+ *                       everything, even the code also related to this." The AJ AI Brain's own voice
+ *                       already announces each job before it runs and reads the answer at the end, so
+ *                       this one was a second speaker confirming news he had just been given.
+ *                       A toggle was built first (v1.1.0 of AiVoiceService, off by default) and he
+ *                       asked for removal instead - correctly: a feature nobody wants is not improved
+ *                       by making it optional, it just leaves dead code and a switch to explain.
+ *                       Nothing else changes. The banner, the audit log, the safety validator and
+ *                       every model operation are untouched, and no request path gains or loses a
+ *                       step - the call site simply no longer exists.
  * v1.9.0 (2026-08-11) - Each completed request now also speaks its result aloud through the new
  *                       AiVoiceService, in a different voice from the assistant's own narration, so
  *                       Ajmal can follow a running job by ear instead of watching the screen. Added
@@ -396,12 +408,6 @@ namespace AJTools.AiShell.Services
                 if (!isHealthProbe)
                 {
                     AppendAuditLogEntry(request.Code, result.Success, result.Output, result.ErrorMessage);
-
-                    // Says the answer out loud in the Revit voice - "Forty two", "Done", "That failed".
-                    // Placed here rather than next to the activity banner on purpose: the banner marks
-                    // that work is HAPPENING, this reports what the work RETURNED, and only this point
-                    // has the result to report. Fire-and-forget inside; it cannot fail this request.
-                    AiVoiceService.SpeakResult(result.Success, result.Output);
                 }
                 return new McpBridgeResponse { Success = result.Success, Output = result.Output, Error = result.ErrorMessage };
             }
