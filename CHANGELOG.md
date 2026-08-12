@@ -5,6 +5,42 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.42.1] - 2026-08-11
+
+- **Fixed**: **Transferred legends and drafting views arrived empty.** Transfer would create the view in
+  the other project and report success, but opening it showed a blank sheet — none of the lines, text,
+  filled regions or legend components inside it came across. The view looked correct in the Project
+  Browser right up until you opened it.
+- **Note**: The cause was in Revit's own API, not in the tool's logic. The copy call used between two
+  documents brings the view *shell* only and says nothing about leaving the contents behind — it
+  succeeds, returns an ID, and the view appears. So the tool was reporting the truth as far as it could
+  see it. Measured live on Revit 2020: a drafting view holding 131 elements copied across and arrived
+  holding **one** — its own internal extent marker. All 130 real items were left behind.
+- **Note**: Legends and drafting views now copy in **two passes** — the view first, then everything
+  drawn inside it, using the view-to-view copy that actually carries view content. Verified live: the
+  same 131-element drafting view now reads back **131 of 131** in the target model.
+- **Note**: **Schedules were never affected and are unchanged.** A schedule's rows are generated from
+  the target model's own elements, so there is nothing drawn inside one to leave behind.
+- **Note**: The transfer report now states how many items were copied *inside* the views and warns if a
+  view arrived without its contents, so an empty result can never quietly look like a success again.
+- **Not yet tested**: **Legends.** They share the identical code path as drafting views and are fixed by
+  the same change, but neither open model contained a single legend to test against, and Revit's API
+  cannot create one. Drafting views were proven live; legends are a code-level conclusion. Please try a
+  legend transfer on a model that has them.
+
+## [1.42.0] - 2026-08-11
+
+- **Removed**: **The spoken voice that read out each AI result.** It was added and removed on the same
+  day. The code is deleted rather than switched off — there is no setting to find and nothing left
+  running. It was saying the same thing twice: the AI assistant already announces what it is doing and
+  reads the answer at the end, so a second voice confirming the result repeated news you had just been
+  given.
+- **Note**: This entry also records the voice's original arrival. It shipped with no changelog entry and
+  no version number of its own, meaning a feature existed in the add-in with nothing written down to say
+  it was ever there. That gap is closed here.
+- **Note**: Nothing else changed. The AJ AI Bridge, the working banner, the audit log, the safety checks
+  and every ribbon tool behave exactly as before.
+
 ## [1.41.0] - 2026-08-05
 
 - **Added**: **NVIDIA is now a fourth AI option in the C# panel**, alongside Gemini, OpenAI and Claude.
