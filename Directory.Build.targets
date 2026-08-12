@@ -99,6 +99,17 @@
                       Encoding="UTF-8" />
 
     <Message Text="SUCCESS: Copied add-in payload to $(RevitAddinPayloadPath) and updated $(RevitAddinManifestPath)" Importance="high" />
+
+    <!-- Sweep up old payload folders. Every build creates a fresh timestamped one (it has to - a
+         running Revit locks the current DLL) but nothing ever removed the previous ones. Measured
+         2026-08-12: 75 abandoned folders, 2,086 MB, accumulated since July.
+
+         Keeps the newest 2 - the live one plus one to roll back to. Anything a running Revit still
+         holds open simply fails to delete and gets swept on a later build, which is why this is
+         best-effort and can never fail the build. -->
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$root = '$(RevitAddinsRootPath)'; if (Test-Path $root) { Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^AJ Tools\.\d+$' } | Sort-Object LastWriteTime -Descending | Select-Object -Skip 2 | ForEach-Object { try { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop } catch { } } }&quot;"
+          IgnoreExitCode="true"
+          ContinueOnError="true" />
   </Target>
 
 </Project>
