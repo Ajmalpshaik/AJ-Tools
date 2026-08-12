@@ -41,6 +41,15 @@ place rather than leaving stale info sitting next to the new truth.
     bug made every "different" per-version build in `package.ps1` silently rebuild the 2020 config 8
     times over — always verify a build script's chosen output folder name for the actual version, not
     just that "Build succeeded" was printed once per loop iteration.
+  - **Never feed `Get-Content -Raw` straight into `ConvertTo-Json`** — use
+    `[System.IO.File]::ReadAllText((Resolve-Path $p).Path)`. `Get-Content` decorates every string it
+    returns with ETS note properties (`PSPath`, `PSParentPath`, `PSProvider`, `ReadCount`), and
+    `ConvertTo-Json` at any depth > 1 serialises the **decorated object** rather than the text — the
+    field comes out as `{"value":"…","PSPath":{…}}` instead of a string. Measured 2026-08-12 building
+    the connector's tool publisher: a **1,910-character script produced a 2.2 MB payload**, and the
+    consuming C# (expecting a plain string) could not have read it at all. It is silent — the script
+    reports success, `$text.Length` is correct, and only the serialised output is wrong. Cast other
+    values with `[string]` for the same reason.
   - The VS-bundled `MSBuild.exe` only resolves the machine-wide .NET SDK (9.x here) and cannot target
     `net10.0-windows` (Revit 2027) even though a .NET 10 SDK is installed user-locally at
     `%LOCALAPPDATA%\Microsoft\dotnet`. Route the 2027 build through that local `dotnet.exe` directly
@@ -683,6 +692,42 @@ place rather than leaving stale info sitting next to the new truth.
 - Posting one of AJ Tools' own ribbon buttons programmatically (`RevitCommandId.LookupCommandId(...)` + `UIApplication.PostCommand(...)`) does **not** reliably work for commands nested inside a `PulldownButton` — `PushButton.GetCommandId()` doesn't exist in this API version, and manually constructed `CustomCtrl_%...` lookup strings didn't resolve in testing. Don't spend time re-guessing this; treat it as unsolved.
 - Destructive ops (Delete/Purge/file writes) are refused by the bridge unless explicitly allowed — this is intentional, don't try to route around it.
 
+
+**Reaching AJ Tools from outside Revit — the Web Panel rules (established v1.43.0, 2026-08-12)**
+- **A localhost `HttpListener` needs NO admin rights and NO URL ACL — only the wildcard does.** Measured
+  on Ajmal's machine as a standard non-admin user: `http://localhost:5599/` starts fine; `http://+:5599/`
+  throws `Access is denied`; a raw `TcpListener` on 127.0.0.1 also works. `McpBridgeService`'s header note
+  used to state the opposite as the reason the AJ AI bridge chose a named pipe — **corrected in place**.
+  The pipe is still right for the AI bridge (no port to pick, unreachable from a browser by construction),
+  but never repeat the old claim as a reason to rule out a loopback HTTP server. A localhost-only prefix
+  also raises no Windows Firewall prompt, because it is not reachable from another machine.
+- **Names, not code.** The browser sends a tool **id** from a fixed registry compiled into the add-in
+  (`WebPanelToolRunner.RegisteredTools`) — never C#, a path, or a script. So the worst a hostile page can
+  do is press a button that is already on the ribbon. This is deliberately narrower than the AJ AI bridge,
+  which *does* accept code (guarded by `GeneratedCodeSafetyValidator`). **Do not widen the registry to
+  "run whatever was sent" when the download-tools-from-a-website idea gets built** — that step needs a
+  signature check (Ajmal signs each tool, the connector verifies before running) designed first, or a
+  hacked website becomes code execution on every colleague's PC.
+- **Two defences, because each alone has a hole**: a per-session token injected into the served page, AND
+  an `Origin` header check. A hostile page in another tab cannot read the token (CORS blocks it reading
+  the response) but could otherwise fire blind requests — the Origin check stops exactly that. Neither
+  stops another *program* running as Ajmal; nothing can, and the named pipe has the same property.
+- **Serve the page from the listener itself.** Same origin means no CORS and no mixed-content fight — the
+  problem an https website would hit trying to reach `http://localhost`. The page then asks `/api/tools`
+  for its buttons rather than hardcoding them, so adding a registry entry makes a button appear with no
+  HTML edit. Keep that property; it is what the "post a tool, everyone gets it" plan rests on.
+- **One logic, two front doors.** A tool reachable from both the ribbon and the panel keeps its model work
+  in a service that **returns** its report (`UnhideAllService` → `UnhideAllResult.Summary`) and shows
+  nothing. The command turns that into a `TaskDialog`; the panel returns it as JSON. **A `TaskDialog`
+  raised from shared code is the trap here** — triggered from a browser it appears on the Revit screen and
+  blocks Revit until somebody physically walks over and clicks it, while the person watching the browser
+  sees nothing. Any further tool added to the panel must be split this same way first.
+- `ProcessStartInfo(url) { UseShellExecute = true }` — required to open a URL at all on .NET 8
+  (Revit 2025+), where the plain `Process.Start(string)` overload defaults `UseShellExecute` to false and
+  throws on anything that is not a real executable path. Identical behaviour on .NET Framework, so one
+  code path covers 2020–2027.
+- Port is picked by **binding**, walking a range (48210–48229) and keeping the first that starts —
+  checking a port then binding it is a race. Two Revit versions open at once therefore each get their own.
 
 ## Log — moved
 

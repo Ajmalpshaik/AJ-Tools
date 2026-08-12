@@ -5,6 +5,23 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.43.0] - 2026-08-12
+
+- **Added**: **Web Panel.** A new ribbon button starts a small web server on this computer and opens a
+  page in your browser carrying AJ Tools buttons. Clicking one runs the tool on the model you have open
+  and shows the answer on the page instead of in a Revit popup. First tool wired up: Unhide All.
+- **Note**: The browser can only ask for tools *by name*, from a fixed list built into the add-in. It
+  cannot send code of any kind, so a bad web page can at worst press a button you already have on your
+  ribbon.
+- **Note**: Nothing listens until you click the button, the address only works on your own computer, and
+  every click carries a one-time password created when the panel starts. No admin rights are needed and
+  Windows does not ask about the firewall.
+- **Changed**: Unhide All's model work moved into a shared service so the ribbon button and the web page
+  run the identical code. Using it from the ribbon behaves exactly as before.
+- **Tested in Revit 2026-08-12** — started from the ribbon in Revit 2020, the browser opened on its own,
+  the page read the live model and view correctly, and Unhide All run from the browser worked on the open
+  model. Both security guards were checked and both refused as intended.
+
 ## [1.42.1] - 2026-08-11
 
 - **Fixed**: **Transferred legends and drafting views arrived empty.** Transfer would create the view in

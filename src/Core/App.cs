@@ -95,6 +95,15 @@ namespace AJTools.App
         /// connect/disconnect - a plain PushButton has no built-in on/off visual state.</summary>
         public static PushButton AiBridgeButton { get; set; }
 
+        /// <summary>Shared Web Panel instance (local HTTP server + its Revit tool runner), set once
+        /// at startup so CmdToggleWebPanel can start/stop the same one instead of creating a second
+        /// server on a second port. Same pattern as AiBridge above.</summary>
+        public static AJTools.WebPanel.WebPanelService WebPanel { get; private set; }
+
+        /// <summary>The "Web Panel" ribbon PushButton, captured at ribbon-build time so
+        /// CmdToggleWebPanel can swap its icon between on/off states after each click.</summary>
+        public static PushButton WebPanelButton { get; set; }
+
 
         public Result OnStartup(UIControlledApplication app)
         {
@@ -130,6 +139,11 @@ namespace AJTools.App
                 _aiShellPaneProvider = new AiShellPaneProvider();
                 AiBridge = _aiShellPaneProvider.Bridge;
                 app.RegisterDockablePane(AiShellPaneProvider.PaneId, "C#", _aiShellPaneProvider);
+
+                // Built here, not on first click: ExternalEvent.Create must run on Revit's UI thread,
+                // and OnStartup is the one place guaranteed to be on it. The server itself does NOT
+                // start listening yet - nothing opens a port until Ajmal clicks the ribbon button.
+                WebPanel = new AJTools.WebPanel.WebPanelService(new AJTools.WebPanel.WebPanelToolRunner());
 
                 return Result.Succeeded;
             }
@@ -173,6 +187,12 @@ namespace AJTools.App
             _aiShellPaneProvider?.Shutdown();
             AiBridge = null;
             AiBridgeButton = null;
+
+            // Releases the port and removes the discovery file, so a browser tab left open shows a
+            // clean "not reachable" rather than hanging against a dead listener.
+            WebPanel?.Stop();
+            WebPanel = null;
+            WebPanelButton = null;
             AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
             return Result.Succeeded;
         }

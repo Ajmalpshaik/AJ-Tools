@@ -25,8 +25,15 @@
  *
  * Notes         :
  * - Named pipes are local-machine-only by construction (no port, no firewall exposure, no admin
- *   rights required to host one) - a safer default here than an HTTP loopback listener, which on
- *   Windows requires either admin rights or a one-time URL ACL reservation.
+ *   rights required to host one).
+ *   CORRECTION (measured 2026-08-12, while building the Web Panel): this note used to add that an
+ *   HTTP loopback listener "requires either admin rights or a one-time URL ACL reservation", and used
+ *   that as the reason to prefer a pipe. That is only true of the WILDCARD prefix. Tested on Ajmal's
+ *   machine as a standard non-admin user: HttpListener on "http://localhost:5599/" starts fine, while
+ *   "http://+:5599/" throws "Access is denied". So an explicit localhost prefix needs no admin and no
+ *   netsh reservation - see WebPanelService, which relies on exactly that. The pipe is still the right
+ *   choice HERE (no port to pick, nothing a browser can reach at all), but don't repeat the old claim
+ *   as a reason to rule out a loopback HTTP server elsewhere.
  * - Every request must include the per-session token written to the discovery file at Start() -
  *   this stops any other local process from driving Revit through the pipe unnoticed.
  * - Every request is still scanned by GeneratedCodeSafetyValidator before it reaches RoslynService,

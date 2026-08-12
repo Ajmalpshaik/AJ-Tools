@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.42.1
+ * Version       : 1.43.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-11
+ * Last Updated  : 2026-08-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,32 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.43.0 (2026-08-12) - NEW: Web Panel. A ribbon button starts a local HTTP server on
+ *                       http://localhost:<port>/ and opens a browser page carrying AJ Tools buttons;
+ *                       clicking one runs the tool on the live model and shows the result on the page
+ *                       instead of in a Revit popup. First tool wired: Unhide All.
+ *                       Three decisions worth keeping:
+ *                       (1) NAMES, NOT CODE. The browser sends a tool id from a fixed registry in
+ *                           WebPanelToolRunner. It cannot send C#, so a hostile page can at worst
+ *                           trigger something already on the ribbon. Deliberately narrower than the AJ
+ *                           AI bridge, which does accept code. Widening this to downloaded tool code
+ *                           needs a signature check designed first.
+ *                       (2) MEASURED, NOT ASSUMED. McpBridgeService's header claimed an HTTP loopback
+ *                           listener needs admin rights or a URL ACL reservation, which is why the
+ *                           named pipe was chosen. Tested on this machine as a non-admin user:
+ *                           "http://localhost:5599/" starts fine; only the "+" wildcard is denied. The
+ *                           note has been corrected in place. No admin, no firewall prompt.
+ *                       (3) ONE LOGIC, TWO FRONT DOORS. CmdUnhideAll's model work moved to
+ *                           Services/UnhideAll/UnhideAllService.cs, which returns its report instead of
+ *                           showing it. The ribbon turns that into a TaskDialog; the panel returns it
+ *                           to the browser. Ribbon behaviour is unchanged.
+ *                       Nothing listens until the button is clicked, the port is localhost-only, and
+ *                       every request needs a per-session token plus an Origin check.
+ *                       LIVE-TESTED 2026-08-12 against Revit 2020 (model "Project1", view "1 - Mech"):
+ *                       the button starts the server on 48210 and opens the browser; /api/context
+ *                       returned real session data through the ExternalEvent path; a wrong token got
+ *                       401 and a request carrying a foreign Origin got 403; and Ajmal confirmed
+ *                       Unhide All run from the browser works on the live model.
  * v1.42.1 (2026-08-11) - Transfer Legends / Transfer Drafting Views produced EMPTY views in the target
  *                       project. Ajmal's report: "its creating the view in anothonr model but inside
  *                       that drafting view its not creating". Exactly right, and the cause is a Revit
@@ -1451,8 +1477,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.42.1.0")]
-[assembly: AssemblyFileVersion("1.42.1.0")]
+[assembly: AssemblyVersion("1.43.0.0")]
+[assembly: AssemblyFileVersion("1.43.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

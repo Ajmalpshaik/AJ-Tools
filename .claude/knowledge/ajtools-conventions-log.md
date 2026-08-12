@@ -3,6 +3,46 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-12 (Web Panel — AJ Tools buttons in a browser, v1.43.0)
+
+Ajmal's idea, refined over several messages, and worth recording because the first version of it that
+got discussed was the wrong shape. He initially sounded like he wanted the ribbon moved into a browser;
+pushing back on that was correct (for a one-click tool like Unhide All the browser is strictly slower —
+alt-tab out, click, alt-tab back). But that was not his idea. What he actually wants is: **the user
+installs ONE connector once, then every tool is posted to a website and appears for everybody with no
+reinstall, ever.** That is a genuinely better architecture, and the value is not "browser instead of
+ribbon" — it is *shipping tools without redeploying a DLL*. Lesson: when a request keeps coming back in
+slightly different words, the disagreement is usually about what was heard, not about what is right.
+
+Built this session as the proof: `src/WebPanel/` (service, tool runner, page, ribbon command), plus
+`Services/UnhideAll/UnhideAllService.cs` extracted out of `CmdUnhideAll`. Rules that came out of it are
+in `ajtools-conventions.md` § "Reaching AJ Tools from outside Revit" — localhost `HttpListener` needs no
+admin (measured, and it **corrected a wrong claim in `McpBridgeService`'s own header** that had been
+used as the reason to rule HTTP out); names-not-code; token + Origin; serve the page from the listener;
+one-logic-two-front-doors; `UseShellExecute` on .NET 8; bind-to-find-a-free-port.
+
+Deliberately NOT built yet, and each for a reason:
+- **Downloading tool code from a website.** This is the actual goal, but it turns a hostile/hacked
+  website into code execution on every colleague's machine. Needs signing designed first. The registry
+  approach shipped here is the safe half, and is genuinely useful on its own.
+- **Its own icon.** Borrows the AJ AI pair with a TODO in `RibbonManager.AddWebPanelTool`.
+- **Any tool beyond Unhide All.** Each needs the service split first, which is the real per-tool cost.
+
+Status: **live-verified the same day.** Builds clean on Release (2020) and R25, all six version
+references agree, deployed, and then actually exercised against Revit 2020 (model "Project1", view
+"1 - Mech"): ribbon button → server on 48210 → browser opens → `/api/context` returned the real version,
+model and active view through the ExternalEvent path → Ajmal confirmed Unhide All from the browser
+changes the live model. Wrong token = 401, foreign `Origin` = 403, both confirmed by request rather than
+by reading the code.
+
+**A false alarm worth remembering**: the first report was a browser showing `ERR_CONNECTION_REFUSED` at
+`localhost`. Nothing was broken — the URL had no port on it (`localhost` alone is port 80) and the
+server had not been started yet, because it only starts when the ribbon button is pressed. Diagnosed by
+checking three facts rather than guessing: the discovery file did not exist, nothing was listening on
+48210–48229, and Revit's process start time was *later* than the DLL's write time (so the new add-in
+really was loaded). Check those three before suspecting the code — "connection refused" on a
+port-less localhost URL is almost always "not started" or "wrong address", not a defect.
+
 ### 2026-08-11 (Releasing is AUTOMATED — do not publish by hand, it breaks the pipeline)
 
 **Read this before any release.** Learned by getting it wrong on v1.42.0 and failing the CI run.
