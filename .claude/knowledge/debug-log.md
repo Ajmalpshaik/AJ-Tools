@@ -8,6 +8,48 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-11 (Transfer Drafting Views / Transfer Legends create the view but it arrives EMPTY — FIXED, suite 1.42.1)
+- **Symptom (Ajmal's words)**: "transfer drafting views its not working properly its creating the view in
+  anothonr model but inside that drafting view its not creating we need that also chek inide the legents
+  also is that same like that or its okkey". The view lands in the target project and looks right in the
+  Project Browser — it is only empty once opened.
+- **Root cause — a Revit API behaviour, not a logic error in the tool.** The document-to-document overload
+  `ElementTransformUtils.CopyElements(sourceDoc, ids, targetDoc, transform, options)` copies a view's
+  **shell only**. It does not carry the detail lines, text notes, filled regions or legend components drawn
+  inside it. Nothing signals this: the call succeeds, returns an id, and the tool correctly reported
+  "1 drafting view transferred". **The view-to-view overload**
+  `CopyElements(View sourceView, ids, View destView, transform, options)` is the one that actually carries
+  view-specific elements.
+- **Measured live before writing a line of fix** (Revit 2020, Ajmal's own two open models `vg` +
+  `MODEL PROJECT`): copying the 131-element drafting view `MEP_Text_Styles_Legend` with the exact call the
+  tool makes returned **one** element id, and the new view read back holding **1** element — its internal
+  `ExtentElem`. All 130 real items were left behind. The second pass then copied 130 and the view read back
+  at **131/131** against the source.
+- **A near-miss worth keeping**: the two passes were first tested as two separate transactions, but the real
+  tool runs them in ONE. Re-tested single-transaction on purpose — **it works, and needs no
+  `Document.Regenerate()`** between the passes; the second pass can see the view the first pass just
+  created. Assuming either way round without testing would have been a coin flip.
+- **Fix** (`TransferViewsCommandRunner.cs` v1.1.0): legends/drafting views are copied **one view per call**
+  (so the returned id can be paired back to its source view — a bulk call gives a flat collection with no
+  such guarantee), then their contents are copied into the new view with the view-to-view overload.
+  `ExtentElem` is excluded by `Category != null`. Contents failing on one view adds a warning instead of
+  failing the transfer, matching how sheet-placement failures already behave, and the report now states how
+  many items were copied inside — an empty result can no longer look like a success.
+- **Schedules deliberately untouched** — still one bulk copy. A `ViewSchedule`'s rows are generated from the
+  target model's own elements, so there is nothing drawn inside to leave behind. Transfer Schedules never
+  had this bug.
+- **Legends: fixed by the same code path, but NOT live-verified — be honest about this.** Both kinds ran
+  through the same single bulk call and both now run through the two-pass copy, so the defect and the fix
+  are shared by construction. It could not be measured: **neither open model contains a single legend view,
+  and the Revit API cannot create one** (there is no `Legend.Create`), so there was nothing to test against.
+  Ajmal re-tests on a model that has legends.
+- **Verified how**: live via AJ AI Bridge as above (both the broken behaviour and the fixed two-pass
+  sequence), then `Release` (2020/net472) and `Release R25` (.NET 8) both rebuilt 0 errors / 0 warnings, and
+  deployed to the 2020 AppData payload `AJ Tools.20260811190129404`, manifest + DLL read back at 1.42.1.0.
+  **Every live test was reversed with Revit's native Undo** and both models confirmed back at their exact
+  starting contents (`vg` 1 view/107 items, `MODEL PROJECT` 4 views/15+2+107+131). **Not click-tested through
+  the real ribbon button** — needs a Revit restart to load 1.42.1. → 2026-08-11.
+
 ### 2026-08-05 (v1.40.6 released end-to-end — and RELEASE_PROCESS.md had stale paths that would have broken it)
 - Full release run straight after the Game Mode fix below. Source repo committed (`b076bf6`) + tagged
   `v1.40.6` + pushed; installer repo committed (`1c15597`) + tagged + pushed to `main`; GitHub Actions
