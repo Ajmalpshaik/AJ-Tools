@@ -93,6 +93,30 @@ place rather than leaving stale info sitting next to the new truth.
     reads like one. When a generated path must match a copy destination, derive both from the same custom
     metadata value instead of re-concatenating.
 
+**The ProgramData auto-deploy was BROKEN and is now disabled (found 2026-08-12)**
+- `DeployAjToolsAddin` copied only `$(TargetPath)`, the PDB and `@(Content)` — the DLL and the icons.
+  It **never copied the NuGet dependencies** (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit),
+  so it produced a **7.7 MB install missing everything the AI shell and Web Panel need** — and
+  registered it under the **same AddInId** as the complete AppData one. Two registrations for one
+  add-in, and no way to tell from the outside which Revit was loading.
+- Found while clearing disk space: ProgramData held a "1.43.0" with no dependencies, AppData a
+  complete 1.42.1. The obvious move — keep the newer-looking one — would have **deleted the working
+  install and kept the broken one**. Always check a deploy is COMPLETE (dependencies present), not
+  just newer.
+- Disabled by commenting out `RevitAddinDeployName` + `DeployRoots` in `src/AJ Tools.csproj`.
+  `AutoDeployRevitAddin` (AppData) copies `$(OutputPath)**\*.*` — everything — and is the deploy that
+  always actually worked. All-users installs still go through `dist\install-all-users.cmd`, which
+  ships a complete payload. To re-enable, restore both entries AND fix the target to copy
+  dependencies, or the same half-install returns.
+
+**Every build left a payload folder behind — now swept automatically (2026-08-12)**
+- `AutoDeployRevitAddin` must create a fresh `AJ Tools.<timestamp>\` each build (a running Revit locks
+  the current DLL), but nothing ever removed the old ones. Measured: **75 abandoned folders,
+  2,086 MB**, accumulated since July.
+- The target now sweeps them, keeping the newest 2 (live + one rollback). Best-effort and
+  `ContinueOnError` — a folder a running Revit still holds open just fails and gets swept on a later
+  build. Never let housekeeping fail a build.
+
 **Verifying the real Revit API across versions (no Revit launch needed)**
 - 2020/2024 (.NET Framework era): PowerShell `[Reflection.Assembly]::ReflectionOnlyLoadFrom` over
   `C:\Program Files\Autodesk\Revit <year>\RevitAPI.dll` works for full member-signature checks.

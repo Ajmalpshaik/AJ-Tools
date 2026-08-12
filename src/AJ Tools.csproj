@@ -64,12 +64,38 @@
     </Content>
   </ItemGroup>
 
-  <!-- Auto-deploy destinations (targets in Directory.Build.targets) -->
+  <!-- ================================================================
+       Auto-deploy destinations (targets in Directory.Build.targets).
+
+       The ProgramData (all-users) deploy is DISABLED, on purpose.
+
+       DeployAjToolsAddin copied only $(TargetPath), the PDB and @(Content) -
+       the DLL and the icons. It never copied the NuGet dependencies
+       (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit). So it produced a
+       7.7 MB install missing everything the AI shell and Web Panel need, while
+       registering it under the SAME AddInId as the complete AppData one. Two
+       registrations for one add-in, and the incomplete one could win.
+
+       Found 2026-08-12 during a clean-up: ProgramData held a 7.7 MB "1.43.0"
+       with no dependencies, AppData a complete 1.42.1, and it was not obvious
+       which Revit was actually loading. Nearly deleted the working one.
+
+       AutoDeployRevitAddin (AppData) copies $(OutputPath)**\*.* - everything -
+       and is the deploy that has always actually worked. That is now the only
+       one. Genuine all-users installs still go through dist\install-all-users.cmd,
+       which ships a complete payload.
+
+       To re-enable, restore both entries below AND fix the target in
+       Directory.Build.targets to copy the dependencies, or the same broken
+       half-install comes back.
+       ================================================================ -->
+  <!--
   <PropertyGroup>
     <RevitAddinDeployName>AJ Tools</RevitAddinDeployName>
   </PropertyGroup>
   <ItemGroup>
     <DeployRoots Include="$(ProgramData)\Autodesk\Revit\Addins\$(RevitVersion)\" />
   </ItemGroup>
+  -->
 
 </Project>
