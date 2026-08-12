@@ -15,6 +15,13 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
   For a compile-only check, always pass `-p:SkipAjToolsAutoDeploy=true`.
 - Packaging scripts live in `dist/`; releases ship through the separate `AJ-Tools-Installer` GitHub
   repo (see `RELEASE_PROCESS.md`). GitHub/git work goes through the `aj-tools-github` skill.
+- **AJ Connect is a SEPARATE product in a SEPARATE repo (moved out 2026-08-12).** Working copy
+  `D:\Ajmal\AJ Connect`, public at `https://github.com/Ajmalpshaik/AJ-Connect`. It's the standalone
+  add-in colleagues install once; it carries no tools, and runs signed tools published to a tool
+  source. **Never re-add a `connector/` folder under this root** — it's gitignored precisely because
+  two copies would drift (the exact failure the old `AJ Tools\` tree caused). AJ Tools' own built-in
+  Web Panel (`src/WebPanel/`, v1.43.0) is a *different* thing that stays here: it runs the compiled
+  tools with no signing step, on ports 48210-48229, while AJ Connect uses 48230-48249.
 
 **Hard rule — trees you must never edit:** `AJ Tools\` (old copy of the project) and `_backup\`
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated
