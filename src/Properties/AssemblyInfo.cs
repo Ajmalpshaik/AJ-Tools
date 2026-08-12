@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.41.0
+ * Version       : 1.42.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-05
+ * Last Updated  : 2026-08-11
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,47 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.42.1 (2026-08-11) - Transfer Legends / Transfer Drafting Views produced EMPTY views in the target
+ *                       project. Ajmal's report: "its creating the view in anothonr model but inside
+ *                       that drafting view its not creating". Exactly right, and the cause is a Revit
+ *                       API behaviour rather than anything wrong with the tool's own logic.
+ *                       ROOT CAUSE: the document-to-document overload of
+ *                       ElementTransformUtils.CopyElements copies the view SHELL ONLY. It does not carry
+ *                       the detail lines, text notes, filled regions or legend components drawn inside
+ *                       the view. Nothing about the call reports this - it succeeds, returns an id, and
+ *                       the view appears in the target Project Browser looking correct until it is
+ *                       opened. So the tool showed "1 drafting view transferred" and was, on its own
+ *                       terms, telling the truth.
+ *                       MEASURED LIVE, not reasoned about, on Ajmal's own two open models (Revit 2020):
+ *                       a 131-element drafting view copied with the exact call the tool makes returned
+ *                       ONE element id and read back in the target holding a single element - its
+ *                       internal ExtentElem. All 130 real items were left behind.
+ *                       FIX (TransferViewsCommandRunner v1.1.0): legends and drafting views are now
+ *                       copied in two passes. Pass 1 copies the view on its own - one view per call, so
+ *                       the returned id can be paired back to the source view it came from, which a bulk
+ *                       call does not guarantee. Pass 2 collects everything drawn in the source view and
+ *                       copies it into the newly created view with the VIEW-TO-VIEW CopyElements
+ *                       overload, which is the one that actually carries view-specific elements.
+ *                       ExtentElem is excluded (it has no category and is recreated with the view).
+ *                       Both passes verified live in a SINGLE transaction - the second pass does not
+ *                       need a Regenerate() to see the view the first pass just created - and the copy
+ *                       read back at 131/131 against the source. Every live test was reversed with
+ *                       Revit's native Undo afterwards; both of Ajmal's models were confirmed back at
+ *                       their exact starting contents.
+ *                       SCHEDULES DELIBERATELY UNCHANGED and still use the single bulk copy: a
+ *                       ViewSchedule's rows are generated from the target model's own elements, so there
+ *                       is nothing drawn inside one to leave behind. Transfer Schedules never had this
+ *                       bug.
+ *                       Also added: the report now states how many items were copied inside the views,
+ *                       and a content-warning section, so an empty result can never again look like a
+ *                       success. A view whose contents fail does not fail the whole transfer, matching
+ *                       how sheet-placement failures are already handled.
+ *                       LEGENDS ARE FIXED BY THE SAME CODE PATH but were NOT live-verified: neither
+ *                       open model contains a single legend view, and the Revit API cannot create one to
+ *                       test with. The defect and the fix are shared - both kinds ran through the same
+ *                       one bulk call, and both now run through the two-pass copy - so this is a
+ *                       code-level conclusion, not a measured one. Ajmal re-tests legends on a model
+ *                       that has them.
  * v1.42.0 (2026-08-11) - AJ AI Voice (Revit side) added and REMOVED again on the same day. Recorded
  *                       here because it briefly existed in a build and because it never should have
  *                       reached one silently: AiVoiceService shipped on 2026-08-11 with no suite bump
@@ -1410,8 +1451,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.42.0.0")]
-[assembly: AssemblyFileVersion("1.42.0.0")]
+[assembly: AssemblyVersion("1.42.1.0")]
+[assembly: AssemblyFileVersion("1.42.1.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

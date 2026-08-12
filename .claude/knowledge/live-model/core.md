@@ -56,6 +56,15 @@ rather than just act on existing ones and don't fit the filter+action shape.
 - Multi-statement scripts need an explicit `return` — a trailing expression-without-semicolon (Roslyn
   scripting convention) does not reliably produce output here; the last line should be `return sb.ToString();`
   not just `sb.ToString();`.
+- **Declaring a class in a script? Give its methods EXPRESSION bodies, not block bodies.** The bridge
+  rewrites every block-bodied method to inject its own `__ajRecursionDepth` guard field, and in a class
+  declared inside the script that injected code refers to the wrapper's instance field from a nested type —
+  so it fails to compile with a confusing `CS0120: An object reference is required for the non-static field,
+  method, or property '__ajRecursionDepth'`, pointing at lines of *your* method that look perfectly fine.
+  Nothing is actually wrong with the code; only the body style matters. Confirmed 2026-08-11 implementing
+  `IDuplicateTypeNamesHandler` for a document-to-document copy — identical class, block body failed,
+  `=> DuplicateTypeAction.UseDestinationTypes;` compiled and ran. Applies to any interface a Revit API call
+  needs you to implement inline (duplicate-type handlers, failure handlers, selection filters).
 - **A bridge call can transiently fail with "Revit UI was blocked by another command/tool or window"**
   even with no user action in between — this is Revit being momentarily busy, not a real error. Simply
   retry the same call; it recovers on its own. Don't treat one blocked response as a reason to change
