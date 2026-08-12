@@ -5,16 +5,16 @@
  * Purpose       : Unhides permanently hidden elements and clears Temporary Hide/Isolate in the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.3.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-28
+ * Last Updated  : 2026-08-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API
+ * Dependencies  : Autodesk Revit API, UnhideAllService
  *
  * Input         : Active View — no selection required.
  * Output        : Hidden elements restored in the active view; Temporary Hide/Isolate cleared where active.
@@ -29,6 +29,12 @@
  *   collector may exclude hidden elements — needs Revit verification before switching).
  *
  * Changelog     :
+ * v1.3.0 (2026-08-12) - Model work moved out to Services/UnhideAll/UnhideAllService.cs so the Web
+ *                       Panel can run the identical code from a browser. This command keeps owning
+ *                       validation and the TaskDialog report; behaviour from the ribbon is unchanged
+ *                       (same collector, transaction name, Temporary Hide/Isolate handling and
+ *                       wording). The dialog text now comes from UnhideAllResult.Summary, so the two
+ *                       front doors can never drift apart.
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.1.0 (2026-05-06) - API-safe hidden element restore and standardized metadata.
  * v1.2.0 (2026-06-28) - Added Regeneration attribute; corrected transaction name to "AJ-Tools: Unhide All";
@@ -41,10 +47,10 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using AJTools.Services.UnhideAll;
 using AJTools.Utils;
 
 namespace AJTools.Commands
@@ -54,7 +60,6 @@ namespace AJTools.Commands
     public class CmdUnhideAll : IExternalCommand
     {
         private const string ToolTitle = "AJ-Tools";
-        private const string TransactionName = "AJ-Tools: Unhide All";
 
         public Result Execute(
             ExternalCommandData commandData,
@@ -77,24 +82,10 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                View view = doc.ActiveView;
-                ICollection<ElementId> hiddenIds = CollectHiddenElementIds(doc, view);
+                // The model work lives in UnhideAllService so the Web Panel runs the identical code.
+                UnhideAllResult result = UnhideAllService.Run(doc, doc.ActiveView);
 
-                bool thiCleared = false;
-
-                using (Transaction trans = new Transaction(doc, TransactionName))
-                {
-                    trans.Start();
-
-                    if (hiddenIds.Count > 0)
-                        view.UnhideElements(hiddenIds);
-
-                    thiCleared = TryDisableTemporaryHideIsolate(view);
-
-                    trans.Commit();
-                }
-
-                ShowSummaryReport(hiddenIds.Count, thiCleared);
+                TaskDialog.Show(ToolTitle, result.Summary);
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -109,52 +100,5 @@ namespace AJTools.Commands
             }
         }
 
-        private static ICollection<ElementId> CollectHiddenElementIds(Document doc, View view)
-        {
-            var hiddenIds = new List<ElementId>();
-
-            foreach (Element element in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-            {
-                if (element == null || !element.IsValidObject)
-                    continue;
-
-                if (IsElementHidden(element, view))
-                    hiddenIds.Add(element.Id);
-            }
-
-            return hiddenIds;
-        }
-
-        private static bool IsElementHidden(Element element, View view)
-        {
-            try { return element.IsHidden(view); }
-            catch { return false; }
-        }
-
-        private static bool TryDisableTemporaryHideIsolate(View view)
-        {
-            try
-            {
-                view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static void ShowSummaryReport(int unhiddenCount, bool thiCleared)
-        {
-            string elementsLine = unhiddenCount > 0
-                ? $"{unhiddenCount} hidden element(s) restored."
-                : "No permanently hidden elements found.";
-
-            string thiLine = thiCleared
-                ? "Temporary Hide/Isolate cleared."
-                : "Temporary Hide/Isolate was not active.";
-
-            TaskDialog.Show(ToolTitle, $"{elementsLine}\n{thiLine}");
-        }
     }
 }

@@ -1,0 +1,929 @@
+<title>AJ Tools — Web Panel Concept</title>
+<style>
+/* ============================================================
+   AJ Tools Web Panel — concept preview
+   Palette : cool drafting-paper ground + AJ neon blue primary
+   Type    : Segoe UI (native, sits next to Revit) + Cascadia Mono for output
+   Layout  : app shell — header status / panel rail / tool grid / output console
+   ============================================================ */
+
+:root {
+  /* ground + surface */
+  --ground:      #EEF2F7;
+  --surface:     #FFFFFF;
+  --surface-2:   #F7F9FC;
+  --sunken:      #E4EAF2;
+  --line:        #D3DCE8;
+  --line-soft:   #E5EBF3;
+
+  /* ink */
+  --ink:         #0E1620;
+  --ink-2:       #46566B;
+  --ink-3:       #7A8AA0;
+
+  /* AJ neon blue */
+  --accent:      #1F76FF;
+  --accent-deep: #0B4CC4;
+  --accent-wash: #E7F0FF;
+  --accent-ring: rgba(31,118,255,.28);
+
+  /* semantic — deliberately not the accent hue */
+  --ok:          #0E9B57;
+  --ok-wash:     #E3F6EC;
+  --warn:        #B4700A;
+  --warn-wash:   #FBF0DC;
+  --stop:        #C8342B;
+  --stop-wash:   #FBE7E5;
+
+  --shadow-sm: 0 1px 2px rgba(14,22,32,.05), 0 1px 3px rgba(14,22,32,.04);
+  --shadow-md: 0 2px 4px rgba(14,22,32,.05), 0 8px 20px rgba(14,22,32,.07);
+  --shadow-lift: 0 4px 8px rgba(31,118,255,.10), 0 12px 28px rgba(14,22,32,.12);
+
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+
+  --ui:   "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --disp: "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, "SF Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0A1017;
+    --surface:     #141C26;
+    --surface-2:   #1A2430;
+    --sunken:      #0F1720;
+    --line:        #273343;
+    --line-soft:   #1F2A37;
+
+    --ink:         #E6EDF6;
+    --ink-2:       #9FB0C4;
+    --ink-3:       #6C7E94;
+
+    --accent:      #4E93FF;
+    --accent-deep: #7FB2FF;
+    --accent-wash: #14243D;
+    --accent-ring: rgba(78,147,255,.34);
+
+    --ok:          #3FCB86;
+    --ok-wash:     #10281E;
+    --warn:        #E0A53F;
+    --warn-wash:   #2A2113;
+    --stop:        #F0685E;
+    --stop-wash:   #2E1614;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    --shadow-md: 0 2px 4px rgba(0,0,0,.3), 0 10px 24px rgba(0,0,0,.4);
+    --shadow-lift: 0 4px 10px rgba(0,0,0,.4), 0 14px 32px rgba(0,0,0,.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0A1017;
+  --surface:     #141C26;
+  --surface-2:   #1A2430;
+  --sunken:      #0F1720;
+  --line:        #273343;
+  --line-soft:   #1F2A37;
+
+  --ink:         #E6EDF6;
+  --ink-2:       #9FB0C4;
+  --ink-3:       #6C7E94;
+
+  --accent:      #4E93FF;
+  --accent-deep: #7FB2FF;
+  --accent-wash: #14243D;
+  --accent-ring: rgba(78,147,255,.34);
+
+  --ok:          #3FCB86;
+  --ok-wash:     #10281E;
+  --warn:        #E0A53F;
+  --warn-wash:   #2A2113;
+  --stop:        #F0685E;
+  --stop-wash:   #2E1614;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 2px 4px rgba(0,0,0,.3), 0 10px 24px rgba(0,0,0,.4);
+  --shadow-lift: 0 4px 10px rgba(0,0,0,.4), 0 14px 32px rgba(0,0,0,.5);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- header ---------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+
+.brand-mark {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(150deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: #fff;
+  font-family: var(--disp);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -.4px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px var(--accent-ring);
+}
+
+.brand-name {
+  font-family: var(--disp);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.brand-sub {
+  display: block;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ctx {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.pill-live { background: var(--ok-wash); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 26%, transparent); }
+.pill-down { background: var(--stop-wash); color: var(--stop); border-color: color-mix(in srgb, var(--stop) 26%, transparent); }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill-live .dot { animation: beat 2.2s ease-in-out infinite; }
+
+@keyframes beat {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50%      { box-shadow: 0 0 0 4px transparent; opacity: .55; }
+}
+
+.ctx-fact { display: flex; flex-direction: column; line-height: 1.25; }
+.ctx-k { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.ctx-v { font-size: 12.5px; font-weight: 600; font-family: var(--mono); }
+
+.demo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.demo-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- shell ---------- */
+
+.shell {
+  display: grid;
+  grid-template-columns: 214px minmax(0, 1fr);
+  gap: 0;
+  align-items: start;
+  min-height: calc(100vh - 55px);
+}
+
+/* ---------- rail ---------- */
+
+.rail {
+  padding: 18px 14px 24px;
+  border-right: 1px solid var(--line);
+  background: var(--surface-2);
+  min-height: 100%;
+  position: sticky;
+  top: 55px;
+}
+
+.rail-title {
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 9px 8px;
+  font-weight: 600;
+}
+
+.rail-list { display: flex; flex-direction: column; gap: 1px; }
+
+.rail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.rail-btn:hover { background: var(--sunken); color: var(--ink); }
+.rail-btn[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-deep); font-weight: 600; }
+
+.rail-n {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.rail-btn[aria-pressed="true"] .rail-n { color: var(--accent); }
+
+.rail-note {
+  margin-top: 22px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.rail-note b { color: var(--ink); font-weight: 600; }
+
+/* ---------- main ---------- */
+
+.main { padding: 18px 22px 28px; min-width: 0; }
+
+.seek {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 6px;
+}
+.seek:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+.seek svg { flex: none; color: var(--ink-3); }
+
+.seek input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 11px 0;
+}
+.seek input:focus { outline: none; }
+.seek input::placeholder { color: var(--ink-3); }
+
+.seek-count {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0 0 20px 2px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.group { margin-bottom: 26px; }
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.group-name {
+  font-family: var(--disp);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.group-rule { flex: 1; height: 1px; background: var(--line-soft); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 10px;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 13px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform .13s ease, box-shadow .13s ease, border-color .13s ease;
+}
+.tool:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-lift);
+}
+.tool:active:not(:disabled) { transform: translateY(0); }
+
+.tool:disabled { cursor: not-allowed; opacity: .5; box-shadow: none; }
+
+.tool-top { display: flex; align-items: center; gap: 8px; }
+
+.tool-icon {
+  flex: none;
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  display: grid;
+  place-items: center;
+}
+.tool:hover:not(:disabled) .tool-icon { background: var(--accent); color: #fff; }
+
+.tool-name { font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+
+.tool-why { font-size: 11.5px; color: var(--ink-3); line-height: 1.4; }
+
+.tag {
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.tag-sel   { background: var(--warn-wash); color: var(--warn); }
+.tag-block { background: var(--stop-wash); color: var(--stop); }
+
+.tool[data-state="run"] { border-color: var(--accent); }
+.tool[data-state="run"] .tool-icon { background: var(--accent); color: #fff; }
+
+.spin {
+  width: 13px; height: 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: turn .6s linear infinite;
+}
+@keyframes turn { to { transform: rotate(360deg); } }
+
+.empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* ---------- console ---------- */
+
+.console {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(14,22,32,.06);
+  z-index: 15;
+}
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.console-title {
+  font-family: var(--disp);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.console-note { font-size: 11.5px; color: var(--ink-3); margin-right: auto; }
+
+.mini {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.mini:hover { border-color: var(--accent); color: var(--accent); }
+
+.log {
+  margin: 0;
+  padding: 10px 20px 14px;
+  max-height: 172px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.65;
+  background: var(--sunken);
+}
+
+.line { display: flex; gap: 12px; padding: 2px 0; }
+.line-t { color: var(--ink-3); font-variant-numeric: tabular-nums; flex: none; }
+.line-b { min-width: 0; }
+.line-name { font-weight: 700; }
+.line-ok   { color: var(--ok); }
+.line-warn { color: var(--warn); }
+.line-run  { color: var(--accent); }
+.line-body { color: var(--ink-2); white-space: pre-wrap; }
+.line-idle { color: var(--ink-3); font-style: italic; }
+
+/* ---------- setup overlay ---------- */
+
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--ground) 78%, transparent);
+  backdrop-filter: blur(5px);
+}
+.gate[hidden] { display: none; }
+
+.gate-card {
+  width: min(460px, 100%);
+  padding: 26px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.gate-card h2 {
+  font-family: var(--disp);
+  font-size: 19px;
+  margin: 14px 0 6px;
+  text-wrap: balance;
+}
+
+.gate-card p {
+  margin: 0 0 18px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.gate-icon {
+  width: 46px; height: 46px;
+  margin: 0 auto;
+  border-radius: 13px;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  display: grid;
+  place-items: center;
+}
+
+.steps {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.step { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink-2); }
+
+.step-n {
+  flex: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+
+.cta {
+  width: 100%;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: linear-gradient(150deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 10px var(--accent-ring);
+}
+.cta:hover { filter: brightness(1.07); }
+
+.gate-fine { margin: 12px 0 0; font-size: 11.5px; color: var(--ink-3); }
+
+/* ---------- footer ---------- */
+
+.credit {
+  padding: 14px 20px 20px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line-soft);
+  background: var(--ground);
+}
+.credit strong { color: var(--ink-2); font-weight: 600; }
+
+@media (max-width: 780px) {
+  .shell { grid-template-columns: 1fr; }
+  .rail { position: static; border-right: 0; border-bottom: 1px solid var(--line); min-height: 0; }
+  .rail-list { flex-direction: row; flex-wrap: wrap; }
+  .rail-btn { width: auto; }
+  .ctx { width: 100%; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<header class="top">
+  <div class="brand">
+    <div class="brand-mark">AJ</div>
+    <div>
+      <div class="brand-name">AJ Tools</div>
+      <span class="brand-sub">Web Panel · Concept</span>
+    </div>
+  </div>
+
+  <div class="ctx">
+    <span class="pill pill-live" id="statusPill"><span class="dot"></span><span id="statusText">Connected</span></span>
+    <div class="ctx-fact"><span class="ctx-k">Revit</span><span class="ctx-v">2020</span></div>
+    <div class="ctx-fact"><span class="ctx-k">Model</span><span class="ctx-v">MODEL PROJECT</span></div>
+    <div class="ctx-fact"><span class="ctx-k">Active view</span><span class="ctx-v" id="viewName">{3D}</span></div>
+    <button class="demo-toggle" id="gateBtn" type="button">Show first-time setup</button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail">
+    <p class="rail-title">Panels</p>
+    <div class="rail-list" id="rail"></div>
+
+    <div class="rail-note">
+      <b>Nothing here is installed.</b><br>
+      Every tool on this page is downloaded from the website. Post a new one and it appears
+      for everyone — no reinstall.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="seek">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14" stroke-linecap="round"/>
+      </svg>
+      <input id="seek" type="search" placeholder="Search a tool — try &ldquo;tag&rdquo;, &ldquo;purge&rdquo;, &ldquo;duct&rdquo;" aria-label="Search tools">
+      <span class="seek-count" id="seekCount"></span>
+    </div>
+    <p class="hint">Search is the reason a browser beats a ribbon — 40 tools, no hunting through tabs.</p>
+
+    <div id="groups"></div>
+    <div class="empty" id="empty" hidden>No tool matches that.</div>
+  </main>
+</div>
+
+<section class="console">
+  <div class="console-bar">
+    <span class="console-title">Output</span>
+    <span class="console-note">Results come back here instead of a popup inside Revit</span>
+    <button class="mini" id="clearBtn" type="button">Clear</button>
+  </div>
+  <div class="log" id="log" role="log" aria-live="polite"></div>
+</section>
+
+<footer class="credit">
+  Created &amp; All Rights Reserved @ <strong>Ajmal P.S.</strong>
+</footer>
+
+<div class="gate" id="gate" hidden>
+  <div class="gate-card">
+    <div class="gate-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4 17v2.5h16V17"/>
+      </svg>
+    </div>
+    <h2>Connect Revit to this page</h2>
+    <p>One small install, one time. After that every tool on this page works, and new tools appear on their own.</p>
+    <ol class="steps">
+      <li class="step"><span class="step-n">1</span><span>Download the AJ Tools Connector (about 2 MB).</span></li>
+      <li class="step"><span class="step-n">2</span><span>Double-click it once. Revit can stay open.</span></li>
+      <li class="step"><span class="step-n">3</span><span>Come back to this page — it connects by itself.</span></li>
+    </ol>
+    <button class="cta" id="gateClose" type="button">Download Connector</button>
+    <p class="gate-fine">You never install again. New tools arrive automatically.</p>
+  </div>
+</div>
+
+<script>
+const TOOLS = [
+  // View
+  { n:"Unhide All",              p:"View",        d:"Restore hidden elements in this view",
+    r:"247 hidden element(s) restored.\nTemporary Hide/Isolate cleared." },
+  { n:"Toggle Revit Links",      p:"View",        d:"Show or hide every linked model",
+    r:"6 linked models hidden in {3D}." },
+  { n:"View Crop",               p:"View",        d:"Crop the view to what you selected", need:"sel" },
+  { n:"3D Views As Per Workset", p:"View",        d:"One 3D view per workset, named to match",
+    r:"11 views created — ARC, STR, HVAC, PLU, FF, ELE, and 5 more." },
+  { n:"Set Link Worksets",       p:"View",        d:"Put each link on its own workset",
+    r:"6 links reassigned. 1 skipped — already correct." },
+  { n:"Maximize Levels",         p:"View",        d:"Stretch levels to the section box", block:"Section box view only" },
+
+  // Graphics
+  { n:"Colorize",                p:"Graphics",    d:"Colour elements by any parameter",
+    r:"418 elements coloured by System Type across 9 values." },
+  { n:"Reset Overrides",         p:"Graphics",    d:"Clear every override in this view",
+    r:"Overrides cleared on 512 elements. View filters left untouched." },
+  { n:"Filter Pro",              p:"Graphics",    d:"Build and apply view filters fast" },
+  { n:"Smart Selection",         p:"Graphics",    d:"Select by rule, not by clicking",
+    r:"96 elements selected — Mechanical Equipment on Level 2." },
+  { n:"Pin Elements",            p:"Graphics",    d:"Pin so nobody moves it by accident", need:"sel" },
+
+  // Datums
+  { n:"Reset Datums",            p:"Datums",      d:"Put grids and levels back to 2D extents",
+    r:"38 grids and 12 levels reset in this view." },
+  { n:"Extend Levels",           p:"Datums",      d:"Match level extents to what you picked", need:"sel" },
+  { n:"Flip Grid Bubble",        p:"Datums",      d:"Flip the bubble to the other end", need:"sel" },
+  { n:"Match Elevation",         p:"Datums",      d:"Set elements to one elevation", need:"sel" },
+  { n:"Reassign Level",          p:"Datums",      d:"Move elements onto the right level", need:"sel" },
+  { n:"Section Mark Visibility", p:"Datums",      d:"Control section marks per view",
+    r:"Section marks hidden in 24 plan views." },
+
+  // MEP
+  { n:"Create MEP Openings",     p:"MEP",         d:"Cut openings where services hit structure",
+    r:"31 openings created.\n4 skipped — no host wall found." },
+  { n:"Pipe Sizing",             p:"MEP",         d:"Size pipes from flow and velocity", need:"sel" },
+  { n:"Duct Standards Manager",  p:"MEP",         d:"Apply your duct size standards",
+    r:"Standard applied. 84 ducts resized to the nearest standard size." },
+  { n:"HVAC Schematic",          p:"MEP",         d:"Lay out terminals and route ducts" },
+  { n:"Smart Connect",           p:"MEP",         d:"Join MEP elements properly", need:"sel" },
+  { n:"Ceiling Magnet",          p:"MEP",         d:"Snap fittings up to the ceiling", need:"sel" },
+  { n:"Flow Direction Tags",     p:"MEP",         d:"Arrow annotations on the flow",
+    r:"52 flow arrows placed on Supply Air." },
+
+  // Purge
+  { n:"Purge Unplaced Views",    p:"Purge",       d:"Views that sit on no sheet",
+    r:"63 unplaced views found.\nNothing deleted yet — confirm before purge." },
+  { n:"Purge Unused Filters",    p:"Purge",       d:"Filters no view uses",
+    r:"17 unused filters found." },
+  { n:"Purge Unused Groups",     p:"Purge",       d:"Groups with nothing placed",
+    r:"8 unused groups found." },
+  { n:"Purge View Templates",    p:"Purge",       d:"Templates nothing is assigned to",
+    r:"12 unused view templates found." },
+  { n:"Purge Family Parameters", p:"Purge",       d:"Parameters no family uses", block:"Family editor only" },
+
+  // Transfer
+  { n:"Transfer View Templates", p:"Transfer",    d:"Copy templates from another model",
+    r:"14 view templates transferred from CENTRAL-ARC.rvt." },
+  { n:"Transfer Legends",        p:"Transfer",    d:"Copy legends between models",
+    r:"9 legends transferred with all content intact." },
+  { n:"Transfer Drafting Views", p:"Transfer",    d:"Copy drafting views across",
+    r:"22 drafting views transferred." },
+  { n:"Transfer Schedules",      p:"Transfer",    d:"Copy schedules across models",
+    r:"7 schedules transferred." },
+
+  // Annotation
+  { n:"Create Tags",             p:"Annotation",  d:"Tag everything visible, by category",
+    r:"186 tags placed across 4 categories.\n3 skipped — no tag family loaded." },
+  { n:"Smart MEP Tag",           p:"Annotation",  d:"Tag ducts and pipes the right way",
+    r:"94 MEP tags placed. Leaders set to L-shape." },
+  { n:"Stack Tags",              p:"Annotation",  d:"Line up tags into a neat stack", need:"sel" },
+  { n:"Tag Arranger",            p:"Annotation",  d:"Spread overlapping tags apart",
+    r:"41 overlapping tags rearranged. 0 collisions left." },
+  { n:"Center Room Tags",        p:"Annotation",  d:"Put room tags in the middle",
+    r:"58 room tags centred." },
+  { n:"Revision Cloud",          p:"Annotation",  d:"Cloud around what you selected", need:"sel" },
+
+  // Dimension
+  { n:"Auto Dimensions",         p:"Dimension",   d:"Dimension a whole plan in one go", block:"Plan views only" },
+  { n:"Dimension By Line",       p:"Dimension",   d:"Dimension along a line you draw", block:"Plan views only" },
+  { n:"Quick Parallel Dim",      p:"Dimension",   d:"Parallel dimension string, fast", block:"Plan views only" },
+
+  // Coordination
+  { n:"Linked Element Search",   p:"Coordination",d:"Find elements inside linked models",
+    r:"Found 12 matches in 3 linked models." },
+  { n:"Linked Element ID",       p:"Coordination",d:"Read the real ID inside a link", need:"sel" },
+  { n:"Location Data Assigner",  p:"Coordination",d:"Write level and zone onto elements",
+    r:"640 elements stamped with Level and Zone." },
+];
+
+const PANELS = [...new Set(TOOLS.map(t => t.p))];
+const railEl = document.getElementById("rail");
+const groupsEl = document.getElementById("groups");
+const logEl = document.getElementById("log");
+const seekEl = document.getElementById("seek");
+const emptyEl = document.getElementById("empty");
+const countEl = document.getElementById("seekCount");
+const gateEl = document.getElementById("gate");
+
+let panel = "All";
+let clock = 8 * 3600 + 41 * 60 + 12;
+
+/* ---- rail ---- */
+function buildRail() {
+  const rows = [["All", TOOLS.length], ...PANELS.map(p => [p, TOOLS.filter(t => t.p === p).length])];
+  railEl.innerHTML = "";
+  for (const [name, n] of rows) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "rail-btn";
+    b.setAttribute("aria-pressed", String(name === panel));
+    b.innerHTML = `<span>${name}</span><span class="rail-n">${n}</span>`;
+    b.addEventListener("click", () => { panel = name; buildRail(); render(); });
+    railEl.appendChild(b);
+  }
+}
+
+/* ---- grid ---- */
+function render() {
+  const q = seekEl.value.trim().toLowerCase();
+  const hits = TOOLS.filter(t =>
+    (panel === "All" || t.p === panel) &&
+    (!q || t.n.toLowerCase().includes(q) || t.d.toLowerCase().includes(q) || t.p.toLowerCase().includes(q))
+  );
+
+  countEl.textContent = hits.length === TOOLS.length ? `${TOOLS.length} tools` : `${hits.length} of ${TOOLS.length}`;
+  emptyEl.hidden = hits.length > 0;
+  groupsEl.innerHTML = "";
+
+  for (const p of PANELS) {
+    const list = hits.filter(t => t.p === p);
+    if (!list.length) continue;
+
+    const sec = document.createElement("section");
+    sec.className = "group";
+    sec.innerHTML = `<div class="group-head"><h2 class="group-name">${p}</h2><span class="group-rule"></span></div>`;
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    for (const t of list) grid.appendChild(card(t));
+    sec.appendChild(grid);
+    groupsEl.appendChild(sec);
+  }
+}
+
+function card(t) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tool";
+  if (t.block) b.disabled = true;
+
+  const tag = t.block
+    ? `<span class="tag tag-block">${t.block}</span>`
+    : t.need === "sel" ? `<span class="tag tag-sel">Select first</span>` : "";
+
+  b.innerHTML = `
+    <div class="tool-top">
+      <span class="tool-icon" data-icon>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 3l7 5-7 5V3z"/>
+        </svg>
+      </span>
+      <span class="tool-name">${t.n}</span>
+    </div>
+    <span class="tool-why">${t.d}</span>
+    ${tag}`;
+
+  b.addEventListener("click", () => run(t, b));
+  return b;
+}
+
+/* ---- run ---- */
+function stamp() {
+  clock += 3 + Math.floor(Math.random() * 40);
+  const h = Math.floor(clock / 3600) % 24, m = Math.floor(clock / 60) % 60, s = clock % 60;
+  return [h, m, s].map(v => String(v).padStart(2, "0")).join(":");
+}
+
+function write(name, kind, body) {
+  const idle = logEl.querySelector(".line-idle");
+  if (idle) idle.remove();
+
+  const row = document.createElement("div");
+  row.className = "line";
+  const mark = kind === "run" ? "· running" : kind === "warn" ? "! " : "✓ ";
+  row.innerHTML = `
+    <span class="line-t">${stamp()}</span>
+    <span class="line-b">
+      <span class="line-name line-${kind}">${mark} ${name}</span>
+      ${body ? `<div class="line-body">${body}</div>` : ""}
+    </span>`;
+  logEl.appendChild(row);
+  logEl.scrollTop = logEl.scrollHeight;
+  return row;
+}
+
+function run(t, btn) {
+  if (btn.dataset.state === "run") return;
+
+  const icon = btn.querySelector("[data-icon]");
+  const keep = icon.innerHTML;
+  btn.dataset.state = "run";
+  icon.innerHTML = '<span class="spin"></span>';
+
+  const pending = write(t.n, "run", "");
+
+  setTimeout(() => {
+    pending.remove();
+    btn.dataset.state = "";
+    icon.innerHTML = keep;
+
+    if (t.need === "sel") {
+      write(t.n, "warn", "Nothing selected in Revit.\nPick the elements first, then run again.");
+    } else {
+      write(t.n, "ok", t.r || "Done. No changes were needed.");
+    }
+  }, 550 + Math.random() * 500);
+}
+
+/* ---- wiring ---- */
+seekEl.addEventListener("input", render);
+document.getElementById("clearBtn").addEventListener("click", () => {
+  logEl.innerHTML = '<div class="line line-idle">Waiting — click a tool above.</div>';
+});
+document.getElementById("gateBtn").addEventListener("click", () => { gateEl.hidden = false; });
+document.getElementById("gateClose").addEventListener("click", () => { gateEl.hidden = true; });
+gateEl.addEventListener("click", e => { if (e.target === gateEl) gateEl.hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") gateEl.hidden = true; });
+
+buildRail();
+render();
+logEl.innerHTML = '<div class="line line-idle">Waiting — click a tool above.</div>';
+</script>

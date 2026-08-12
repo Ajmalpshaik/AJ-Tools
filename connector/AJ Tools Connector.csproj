@@ -1,0 +1,113 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ================================================================
+       AJ Tools Connector - a SEPARATE, standalone Revit add-in.
+
+       This is the piece a colleague downloads and installs ONCE. It
+       contains NO tools of its own. Tools are published by Ajmal to a
+       tool source (a local folder while developing, a website later),
+       are signed by him, and are fetched, verified and run by this
+       add-in on the live model - shown in the browser, not the ribbon.
+
+       Deliberately NOT part of "AJ Tools.sln" and NOT under src/. It is
+       its own product with its own identity, version and installer.
+
+       RevitVersion / TargetFramework / REVITxxxx constants still come
+       from Directory.Build.props at the repo root, which is a genuine
+       benefit: the same 2020->2027 matrix works here for free.
+       ================================================================ -->
+
+  <PropertyGroup>
+    <Configurations>Debug;Release;Debug R21;Release R21;Debug R22;Release R22;Debug R23;Release R23;Debug R24;Release R24;Debug R25;Release R25;Debug R26;Release R26;Debug R27;Release R27</Configurations>
+    <OutputType>Library</OutputType>
+    <RootNamespace>AJToolsConnector</RootNamespace>
+    <AssemblyName>AJ Tools Connector</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+
+    <!-- One small control window (AJ Connect). WPF itself ships with .NET/.NET Framework, so this
+         costs nothing in the download - no extra DLL is copied beside the add-in. -->
+    <UseWPF>true</UseWPF>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+
+    <!-- Roslyn ships its compiler messages translated into 14 languages, each a separate satellite
+         folder. They are pure download weight for a tool nobody reads compiler errors from in
+         Turkish - and this is a file colleagues fetch over the internet. English only. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- ================================================================
+       CRITICAL - DO NOT REMOVE.
+
+       Directory.Build.targets at the repo root runs AutoDeployRevitAddin
+       after EVERY build of EVERY project beneath the root, and that target
+       hardcodes AJ Tools' own names: it copies output over
+       %APPDATA%\...\Addins\<year>\AJ Tools.<stamp>\ and rewrites
+       "AJ Tools.addin" to point at it with FullClassName AJTools.App.App.
+
+       Without this opt-out, simply building the connector would overwrite
+       Ajmal's working AJ Tools manifest with one naming a class that does
+       not exist in this assembly - silently breaking the main add-in on
+       the next Revit start. Verified by reading Directory.Build.targets
+       (its only guard is this property) before creating this project.
+
+       The connector ships through its own installer instead - see
+       connector/dist/.
+       ================================================================ -->
+  <PropertyGroup>
+    <SkipAjToolsAutoDeploy>true</SkipAjToolsAutoDeploy>
+  </PropertyGroup>
+
+  <!-- ================================================================
+       Tool SOURCES are not add-in source. Files under tools-source/ are
+       published tool scripts, compiled by Roslyn at run time against the
+       script globals (Document, UIDocument, ...) - not by this project.
+
+       Without this the SDK's default globbing sweeps them into the compile
+       and they fail with a wall of nonsense (CS8805 "top-level statements
+       must be an executable", CS0103 "the name 'Document' does not exist").
+       Worse than the noise: a syntax slip in ONE published tool would then
+       break the whole connector build. Caught exactly that way on the first
+       tool, 2026-08-12.
+       ================================================================ -->
+  <ItemGroup>
+    <Compile Remove="tools-source\**" />
+    <Compile Remove="dist\**" />
+    <None Include="tools-source\**" />
+    <Page Remove="dist\**" />
+  </ItemGroup>
+
+  <!-- Ribbon icons, copied beside the DLL and picked up by the installer payload. -->
+  <ItemGroup>
+    <None Remove="Resources\**\*.*" />
+    <Content Include="Resources\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Revit API: version follows the active configuration. ExcludeAssets=runtime
+       keeps RevitAPI/RevitAPIUI out of the output - Revit supplies them. -->
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Only what the engine itself needs. No MVVM, no AvalonEdit, no WPF:
+       this add-in has no windows of its own - its entire UI is the browser. -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" Condition="$(TargetFramework.StartsWith('net4'))" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+</Project>
