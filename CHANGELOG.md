@@ -5,6 +5,25 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-08-13
+
+- **Removed**: **Web Panel.** The ribbon button that started a small web server on this computer and
+  opened AJ Tools buttons in a browser is gone. It shipped one day earlier in 1.43.0; Ajmal did not
+  want it, so it has been taken out rather than left switched off — `src/WebPanel/` is deleted, no
+  setting remains to find, and nothing can open a port. Same treatment as the spoken voice in 1.42.0.
+- **Note**: **Nothing else changed.** Every other ribbon button behaves exactly as it did in 1.43.1.
+  The **AJ AI bridge is a different feature and is untouched** — it talks over a named pipe, never a
+  web page, and is still there.
+- **Note**: `UnhideAllService` is deliberately kept. It was split out of `CmdUnhideAll` to give the
+  panel a UI-free way in, but model work with no dialog attached is worth having regardless, and the
+  ribbon button runs through it unchanged.
+- **Note**: What was *learned* building the panel is kept in `.claude/knowledge/ajtools-conventions.md`,
+  reframed as findings rather than live design — including the measured result that a localhost
+  `HttpListener` needs no admin rights and no URL ACL, which corrected a claim this repo had recorded
+  wrongly. That finding outlives the feature that produced it.
+- **Verified 2026-08-13**: builds clean for Revit 2020-2027 with no dangling references, and the AI
+  panel, AJ AI bridge and Unhide All all still build and wire up as before.
+
 ## [1.43.1] - 2026-08-13
 
 - **Fixed**: **The installer could not install Revit 2025, 2026 or 2027 at all.** `dist\install.ps1`
