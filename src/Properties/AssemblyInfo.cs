@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.43.0
+ * Version       : 1.43.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-12
+ * Last Updated  : 2026-08-13
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,19 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.43.1 (2026-08-13) - FIX: the installer could not install Revit 2025/2026/2027 at all. It
+ *                       refused them by a hardcoded list and installed the root 2020 net472 build to
+ *                       2020-2024, never reading Payload\<year>\ - a guard left from before the
+ *                       multi-version backbone (2026-07-06). Every zip since had shipped correct
+ *                       per-version builds the installer ignored, so installing the documented way
+ *                       left 2025-2027 with nothing while INSTALL.md advertised 2020-2027.
+ *                       Installable versions now come from what Payload\ actually contains, so the
+ *                       list cannot go stale again; a legacy package with no Payload still installs
+ *                       from the root files.
+ *                       Also: the installer no longer deletes a working install before the
+ *                       replacement is in place (a locked folder is renamed aside), and uninstall
+ *                       clears the set-aside and timestamped payload folders it used to leave behind.
+ *                       No change to any tool's behaviour - packaging and install only.
  * v1.43.0 (2026-08-12) - NEW: Web Panel. A ribbon button starts a local HTTP server on
  *                       http://localhost:<port>/ and opens a browser page carrying AJ Tools buttons;
  *                       clicking one runs the tool on the live model and shows the result on the page
@@ -1477,8 +1490,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.43.0.0")]
-[assembly: AssemblyFileVersion("1.43.0.0")]
+[assembly: AssemblyVersion("1.43.1.0")]
+[assembly: AssemblyFileVersion("1.43.1.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
