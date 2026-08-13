@@ -3,6 +3,43 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-13 (Web Panel removed the day after it shipped — v1.44.0)
+
+Ajmal did not want it: *"web panel i dont whant i told you to remove"*. It went the same way the spoken
+voice went in v1.42.0 — **code deleted, not switched off**: `src/WebPanel/` (4 files, 1,101 lines), the
+ribbon button, and the startup/shutdown wiring in `App.cs`. Nothing remains that can open a port, and
+there is no setting to find. `CLAUDE.md` now carries the guardrail that AJ Tools does not serve a web
+page and must not grow one back unasked.
+
+Worth being honest about why it had to be said twice: he had already asked, in the same breath as asking
+about AJ Connect — *"confom that aj connect in the revvit aj tools also as separate also i dont what so
+remove it"*. That was read as AJ Connect only, and the Web Panel — the same browser idea living **inside**
+AJ Tools rather than beside it — was left in place. **When he names a capability, he means it wherever it
+lives, not just the artefact that carries that name.**
+
+Kept deliberately:
+- **`UnhideAllService`.** Split out of `CmdUnhideAll` to give the panel a UI-free way in. UI-free model
+  work stands on its own, and it is the worked example for the "one logic, two front doors" rule that
+  still applies to any future non-UI caller.
+- **The measured findings**, reframed in `ajtools-conventions.md` as history rather than live design.
+  One of them — that a localhost `HttpListener` needs **no** admin rights and no URL ACL, only the
+  wildcard prefix does — had corrected a claim this repo had written down wrongly in `McpBridgeService`'s
+  own header. That finding is worth more than the code was, so it outlived it.
+
+**Two sweep hazards found while removing it, both worth more than this feature:**
+
+1. **A raw NUL byte made `grep` silently skip this very file.** Line 723 documented a corrupted NUL
+   separator by *containing* one, so ripgrep/grep classified all 2,111 lines as binary and printed
+   `Binary file ... matches` with no lines — hiding the entire Web Panel history section from every
+   keyword sweep. Replaced with an escaped `\0`. **A "Binary file matches" line in a text-file search is
+   a failed read, not a result. Never treat it as "nothing there".**
+2. **Five parallel sweeps mapped the whole repo and all five missed the installed copies.** They
+   inventoried `src/`, `dist/`, docs and the published zip — but not
+   `%APPDATA%\...\Revit\Addins\<year>\AJ Tools\`, which is where the add-in Ajmal actually runs lives.
+   Every one of those was still the pre-removal build, so the button would have stayed on his ribbon
+   while every in-repo check reported the feature gone. **Deleting a feature from the source does not
+   remove it from the machine — the install is a separate place and has to be re-checked by name.**
+
 ### 2026-08-13 (v1.43.0 shipped, and two traps found while shipping it)
 
 **v1.43.0 had been fully prepared but never shipped.** All six version references agreed, the
@@ -720,7 +757,7 @@ launching rather than "fixing" it.
   one hits "bridge not connected" cleanly, which is exactly the proof the C# generation path itself never
   throws before reaching the pipe.
 - **Real bug caught by that extra scrutiny, not by `node --check` alone**: rewriting `connectionKey()`
-  into the new file corrupted its ` ` separator into a literal raw NUL byte. `node --check` passed
+  into the new file corrupted its `\0` separator into a literal raw NUL byte. `node --check` passed
   anyway (a NUL byte is legal inside a JS template literal) — `grep` flagging the file as "binary" was
   the tell. Fixed with a byte-level buffer replace. **Lesson for any future refactor of this scale**:
   `node --check` (or a clean compile) proves syntax validity, not byte-for-byte fidelity to the original —

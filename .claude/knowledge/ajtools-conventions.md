@@ -96,7 +96,7 @@ place rather than leaving stale info sitting next to the new truth.
 **The ProgramData auto-deploy was BROKEN and is now disabled (found 2026-08-12)**
 - `DeployAjToolsAddin` copied only `$(TargetPath)`, the PDB and `@(Content)` — the DLL and the icons.
   It **never copied the NuGet dependencies** (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit),
-  so it produced a **7.7 MB install missing everything the AI shell and Web Panel need** — and
+  so it produced a **7.7 MB install missing everything the AI shell needs** — and
   registered it under the **same AddInId** as the complete AppData one. Two registrations for one
   add-in, and no way to tell from the outside which Revit was loading.
 - Found while clearing disk space: ProgramData held a "1.43.0" with no dependencies, AppData a
@@ -755,27 +755,28 @@ v1.44.0 2026-08-13 at Ajmal's instruction — code deleted, not disabled)**
   The pipe is still right for the AI bridge (no port to pick, unreachable from a browser by construction),
   but never repeat the old claim as a reason to rule out a loopback HTTP server. A localhost-only prefix
   also raises no Windows Firewall prompt, because it is not reachable from another machine.
-- **Names, not code.** The browser sends a tool **id** from a fixed registry compiled into the add-in
-  (`WebPanelToolRunner.RegisteredTools`) — never C#, a path, or a script. So the worst a hostile page can
-  do is press a button that is already on the ribbon. This is deliberately narrower than the AJ AI bridge,
-  which *does* accept code (guarded by `GeneratedCodeSafetyValidator`). **Do not widen the registry to
-  "run whatever was sent" when the download-tools-from-a-website idea gets built** — that step needs a
-  signature check (Ajmal signs each tool, the connector verifies before running) designed first, or a
-  hacked website becomes code execution on every colleague's PC.
+- **Names, not code.** The browser sent a tool **id** from a fixed registry compiled into the add-in —
+  never C#, a path, or a script. So the worst a hostile page could do was press a button already on the
+  ribbon. That was deliberately narrower than the AJ AI bridge, which *does* accept code (guarded by
+  `GeneratedCodeSafetyValidator`). **The rule to carry forward: if the download-tools-from-a-website idea
+  is ever built, do not let the far end run whatever was sent** — that step needs a signature check
+  (Ajmal signs each tool, the connector verifies before running) designed first, or a hacked website
+  becomes code execution on every colleague's PC.
 - **Two defences, because each alone has a hole**: a per-session token injected into the served page, AND
   an `Origin` header check. A hostile page in another tab cannot read the token (CORS blocks it reading
   the response) but could otherwise fire blind requests — the Origin check stops exactly that. Neither
   stops another *program* running as Ajmal; nothing can, and the named pipe has the same property.
 - **Serve the page from the listener itself.** Same origin means no CORS and no mixed-content fight — the
-  problem an https website would hit trying to reach `http://localhost`. The page then asks `/api/tools`
-  for its buttons rather than hardcoding them, so adding a registry entry makes a button appear with no
-  HTML edit. Keep that property; it is what the "post a tool, everyone gets it" plan rests on.
-- **One logic, two front doors.** A tool reachable from both the ribbon and the panel keeps its model work
-  in a service that **returns** its report (`UnhideAllService` → `UnhideAllResult.Summary`) and shows
-  nothing. The command turns that into a `TaskDialog`; the panel returns it as JSON. **A `TaskDialog`
-  raised from shared code is the trap here** — triggered from a browser it appears on the Revit screen and
-  blocks Revit until somebody physically walks over and clicks it, while the person watching the browser
-  sees nothing. Any further tool added to the panel must be split this same way first.
+  problem an https website would hit trying to reach `http://localhost`. The page asked `/api/tools`
+  for its buttons rather than hardcoding them, so adding a registry entry made a button appear with no
+  HTML edit. Worth reproducing if the "post a tool, everyone gets it" plan is ever built.
+- **One logic, two front doors.** A tool reachable from both the ribbon and a second caller keeps its
+  model work in a service that **returns** its report (`UnhideAllService` → `UnhideAllResult.Summary`)
+  and shows nothing. The command turns that into a `TaskDialog`; the panel returned it as JSON. **A
+  `TaskDialog` raised from shared code is the trap** — triggered from a browser it appears on the Revit
+  screen and blocks Revit until somebody physically walks over and clicks it, while the person watching
+  the browser sees nothing. This one still applies today: any tool given a second, non-UI caller must be
+  split this way first. `UnhideAllService` survives the removal as the worked example.
 - `ProcessStartInfo(url) { UseShellExecute = true }` — required to open a URL at all on .NET 8
   (Revit 2025+), where the plain `Process.Start(string)` overload defaults `UseShellExecute` to false and
   throws on anything that is not a real executable path. Identical behaviour on .NET Framework, so one
