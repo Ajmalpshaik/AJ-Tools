@@ -27,6 +27,18 @@ Two traps found while publishing it:
    and "fix" a file that was already correct. **The control test is the fix** — run the same extraction
    against a previously published version (`1.42.1`). If that returns 0 bytes too, it is your local awk,
    not your entry.
+3. **The shipped `install.cmd` cannot install Revit 2025/2026/2027 — NEEDS FIX.** `dist\install.ps1`
+   still carries a pre-multiversion guard: it treats the package as "a .NET Framework/Revit 2020-2024
+   build", installs the **root** `AJ Tools.dll` (the 2020 net472 build), and **skips 2025-2027** with a
+   `NEEDS_REVIEW` warning. It never looks at `Payload\<year>\` at all — the per-Revit builds that have
+   shipped in every zip since the multi-version backbone landed (2026-07-06). Consequences for anyone
+   installing a release the documented way: **2025/2026/2027 get nothing**, and 2021-2024 get the 2020
+   net472 build instead of their own net48 one. `INSTALL.md` meanwhile advertises "payloads for Revit
+   2020-2027", so the docs and the installer disagree. Verified against the v1.43.0 package on
+   2026-08-13; the payloads themselves are correct and complete (all eight at 1.43.0, right framework
+   each: net472 / net48 / net8.0 / net10.0). **The fix belongs in `dist\install.ps1`** — install
+   `Payload\<year>\` per version and drop the 2025-2027 guard. Until then, installing per-version from
+   the payload folders by hand is the only way to get 2025-2027 onto a machine.
 
 ### 2026-08-12 (Installer and publishing defects — all found by checking output, not code)
 
