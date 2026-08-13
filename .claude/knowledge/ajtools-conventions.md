@@ -43,26 +43,26 @@ place rather than leaving stale info sitting next to the new truth.
     just that "Build succeeded" was printed once per loop iteration.
   - **Never pipe a script that WRITES FILES through `Select-Object -First N`.** `-First` stops the
     upstream command the moment it has N items, by throwing `StopUpstreamCommandsException` — which
-    kills the producing script mid-run. Measured 2026-08-12 publishing AJ Connect's tool folder:
-    `publish-tools.ps1 ... | Select-Object -First 4` wrote the `.ajtool` fine, then was terminated
-    while `index.json` was still open, leaving a **0-byte file that shipped to the live website**.
+    kills the producing script mid-run. Measured 2026-08-12 on a publishing script:
+    `publish.ps1 ... | Select-Object -First 4` wrote its output files fine, then was terminated
+    while the index it also writes was still open, leaving a **0-byte file that shipped live**.
     The script exited 255 and that was the only warning. Use `Where-Object` to filter output, or
     capture to a variable and slice it afterwards — never `-First` on a side-effecting command.
   - **`Out-File -Encoding utf8` writes a BOM on Windows PowerShell.** Harmless for a human-read file,
     a real defect for anything a parser consumes: a leading U+FEFF makes strict JSON parsers fail
     with "unexpected character", which reads as broken data rather than a broken file. Found on the
-    live site the same day, serving `index.json` as `﻿[...]`. Use
+    a live site the same day, serving an index file as `﻿[...]`. Use
     `[System.IO.File]::WriteAllText($p, $t, (New-Object System.Text.UTF8Encoding($false)))` — no BOM
     on any PowerShell version, so it doesn't depend on which one runs it.
   - **A 200 response only proves a file EXISTS.** Both bugs above passed a `curl -o /dev/null -w
     "%{http_code}"` check and were only caught by fetching the body and parsing it. For any published
     artifact, verify the CONTENT, not the status code.
   - **`Invoke-WebRequest -UseBasicParsing` returns `.Content` as a STRING for text content types and
-    a BYTE ARRAY for binary ones** (`application/octet-stream`, which is what GitHub Pages serves an
-    unknown extension like `.ajtool` as). A verification script that assumes one shape silently
-    reports empty data for the other — this produced two false "signature invalid" results before the
-    harness itself was the thing at fault. Branch on `$c -is [byte[]]`. AJ Connect itself is
-    unaffected: `HttpClient.GetStringAsync` always returns a string.
+    a BYTE ARRAY for binary ones** (`application/octet-stream`, which is what GitHub Pages serves any
+    unknown file extension as). A verification script that assumes one shape silently reports empty
+    data for the other — this produced two false "signature invalid" results before the harness
+    itself turned out to be the thing at fault. Branch on `$c -is [byte[]]`. Code using
+    `HttpClient.GetStringAsync` is unaffected: it always returns a string.
   - **Never feed `Get-Content -Raw` straight into `ConvertTo-Json`** — use
     `[System.IO.File]::ReadAllText((Resolve-Path $p).Path)`. `Get-Content` decorates every string it
     returns with ETS note properties (`PSPath`, `PSParentPath`, `PSProvider`, `ReadCount`), and
