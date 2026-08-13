@@ -61,6 +61,18 @@ foreach ($target in $targets) {
         Remove-Item -LiteralPath $targetDir -Recurse -Force
     }
 
+    # Folders the installer set aside because Revit had them locked ("AJ Tools.<ticks>.old"), plus
+    # the timestamped payload folders the dev build deploy leaves ("AJ Tools.<ticks>"). Without this
+    # an uninstall looks clean while hundreds of MB stay behind - 2,086 MB had accumulated by
+    # 2026-08-12. Best-effort: anything still locked is skipped rather than failing the uninstall.
+    Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^AJ Tools\.\d+(\.old)?$' } |
+        ForEach-Object {
+            try { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop } catch {
+                Write-Warning "Could not remove $($_.FullName) - it is still in use."
+            }
+        }
+
     foreach ($manifest in $addinFiles) {
         $path = Join-Path $root $manifest
         if (Test-Path -LiteralPath $path) {
