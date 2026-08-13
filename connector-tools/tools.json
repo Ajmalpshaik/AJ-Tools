@@ -1,9 +1,0 @@
-[
-  {
-    "id": "unhide-all",
-    "name": "Unhide All",
-    "panel": "View",
-    "description": "Restore hidden elements in the active view.",
-    "code": "unhide-all.cs"
-  }
-]
