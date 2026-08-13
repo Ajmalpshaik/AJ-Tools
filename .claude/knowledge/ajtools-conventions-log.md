@@ -3,40 +3,22 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
-### 2026-08-12 (AJ Connect shipped — own repo, own website, signed tools, v1.2.0)
+### 2026-08-12 (Installer and publishing defects — all found by checking output, not code)
 
-Same day as the Web Panel below, and the thing it grew into. AJ Connect is now a separate product:
-public repo `Ajmalpshaik/AJ-Connect`, working copy `D:\Ajmal\AJ Connect`, released through GitHub
-Releases, live at `https://ajmalps.com/aj-connector/` with a control panel at `/panel/`. Tool sources
-sit in this repo's `connector-tools/` — private, deliberately. Rules in `ajtools-conventions.md`
-§ "Reaching AJ Tools from outside Revit".
-
-**Three defects worth remembering, all found by checking real output rather than reading code:**
+Three defects worth remembering, none of which a code review would have caught:
 
 1. **An installer that destroyed a working install.** It removed the add-in registration BEFORE
    copying new files, so a copy that failed on a DLL Revit had locked left the machine with nothing.
    Hit for real mid-session. Rule: never destroy a working install before the replacement is in
    place; and locked files can be **renamed** even when they cannot be deleted, which is how you
-   update while Revit is open.
-2. **A 0-byte file published to the live website**, because the publish command was piped through
+   update while Revit is open. Directly relevant to this repo's own installer.
+2. **A 0-byte file published live**, because the publishing command was piped through
    `Select-Object -First 4` — which terminates the upstream script. It exited 255 and that was
    ignored.
 3. **A BOM in machine-read JSON** from `Out-File -Encoding utf8`.
 
-All three passed an HTTP 200 check. **A 200 proves a file exists, not that anything is in it.**
-
-**Also a correction to how the earlier conversation went.** The first read of Ajmal's idea was that he
-wanted the ribbon moved into a browser, and that got argued against at length — correctly, on its own
-terms, and entirely beside the point. What he wanted was *tools shipping without redeploying a DLL*.
-When a request keeps coming back in slightly different words, the disagreement is usually about what
-was heard, not about what is right.
-
-**Website control** (v1.1.0): ajmalps.com can drive Revit directly, gated on four things — same
-computer (localhost is not routable, so remote is impossible by construction, which is what Ajmal
-explicitly asked for), one exact origin, a pairing code, and signed-tools-only. Off by default. The
-website can switch it OFF but never ON: an endpoint that let a website grant itself permission would
-defeat the permission. Chrome's Private Network Access preflight had to be answered for any of it to
-work, and could not be verified from the dev environment — Ajmal confirmed it live.
+All three passed an HTTP 200 check. **A 200 proves a file exists, not that anything is in it.** The
+rules that came out of 2 and 3 are in `ajtools-conventions.md`.
 
 ### 2026-08-12 (Web Panel — AJ Tools buttons in a browser, v1.43.0)
 

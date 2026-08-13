@@ -15,11 +15,11 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
   For a compile-only check, always pass `-p:SkipAjToolsAutoDeploy=true`.
 - Packaging scripts live in `dist/`; releases ship through the separate `AJ-Tools-Installer` GitHub
   repo (see `RELEASE_PROCESS.md`). GitHub/git work goes through the `aj-tools-github` skill.
-- **Never add a `connector/` or `connector-tools/` folder under this root.** Both are gitignored,
-  and a separate product once lived here and was moved out for exactly the reason the old
-  `AJ Tools\` tree demonstrated: two copies drift. AJ Tools' own built-in Web Panel
-  (`src/WebPanel/`, v1.43.0) is a *different* thing and stays — it runs the compiled tools with no
-  signing step, on ports 48210-48229. Leave 48230-48249 alone; they are spoken for.
+- **Never add a `connector/` or `connector-tools/` folder under this root.** Both are gitignored:
+  a separate product once lived here and was moved out for exactly the reason the old `AJ Tools\`
+  tree demonstrated — two copies drift. AJ Tools' own built-in Web Panel (`src/WebPanel/`, v1.43.0)
+  stays and is unrelated to that; it runs the compiled tools with no signing step, on ports
+  **48210-48229**. Keep it to that range.
 
 **Hard rule — trees you must never edit:** `AJ Tools\` (old copy of the project) and `_backup\`
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated
