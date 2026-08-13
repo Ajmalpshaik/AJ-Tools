@@ -88,11 +88,30 @@ git push origin HEAD
 powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -Push
 ```
 
-9. Confirm the public release actually published (`gh` is NOT installed on this machine — use the API):
+9. Confirm the public release actually published. `gh` **is** installed and authenticated on this
+   machine (it was not when this document was first written, and that line stood stale until
+   2026-08-13). Watch the publish workflow, then verify what a user actually downloads — the download
+   check is the one that matters, since a release can exist with a truncated or missing asset:
+
+```powershell
+gh run watch (gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status
+gh release view v1.43.0 --repo Ajmalpshaik/AJ-Tools-Installer
+
+# Download the published asset and check it against the published checksum.
+# Run from a scratch folder - this writes the zip into the current directory.
+gh release download v1.43.0 --repo Ajmalpshaik/AJ-Tools-Installer
+sha256sum -c SHA256SUMS.txt
+```
+
+   If `gh` is ever unavailable, the API fallback still works:
 
 ```powershell
 Invoke-RestMethod -Uri "https://api.github.com/repos/Ajmalpshaik/AJ-Tools-Installer/releases/latest" -Headers @{ "User-Agent"="aj-tools" }
 ```
+
+   **Do not try to verify the release notes locally with awk.** Under GNU Awk 5.3.2 the workflow's
+   extraction pattern matches nothing and returns 0 bytes for *every* version, including ones already
+   published correctly. See the 2026-08-13 entry in `.claude/knowledge/ajtools-conventions-log.md`.
 
 ## Important Notes
 
