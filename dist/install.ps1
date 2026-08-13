@@ -5,8 +5,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$supportedNetFrameworkVersions = @(2020, 2021, 2022, 2023, 2024)
-$modernNetRequiredVersions = @(2025, 2026, 2027)
+# Which Revit versions can be installed is decided by what the package actually CONTAINS
+# (Payload\<year>\), never by a hardcoded list. Until 2026-08-13 this script carried
+# $modernNetRequiredVersions = 2025,2026,2027 and refused those outright, describing the package as
+# "a .NET Framework/Revit 2020-2024 build" - a guard left over from before the multi-version backbone
+# landed (2026-07-06). By then every release zip already shipped correct per-version builds under
+# Payload\, and this script never looked at them: it installed the root (2020, net472) DLL to
+# 2020-2024 and installed NOTHING on 2025-2027, while INSTALL.md advertised "payloads for Revit
+# 2020-2027". A hardcoded list cannot go stale if it does not exist, so there isn't one any more.
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -44,13 +50,52 @@ function Unblock-FilesInPath {
     }
 }
 
+function Clear-InstallDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    try {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+        return
+    } catch {
+        # Revit holds its loaded DLLs open, so the delete fails while it is running. A locked file
+        # can still be RENAMED, so move the whole folder aside and carry on, rather than leaving a
+        # half-deleted install behind. This is the rule from the 2026-08-12 installer defect: never
+        # destroy a working install before the replacement is in place.
+        $aside = "{0}.{1}.old" -f $Path, [DateTime]::Now.Ticks
+        Rename-Item -LiteralPath $Path -NewName (Split-Path -Leaf $aside) -Force
+    }
+}
+
+function Remove-OldSetAsideFolders {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AddinRoot
+    )
+
+    # Best-effort sweep of folders set aside by earlier runs. Anything a running Revit still holds
+    # open simply fails to delete and gets swept next time, so this can never fail the install.
+    Get-ChildItem -LiteralPath $AddinRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'AJ Tools.*.old' } |
+        ForEach-Object {
+            try { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop } catch { }
+        }
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $requiredDll = "AJ Tools.dll"
 $requiredDllPath = Join-Path $scriptDir $requiredDll
 $resourcesPath = Join-Path $scriptDir "Resources"
+$payloadRoot = Join-Path $scriptDir "Payload"
 
-if (-not (Test-Path -LiteralPath $requiredDllPath)) {
-    throw "AJ Tools.dll is missing in dist. Run .\dist\package.ps1 first, then run install again."
+if (-not (Test-Path -LiteralPath $payloadRoot) -and -not (Test-Path -LiteralPath $requiredDllPath)) {
+    throw "This package contains neither a Payload folder nor AJ Tools.dll. Run .\dist\package.ps1 first, then run install again."
 }
 
 if (-not (Test-Path -LiteralPath $resourcesPath)) {
@@ -61,9 +106,29 @@ if (-not (Test-Path -LiteralPath $resourcesPath)) {
 Unblock-FilesInPath -Path $scriptDir
 
 $blockedDllNames = @("RevitAPI.dll", "RevitAPIUI.dll")
-$dllPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.dll -File |
-    Where-Object { $blockedDllNames -notcontains $_.Name }
-$pdbPayload = Get-ChildItem -LiteralPath $scriptDir -Filter *.pdb -File -ErrorAction SilentlyContinue
+
+function Get-PayloadFilesForVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Version
+    )
+
+    # Preferred: the per-Revit build in Payload\<year>\. It carries that Revit's own DLL plus, for
+    # 2025+, the AJ Tools.deps.json the .NET host needs - which a root-only copy would leave behind.
+    $versionPayload = Join-Path $payloadRoot $Version
+    if (Test-Path -LiteralPath $versionPayload) {
+        return @(Get-ChildItem -LiteralPath $versionPayload -File -Recurse -Force |
+            Where-Object { $blockedDllNames -notcontains $_.Name })
+    }
+
+    # Fallback for a legacy single-build package with no Payload folder at all.
+    if (Test-Path -LiteralPath $requiredDllPath) {
+        return @(Get-ChildItem -LiteralPath $scriptDir -File |
+            Where-Object { $_.Extension -in '.dll', '.pdb' -and $blockedDllNames -notcontains $_.Name })
+    }
+
+    return @()
+}
 
 function Get-InstallTargets {
     param(
@@ -105,21 +170,13 @@ $skippedVersions = New-Object System.Collections.Generic.List[int]
 foreach ($target in $installTargets) {
     $version = [int]$target.Version
 
-    if ($modernNetRequiredVersions -contains $version) {
+    $payloadFiles = Get-PayloadFilesForVersion -Version $version
+    if ($payloadFiles.Count -eq 0) {
         if (-not $skippedVersions.Contains($version)) {
             $skippedVersions.Add($version)
         }
 
-        Write-Warning "Skipping Revit $version. This package is a .NET Framework/Revit 2020-2024 build. Revit $version requires a separate modern .NET build."
-        continue
-    }
-
-    if (-not ($supportedNetFrameworkVersions -contains $version)) {
-        if (-not $skippedVersions.Contains($version)) {
-            $skippedVersions.Add($version)
-        }
-
-        Write-Warning "Skipping Revit $version. AJ Tools has not been configured for this Revit version."
+        Write-Warning "Skipping Revit $version. This package carries no build for it (expected $payloadRoot\$version)."
         continue
     }
 
@@ -130,20 +187,23 @@ foreach ($target in $installTargets) {
     Write-Host "Installing AJ Tools for Revit $version ($($target.Scope)) to $targetDir"
 
     New-Item -ItemType Directory -Path $addinRoot -Force | Out-Null
-    Remove-Item -LiteralPath $targetDir -Recurse -Force -ErrorAction SilentlyContinue
+    Clear-InstallDirectory -Path $targetDir
     Remove-Item -LiteralPath $manifestPath -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
-    foreach ($dll in $dllPayload) {
-        Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $targetDir $dll.Name) -Force
-    }
-
-    foreach ($pdb in $pdbPayload) {
-        Copy-Item -LiteralPath $pdb.FullName -Destination (Join-Path $targetDir $pdb.Name) -Force
+    foreach ($file in $payloadFiles) {
+        Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $targetDir $file.Name) -Force
     }
 
     Copy-Item -LiteralPath $resourcesPath -Destination $targetDir -Recurse -Force
     Unblock-FilesInPath -Path $targetDir
+
+    $assemblyCheck = Join-Path $targetDir $requiredDll
+    if (-not (Test-Path -LiteralPath $assemblyCheck)) {
+        throw "Install for Revit $version failed: no $requiredDll landed in $targetDir."
+    }
+
+    Remove-OldSetAsideFolders -AddinRoot $addinRoot
 
     $assemblyPath = Join-Path $targetDir $requiredDll
     $addinXml = @"
@@ -183,5 +243,5 @@ if ($installedVersions.Count -gt 0) {
 if ($skippedVersions.Count -gt 0) {
     $skippedVersionText = [string]::Join(", ", @($skippedVersions | Sort-Object | ForEach-Object { $_.ToString() }))
     Write-Host "Skipped Revit versions: $skippedVersionText"
-    Write-Host "NEEDS_REVIEW: Revit 2025-2027 require separate modern .NET build outputs before they can be installed."
+    Write-Host "Those versions have no build in this package. Rebuild with .\dist\package.ps1 to include them."
 }
