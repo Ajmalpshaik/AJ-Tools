@@ -3,6 +3,31 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-13 (v1.43.0 shipped, and two traps found while shipping it)
+
+**v1.43.0 had been fully prepared but never shipped.** All six version references agreed, the
+CHANGELOG entry was written and dated, the Web Panel was tested in Revit — and there was no tag and no
+release. The public download sat at v1.42.1 while the source said 1.43.0. Worth remembering as a
+failure mode of its own: **"version bumped and changelogged" is not "released", and nothing in the repo
+warns you about the gap.** The version-consistency checker passes happily, because every file it checks
+agrees with every other — it has no idea whether any of it was ever published.
+
+Two traps found while publishing it:
+
+1. **`gh` IS installed and authenticated on this machine.** `RELEASE_PROCESS.md` step 9 says it is not,
+   and routes you through `Invoke-RestMethod` against the public API to confirm a release. That line is
+   stale — the whole release was driven with `gh` (`gh release list/view/download`, `gh run watch`).
+   Corrected in the document.
+2. **Do not verify the release-notes extraction locally with GNU Awk — it lies.** The publish workflow
+   pulls the release body out of `CHANGELOG.md` with an awk dynamic regex, `"^## \\[" version "\\] - "`.
+   Under **GNU Awk 5.3.2** (this machine's Git Bash) that `\[` is treated as a plain `[`, so the pattern
+   becomes a character class and matches nothing — the extraction returns **0 bytes**. It does this for
+   **every** version, including ones already published with correct notes. On the Ubuntu runner it works
+   fine. The danger is obvious: run it locally, see 0 bytes, conclude your changelog entry is malformed,
+   and "fix" a file that was already correct. **The control test is the fix** — run the same extraction
+   against a previously published version (`1.42.1`). If that returns 0 bytes too, it is your local awk,
+   not your entry.
+
 ### 2026-08-12 (Installer and publishing defects — all found by checking output, not code)
 
 Three defects worth remembering, none of which a code review would have caught:
