@@ -72,7 +72,7 @@
        DeployAjToolsAddin copied only $(TargetPath), the PDB and @(Content) -
        the DLL and the icons. It never copied the NuGet dependencies
        (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit). So it produced a
-       7.7 MB install missing everything the AI shell and Web Panel need, while
+       7.7 MB install missing everything the AI shell needs, while
        registering it under the SAME AddInId as the complete AppData one. Two
        registrations for one add-in, and the incomplete one could win.
 

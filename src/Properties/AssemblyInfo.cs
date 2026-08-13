@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.43.1
+ * Version       : 1.44.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-13
@@ -24,6 +24,21 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.44.0 (2026-08-13) - REMOVED: Web Panel, at Ajmal's instruction. The ribbon button, the local
+ *                       HTTP server, the served page and the tool registry are all gone -
+ *                       src/WebPanel/ deleted outright rather than switched off, so there is no
+ *                       setting to find and nothing left listening. Same treatment as the spoken
+ *                       voice in v1.42.0.
+ *                       Kept deliberately: UnhideAllService. It was split out of CmdUnhideAll to
+ *                       give the panel a UI-free entry point, but UI-free model work stands on its
+ *                       own merit and the ribbon button runs through it unchanged.
+ *                       Kept as findings, not as design: the measured notes in
+ *                       .claude/knowledge/ajtools-conventions.md about localhost HttpListener
+ *                       needing no admin rights, names-not-code, and token+Origin defences. The
+ *                       admin-rights one corrected a claim this repo had written down wrongly, so it
+ *                       outlives the feature that produced it.
+ *                       The AJ AI bridge (named pipe, McpBridgeService) is a DIFFERENT feature and
+ *                       is untouched.
  * v1.43.1 (2026-08-13) - FIX: the installer could not install Revit 2025/2026/2027 at all. It
  *                       refused them by a hardcoded list and installed the root 2020 net472 build to
  *                       2020-2024, never reading Payload\<year>\ - a guard left from before the
@@ -1490,8 +1505,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.43.1.0")]
-[assembly: AssemblyFileVersion("1.43.1.0")]
+[assembly: AssemblyVersion("1.44.0.0")]
+[assembly: AssemblyFileVersion("1.44.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

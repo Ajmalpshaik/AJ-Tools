@@ -2,10 +2,12 @@
 /*
  * Tool Name     : Unhide All (service)
  * File Name     : UnhideAllService.cs
- * Purpose       : The actual model work behind the Unhide All tool, separated from any UI so that
- *                 both front doors run identical code: the ribbon command (CmdUnhideAll, which
- *                 reports through a TaskDialog) and the Web Panel (which reports the same text
- *                 back to a browser). Returns a result object and shows nothing itself.
+ * Purpose       : The actual model work behind the Unhide All tool, separated from any UI so the
+ *                 command that calls it (CmdUnhideAll) only has to present the result. Returns a
+ *                 result object and shows nothing itself.
+ *                 The split was made for a second caller (the Web Panel) that was removed in 1.44.0.
+ *                 It is kept because UI-free model work is worth having on its own - it is the shape
+ *                 any future caller needs, and it is testable without a dialog.
  *
  * Author        : Ajmal P.S.
  * Version       : 1.0.0

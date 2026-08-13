@@ -17,9 +17,13 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
   repo (see `RELEASE_PROCESS.md`). GitHub/git work goes through the `aj-tools-github` skill.
 - **Never add a `connector/` or `connector-tools/` folder under this root.** Both are gitignored:
   a separate product once lived here and was moved out for exactly the reason the old `AJ Tools\`
-  tree demonstrated — two copies drift. AJ Tools' own built-in Web Panel (`src/WebPanel/`, v1.43.0)
-  stays and is unrelated to that; it runs the compiled tools with no signing step, on ports
-  **48210-48229**. Keep it to that range.
+  tree demonstrated — two copies drift.
+- **AJ Tools does not serve a web page, and must not grow one back without Ajmal asking.** A built-in
+  Web Panel shipped in v1.43.0 (a ribbon button starting a localhost HTTP server that ran ribbon tools
+  from a browser) and was **removed at Ajmal's instruction in v1.44.0** — code deleted, not disabled,
+  the same way the spoken voice went in v1.42.0. The AJ AI bridge (named pipe, `McpBridgeService`) is a
+  **different** feature and stays. What was learned building the panel is kept as lessons in
+  `.claude/knowledge/ajtools-conventions.md`; treat that section as history, not as a live design.
 
 **Hard rule — trees you must never edit:** `AJ Tools\` (old copy of the project) and `_backup\`
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated

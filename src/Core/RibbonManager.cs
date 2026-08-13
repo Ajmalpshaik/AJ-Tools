@@ -367,7 +367,6 @@ namespace AJTools.App
         {
             AddTopLevelTool(panel, AddAiTool());
             AddTopLevelTool(panel, AddAiBridgeTool());
-            AddTopLevelTool(panel, AddWebPanelTool());
             AddTopLevelTool(panel, AddRunPinnedTool());
         }
 
@@ -428,21 +427,6 @@ namespace AJTools.App
                 "AJ_AI_OFF.png",
                 "AJ_AI_OFF.png",
                 pushButton => App.AiBridgeButton = pushButton);
-        }
-
-        private TopLevelToolSpec AddWebPanelTool()
-        {
-            // Starts on the OFF icon - no port is opened until the button is clicked. CmdToggleWebPanel
-            // swaps this same button's icon after each click via the App.WebPanelButton reference below.
-            // TODO: currently borrows the AJ AI icon pair; give it its own art.
-            return CreatePushToolSpec(
-                "Web\nPanel",
-                "Start the AJ Tools Web Panel and open it in your browser - the same tools as the " +
-                "ribbon, run from a web page on this computer. Click again to stop it.",
-                typeof(AJTools.WebPanel.Commands.CmdToggleWebPanel),
-                "AJ_AI_OFF.png",
-                "AJ_AI_OFF.png",
-                pushButton => App.WebPanelButton = pushButton);
         }
 
         private TopLevelToolSpec AddRunPinnedTool()

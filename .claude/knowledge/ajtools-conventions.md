@@ -739,7 +739,15 @@ place rather than leaving stale info sitting next to the new truth.
 - Destructive ops (Delete/Purge/file writes) are refused by the bridge unless explicitly allowed — this is intentional, don't try to route around it.
 
 
-**Reaching AJ Tools from outside Revit — the Web Panel rules (established v1.43.0, 2026-08-12)**
+**Reaching AJ Tools from outside Revit — lessons from the Web Panel (built v1.43.0 2026-08-12, REMOVED
+v1.44.0 2026-08-13 at Ajmal's instruction — code deleted, not disabled)**
+
+> **The feature is gone. These are kept as findings, not as a live design.** Several were *measured*
+> rather than assumed — particularly the admin-rights one, which corrected a belief this repo had
+> written down wrongly — so they are worth more than the code was. Anything that reaches Revit from
+> outside (a future connector, a colleague's tool, another bridge) should start from these rather than
+> rediscover them. **Do not read this section as a description of what AJ Tools currently does.**
+> `WebPanelToolRunner`, `WebPanelService` and `src/WebPanel/` no longer exist.
 - **A localhost `HttpListener` needs NO admin rights and NO URL ACL — only the wildcard does.** Measured
   on Ajmal's machine as a standard non-admin user: `http://localhost:5599/` starts fine; `http://+:5599/`
   throws `Access is denied`; a raw `TcpListener` on 127.0.0.1 also works. `McpBridgeService`'s header note

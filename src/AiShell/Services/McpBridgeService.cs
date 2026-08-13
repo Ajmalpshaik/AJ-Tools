@@ -31,9 +31,10 @@
  *   that as the reason to prefer a pipe. That is only true of the WILDCARD prefix. Tested on Ajmal's
  *   machine as a standard non-admin user: HttpListener on "http://localhost:5599/" starts fine, while
  *   "http://+:5599/" throws "Access is denied". So an explicit localhost prefix needs no admin and no
- *   netsh reservation - see WebPanelService, which relies on exactly that. The pipe is still the right
- *   choice HERE (no port to pick, nothing a browser can reach at all), but don't repeat the old claim
- *   as a reason to rule out a loopback HTTP server elsewhere.
+ *   netsh reservation. (The Web Panel ran on exactly that and proved it; the feature was removed in
+ *   1.44.0, but the measurement stands and is the reason this note is kept.) The pipe is still the
+ *   right choice HERE (no port to pick, nothing a browser can reach at all), but don't repeat the old
+ *   claim as a reason to rule out a loopback HTTP server elsewhere.
  * - Every request must include the per-session token written to the discovery file at Start() -
  *   this stops any other local process from driving Revit through the pipe unnoticed.
  * - Every request is still scanned by GeneratedCodeSafetyValidator before it reaches RoslynService,

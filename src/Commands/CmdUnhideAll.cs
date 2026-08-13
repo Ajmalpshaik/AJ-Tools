@@ -82,7 +82,7 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                // The model work lives in UnhideAllService so the Web Panel runs the identical code.
+                // The model work lives in UnhideAllService, UI-free; this command only presents it.
                 UnhideAllResult result = UnhideAllService.Run(doc, doc.ActiveView);
 
                 TaskDialog.Show(ToolTitle, result.Summary);
