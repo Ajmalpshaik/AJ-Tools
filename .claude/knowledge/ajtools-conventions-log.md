@@ -27,7 +27,8 @@ Two traps found while publishing it:
    and "fix" a file that was already correct. **The control test is the fix** — run the same extraction
    against a previously published version (`1.42.1`). If that returns 0 bytes too, it is your local awk,
    not your entry.
-3. **The shipped `install.cmd` cannot install Revit 2025/2026/2027 — NEEDS FIX.** `dist\install.ps1`
+3. **The shipped `install.cmd` could not install Revit 2025/2026/2027 — FIXED, shipped in v1.43.1.**
+   `dist\install.ps1`
    still carries a pre-multiversion guard: it treats the package as "a .NET Framework/Revit 2020-2024
    build", installs the **root** `AJ Tools.dll` (the 2020 net472 build), and **skips 2025-2027** with a
    `NEEDS_REVIEW` warning. It never looks at `Payload\<year>\` at all — the per-Revit builds that have
@@ -36,9 +37,17 @@ Two traps found while publishing it:
    net472 build instead of their own net48 one. `INSTALL.md` meanwhile advertises "payloads for Revit
    2020-2027", so the docs and the installer disagree. Verified against the v1.43.0 package on
    2026-08-13; the payloads themselves are correct and complete (all eight at 1.43.0, right framework
-   each: net472 / net48 / net8.0 / net10.0). **The fix belongs in `dist\install.ps1`** — install
-   `Payload\<year>\` per version and drop the 2025-2027 guard. Until then, installing per-version from
-   the payload folders by hand is the only way to get 2025-2027 onto a machine.
+   each: net472 / net48 / net8.0 / net10.0). Fixed the same day in v1.43.1: installable versions are
+   now read from what `Payload\` contains rather than a list in the script, so it cannot drift from
+   the package again. **The lesson is the shape of the bug, not the bug** — a hardcoded capability
+   list in the installer silently outlived the build system that made it true, and nothing failed
+   loudly: the build was green, the package was correct, the docs promised 2020-2027, and only an
+   actual install on a 2025+ machine would have shown it. Anything that hardcodes what the product
+   supports should be derived from the product instead.
+   **Verify a release by installing from the built zip, not by reading the script.** v1.43.0 was
+   published having verified the payloads (all eight present, right framework each) but never having
+   run its own installer — which is precisely the step that would have caught this. v1.43.1 was
+   verified by extracting the published zip and running its `install.ps1` the way a user does.
 
 ### 2026-08-12 (Installer and publishing defects — all found by checking output, not code)
 
