@@ -5,6 +5,31 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.43.1] - 2026-08-13
+
+- **Fixed**: **The installer could not install Revit 2025, 2026 or 2027 at all.** `dist\install.ps1`
+  refused those three by a hardcoded list, reporting the package as "a .NET Framework/Revit 2020-2024
+  build", and installed the **root** (2020, net472) assembly to Revit 2020-2024. It never read
+  `Payload\<year>\` — the per-Revit builds that have shipped in every release zip since the
+  multi-version backbone landed on 2026-07-06. So anyone installing the documented way got **nothing**
+  on 2025-2027, and the wrong framework build on 2021-2024, while `INSTALL.md` advertised payloads for
+  2020-2027. The packages themselves were always correct; only the installer was stale.
+- **Changed**: Which Revit versions can be installed is now read from what `Payload\` actually
+  contains, rather than a list in the script — the list cannot drift from the package again. A legacy
+  package with no `Payload\` folder still installs from the root files.
+- **Fixed**: The installer no longer destroys a working install before the replacement is in place. It
+  deleted the target folder first, so with Revit holding a DLL open the delete failed silently and the
+  copy could leave nothing behind. A locked folder is now renamed aside instead — the rule from the
+  2026-08-12 installer defect.
+- **Fixed**: `uninstall.ps1` now removes the set-aside and timestamped payload folders it used to
+  leave behind, so an uninstall no longer reports success while hundreds of megabytes remain (2,086 MB
+  had accumulated by 2026-08-12).
+- **Note**: **No tool behaviour changed.** This release is packaging and installation only — every
+  ribbon button does exactly what it did in 1.43.0.
+- **Verified 2026-08-13** with Revit closed: the fixed installer installs all eight versions in one
+  run, each receiving its own framework build (net472 for 2020, net48 for 2021-2024, .NET 8 for
+  2025-2026, .NET 10 for 2027), one registration per version and no leftover folders.
+
 ## [1.43.0] - 2026-08-12
 
 - **Added**: **Web Panel.** A new ribbon button starts a small web server on this computer and opens a
