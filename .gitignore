@@ -84,9 +84,8 @@ graphify-out-*/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
-# AJ Connect moved out to its own public repository on 2026-08-12:
-#   https://github.com/Ajmalpshaik/AJ-Connect   (working copy: D:\Ajmal\AJ Connect)
-# It is NOT part of this repo any more. Two copies would drift apart, which has already cost real
-# time here once with the old "AJ Tools\" tree. If a connector/ folder reappears under this root,
-# it is a stale copy - the live one is in the other repository.
+# A separate product used to live under this root and was moved out to its own repository.
+# Two copies of anything drift apart, which has already cost real time here once with the old
+# "AJ Tools\" tree. If one of these folders reappears under this root it is a stale copy, not work.
 connector/
+connector-tools/
