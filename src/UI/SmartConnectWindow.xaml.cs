@@ -1,8 +1,8 @@
-﻿// Tool Name: Smart Connect Settings Window
-// Description: Code-behind for Smart Connect routing and angle settings UI.
+// Tool Name: Connect MEP Elements (Smart Connect) - Settings Window
+// Description: Code-behind for the Connect MEP Elements settings UI.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-25
+// Version: 2.1.0
+// Last Updated: 2026-08-15
 // Revit Version: 2020
 // Dependencies: AJTools.Models, AJTools.Services.SmartConnect
 
@@ -26,11 +26,11 @@ namespace AJTools.UI
         private readonly ObservableCollection<AngleItem> _customAngles = new ObservableCollection<AngleItem>();
         private bool _isInternalSelectionChange;
 
-        public SmartConnectRoutingMode SelectedRoutingMode { get; private set; } = SmartConnectRoutingMode.SingleElbow;
+        /// <summary>The settings as confirmed by the user. Only meaningful when <see cref="Confirmed"/> is true.</summary>
+        public SmartConnectSettings Settings { get; private set; }
 
-        public double SelectedAngleDegrees { get; private set; } = 90.0;
-
-        public IList<double> CustomAngles => _customAngles.Select(item => item.Value).ToList();
+        /// <summary>True when the user saved rather than cancelled.</summary>
+        public bool Confirmed { get; private set; }
 
         public SmartConnectWindow(SmartConnectSettings initialSettings)
         {
@@ -44,18 +44,24 @@ namespace AJTools.UI
             WindowMotionHelper.AttachStandardExit(this);
 
             CustomAnglesList.ItemsSource = _customAngles;
-            CustomAnglesList.DisplayMemberPath = nameof(AngleItem.DisplayName);
+            CustomAnglesList.DisplayMemberPath = "DisplayName";
 
-            ApplyInitialSettings(initialSettings ?? new SmartConnectSettings());
+            Settings = initialSettings ?? new SmartConnectSettings();
+            ApplySettingsToControls(Settings);
         }
+
+        // ------------------------------------------------------------------
+        // Angle editing
+        // ------------------------------------------------------------------
 
         private void OnAddCustomAngleClick(object sender, RoutedEventArgs e)
         {
             ErrorText.Text = string.Empty;
 
-            if (!SmartConnectSettingsService.TryParseAngle(CustomAngleBox.Text, out double angle))
+            double angle;
+            if (!SmartConnectSettingsService.TryParseAngle(CustomAngleBox.Text, out angle))
             {
-                ErrorText.Text = "Enter a valid practical angle (5 to 175).";
+                ErrorText.Text = "Enter an angle between 5 and 90.";
                 return;
             }
 
@@ -91,12 +97,7 @@ namespace AJTools.UI
 
         private void OnCustomAnglesSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_isInternalSelectionChange)
-            {
-                return;
-            }
-
-            if (CustomAnglesList.SelectedItem == null)
+            if (_isInternalSelectionChange || CustomAnglesList.SelectedItem == null)
             {
                 return;
             }
@@ -105,45 +106,98 @@ namespace AJTools.UI
             SetPresetSelection(false, false);
         }
 
+        // ------------------------------------------------------------------
+        // Buttons
+        // ------------------------------------------------------------------
+
         private void OnOkClick(object sender, RoutedEventArgs e)
         {
             ErrorText.Text = string.Empty;
 
-            SelectedRoutingMode = SmartConnectRoutingMode.SingleElbow;
-
-            if (Angle45Radio.IsChecked == true)
+            SmartConnectSettings collected;
+            string error;
+            if (!TryCollectSettings(out collected, out error))
             {
-                SelectedAngleDegrees = 45.0;
-            }
-            else if (Angle90Radio.IsChecked == true)
-            {
-                SelectedAngleDegrees = 90.0;
-            }
-            else if (CustomAnglesList.SelectedItem is AngleItem selectedCustom)
-            {
-                SelectedAngleDegrees = selectedCustom.Value;
-            }
-            else
-            {
-                ErrorText.Text = "Select one angle (45, 90, or one custom angle).";
+                ErrorText.Text = error;
                 return;
             }
 
+            Settings = collected;
+            Confirmed = true;
             DialogResult = true;
             Close();
         }
 
         private void OnCancelClick(object sender, RoutedEventArgs e)
         {
+            Confirmed = false;
             DialogResult = false;
             Close();
         }
 
-        private void ApplyInitialSettings(SmartConnectSettings settings)
+        private void OnResetClick(object sender, RoutedEventArgs e)
         {
-            foreach (double angle in settings.CustomAngles.OrderBy(value => value))
+            ErrorText.Text = string.Empty;
+            _customAngles.Clear();
+            ApplySettingsToControls(new SmartConnectSettings());
+        }
+
+        /// <summary>
+        /// Shows or hides the advanced block. Everything in it stays live either way - collapsing it
+        /// only keeps it out of the way, it never resets or ignores a setting.
+        /// </summary>
+        private void OnToggleAdvancedClick(object sender, RoutedEventArgs e)
+        {
+            bool isHidden = AdvancedPanel.Visibility != Visibility.Visible;
+            AdvancedPanel.Visibility = isHidden ? Visibility.Visible : Visibility.Collapsed;
+            AdvancedToggleButton.Content = isHidden ? "Hide advanced settings" : "Show advanced settings";
+        }
+
+        // ------------------------------------------------------------------
+        // Control state
+        // ------------------------------------------------------------------
+
+        private void ApplySettingsToControls(SmartConnectSettings settings)
+        {
+            SmartConnectSettings source = settings ?? new SmartConnectSettings();
+
+            ModeAutoRadio.IsChecked = source.RoutingMode == SmartConnectRoutingMode.Auto;
+            ModeSingleElbowRadio.IsChecked = source.RoutingMode == SmartConnectRoutingMode.SingleElbow;
+            ModeOffsetRadio.IsChecked = source.RoutingMode == SmartConnectRoutingMode.OffsetWithTwoElbows;
+
+            MoveBothRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.Both;
+            MoveFirstRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.FirstOnly;
+            MoveSecondRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.SecondOnly;
+            MoveNoneRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.None;
+
+            AngleFallbackCheck.IsChecked = source.UseAngleFallback;
+            AllowConduitCheck.IsChecked = source.AllowConduit;
+            AllowFlexCheck.IsChecked = source.AllowFlexCurves;
+            AllowFamilyInstanceCheck.IsChecked = source.AllowFamilyInstanceConnectors;
+            AllowNonParallelCheck.IsChecked = source.AllowNonParallelEnds;
+
+            BatchFromSelectionCheck.IsChecked = source.BatchFromSelection;
+            SingleUndoCheck.IsChecked = source.SingleUndoForBatch;
+            SummaryReportCheck.IsChecked = source.ShowSummaryReport;
+            MaxPairDistanceBox.Text = source.MaxPairDistanceMm.ToString("0.##", CultureInfo.CurrentCulture);
+
+            CopyInsulationCheck.IsChecked = source.CopyInsulationAndLining;
+            CopyParametersCheck.IsChecked = source.CopyInstanceParameters;
+            AutoTransitionCheck.IsChecked = source.AutoTransitionOnSizeMismatch;
+            WarnOnClashCheck.IsChecked = source.WarnOnClash;
+
+            ApplyAngleSelection(source);
+        }
+
+        private void ApplyAngleSelection(SmartConnectSettings settings)
+        {
+            _customAngles.Clear();
+
+            IEnumerable<double> saved = settings.CustomAngles ?? new List<double>();
+            foreach (double angle in saved.OrderBy(value => value))
             {
-                if (SmartConnectSettingsService.TryNormalizeAngle(angle, out double normalized) &&
+                double normalized;
+                if (SmartConnectSettingsService.TryNormalizeAngle(angle, out normalized) &&
                     !SmartConnectSettingsService.IsPredefinedAngle(normalized) &&
                     !ContainsCustomAngle(normalized))
                 {
@@ -163,7 +217,8 @@ namespace AJTools.UI
                 return;
             }
 
-            if (SmartConnectSettingsService.TryNormalizeAngle(settings.SelectedAngleDegrees, out double customAngle))
+            double customAngle;
+            if (SmartConnectSettingsService.TryNormalizeAngle(settings.SelectedAngleDegrees, out customAngle))
             {
                 if (!SmartConnectSettingsService.IsPredefinedAngle(customAngle) && !ContainsCustomAngle(customAngle))
                 {
@@ -178,6 +233,104 @@ namespace AJTools.UI
             }
 
             SelectPresetAngle(90.0);
+        }
+
+        private bool TryCollectSettings(out SmartConnectSettings settings, out string errorMessage)
+        {
+            settings = null;
+            errorMessage = string.Empty;
+
+            double selectedAngle;
+            if (Angle45Radio.IsChecked == true)
+            {
+                selectedAngle = 45.0;
+            }
+            else if (Angle90Radio.IsChecked == true)
+            {
+                selectedAngle = 90.0;
+            }
+            else
+            {
+                AngleItem selectedCustom = CustomAnglesList.SelectedItem as AngleItem;
+                if (selectedCustom == null)
+                {
+                    errorMessage = "Choose one angle: 45, 90, or one from the custom list.";
+                    return false;
+                }
+
+                selectedAngle = selectedCustom.Value;
+            }
+
+            double maxPairDistance;
+            if (!SmartConnectSettingsService.TryParseDistanceMm(MaxPairDistanceBox.Text, out maxPairDistance))
+            {
+                errorMessage = "Enter a pairing distance between 100 and 50000 mm.";
+                return false;
+            }
+
+            settings = new SmartConnectSettings
+            {
+                RoutingMode = ReadRoutingMode(),
+                MoveMode = ReadMoveMode(),
+                SelectedAngleDegrees = selectedAngle,
+                CustomAngles = _customAngles.Select(item => item.Value).ToList(),
+                UseAngleFallback = AngleFallbackCheck.IsChecked == true,
+
+                // The window does not edit the fallback list, so carry the saved one through -
+                // building a fresh object here would silently reset it on every save.
+                FallbackAngles = Settings != null && Settings.FallbackAngles != null
+                    ? Settings.FallbackAngles.ToList()
+                    : new SmartConnectSettings().FallbackAngles,
+                AllowConduit = AllowConduitCheck.IsChecked == true,
+                AllowFlexCurves = AllowFlexCheck.IsChecked == true,
+                AllowFamilyInstanceConnectors = AllowFamilyInstanceCheck.IsChecked == true,
+                AllowNonParallelEnds = AllowNonParallelCheck.IsChecked == true,
+                BatchFromSelection = BatchFromSelectionCheck.IsChecked == true,
+                SingleUndoForBatch = SingleUndoCheck.IsChecked == true,
+                ShowSummaryReport = SummaryReportCheck.IsChecked == true,
+                MaxPairDistanceMm = maxPairDistance,
+                CopyInsulationAndLining = CopyInsulationCheck.IsChecked == true,
+                CopyInstanceParameters = CopyParametersCheck.IsChecked == true,
+                AutoTransitionOnSizeMismatch = AutoTransitionCheck.IsChecked == true,
+                WarnOnClash = WarnOnClashCheck.IsChecked == true
+            };
+
+            return true;
+        }
+
+        private SmartConnectRoutingMode ReadRoutingMode()
+        {
+            if (ModeSingleElbowRadio.IsChecked == true)
+            {
+                return SmartConnectRoutingMode.SingleElbow;
+            }
+
+            if (ModeOffsetRadio.IsChecked == true)
+            {
+                return SmartConnectRoutingMode.OffsetWithTwoElbows;
+            }
+
+            return SmartConnectRoutingMode.Auto;
+        }
+
+        private SmartConnectMoveMode ReadMoveMode()
+        {
+            if (MoveFirstRadio.IsChecked == true)
+            {
+                return SmartConnectMoveMode.FirstOnly;
+            }
+
+            if (MoveSecondRadio.IsChecked == true)
+            {
+                return SmartConnectMoveMode.SecondOnly;
+            }
+
+            if (MoveNoneRadio.IsChecked == true)
+            {
+                return SmartConnectMoveMode.None;
+            }
+
+            return SmartConnectMoveMode.Both;
         }
 
         private bool ContainsCustomAngle(double value)
@@ -233,12 +386,12 @@ namespace AJTools.UI
             public AngleItem(double value)
             {
                 Value = value;
-                DisplayName = value.ToString("0.##", CultureInfo.CurrentCulture) + "\u00B0";
+                DisplayName = value.ToString("0.##", CultureInfo.CurrentCulture) + "°";
             }
 
-            public double Value { get; }
+            public double Value { get; private set; }
 
-            public string DisplayName { get; }
+            public string DisplayName { get; private set; }
         }
     }
 }

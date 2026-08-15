@@ -8,6 +8,65 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-15 (Connect MEP Elements: sign error folded the offset crank back on itself — FIXED, suite 1.47.2)
+- **Symptom**: none visible. Found by a six-dimension multi-agent audit of freshly written code, not by
+  a user report. 27 findings raised, 13 survived adversarial verification, all fixed.
+- **Root cause (the one that mattered)**. In the parallel-offset planner, the required axial gap `r`
+  can be taken off the offset in two ways: `axisOffset - r` or `axisOffset + r`. The code chose
+  `Math.Abs(optionA) <= Math.Abs(optionB) ? optionA : optionB` — "move the ends as little as
+  possible", which sounds obviously right and is completely wrong. The bridging vector is
+  `between - d1*totalShift`, so its axial component is `axisOffset - totalShift` and the bend angle
+  satisfies `tan(theta) = perpLen / (axisOffset - totalShift)`. **The SIGN of that term sets the
+  angle, not its magnitude.** `optionA` gives `+r` → theta = the requested angle. `optionB` gives
+  `-r` → theta = 180 - requested, i.e. the bridge doubles back over the run it just left. And
+  `|optionB| < |optionA|` exactly when `axisOffset < 0` — which is every pair whose open ends have
+  already passed each other, the ordinary overlapping crank. `ResultingAngleDegrees` was still set to
+  the requested angle, so a 135° fold-back was reported to the user as 45°.
+- **Why it hid**: the default angle is 90°, where `r = 0` makes both options identical. Only 45° and
+  other custom angles broke, and only when the runs overlapped.
+- **Why my own earlier reasoning missed it**: while writing `TryDistributeShift` I proved that only
+  the SUM of the two shifts matters, not how it is split — which is true — and then used that to
+  conclude the shift value itself was safe. The proof was about the split; it said nothing about
+  which of the two candidate sums to pick.
+- **Lesson — the general trap**: when a quantity can be reached two ways and you pick between them by
+  "least movement" / "smallest change" / "nearest", check what that quantity actually *controls*. A
+  tie-break chosen on one property (travel distance) silently decided a different property (bend
+  direction). If a value feeds a trig relation, the sign is part of the answer.
+- **Others fixed in the same pass**: the closest-approach solve divides by `1 - dot^2` and is
+  ill-conditioned within ~2.6° of parallel (now screened by deflection and travel bounds); flex could
+  never join rigid because `AreCompatible` compared raw `BuiltInCategory` and `OST_FlexDuctCurves !=
+  OST_DuctCurves`, making the entire flex path unreachable; a geometry-fixed angle was reported as an
+  angle "substitution" so every in-line route raised a false warning; `FallbackAngles` was sorted
+  (destroying a deliberate try-order) and dropped on every window save.
+- **Verified how**: the critical one re-derived by hand before applying the fix, not taken on the
+  reviewer's word. Clean builds at Release (2020) and R21/R24/R25 (net48/.NET 8), zero warnings.
+  **Not yet exercised in Revit** — Ajmal to test live.
+
+### 2026-08-15 (Connect MEP Elements: a routing mode that could never be chosen, and angles that could never be built — FIXED, suite 1.47.0)
+- **Symptom**: not reported by Ajmal — both found while studying the tool for a feature update. Neither
+  throws, which is exactly why they survived from v1.0.0 (2026-03-25) to now.
+- **Root cause 1 — "Offset + 2 Elbows" was dead code.** `SmartConnectSettingsService.Sanitize()` carried
+  the line `result.RoutingMode = SmartConnectRoutingMode.SingleElbow;` unconditionally. `Sanitize` runs on
+  **both** `Load()` and `Save()`, so the mode was overwritten coming and going and could never be selected.
+  The window reinforced it by hardcoding `SelectedRoutingMode = SingleElbow` in its OK handler. ~200 lines
+  of working offset-routing code in the builder were unreachable.
+- **Root cause 2 — the settings window offered angles the builder rejects.** The service validated custom
+  angles against `MinAllowedAngle = 5.0` / `MaxAllowedAngle = 175.0`, but
+  `TryBuildSingleElbowMepCurveRoute` bailed out on anything over `90 + AngleToleranceDegrees` (92.5°). So
+  an angle of, say, 120° could be typed, saved, persisted and selected — and then failed on *every*
+  subsequent pick with "Single Elbow supports practical elbow angles up to 90 degrees." The two limits
+  were written independently and never reconciled.
+- **Fix**: removed the forcing line and let the mode persist (adding an `Auto` mode that tries trimming
+  first, then inserting). Capped the settings range at the honest 5–90°, and clamp rather than discard an
+  older saved angle above 90 so an existing settings file lands on 90 instead of silently resetting.
+- **Lesson worth carrying**: both bugs are the same shape — **two places holding the same rule, neither
+  aware of the other**. A validation range in the settings layer and a feasibility check in the geometry
+  layer must come from one constant, or they drift apart silently. Same for an enum that a sanitiser is
+  allowed to overwrite: a "sanitise" step that *sets* a value rather than *rejecting* an invalid one will
+  quietly delete a feature.
+- **Verified how**: code-review plus clean builds at Release (2020) and Release R25 (.NET 8), zero
+  warnings. **Not yet loaded in Revit** — Ajmal to test the live behaviour.
+
 ### 2026-08-11 (Transfer Drafting Views / Transfer Legends create the view but it arrives EMPTY — FIXED, suite 1.42.1)
 - **Symptom (Ajmal's words)**: "transfer drafting views its not working properly its creating the view in
   anothonr model but inside that drafting view its not creating we need that also chek inide the legents
@@ -785,3 +844,31 @@ AutoDebugger, or code-review only) -> date.
   further out. **Fix**: suppress the overall row at two datums, on by default and switchable. The same
   rewrite also isolated each row in its own transaction — previously one reference Revit refused threw
   out of the single shared transaction and the whole run placed nothing. -> 2026-08-15.
+
+- **Symptom**: in Auto MEP Dimension, ticking "Other services" did nothing — a duct never picked up the
+  pipe or cable tray crossing it — and the only thing that "worked" was ticking Pipes in section 1,
+  which then dimensioned every pipe as a run in its own right. **Root cause**: the collector sourced its
+  MEP-run references from `GetMeasuredCategories()`, i.e. the section 1 "Services to dimension" ticks,
+  then dropped the seed's own category. On the shipped default (Ducts only) that left an EMPTY list, so
+  the row shipped ticked and inert. Two lists were answering different questions with one set of data:
+  section 1 is *what gets dimensioned*, section 2 is *what it is measured to*. **Fix**: the reference
+  pass enumerates `SupportedMeasuredCategories` (all six) and splits same-vs-other by comparing against
+  the seed run's category; section 1 no longer gates section 2. **Lesson**: when one setting silently
+  constrains another, the inert control looks like a broken feature — and the user's workaround
+  (ticking the category) makes a second, worse problem. -> 2026-08-15.
+
+- **Symptom**: ticking only "Same service (duct to duct)" and saving came back with **Walls** switched
+  on again, silently. **Root cause**: two guards disagreed. `MepDimensionSettings.Normalize()` required a
+  target that is not None, not MepRun and not SameServiceRun, forcing Walls on when none existed; the
+  window's `Validate()` excluded only MepRun, so Save stayed enabled. Normalize then rewrote the choice
+  after the window closed. **Fix**: the window's guard now matches Normalize exactly, so the user is
+  told "tick at least one reference" instead of having their choice quietly changed. **Lesson**: a UI
+  validator and a model normaliser encoding the *same* rule in two places will drift — and when they do,
+  the silent one wins. -> 2026-08-15.
+
+- **Symptom**: "No grids or levels were found in this view to dimension", sending the modeller off to
+  check crop, visibility, worksets and links — when the real cause was `GridScope = Do not dimension`
+  set days earlier in a different project (the settings file is user-level and shared by every project
+  and all three buttons). **Fix**: the service now detects "nothing is switched on for this button" before
+  it collects anything and names the setting. **Lesson**: a "found nothing" message must be able to tell
+  *searched and found nothing* apart from *never searched*. -> 2026-08-15.

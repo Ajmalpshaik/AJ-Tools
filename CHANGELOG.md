@@ -5,6 +5,84 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.2] - 2026-08-15
+
+A full review pass over the rebuilt Connect MEP Elements before it goes out. 27 possible problems were
+raised, 13 held up when checked properly, and all 13 are fixed. Nothing below changes how you use the
+tool — it is all things that were quietly wrong underneath.
+
+- **Fixed**: **the 45° crank was being built backwards whenever the two runs overlapped.** Where two
+  parallel runs pass each other, the tool picked whichever end movement was *smaller* — but that
+  choice decides which side the bridge leans, and the small one leans the wrong way. The result was a
+  bridging piece folded back over the pipe it had just left, at 135° instead of 45°, still reported to
+  you as 45°. 90° was never affected, which is why it did not show up in normal use.
+- **Fixed**: **two nearly-parallel runs could be dragged an enormous distance to "meet".** Anything
+  within about 2.6° of parallel fell into the skew case, where the maths that finds the meeting point
+  becomes unstable and returns a point hundreds of metres away. It now refuses with a plain reason.
+- **Fixed**: **flex could never actually be connected.** The tool compared categories directly, and
+  Flex Duct is a different category from Duct — so every flex pick was rejected as "cannot be joined"
+  and the whole flex feature was unreachable. Flex now matches its rigid equivalent.
+- **Fixed**: **every straight in-line connection popped a needless warning** saying it had built at
+  180° instead of the angle you chose. A straight bridge has no bend; the angle you pick only ever
+  applied to an offset crank.
+- **Fixed**: **the fallback angle order was not the order it says.** The list 45°, 30°, 60°, 90° was
+  being sorted into 30°, 45°, 60°, 90°, and was thrown away and rebuilt from defaults every time you
+  pressed Save.
+- **Fixed**: with the "show a failed pair in the next prompt" setting **off**, a failed pair was
+  reported twice — once at the time and again at the end.
+- **Fixed**: **a big selection was slow**, because each element's ends were re-read once for every
+  other element instead of once in total.
+- **Changed**: a batch now **tells you when it left part of your selection alone** instead of quietly
+  reporting only what it managed to pair.
+- **Changed**: two error messages that pointed at settings which no longer exist, or gave no useful
+  number, now name the real setting and the actual gap in mm.
+
+## [1.47.1] - 2026-08-15
+
+- **Changed**: **the Connect MEP Elements settings window was too much to take in.** Ajmal's words:
+  "lot of settings you add make it understandable, now it's very difficult to understand what is
+  what." Seventeen controls were on one page when only four of them are real day-to-day choices.
+  The main page is now just **bend angle**, **which pipe is allowed to move**, **the pairing distance
+  for a big selection**, and **the clash warning**. Everything else moved into a collapsed
+  **"Show advanced settings"** block. **Nothing was removed** — every option still works exactly as
+  before and is already set correctly — and each one now carries a plain-English line underneath
+  saying what it is for and when you would change it.
+- **Changed**: 90° now sits above 45° in the angle list, since it is the default.
+
+## [1.47.0] - 2026-08-15
+
+**Connect MEP Elements** has been rebuilt, and its settings now live on their own ribbon button.
+
+- **Changed**: **no more dialog on every click.** The button is now a split button — the top half
+  connects straight away using your saved settings, and **"Connect MEP Elements Settings"** in the
+  dropdown is where you change them.
+- **Fixed**: **"Offset + 2 Elbows" never actually worked.** The mode existed and the code for it was
+  there, but the settings were being forced back to "Single Elbow" every time they were loaded *and*
+  every time they were saved, so it could never be selected. It works now, and it is the mode that
+  makes equipment and flex connectable, because it never moves the elements you picked.
+- **Fixed**: **custom angles above about 92° always failed.** The window let you type and save
+  anything up to 175°, then every single pick was rejected because the tool cannot build an elbow
+  that shallow between two facing ends. The range is now honestly 5–90°, and an older saved setting
+  above 90 is brought back down to 90 the first time it is read.
+- **Added**: **it now connects things it used to refuse.** Before, the two open ends had to be exactly
+  parallel and facing each other. It now also handles ends that are **in line** (a straight bridging
+  piece), ends whose runs **cross at an angle** (both pulled to the corner, one elbow), and ends that
+  **pass by each other** (bridged on the shortest line between them).
+- **Added**: **Conduit, Flex Duct and Flex Pipe**, plus **equipment, air terminals, fittings and
+  accessories** — anything with a free connector. Flex and equipment are never trimmed; the tool
+  inserts new pieces up to them instead.
+- **Added**: **batch connect.** Select a group of elements first and it pairs them up by nearest free
+  ends and connects the lot in one go. Ends further apart than your set distance are left alone.
+- **Added**: **control over which element gets trimmed** — both, only the first pick, only the second,
+  or neither.
+- **Added**: **angle fallback.** If your chosen angle will not build, it tries 45°, 30°, 60°, 90°
+  rather than just failing, and tells you which one it used.
+- **Added**: **one undo for a whole batch**, and **one summary at the end** instead of a popup for
+  every failure. In pick-by-pick mode the reason for a failed pair is carried into the next prompt.
+- **Added**: **the new pieces now match the run they join** — insulation, lining, Comments, Mark and
+  Workset are copied across, a transition is inserted automatically when the two picks are different
+  sizes, and there is an optional warning when the new route overlaps something.
+
 ## [1.46.0] - 2026-08-15
 
 - **Added**: **"A separate row for each run, stacked"** — a third way of drawing the dimensions, from

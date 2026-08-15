@@ -1,10 +1,14 @@
-// Tool Name: Smart Connect - Settings Service
-// Description: Persists Smart Connect settings to local JSON storage.
+// Tool Name: Connect MEP Elements (Smart Connect) - Settings Service
+// Description: Persists Connect MEP Elements settings to local JSON storage.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-25
+// Version: 2.0.0
+// Last Updated: 2026-08-15
 // Revit Version: 2020
 // Dependencies: Newtonsoft.Json, AJTools.Models
+//
+// Note: the maximum bend angle is 90 degrees. Earlier builds let the window save angles up to 175,
+// which the route builder then rejected on every pick. Anything above 90 found in an older settings
+// file is clamped back to 90 on load.
 
 using System;
 using System.Collections.Generic;
@@ -17,15 +21,21 @@ using Newtonsoft.Json;
 namespace AJTools.Services.SmartConnect
 {
     /// <summary>
-    /// Loads and saves Smart Connect settings to local JSON storage.
+    /// Loads and saves Connect MEP Elements settings to local JSON storage.
     /// </summary>
     internal sealed class SmartConnectSettingsService
     {
         private const string SettingsFolderName = "AJTools";
         private const string SettingsFileName = "SmartConnect.settings.json";
-        private const double MinAllowedAngle = 5.0;
-        private const double MaxAllowedAngle = 175.0;
+
+        public const double MinAllowedAngle = 5.0;
+        public const double MaxAllowedAngle = 90.0;
+
         private const double AngleEqualityTolerance = 0.0001;
+        private const double MinPairDistanceMm = 100.0;
+        private const double MaxPairDistanceMm = 50000.0;
+
+        private static readonly double[] DefaultFallbackAngles = { 45.0, 30.0, 60.0, 90.0 };
 
         public SmartConnectSettings Load()
         {
@@ -98,19 +108,46 @@ namespace AJTools.Services.SmartConnect
         public static bool TryParseAngle(string rawText, out double normalizedAngle)
         {
             normalizedAngle = 0;
-            string text = rawText?.Trim();
+            string text = rawText == null ? null : rawText.Trim();
             if (string.IsNullOrWhiteSpace(text))
             {
                 return false;
             }
 
-            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out double value) &&
+            double value;
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) &&
                 !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
             {
                 return false;
             }
 
             return TryNormalizeAngle(value, out normalizedAngle);
+        }
+
+        public static bool TryParseDistanceMm(string rawText, out double distanceMm)
+        {
+            distanceMm = 0;
+            string text = rawText == null ? null : rawText.Trim();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            double value;
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) &&
+                !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+            {
+                return false;
+            }
+
+            if (double.IsNaN(value) || double.IsInfinity(value) ||
+                value < MinPairDistanceMm || value > MaxPairDistanceMm)
+            {
+                return false;
+            }
+
+            distanceMm = Math.Round(value, 1, MidpointRounding.AwayFromZero);
+            return true;
         }
 
         public static bool IsPredefinedAngle(double angleDegrees)
@@ -123,60 +160,161 @@ namespace AJTools.Services.SmartConnect
             return Math.Abs(first - second) <= AngleEqualityTolerance;
         }
 
+        /// <summary>
+        /// Angles to try for one connection, best first: the chosen angle, then the fallback list
+        /// when fallback is enabled. Duplicates are removed so no angle is attempted twice.
+        /// </summary>
+        public static IList<double> BuildAngleAttemptOrder(SmartConnectSettings settings)
+        {
+            var order = new List<double>();
+            if (settings == null)
+            {
+                order.Add(90.0);
+                return order;
+            }
+
+            double selected;
+            if (!TryNormalizeAngle(settings.SelectedAngleDegrees, out selected))
+            {
+                selected = 90.0;
+            }
+
+            order.Add(selected);
+
+            if (!settings.UseAngleFallback)
+            {
+                return order;
+            }
+
+            IEnumerable<double> fallbacks = settings.FallbackAngles ?? new List<double>();
+            foreach (double candidate in fallbacks)
+            {
+                double normalized;
+                if (!TryNormalizeAngle(candidate, out normalized))
+                {
+                    continue;
+                }
+
+                if (!order.Any(existing => AreAnglesEqual(existing, normalized)))
+                {
+                    order.Add(normalized);
+                }
+            }
+
+            return order;
+        }
+
         private static SmartConnectSettings CreateDefault()
         {
-            return new SmartConnectSettings
-            {
-                RoutingMode = SmartConnectRoutingMode.SingleElbow,
-                SelectedAngleDegrees = 90.0,
-                CustomAngles = new List<double>()
-            };
+            return Sanitize(new SmartConnectSettings());
         }
 
         private static SmartConnectSettings Sanitize(SmartConnectSettings settings)
         {
-            SmartConnectSettings result = settings ?? CreateDefault();
-            result.RoutingMode = SmartConnectRoutingMode.SingleElbow;
+            SmartConnectSettings result = settings ?? new SmartConnectSettings();
 
-            var customAngles = new List<double>();
-            if (result.CustomAngles != null)
+            if (!Enum.IsDefined(typeof(SmartConnectRoutingMode), result.RoutingMode))
             {
-                foreach (double angle in result.CustomAngles)
-                {
-                    if (!TryNormalizeAngle(angle, out double normalized))
-                    {
-                        continue;
-                    }
-
-                    if (IsPredefinedAngle(normalized))
-                    {
-                        continue;
-                    }
-
-                    if (!customAngles.Any(existing => AreAnglesEqual(existing, normalized)))
-                    {
-                        customAngles.Add(normalized);
-                    }
-                }
+                result.RoutingMode = SmartConnectRoutingMode.Auto;
             }
 
-            customAngles.Sort();
-            result.CustomAngles = customAngles;
-
-            if (!TryNormalizeAngle(result.SelectedAngleDegrees, out double selectedAngle))
+            if (!Enum.IsDefined(typeof(SmartConnectMoveMode), result.MoveMode))
             {
-                selectedAngle = 90.0;
+                result.MoveMode = SmartConnectMoveMode.Both;
+            }
+
+            result.CustomAngles = SanitizeAngleList(result.CustomAngles, true, false);
+
+            double selectedAngle;
+            if (!TryNormalizeAngle(result.SelectedAngleDegrees, out selectedAngle))
+            {
+                // Clamp rather than discard, so an older file that stored e.g. 120 degrees
+                // lands on the nearest angle the tool can actually build.
+                selectedAngle = ClampAngle(result.SelectedAngleDegrees);
             }
 
             if (!IsPredefinedAngle(selectedAngle) &&
-                !customAngles.Any(angle => AreAnglesEqual(angle, selectedAngle)))
+                !result.CustomAngles.Any(angle => AreAnglesEqual(angle, selectedAngle)))
             {
-                customAngles.Add(selectedAngle);
-                customAngles.Sort();
+                result.CustomAngles.Add(selectedAngle);
+                result.CustomAngles.Sort();
             }
 
             result.SelectedAngleDegrees = selectedAngle;
+
+            // Order matters here - it is a try-order, not a display list - so it must not be sorted.
+            List<double> fallbacks = SanitizeAngleList(result.FallbackAngles, false, true);
+            if (fallbacks.Count == 0)
+            {
+                fallbacks = DefaultFallbackAngles.ToList();
+            }
+
+            result.FallbackAngles = fallbacks;
+
+            if (double.IsNaN(result.MaxPairDistanceMm) ||
+                double.IsInfinity(result.MaxPairDistanceMm) ||
+                result.MaxPairDistanceMm < MinPairDistanceMm ||
+                result.MaxPairDistanceMm > MaxPairDistanceMm)
+            {
+                result.MaxPairDistanceMm = 3000.0;
+            }
+
             return result;
+        }
+
+        private static List<double> SanitizeAngleList(IEnumerable<double> source, bool excludePredefined, bool preserveOrder)
+        {
+            var result = new List<double>();
+            if (source == null)
+            {
+                return result;
+            }
+
+            foreach (double angle in source)
+            {
+                double normalized;
+                if (!TryNormalizeAngle(angle, out normalized))
+                {
+                    continue;
+                }
+
+                if (excludePredefined && IsPredefinedAngle(normalized))
+                {
+                    continue;
+                }
+
+                if (!result.Any(existing => AreAnglesEqual(existing, normalized)))
+                {
+                    result.Add(normalized);
+                }
+            }
+
+            if (!preserveOrder)
+            {
+                result.Sort();
+            }
+
+            return result;
+        }
+
+        private static double ClampAngle(double angleDegrees)
+        {
+            if (double.IsNaN(angleDegrees) || double.IsInfinity(angleDegrees))
+            {
+                return 90.0;
+            }
+
+            if (angleDegrees < MinAllowedAngle)
+            {
+                return MinAllowedAngle;
+            }
+
+            if (angleDegrees > MaxAllowedAngle)
+            {
+                return MaxAllowedAngle;
+            }
+
+            return Math.Round(angleDegrees, 2, MidpointRounding.AwayFromZero);
         }
 
         private static string GetSettingsPath()
