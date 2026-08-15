@@ -56,14 +56,30 @@
                 <Setter Property="Margin" Value="0,0,0,8"/>
             </Style>
 
+            <!--
+              Both option styles wrap their text instead of clipping it. A plain string Content on a
+              RadioButton/CheckBox does NOT wrap by default in WPF - it silently overflows past the
+              edge of the window instead. That was latent here: harmless at the window's normal
+              width, but ResizeMode is CanResize with MinWidth=500, and at that width a long option
+              (e.g. "Neither - leave both alone and add new pieces") could run past the border with
+              no visible sign anything was cut off. The DataTemplate below fixes it everywhere at once.
+            -->
+            <DataTemplate x:Key="WrappingOptionContent">
+                <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+            </DataTemplate>
+
             <Style x:Key="OptionCheckBox" TargetType="CheckBox" BasedOn="{StaticResource ModernCheckBox}">
                 <Setter Property="Margin" Value="0,0,0,2"/>
                 <Setter Property="HorizontalAlignment" Value="Left"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="ContentTemplate" Value="{StaticResource WrappingOptionContent}"/>
             </Style>
 
             <Style x:Key="OptionRadioButton" TargetType="RadioButton" BasedOn="{StaticResource ModernRadioButton}">
                 <Setter Property="Margin" Value="0,0,0,2"/>
                 <Setter Property="HorizontalAlignment" Value="Left"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="ContentTemplate" Value="{StaticResource WrappingOptionContent}"/>
             </Style>
         </ResourceDictionary>
     </Window.Resources>
@@ -156,20 +172,27 @@
                                            Text="Bend angle"
                                            Style="{StaticResource SectionHeader}"/>
 
-                                <RadioButton x:Name="Angle90Radio"
-                                             Grid.Row="1" Grid.ColumnSpan="2"
-                                             Content="90&#176; — square across, takes the least room"
-                                             GroupName="AnglePreset"
-                                             Style="{StaticResource OptionRadioButton}"
-                                             Checked="OnPresetAngleChecked"/>
+                                <!-- 90 and 45 sit on one line - there is nothing to explain that
+                                     needs its own row, so the shared hint below covers both. -->
+                                <UniformGrid Grid.Row="1" Grid.ColumnSpan="2"
+                                             Columns="2"
+                                             Margin="0,0,0,6">
+                                    <RadioButton x:Name="Angle90Radio"
+                                                 Content="90&#176; — square across"
+                                                 GroupName="AnglePreset"
+                                                 Style="{StaticResource OptionRadioButton}"
+                                                 Checked="OnPresetAngleChecked"/>
 
-                                <RadioButton x:Name="Angle45Radio"
-                                             Grid.Row="2" Grid.ColumnSpan="2"
-                                             Content="45&#176; — gentler on flow, needs more length"
-                                             GroupName="AnglePreset"
-                                             Style="{StaticResource OptionRadioButton}"
-                                             Checked="OnPresetAngleChecked"
-                                             Margin="0,6,0,2"/>
+                                    <RadioButton x:Name="Angle45Radio"
+                                                 Content="45&#176; — gentler on flow"
+                                                 GroupName="AnglePreset"
+                                                 Style="{StaticResource OptionRadioButton}"
+                                                 Checked="OnPresetAngleChecked"/>
+                                </UniformGrid>
+
+                                <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                                           Text="90&#176; takes the least room. 45&#176; is kinder to flow but needs a longer run to fit."
+                                           Style="{StaticResource GroupHint}"/>
 
                                 <TextBlock Grid.Row="3" Grid.ColumnSpan="2"
                                            Text="Something else — type it, press Add, then pick it from the list (5&#176; to 90&#176;)"

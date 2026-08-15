@@ -24,6 +24,14 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.47.3 (2026-08-15) - Connect MEP Elements settings window: the two Bend angle presets (90/45)
+ *                       now sit on one line, with a single shared line underneath explaining the
+ *                       trade-off instead of one long sentence per option. Also fixed a latent UI
+ *                       bug found while checking it: a plain-string RadioButton/CheckBox Content
+ *                       does not wrap in WPF - it silently runs past the edge of the window instead
+ *                       - which mattered here because the window is resizable down to 500px wide.
+ *                       Every option in the window now wraps gracefully if it is ever long enough
+ *                       to need it. No behaviour change.
  * v1.47.2 (2026-08-15) - Connect MEP Elements audit pass: 27 findings raised by a six-dimension
  *                       multi-agent review, 13 confirmed after adversarial verification, all fixed.
  *                       Worst was a sign error in the offset planner: the shift option was chosen by
@@ -1647,8 +1655,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.2.0")]
-[assembly: AssemblyFileVersion("1.47.2.0")]
+[assembly: AssemblyVersion("1.47.3.0")]
+[assembly: AssemblyFileVersion("1.47.3.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
