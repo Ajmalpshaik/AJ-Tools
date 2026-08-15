@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.44.0
+ * Version       : 1.45.2
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-13
+ * Last Updated  : 2026-08-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,97 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.45.2 (2026-08-15) - "How the dimensions are drawn" fixed. Ajmal reported that of that whole
+ *                       section only "Include each run's own width" behaved; the rest did nothing
+ *                       useful. Settings were saving correctly (verified in the JSON), so all four were
+ *                       runtime faults:
+ *                       (1) OVERHANG could never work and is now REMOVED from both settings windows.
+ *                       NewDimension reads the supplied line for position and direction ONLY, then draws
+ *                       the dimension between the references itself - extra line length is discarded.
+ *                       The extension past the last witness line is a Dimension Type property in Revit.
+ *                       The control was a dead input; the window now says where the real setting lives.
+ *                       MepDimensionSettings.PaddingMm is kept, unused, so existing files still load.
+ *                       (2) SEPARATE-SEGMENTS produced overlapping dimensions: every segment's line was
+ *                       padded at BOTH ends, so each piece ran into its neighbours by twice the padding.
+ *                       Segments now span exactly their two references and sit end to end.
+ *                       (3) BOTH SIDES slid each chain along the run by ~6 mm x scale to keep them apart
+ *                       - solving a collision that cannot happen, since the two chains extend in
+ *                       OPPOSITE directions from the run. Removed, so both now sit on one continuous
+ *                       line. It also drew the run's width twice, once per side, when Include width was
+ *                       on; the width now belongs to one side only.
+ *                       (4) DIMENSION TYPE could offer an empty list: types were filtered on
+ *                       DimensionStyleType.Linear/LinearFixed with no fallback, so anything StyleType did
+ *                       not report as linear left the dropdown with only "(project default)". It now
+ *                       falls back to every dimension type rather than showing nothing.
+ *                       ResolveSideOffsetFeet and the padding arguments are gone with them.
+ * v1.45.1 (2026-08-15) - No success popup. Ajmal ran 1.45.0 live (6 dimensions across 6 linked models,
+ *                       first confirmed live run of the rebuilt tool) and asked for the report popup to
+ *                       go. Both dimension toolsets now finish SILENTLY when they dimensioned everything
+ *                       asked of them - the dimensions on screen are the result. The report still appears
+ *                       when nothing was created (there is nothing to look at otherwise) or when
+ *                       something was skipped or refused, which is the case the report existed for.
+ *                       Also dropped the per-link "Read linked model: X" lines from a successful report -
+ *                       six lines of noise - keeping them only when nothing was created, where they
+ *                       explain where the tool looked. The linked-dimension caveat now lives only in the
+ *                       settings windows, where links are switched on, rather than after every run.
+ *                       New DimensionRunReport.HasUnfinishedWork gates the popup; the ShowReport setting
+ *                       and both checkbox labels were reworded to match what it now does.
+ *                       This restores the house no-success-popup rule that v1.45.0 broke while fixing the
+ *                       opposite defect (a report built and never shown at all).
+ * v1.45.0 (2026-08-15) - Both dimension toolsets rebuilt on a shared engine, with settings windows.
+ *                       Auto Duct Dimension is now AUTO MEP DIMENSION: ducts, flex ducts, pipes, flex
+ *                       pipes, cable tray and conduit; measured to walls, structural columns, beams,
+ *                       architectural columns, floors, grids, levels and other runs; each reference
+ *                       target independently set to read from this model, from loaded Revit links, or
+ *                       both. Three modes now (pick runs / selected runs / whole view), sections and
+ *                       elevations as well as plans, one continuous string or separate segments,
+ *                       both-sides mode, and the run report is finally SHOWN - it was built and
+ *                       discarded before, so batch runs finished silently.
+ *                       Automatic Dimension (grids/levels) rewritten: both-sides placement, per-row
+ *                       dimension types, settings-driven offsets, name filters, story-levels-only,
+ *                       linked grids and levels, duplicate protection, and it no longer refuses to run
+ *                       on an uncropped view - it measures from the datums instead.
+ *                       Defects fixed: dimensions to LINKED elements needed the stable-representation
+ *                       rewrite (CreateLinkReference alone throws "not geometric references");
+ *                       Coarse views found no solids because the model-geometry fallback only ran on a
+ *                       null result; face positions came from PlanarFace.Origin, which can sit outside
+ *                       the face; one failing edge discarded a whole face's tessellation; the stable-key
+ *                       fallback collapsed every face on an element to one key; the search reach was
+ *                       read from a stale CropBox when the crop was off; round pipes and conduit have
+ *                       no flat faces and produced nothing (they now use their centreline); a two-grid
+ *                       view produced two identical stacked dimensions; and one reference Revit refused
+ *                       aborted an entire run. Element identity is now (link instance, element) rather
+ *                       than a bare id, which repeats across documents.
+ *                       Each run is now ONE undo step (TransactionGroup + Assimilate) instead of one
+ *                       per dimension.
+ *                       New: src/Models/Dimensioning/, src/Services/Dimensioning/,
+ *                       src/Services/MepReferenceDimension/, src/UI/Dimensioning/ (2 settings windows),
+ *                       CmdDimensionSettings.cs, MepReferenceDimensionCommand.cs.
+ *                       Removed: src/Services/DuctReferenceDimension/ (6 files) and
+ *                       DuctReferenceDimensionCommand.cs, replaced not disabled.
+ *                       Touched: AutoDimensionService.cs v2.0.0, CmdAutoDimensions.cs v2.0.0,
+ *                       AnnotationRibbonManager.cs v1.5.0, SelectionFilters.cs (comment only).
+ *                       A multi-agent adversarial review of the new code raised 27 candidate defects;
+ *                       22 survived refutation and all 22 were fixed before release. The ones that
+ *                       would have been visible to a modeller: a grid or level was accepted as the
+ *                       "nearest reference" without checking it runs square to the measurement, so half
+ *                       the grids in a normal grid system beat the real wall and Revit then rejected the
+ *                       whole chain; round runs still could not be dimensioned because a centreline is
+ *                       NON-VISIBLE geometry and needs IncludeNonVisibleObjects (new Reference(element)
+ *                       is valid only for datums, never for a pipe); a longer chain was discarded as a
+ *                       "duplicate" of a shorter one and its runs then retired, so which ducts got
+ *                       dimensioned depended on element id order; skipping an already-dimensioned grid
+ *                       removed it from the middle of the chain instead of skipping the row, printing
+ *                       6000/12000/6000 across an undimensioned grid; linked grids were classified from
+ *                       their flat plan curve so no linked grid ever dimensioned correctly in a section;
+ *                       linked datums were pulled from the whole link document with no crop culling,
+ *                       giving a 400 m dimension on a 30 m view; two runs stacked at the same position
+ *                       produced a zero-length segment that killed the row; and opening either settings
+ *                       window in a project lacking the saved dimension type silently erased that
+ *                       setting for every other project, since the store is one shared user-level file.
+ *                       Built clean on Release (2020) and Release R25, zero warnings. Both settings
+ *                       windows were parsed, laid out and resource-checked outside Revit.
+ *                       NOT loaded in Revit - no tool here has been run against a real model.
  * v1.44.0 (2026-08-13) - REMOVED: Web Panel, at Ajmal's instruction. The ribbon button, the local
  *                       HTTP server, the served page and the tool registry are all gone -
  *                       src/WebPanel/ deleted outright rather than switched off, so there is no
@@ -1505,8 +1596,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.44.0.0")]
-[assembly: AssemblyFileVersion("1.44.0.0")]
+[assembly: AssemblyVersion("1.45.2.0")]
+[assembly: AssemblyFileVersion("1.45.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

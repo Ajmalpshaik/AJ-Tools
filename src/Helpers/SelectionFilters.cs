@@ -91,9 +91,10 @@ namespace AJTools.Utils
     }
 
     /// <summary>
-    /// Selection filter for duct curves only. Named distinctly from
-    /// AJTools.Services.DuctReferenceDimension.DuctSelectionFilter (a different, more permissive
-    /// filter for a different tool) to avoid two same-named classes in different namespaces.
+    /// Selection filter for duct curves only. The distinct name dates from a collision with the
+    /// Auto Duct Dimension tool's own filter; that tool is now Auto MEP Dimension and its filter is
+    /// AJTools.Services.MepReferenceDimension.MepRunSelectionFilter, which covers every service
+    /// category and also accepts references inside Revit links.
     /// </summary>
     internal class DuctCurveOnlySelectionFilter : ISelectionFilter
     {
