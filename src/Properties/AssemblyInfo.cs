@@ -24,6 +24,18 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.47.4 (2026-08-15) - Fixed the real bug Ajmal caught by testing live: two straight ducts (or
+ *                       pipes) dead in line with a gap between them were always bridged with a
+ *                       brand new third piece, even when both picked elements were free to move.
+ *                       TryPlanParallelPair's Inline branch hard-coded FirstShift/SecondShift = 0 and
+ *                       NeedsMiddleSegment = true regardless of the move-mode setting, so the tool
+ *                       never used its own permission to stretch. It now shares the gap via
+ *                       TryDistributeShift exactly like the offset crank already did, stretching the
+ *                       real duct(s) the user picked and joining directly with no extra element -
+ *                       one changed duct instead of one new one, or none changed and both extended
+ *                       to meet in the middle. A brand new bridging piece is now created only when
+ *                       neither picked element is allowed to move (equipment, flex, or "Never touch
+ *                       the picked pipes"), where a real gap genuinely has to be filled.
  * v1.47.3 (2026-08-15) - Connect MEP Elements settings window: the two Bend angle presets (90/45)
  *                       now sit on one line, with a single shared line underneath explaining the
  *                       trade-off instead of one long sentence per option. Also fixed a latent UI
@@ -1655,8 +1667,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.3.0")]
-[assembly: AssemblyFileVersion("1.47.3.0")]
+[assembly: AssemblyVersion("1.47.4.0")]
+[assembly: AssemblyFileVersion("1.47.4.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

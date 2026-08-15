@@ -5,6 +5,15 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.4] - 2026-08-15
+
+- **Fixed**: **a bug Ajmal caught by testing the tool live.** Two straight ducts (or pipes) sitting in
+  line with a gap between them were always joined with a **brand new third piece**, even though both
+  of the picked ducts were free to move. The tool now **stretches your own duct across the gap**
+  instead — one of your ducts gets longer, or both meet halfway, and no extra element is added. A new
+  bridging piece is only created when neither of the two picked elements is actually allowed to move
+  (equipment, flex, or "Never touch the picked pipes"), where a real gap genuinely has to be filled.
+
 ## [1.47.3] - 2026-08-15
 
 - **Changed**: **the Bend angle section is tidier.** 90° and 45° now sit side by side on one line,

@@ -8,6 +8,31 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-15 (Connect MEP Elements: in-line gap always made a new duct instead of extending the real one — FIXED, suite 1.47.4)
+- **Symptom (Ajmal's words, live in Revit)**: "in the revit sliting means not single cut. split means
+  add a unian in the bitween liek that" → clarified on asking: "in this tool if there is extending
+  duct that is just creating the duct that is not currect chek that." Two straight ducts, dead in
+  line, with a gap between them: instead of stretching one of his existing ducts across the gap, the
+  tool inserted a brand new third duct to bridge it.
+- **Root cause**: `TryPlanParallelPair`'s Inline branch (the dead-in-line, no-bend-needed case)
+  hard-coded `FirstShift = 0`, `SecondShift = 0`, `NeedsMiddleSegment = true` unconditionally. It
+  never looked at `mayMoveFirst`/`mayMoveSecond` at all, so even with "Always cut the picked pipes
+  back" selected and both ends free to move, it always built a new bridging segment spanning the
+  whole gap and left both picked ducts untouched. The sibling branch for an offset crank
+  (`ParallelOffset`) already called `TryDistributeShift` to split the required travel between
+  whichever ends may move — Inline just never got the same treatment when it was written.
+- **Fix**: Inline now calls the same `TryDistributeShift` when at least one end may move, stretching
+  the real duct(s) to close the gap directly (no new element) - and falls back to a genuine new
+  bridging piece only when neither end is allowed to move (equipment, flex, "Never touch the picked
+  pipes"), where there is no existing element to stretch.
+- **Lesson**: when two branches of the same decision tree solve visibly similar problems (bend vs. no
+  bend), check that a capability added to one (respecting the move-mode setting) was actually carried
+  into the other, not just copy-pasted structure with the capability silently missing. This is the
+  second bug this feature has had from one branch getting a fix/feature the sibling branch didn't -
+  worth specifically re-scanning sibling code paths after any planner change.
+- **Verified how**: found by Ajmal running the live tool in Revit, not by review. Traced the exact
+  code path against his description before touching anything. Clean build, zero warnings.
+
 ### 2026-08-15 (Connect MEP Elements: sign error folded the offset crank back on itself — FIXED, suite 1.47.2)
 - **Symptom**: none visible. Found by a six-dimension multi-agent audit of freshly written code, not by
   a user report. 27 findings raised, 13 survived adversarial verification, all fixed.
