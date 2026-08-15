@@ -102,6 +102,13 @@ namespace AJTools.Models.Dimensioning
         SingleString,
 
         /// <summary>A separate two-reference dimension element per gap (the pre-1.45.0 behaviour).</summary>
-        SeparateSegments
+        SeparateSegments,
+
+        /// <summary>
+        /// One dimension per RUN, each measured from the same reference and stacked on its own row.
+        /// Two ducts going back to one wall then read as two independent dimensions, one under the other,
+        /// rather than as a single chain.
+        /// </summary>
+        RowPerRun
     }
 }

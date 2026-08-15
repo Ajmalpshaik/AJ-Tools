@@ -649,7 +649,7 @@ namespace AJTools.Services.MepReferenceDimension
         /// ("witness line extension"), so extending it from code changes nothing on the sheet - and
         /// padding each piece of a separate-segments chain made adjacent pieces overlap each other.
         /// </remarks>
-        internal static bool TryCreateDimensionLine(DimensionPlan plan, out string reason)
+        internal static bool TryCreateDimensionLine(DimensionPlan plan, double rowOffsetFeet, out string reason)
         {
             reason = string.Empty;
 
@@ -665,7 +665,8 @@ namespace AJTools.Services.MepReferenceDimension
             // Just enough to guarantee Line.CreateBound never sees a zero-length line.
             double slack = Constants.MIN_DISTANCE_TOLERANCE;
 
-            XYZ origin = plan.Axis.Origin;
+            // Row-per-run mode slides each row along the run so they stack instead of overprinting.
+            XYZ origin = plan.Axis.Origin + (plan.Axis.RunDirection * rowOffsetFeet);
 
             XYZ start = origin +
                         (plan.Axis.DimensionDirection * (minCoord - plan.Axis.OriginDimensionCoord - slack));

@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.45.2
+ * Version       : 1.46.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-15
@@ -24,6 +24,19 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.46.0 (2026-08-15) - NEW: "A separate row for each run, stacked" - a third chain style, from
+ *                       Ajmal's own sketch. Two ducts going back to one wall can now read as two
+ *                       independent dimensions, one under the other (924/300, then 3090/300, each
+ *                       measured from the wall), instead of a single chain where the second duct is
+ *                       measured from the first. Adds DimensionChainStyle.RowPerRun, a "Gap between
+ *                       stacked rows" setting (paper mm, default 8, scaled by the view), and
+ *                       MepDimensionCollector.AddRowPerRun. Rows stack outward from the reference, so
+ *                       the nearest run takes the first row.
+ *                       RIBBON: the "Auto Dimension" panel is merged into "Dimensions" at Ajmal's
+ *                       request - one panel, Auto MEP Dimension as the large button beside Automatic
+ *                       Dimension / Quick Dimension / Copy Dimension Text. No tool moved or changed.
+ *                       UI: the six service tick boxes now sit on ONE line (UniformGrid, 6 columns)
+ *                       instead of a WrapPanel breaking them 4 + 2.
  * v1.45.2 (2026-08-15) - "How the dimensions are drawn" fixed. Ajmal reported that of that whole
  *                       section only "Include each run's own width" behaved; the rest did nothing
  *                       useful. Settings were saving correctly (verified in the JSON), so all four were
@@ -1596,8 +1609,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.45.2.0")]
-[assembly: AssemblyFileVersion("1.45.2.0")]
+[assembly: AssemblyVersion("1.46.0.0")]
+[assembly: AssemblyFileVersion("1.46.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

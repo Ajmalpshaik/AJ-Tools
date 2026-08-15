@@ -96,6 +96,12 @@ namespace AJTools.Models.Dimensioning
         public bool IncludeRunWidth { get; set; }
 
         /// <summary>
+        /// Paper millimetres between one row and the next when each run gets its own row
+        /// (RowPerRun). Multiplied by the view scale, so it looks the same at any scale.
+        /// </summary>
+        public double RowSpacingMm { get; set; }
+
+        /// <summary>
         /// NO LONGER USED. Kept so an existing settings file still loads without complaint.
         /// It promised an overhang past the last witness line, which cannot be driven from code:
         /// NewDimension reads the supplied line for position and direction only and then draws the
@@ -183,6 +189,7 @@ namespace AJTools.Models.Dimensioning
                 ChainStyle = DimensionChainStyle.SingleString,
                 DimensionBothSides = false,
                 IncludeRunWidth = false,
+                RowSpacingMm = 8.0,
                 PaddingMm = 6.0,
                 DimensionTypeName = string.Empty,
 
@@ -240,6 +247,7 @@ namespace AJTools.Models.Dimensioning
             MinimumRunLengthMm = Clamp(MinimumRunLengthMm, 0.0, 100000.0, 1000.0);
             SearchBandMm = Clamp(SearchBandMm, 1.0, 5000.0, 150.0);
             PaddingMm = Clamp(PaddingMm, 0.0, 200.0, 6.0);
+            RowSpacingMm = Clamp(RowSpacingMm, 1.0, 200.0, 8.0);
 
             DimensionTypeName = DimensionTypeName ?? string.Empty;
         }
@@ -305,6 +313,7 @@ namespace AJTools.Models.Dimensioning
                 ChainStyle = ChainStyle,
                 DimensionBothSides = DimensionBothSides,
                 IncludeRunWidth = IncludeRunWidth,
+                RowSpacingMm = RowSpacingMm,
                 PaddingMm = PaddingMm,
                 DimensionTypeName = DimensionTypeName,
                 SearchBandMm = SearchBandMm,

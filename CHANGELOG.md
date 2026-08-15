@@ -5,6 +5,22 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.46.0] - 2026-08-15
+
+- **Added**: **"A separate row for each run, stacked"** — a third way of drawing the dimensions, from
+  Ajmal's own sketch. When two ducts run back to the same wall you can now get **two separate
+  dimensions, one under the other** — 924 / 300 on the first row, 3090 / 300 on the row below, each
+  measured from the wall — instead of one long chain where the second duct is measured from the first.
+  The nearest run takes the top row and each one further away steps down.
+- **Added**: **"Gap between stacked rows"** (mm on paper, default 8) to control how far apart those
+  rows sit. It scales with the view, so it looks the same at 1:50 and 1:100.
+- **Changed**: **One ribbon panel instead of two.** The separate "Auto Dimension" panel is gone — every
+  dimension tool now lives in **Dimensions**, with Auto MEP Dimension as the big button beside
+  Automatic Dimension, Quick Dimension and Copy Dimension Text. Nothing moved or changed inside the
+  tools themselves.
+- **Changed**: the six service tick boxes (Ducts, Flexible ducts, Pipes, Flexible pipes, Cable trays,
+  Conduits) now sit on **one line** instead of wrapping onto two.
+
 ## [1.45.2] - 2026-08-15
 
 Ajmal reported that in "How the dimensions are drawn", only *Include each run's own width* actually

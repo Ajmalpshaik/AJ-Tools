@@ -68,7 +68,7 @@ namespace AJTools.App
     internal sealed class AnnotationRibbonManager
     {
         private const string TabName = "AJ Annotation";
-        private const string DimensionPanelName = "Auto Dimension";
+        private const string DimensionPanelName = "Dimensions";
         private const string QuickDimensionIcon = "Dimensions by Line.png";
 
         private readonly UIControlledApplication _app;
@@ -93,10 +93,9 @@ namespace AJTools.App
                 // Tab already exists.
             }
 
-            RibbonPanel autoDimensionPanel = GetOrCreatePanel(DimensionPanelName);
-            AddAutoMepDimensionTool(autoDimensionPanel);
-
-            RibbonPanel dimensionsPanel = GetOrCreatePanel("Dimensions");
+            // One "Dimensions" panel holds every dimension tool - the separate "Auto Dimension" panel
+            // was merged into it, so Auto MEP Dimension now sits beside the others.
+            RibbonPanel dimensionsPanel = GetOrCreatePanel(DimensionPanelName);
             AddDimensionsPanelTools(dimensionsPanel);
 
             RibbonPanel annotationPanel = GetOrCreatePanel("Annotation");
@@ -246,6 +245,9 @@ namespace AJTools.App
         {
             if (panel == null)
                 return;
+
+            // Auto MEP Dimension leads as the large button, then the three stacked tools.
+            AddAutoMepDimensionTool(panel);
 
             PulldownButtonData autoDimData = new PulldownButtonData("cmdAutoDimensionsPulldown", "Automatic\nDimension");
             RibbonPanelHelper.ApplyIcons(autoDimData, _iconLoader, "Dimensions.png");
