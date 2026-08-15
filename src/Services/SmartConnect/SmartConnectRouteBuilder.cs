@@ -425,13 +425,48 @@ namespace AJTools.Services.SmartConnect
 
             if (perpendicularLength < JoinPointTolerance)
             {
-                // Dead in line with each other - a straight bridging piece is all that is needed.
+                // Dead in line with each other - no bend is needed, just closing the gap.
                 if (axisOffset <= MinSegmentLength)
                 {
                     errorMessage = "The two ends are in line but already touching - there is no gap to bridge.";
                     return false;
                 }
 
+                if (mayMoveFirst || mayMoveSecond)
+                {
+                    // At least one of the two picked runs can be stretched across the gap - so
+                    // stretch the real duct/pipe the user picked. Creating a brand new third piece
+                    // here (the old behaviour, always) was wrong: given permission to extend, the
+                    // tool should extend, not manufacture an element the model does not need.
+                    double inlineFirstShift;
+                    double inlineSecondShift;
+                    if (!TryDistributeShift(axisOffset, mayMoveFirst, mayMoveSecond, out inlineFirstShift, out inlineSecondShift, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    plan = new SmartConnectRoutePlan
+                    {
+                        Kind = SmartConnectPlanKind.Inline,
+                        FirstConnector = firstConnector,
+                        SecondConnector = secondConnector,
+                        FirstDirection = firstDirection,
+                        SecondDirection = secondDirection,
+                        FirstPlanPoint = firstPoint.Add(firstDirection.Multiply(inlineFirstShift)),
+                        SecondPlanPoint = secondPoint.Add(secondDirection.Multiply(inlineSecondShift)),
+                        FirstShift = inlineFirstShift,
+                        SecondShift = inlineSecondShift,
+                        NeedsMiddleSegment = false,
+                        ResultingAngleDegrees = 180.0,
+                        AngleFixedByGeometry = true
+                    };
+
+                    return true;
+                }
+
+                // Neither end may be trimmed (equipment, flex, or "Never touch the picked pipes") -
+                // there is genuinely no existing element to stretch, so a new bridging piece is the
+                // only way to close the gap.
                 plan = new SmartConnectRoutePlan
                 {
                     Kind = SmartConnectPlanKind.Inline,
