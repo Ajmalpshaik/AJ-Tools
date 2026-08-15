@@ -80,7 +80,9 @@
                             <TextBlock Text="1. Services to dimension" Style="{StaticResource SectionHeading}"/>
                             <TextBlock Style="{StaticResource HintText}"
                                        Text="Straight runs of these categories will be measured. Round pipes and conduit are measured to their centre line, because they have no flat sides to dimension to."/>
-                            <WrapPanel x:Name="CategoryPanel" Orientation="Horizontal"/>
+                            <!-- Six fixed columns rather than a WrapPanel: the services always read as
+                                 one row instead of breaking 4 + 2 as the window is resized. -->
+                            <UniformGrid x:Name="CategoryPanel" Columns="6" Margin="0,0,0,4"/>
 
                             <TextBlock Text="2. What to measure to" Style="{StaticResource SectionHeading}"/>
                             <TextBlock Style="{StaticResource HintText}"
@@ -142,17 +144,38 @@
 
                             <TextBlock Text="3. How the dimensions are drawn" Style="{StaticResource SectionHeading}"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <StackPanel Margin="0,0,0,6">
                                 <RadioButton x:Name="SingleStringRadio"
                                              Style="{StaticResource ModernRadioButton}"
                                              GroupName="ChainStyle"
                                              Content="One dimension string with segments"
-                                             Margin="0,0,18,0"/>
+                                             Margin="0,0,0,4"/>
+                                <RadioButton x:Name="RowPerRunRadio"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             GroupName="ChainStyle"
+                                             Content="A separate row for each run, stacked"
+                                             Margin="0,0,0,4"/>
                                 <RadioButton x:Name="SeparateSegmentsRadio"
                                              Style="{StaticResource ModernRadioButton}"
                                              GroupName="ChainStyle"
-                                             Content="A separate dimension for each gap"/>
+                                             Content="A separate dimension for each gap"
+                                             Margin="0,0,0,4"/>
                             </StackPanel>
+
+                            <TextBlock Style="{StaticResource HintText}"
+                                       Text="Two ducts back to one wall: the first gives 924 / 300 / 1866 / 300 on one line. The second gives 924 / 300 on its own row and 3090 / 300 on the row below, each measured from the wall."/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Gap between stacked rows" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox Grid.Column="1" x:Name="RowSpacingBox" Style="{StaticResource ModernTextBox}"/>
+                                <TextBlock Grid.Column="2" Text="mm on paper" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </Grid>
 
                             <CheckBox x:Name="BothSidesCheck"
                                       Style="{StaticResource ModernCheckBox}"

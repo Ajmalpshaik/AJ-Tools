@@ -88,6 +88,7 @@ namespace AJTools.UI.Dimensioning
 
             MinLengthBox.TextChanged += OnTextInputChanged;
             SearchBandBox.TextChanged += OnTextInputChanged;
+            RowSpacingBox.TextChanged += OnTextInputChanged;
 
             Load(settings ?? MepDimensionSettings.CreateDefault());
             Validate();
@@ -114,6 +115,7 @@ namespace AJTools.UI.Dimensioning
             }
 
             SingleStringRadio.IsChecked = settings.ChainStyle == DimensionChainStyle.SingleString;
+            RowPerRunRadio.IsChecked = settings.ChainStyle == DimensionChainStyle.RowPerRun;
             SeparateSegmentsRadio.IsChecked = settings.ChainStyle == DimensionChainStyle.SeparateSegments;
 
             BothSidesCheck.IsChecked = settings.DimensionBothSides;
@@ -123,6 +125,7 @@ namespace AJTools.UI.Dimensioning
             ShowReportCheck.IsChecked = settings.ShowReport;
 
             MinLengthBox.Text = Format(settings.MinimumRunLengthMm);
+            RowSpacingBox.Text = Format(settings.RowSpacingMm);
             SearchBandBox.Text = Format(settings.SearchBandMm);
 
             SelectDimensionType(settings.DimensionTypeName);
@@ -142,9 +145,12 @@ namespace AJTools.UI.Dimensioning
                 .Select(r => new MepDimensionTargetOption(r.Kind, r.ToScope()))
                 .ToList();
 
-            settings.ChainStyle = SeparateSegmentsRadio.IsChecked == true
-                ? DimensionChainStyle.SeparateSegments
-                : DimensionChainStyle.SingleString;
+            if (SeparateSegmentsRadio.IsChecked == true)
+                settings.ChainStyle = DimensionChainStyle.SeparateSegments;
+            else if (RowPerRunRadio.IsChecked == true)
+                settings.ChainStyle = DimensionChainStyle.RowPerRun;
+            else
+                settings.ChainStyle = DimensionChainStyle.SingleString;
 
             settings.DimensionBothSides = BothSidesCheck.IsChecked == true;
             settings.IncludeRunWidth = IncludeWidthCheck.IsChecked == true;
@@ -154,6 +160,9 @@ namespace AJTools.UI.Dimensioning
 
             if (TryParseNumber(MinLengthBox.Text, out double minLength))
                 settings.MinimumRunLengthMm = minLength;
+
+            if (TryParseNumber(RowSpacingBox.Text, out double rowSpacing))
+                settings.RowSpacingMm = rowSpacing;
 
             if (TryParseNumber(SearchBandBox.Text, out double band))
                 settings.SearchBandMm = band;
@@ -175,8 +184,8 @@ namespace AJTools.UI.Dimensioning
                 {
                     Content = GetCategoryLabel(category),
                     Style = (Style)FindResource("ModernCheckBox"),
-                    Margin = new Thickness(0, 0, 18, 6),
-                    MinWidth = 150
+                    Margin = new Thickness(0, 0, 8, 4),
+                    VerticalAlignment = VerticalAlignment.Center
                 };
 
                 box.Checked += OnAnyInputChanged;
@@ -248,6 +257,9 @@ namespace AJTools.UI.Dimensioning
 
             if (!anyReference)
                 return Reject("Tick at least one reference to measure to - a wall, column, beam, floor, grid or level.");
+
+            if (!TryParseNumber(RowSpacingBox.Text, out double rowSpacing) || rowSpacing < 1 || rowSpacing > 200)
+                return Reject("The gap between stacked rows must be between 1 and 200 mm.");
 
             if (!TryParseNumber(MinLengthBox.Text, out double minLength) || minLength < 0)
                 return Reject("Minimum run length must be 0 or more.");

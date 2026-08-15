@@ -611,7 +611,13 @@ namespace AJTools.Services.MepReferenceDimension
 
             if (_settings.ChainStyle == DimensionChainStyle.SingleString)
             {
-                return AddPlan(result, axis, seedRun, seedKey, ordered, covered);
+                return AddPlan(result, axis, seedRun, seedKey, ordered, covered, 0.0);
+            }
+
+            if (_settings.ChainStyle == DimensionChainStyle.RowPerRun)
+            {
+                return AddRowPerRun(
+                    result, view, axis, seedRun, seedKey, referenceTarget, runsInBetween, negative);
             }
 
             bool any = false;
@@ -629,8 +635,68 @@ namespace AJTools.Services.MepReferenceDimension
                     .Distinct(StringComparer.Ordinal)
                     .ToList();
 
-                if (AddPlan(result, axis, seedRun, seedKey, pair, segmentCovered))
+                if (AddPlan(result, axis, seedRun, seedKey, pair, segmentCovered, 0.0))
                     any = true;
+            }
+
+            return any;
+        }
+
+        /// <summary>
+        /// One dimension per run, each measured from the SAME reference and stacked on its own row.
+        /// Two ducts going back to one wall read as two independent dimensions, one under the other,
+        /// instead of a single chain where the second duct's figure is measured from the first.
+        /// </summary>
+        private bool AddRowPerRun(
+            DimensionPlanResult result,
+            View view,
+            DimensionAxis axis,
+            Element seedRun,
+            string seedKey,
+            DimensionReferenceCandidate referenceTarget,
+            IList<RunFaces> runsInBetween,
+            bool negative)
+        {
+            double scale = Math.Max(1.0, view?.Scale ?? 1.0);
+            double stepFeet = _settings.RowSpacingMm * Constants.MM_TO_FEET * scale;
+
+            bool any = false;
+            int row = 0;
+
+            // runsInBetween already runs from the reference towards the seed, so the closest run takes
+            // the first row and each one further away steps out by another row.
+            foreach (RunFaces run in runsInBetween)
+            {
+                DimensionReferenceCandidate near = negative ? run.MinFace : run.MaxFace;
+                DimensionReferenceCandidate far = negative ? run.MaxFace : run.MinFace;
+
+                List<DimensionReferenceCandidate> references = new List<DimensionReferenceCandidate>
+                {
+                    referenceTarget,
+                    near
+                };
+
+                if (_settings.IncludeRunWidth && !run.IsSingleReference)
+                    references.Add(far);
+
+                List<string> covered = new List<string> { run.ElementKey };
+
+                List<DimensionReferenceCandidate> ordered = CollapseCoincident(
+                    references
+                        .GroupBy(c => c.StableKey, StringComparer.Ordinal)
+                        .Select(g => g.First())
+                        .OrderBy(c => c.SortCoord)
+                        .ToList(),
+                    covered);
+
+                if (ordered.Count < 2)
+                    continue;
+
+                if (AddPlan(result, axis, seedRun, seedKey, ordered, covered, row * stepFeet))
+                {
+                    any = true;
+                    row++;
+                }
             }
 
             return any;
@@ -648,7 +714,8 @@ namespace AJTools.Services.MepReferenceDimension
             Element seedRun,
             string seedKey,
             IList<DimensionReferenceCandidate> references,
-            IList<string> covered)
+            IList<string> covered,
+            double rowOffsetFeet)
         {
             DimensionPlan plan = new DimensionPlan
             {
@@ -659,7 +726,7 @@ namespace AJTools.Services.MepReferenceDimension
                 CoveredElementKeys = covered
             };
 
-            if (!MepDimensionGeometry.TryCreateDimensionLine(plan, out string lineReason))
+            if (!MepDimensionGeometry.TryCreateDimensionLine(plan, rowOffsetFeet, out string lineReason))
             {
                 result.Failures.Add(Failure(seedRun.Id, lineReason));
                 return false;
