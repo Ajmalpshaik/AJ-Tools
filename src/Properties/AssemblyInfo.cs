@@ -24,6 +24,44 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.47.2 (2026-08-15) - Connect MEP Elements audit pass: 27 findings raised by a six-dimension
+ *                       multi-agent review, 13 confirmed after adversarial verification, all fixed.
+ *                       Worst was a sign error in the offset planner: the shift option was chosen by
+ *                       smallest travel, but the bend angle depends on the SIGN of
+ *                       (axisOffset - totalShift), so every crank whose open ends had already passed
+ *                       each other was built at the supplement (180 - angle) and folded back over
+ *                       the run it left, while still reporting the requested angle. Also: skew plans
+ *                       now screen deflection and travel (the closest-approach solve is
+ *                       ill-conditioned within 2.6 degrees of parallel and dragged runs enormous
+ *                       distances); flex could never join rigid because AreCompatible compared raw
+ *                       categories, making the whole flex path unreachable; every in-line route
+ *                       falsely reported "built at 180 degrees instead of your angle"; FallbackAngles
+ *                       was sorted (destroying the try-order) and dropped on every save; interactive
+ *                       failures were reported twice; batch pairing re-read connectors O(n^2) times
+ *                       and silently ignored unpaired elements.
+ * v1.47.1 (2026-08-15) - Connect MEP Elements settings window reorganised. Ajmal found 17 controls on
+ *                       one page unreadable ("very difficult to understand what is what"). Only the
+ *                       four real day-to-day choices stay on the main page - bend angle, which pipe
+ *                       may move, batch pairing distance, clash warning. The rest moved into a
+ *                       collapsed "advanced" block, nothing removed, each control gaining a
+ *                       plain-English hint line. Settings behaviour and persistence unchanged.
+ * v1.47.0 (2026-08-15) - Connect MEP Elements rebuilt, and its settings split onto their own ribbon
+ *                       button. The tool no longer opens a dialog on every click: it loads the saved
+ *                       settings and goes straight to work. Two defects fixed - the "Offset + 2
+ *                       Elbows" routing mode was dead (SmartConnectSettingsService.Sanitize forced
+ *                       SingleElbow on every load and save), and custom angles above ~92 degrees
+ *                       could be saved and selected but were rejected by the route builder on every
+ *                       pick (angle range now honestly capped at 5-90, older files clamped on load).
+ *                       New: one geometry planner covering in-line, corner, offset and skewed ends -
+ *                       previously only exactly parallel, facing ends were accepted; Conduit, Flex
+ *                       Duct/Pipe and connector-bearing family instances (equipment, air terminals,
+ *                       fittings, accessories) are now pickable; batch connect from a pre-selection
+ *                       with greedy nearest open-end pairing; control over which element may be
+ *                       trimmed; angle fallback instead of outright failure; optional single undo for
+ *                       a whole batch; one end-of-run summary in place of a popup per failure;
+ *                       insulation, lining, Comments, Mark and Workset copied onto new pieces;
+ *                       automatic transition on size mismatch; optional clash warning. Adds
+ *                       CmdSmartConnectSettings and SmartConnectRoutePlan.
  * v1.46.0 (2026-08-15) - NEW: "A separate row for each run, stacked" - a third chain style, from
  *                       Ajmal's own sketch. Two ducts going back to one wall can now read as two
  *                       independent dimensions, one under the other (924/300, then 3090/300, each
@@ -1609,8 +1647,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.46.0.0")]
-[assembly: AssemblyFileVersion("1.46.0.0")]
+[assembly: AssemblyVersion("1.47.2.0")]
+[assembly: AssemblyFileVersion("1.47.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

@@ -1,8 +1,8 @@
-// Tool Name: Smart Connect - Settings Model
-// Description: Stores persisted Smart Connect routing and angle preferences.
+// Tool Name: Connect MEP Elements (Smart Connect) - Settings Model
+// Description: Stores persisted Connect MEP Elements routing, batch, and quality preferences.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-25
+// Version: 2.0.0
+// Last Updated: 2026-08-15
 // Revit Version: 2020
 // Dependencies: System.Collections.Generic
 
@@ -11,23 +11,105 @@ using System.Collections.Generic;
 namespace AJTools.Models
 {
     /// <summary>
-    /// Routing modes supported by Smart Connect.
+    /// Routing modes supported by Connect MEP Elements.
     /// </summary>
     public enum SmartConnectRoutingMode
     {
+        /// <summary>Trim both open ends back and bridge them with one middle segment and two elbows.</summary>
         SingleElbow = 0,
-        OffsetWithTwoElbows = 1
+
+        /// <summary>Build a three segment offset run (rolling offset) between the two open ends.</summary>
+        OffsetWithTwoElbows = 1,
+
+        /// <summary>Try Single Elbow first, then fall back to the offset route.</summary>
+        Auto = 2
     }
 
     /// <summary>
-    /// Persisted Smart Connect settings.
+    /// Controls which of the two picked elements may have its end moved.
+    /// </summary>
+    public enum SmartConnectMoveMode
+    {
+        /// <summary>Share the required shift equally between both elements.</summary>
+        Both = 0,
+
+        /// <summary>Only the first picked element may move; the second stays put.</summary>
+        FirstOnly = 1,
+
+        /// <summary>Only the second picked element may move; the first stays put.</summary>
+        SecondOnly = 2,
+
+        /// <summary>Neither element moves; the route is inserted between them as they are.</summary>
+        None = 3
+    }
+
+    /// <summary>
+    /// Persisted Connect MEP Elements settings.
     /// </summary>
     public class SmartConnectSettings
     {
-        public SmartConnectRoutingMode RoutingMode { get; set; } = SmartConnectRoutingMode.SingleElbow;
+        // --- Routing ---
+
+        public SmartConnectRoutingMode RoutingMode { get; set; } = SmartConnectRoutingMode.Auto;
 
         public double SelectedAngleDegrees { get; set; } = 90.0;
 
         public List<double> CustomAngles { get; set; } = new List<double>();
+
+        /// <summary>
+        /// When the chosen angle cannot be built, retry with the fallback angles instead of failing.
+        /// </summary>
+        public bool UseAngleFallback { get; set; } = true;
+
+        public List<double> FallbackAngles { get; set; } = new List<double> { 45.0, 30.0, 60.0, 90.0 };
+
+        // --- What may be connected ---
+
+        /// <summary>Allow open ends that are not parallel (skewed or perpendicular runs).</summary>
+        public bool AllowNonParallelEnds { get; set; } = true;
+
+        /// <summary>Allow picking equipment, air terminals, fittings and accessories, not just straight runs.</summary>
+        public bool AllowFamilyInstanceConnectors { get; set; } = true;
+
+        /// <summary>Allow Conduit as a supported category.</summary>
+        public bool AllowConduit { get; set; } = true;
+
+        /// <summary>Allow Flex Duct and Flex Pipe as supported categories.</summary>
+        public bool AllowFlexCurves { get; set; } = true;
+
+        // --- Element movement ---
+
+        public SmartConnectMoveMode MoveMode { get; set; } = SmartConnectMoveMode.Both;
+
+        // --- Batch and reporting ---
+
+        /// <summary>When elements are already selected, connect them all instead of asking for picks.</summary>
+        public bool BatchFromSelection { get; set; } = true;
+
+        /// <summary>Commit a whole batch as one undo step instead of one per pair.</summary>
+        public bool SingleUndoForBatch { get; set; } = true;
+
+        /// <summary>
+        /// While picking pairs, carry a failed attempt into the next pick prompt rather than
+        /// interrupting with a popup. Batch runs always report through the end-of-run summary.
+        /// </summary>
+        public bool ShowSummaryReport { get; set; } = true;
+
+        /// <summary>Open ends further apart than this (mm) are never auto-paired in batch mode.</summary>
+        public double MaxPairDistanceMm { get; set; } = 3000.0;
+
+        // --- Quality of the created run ---
+
+        /// <summary>Copy insulation and lining from the source run onto the new segments.</summary>
+        public bool CopyInsulationAndLining { get; set; } = true;
+
+        /// <summary>Copy Comments, Mark and Workset from the source run onto the new segments.</summary>
+        public bool CopyInstanceParameters { get; set; } = true;
+
+        /// <summary>Insert a transition fitting when the two picked elements are different sizes.</summary>
+        public bool AutoTransitionOnSizeMismatch { get; set; } = true;
+
+        /// <summary>Report a warning when the created route overlaps other model geometry.</summary>
+        public bool WarnOnClash { get; set; }
     }
 }

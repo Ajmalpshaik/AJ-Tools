@@ -838,12 +838,23 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddSmartConnectTool()
         {
-            return CreatePushToolSpec(
+            return CreateSplitToolSpec(
                 "Connect MEP\nElements",
-                "Connect two same-category MEP elements (Pipe, Duct, Cable Tray) with routing and angle settings.",
-                typeof(SmartConnectCommand),
+                "Connect MEP elements with a routed run, using your saved settings - no dialog. Select several elements first to connect them all in one go, or click and pick pairs until Esc.",
                 "SmartConnect.png",
-                "SmartConnect.png");
+                "SmartConnect.png",
+                CreateSplitChildTool(
+                    "Connect MEP\nElements",
+                    "Connect MEP elements (Pipe, Duct, Cable Tray, Conduit, Flex, and MEP equipment) with a routed run, using your saved settings. Select several elements first to connect them all in one go, or click and pick pairs until Esc.",
+                    typeof(SmartConnectCommand),
+                    "SmartConnect.png",
+                    "SmartConnect.png"),
+                CreateSplitChildTool(
+                    "Connect MEP Elements\nSettings",
+                    "Choose how the run is routed and at what angle, which categories may be picked, which element may be trimmed, how batches and undo behave, and what is copied onto the new pieces.",
+                    typeof(CmdSmartConnectSettings),
+                    "settings.png",
+                    "settings.png"));
         }
 
         private TopLevelToolSpec AddCeilingMagnetTool()
