@@ -241,10 +241,21 @@ namespace AJTools.Services.MepReferenceDimension
             string seedKey,
             IList<DimensionReferenceCandidate> candidates)
         {
-            if (kind == DimensionTargetKind.MepRun)
+            if (kind == DimensionTargetKind.MepRun || kind == DimensionTargetKind.SameServiceRun)
             {
+                // "Other services" means a DIFFERENT service to the one being measured - a pipe or tray
+                // beside a duct. Another duct beside a duct is a separate decision, so it has its own
+                // row in the settings. Without this split, ticking "other services" to pick up pipework
+                // silently pulled in every neighbouring duct as well.
+                int seedCategoryId = seedRun?.Category?.Id?.IntValue() ?? -1;
+                bool wantSameCategory = kind == DimensionTargetKind.SameServiceRun;
+
                 foreach (BuiltInCategory category in _settings.GetMeasuredCategories())
                 {
+                    bool isSeedCategory = (int)category == seedCategoryId;
+                    if (isSeedCategory != wantSameCategory)
+                        continue;
+
                     foreach (Element element in EnumerateElements(source, view, category))
                     {
                         string key = source.BuildKey(element.Id);
