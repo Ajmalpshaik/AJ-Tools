@@ -175,6 +175,12 @@ namespace AJTools.Services.MepReferenceDimension
     /// </summary>
     internal sealed class DimensionLineRecord
     {
+        /// <summary>
+        /// The dimension this record describes, when it was created by this run. Lets a later, longer
+        /// chain delete the shorter one it supersedes instead of stacking a second dimension over it.
+        /// </summary>
+        public ElementId CreatedId { get; set; }
+
         public XYZ DimensionDirection { get; set; }
         public XYZ RunDirection { get; set; }
 

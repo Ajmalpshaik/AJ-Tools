@@ -325,12 +325,20 @@ namespace AJTools.Services.MepReferenceDimension
                     continue;
                 }
 
-                if (OverlapsCreatedDimension(createdRecords, proposed))
-                {
-                    report.RecordSkipped("A matching dimension was already created in this run");
-                    MarkCovered(coveredKeys, new[] { plan.SeedElementKey });
-                    continue;
-                }
+                // Anything this tool already drew that the new dimension completely supersedes is
+                // REPLACED, not stacked on top of. Dimensioning the second duct therefore turns the
+                // first duct's dimension into one longer string, instead of leaving two overlapping.
+                List<DimensionLineRecord> supersededHere = createdRecords
+                    .Where(r => RecordsOverlap(r, proposed, MepDimensionGeometry.CoordinateMergeTolerance * 150.0) &&
+                                AddsNothingNew(proposed, r))
+                    .ToList();
+
+                List<ElementId> toDelete = supersededHere
+                    .Where(r => r.CreatedId != null)
+                    .Select(r => r.CreatedId)
+                    .ToList();
+
+                toDelete.AddRange(FindSupersededOwnedDimensions(doc, view, plan, proposed, toDelete));
 
                 using (Transaction transaction = new Transaction(doc, TransactionName))
                 {
@@ -340,7 +348,7 @@ namespace AJTools.Services.MepReferenceDimension
 
                         bool created = DimensionFactory.TryCreate(
                             doc, view, plan.DimensionLine, plan.ToReferenceArray(), dimensionType,
-                            out Dimension _, out string reason);
+                            out Dimension dimension, out string reason);
 
                         if (!created)
                         {
@@ -349,6 +357,17 @@ namespace AJTools.Services.MepReferenceDimension
 
                             report.RecordFailed(plan.SeedElementId, reason);
                             continue;
+                        }
+
+                        // Stamp it so a later run can recognise it as ours and tidy it up.
+                        DimensionOwnership.Mark(dimension);
+                        proposed.CreatedId = dimension.Id;
+
+                        // Only now that the replacement exists is the old one removed.
+                        foreach (ElementId oldId in toDelete.Distinct(new ElementIdIntegerComparer()))
+                        {
+                            try { doc.Delete(oldId); }
+                            catch { /* leaving a superseded dimension behind is not worth failing over */ }
                         }
 
                         transaction.Commit();
@@ -362,6 +381,12 @@ namespace AJTools.Services.MepReferenceDimension
                         continue;
                     }
                 }
+
+                foreach (DimensionLineRecord gone in supersededHere)
+                    createdRecords.Remove(gone);
+
+                if (toDelete.Count > 0)
+                    report.RecordReplaced(toDelete.Count);
 
                 createdRecords.Add(proposed);
                 MarkCovered(coveredKeys, plan.CoveredElementKeys);
@@ -584,16 +609,69 @@ namespace AJTools.Services.MepReferenceDimension
             return false;
         }
 
-        private static bool OverlapsCreatedDimension(
-            IEnumerable<DimensionLineRecord> createdRecords,
-            DimensionLineRecord proposed)
+        /// <summary>
+        /// Dimensions ALREADY IN THE VIEW that this tool created and that the new one completely
+        /// supersedes. Ownership is checked on the element itself - a dimension drawn by hand is never
+        /// returned here, however well it matches (Ajmal's rule, 2026-08-15).
+        /// </summary>
+        private static IList<ElementId> FindSupersededOwnedDimensions(
+            Document doc,
+            View view,
+            DimensionPlan plan,
+            DimensionLineRecord proposed,
+            ICollection<ElementId> alreadyQueued)
         {
-            if (createdRecords == null || proposed == null)
-                return false;
+            List<ElementId> found = new List<ElementId>();
+            if (plan?.Axis == null || proposed == null)
+                return found;
 
-            return createdRecords.Any(record =>
-                RecordsOverlap(record, proposed, MepDimensionGeometry.CoordinateMergeTolerance * 150.0) &&
-                AddsNothingNew(record, proposed));
+            foreach (Dimension dimension in GetDimensionsInView(doc, view))
+            {
+                if (alreadyQueued != null &&
+                    alreadyQueued.Any(id => id != null && id.IntValue() == dimension.Id.IntValue()))
+                {
+                    continue;
+                }
+
+                if (!DimensionOwnership.IsOwned(dimension))
+                    continue;
+
+                Curve curve;
+                try { curve = dimension.Curve; }
+                catch { continue; }
+
+                if (!MepDimensionGeometry.TryGetLineIntervalAlongAxis(
+                        curve, plan.Axis, out double minCoord, out double maxCoord,
+                        out double runCoord, out XYZ direction))
+                {
+                    continue;
+                }
+
+                if (!MepDimensionGeometry.AreParallel(
+                        direction, plan.Axis.DimensionDirection, MepDimensionGeometry.DirectionAlignmentTolerance))
+                {
+                    continue;
+                }
+
+                DimensionLineRecord existing = new DimensionLineRecord
+                {
+                    DimensionDirection = plan.Axis.DimensionDirection,
+                    RunDirection = plan.Axis.RunDirection,
+                    RunCoord = runCoord,
+                    MinDimensionCoord = minCoord,
+                    MaxDimensionCoord = maxCoord,
+                    StableReferenceKeys = BuildStableKeySet(doc, dimension)
+                };
+
+                if (!RecordsOverlap(existing, proposed, plan.Axis.AxisBandTolerance))
+                    continue;
+
+                // Only when the new dimension carries everything the old one did.
+                if (AddsNothingNew(proposed, existing))
+                    found.Add(dimension.Id);
+            }
+
+            return found;
         }
 
         /// <summary>

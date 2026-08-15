@@ -152,6 +152,23 @@ namespace AJTools.Services.AutoDimension
                 return runResult;
             }
 
+            // Distinguish "this view has none" from "you switched this off". Without this the user is
+            // told the view was searched and came up empty, and goes hunting through crop, visibility
+            // and worksets - the one place the message never points is the setting that caused it.
+            if (!wantGrids && !wantLevels)
+            {
+                blockingMessage = mode == AutoDimensionMode.LevelsOnly
+                    ? "Levels are set to 'Do not dimension' in the Automatic Dimension settings, so this " +
+                      "button has nothing to place. Change 'Levels from' and try again."
+                    : mode == AutoDimensionMode.GridsOnly
+                        ? "Grids are set to 'Do not dimension' in the Automatic Dimension settings, so this " +
+                          "button has nothing to place. Change 'Grids from' and try again."
+                        : "Nothing is switched on for this view in the Automatic Dimension settings - " +
+                          "grids are set to 'Do not dimension', and levels only apply in a section or " +
+                          "elevation. Change 'Grids from' and try again.";
+                return runResult;
+            }
+
             DimensionRunReport report = runResult.Report;
             report.RecordViewProcessed();
 
