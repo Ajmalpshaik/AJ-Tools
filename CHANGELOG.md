@@ -5,6 +5,16 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.3] - 2026-08-15
+
+- **Changed**: **the Bend angle section is tidier.** 90° and 45° now sit side by side on one line,
+  with one short line underneath — "90° takes the least room. 45° is kinder to flow but needs a
+  longer run to fit." — instead of a long sentence repeated on each option.
+- **Fixed**: a UI bug found while checking the window over. Plain text on a radio button or checkbox
+  does not wrap by default — it just runs off the edge of the window with nothing to show it
+  happened. This window can be resized down to 500px wide, so a long option could have silently
+  gone missing at the edge. Every option now wraps properly if it needs to.
+
 ## [1.47.2] - 2026-08-15
 
 A full review pass over the rebuilt Connect MEP Elements before it goes out. 27 possible problems were
