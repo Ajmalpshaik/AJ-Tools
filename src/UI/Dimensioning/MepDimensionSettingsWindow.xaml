@@ -79,14 +79,14 @@
 
                             <TextBlock Text="1. Services to dimension" Style="{StaticResource SectionHeading}"/>
                             <TextBlock Style="{StaticResource HintText}"
-                                       Text="Straight runs of these categories will be measured. Round pipes and conduit are measured to their centre line, because they have no flat sides to dimension to."/>
+                                       Text="Straight runs of these categories get their own dimension. This does NOT control what they are measured to - that is section 2. Round pipes and conduit are measured to their centre line, because they have no flat sides to dimension to."/>
                             <!-- Six fixed columns rather than a WrapPanel: the services always read as
                                  one row instead of breaking 4 + 2 as the window is resized. -->
                             <UniformGrid x:Name="CategoryPanel" Columns="6" Margin="0,0,0,4"/>
 
                             <TextBlock Text="2. What to measure to" Style="{StaticResource SectionHeading}"/>
                             <TextBlock Style="{StaticResource HintText}"
-                                       Text="Tick a box to use that kind of element as a reference. The two columns are independent, so you can measure to walls in this model, in your linked architectural model, or both."/>
+                                       Text="Tick a box to use that kind of element as a reference. The two columns are independent, so you can measure to walls in this model, in your linked architectural model, or both. The last two rows are different: a service run is never the far end of a dimension, it just adds a witness line where the chain crosses it."/>
 
                             <DataGrid x:Name="TargetGrid"
                                       Style="{StaticResource ModernDataGrid}"
@@ -150,11 +150,6 @@
                                              GroupName="ChainStyle"
                                              Content="One dimension string with segments"
                                              Margin="0,0,0,4"/>
-                                <RadioButton x:Name="RowPerRunRadio"
-                                             Style="{StaticResource ModernRadioButton}"
-                                             GroupName="ChainStyle"
-                                             Content="A separate row for each run, stacked"
-                                             Margin="0,0,0,4"/>
                                 <RadioButton x:Name="SeparateSegmentsRadio"
                                              Style="{StaticResource ModernRadioButton}"
                                              GroupName="ChainStyle"
@@ -163,19 +158,7 @@
                             </StackPanel>
 
                             <TextBlock Style="{StaticResource HintText}"
-                                       Text="Two ducts back to one wall: the first gives 924 / 300 / 1866 / 300 on one line. The second gives 924 / 300 on its own row and 3090 / 300 on the row below, each measured from the wall."/>
-
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="90"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Gap between stacked rows" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox Grid.Column="1" x:Name="RowSpacingBox" Style="{StaticResource ModernTextBox}"/>
-                                <TextBlock Grid.Column="2" Text="mm on paper" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </Grid>
+                                       Text="Dimension a second run against the same wall and the tool REPLACES the dimension it drew for the first one, so you end up with a single longer string instead of two piled on top of each other. It only ever replaces its own work - a dimension you drew by hand is never touched."/>
 
                             <CheckBox x:Name="BothSidesCheck"
                                       Style="{StaticResource ModernCheckBox}"

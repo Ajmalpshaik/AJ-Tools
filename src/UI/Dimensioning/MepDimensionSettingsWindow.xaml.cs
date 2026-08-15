@@ -88,7 +88,6 @@ namespace AJTools.UI.Dimensioning
 
             MinLengthBox.TextChanged += OnTextInputChanged;
             SearchBandBox.TextChanged += OnTextInputChanged;
-            RowSpacingBox.TextChanged += OnTextInputChanged;
 
             Load(settings ?? MepDimensionSettings.CreateDefault());
             Validate();
@@ -115,7 +114,6 @@ namespace AJTools.UI.Dimensioning
             }
 
             SingleStringRadio.IsChecked = settings.ChainStyle == DimensionChainStyle.SingleString;
-            RowPerRunRadio.IsChecked = settings.ChainStyle == DimensionChainStyle.RowPerRun;
             SeparateSegmentsRadio.IsChecked = settings.ChainStyle == DimensionChainStyle.SeparateSegments;
 
             BothSidesCheck.IsChecked = settings.DimensionBothSides;
@@ -125,7 +123,6 @@ namespace AJTools.UI.Dimensioning
             ShowReportCheck.IsChecked = settings.ShowReport;
 
             MinLengthBox.Text = Format(settings.MinimumRunLengthMm);
-            RowSpacingBox.Text = Format(settings.RowSpacingMm);
             SearchBandBox.Text = Format(settings.SearchBandMm);
 
             SelectDimensionType(settings.DimensionTypeName);
@@ -145,12 +142,9 @@ namespace AJTools.UI.Dimensioning
                 .Select(r => new MepDimensionTargetOption(r.Kind, r.ToScope()))
                 .ToList();
 
-            if (SeparateSegmentsRadio.IsChecked == true)
-                settings.ChainStyle = DimensionChainStyle.SeparateSegments;
-            else if (RowPerRunRadio.IsChecked == true)
-                settings.ChainStyle = DimensionChainStyle.RowPerRun;
-            else
-                settings.ChainStyle = DimensionChainStyle.SingleString;
+            settings.ChainStyle = SeparateSegmentsRadio.IsChecked == true
+                ? DimensionChainStyle.SeparateSegments
+                : DimensionChainStyle.SingleString;
 
             settings.DimensionBothSides = BothSidesCheck.IsChecked == true;
             settings.IncludeRunWidth = IncludeWidthCheck.IsChecked == true;
@@ -160,9 +154,6 @@ namespace AJTools.UI.Dimensioning
 
             if (TryParseNumber(MinLengthBox.Text, out double minLength))
                 settings.MinimumRunLengthMm = minLength;
-
-            if (TryParseNumber(RowSpacingBox.Text, out double rowSpacing))
-                settings.RowSpacingMm = rowSpacing;
 
             if (TryParseNumber(SearchBandBox.Text, out double band))
                 settings.SearchBandMm = band;
@@ -252,14 +243,17 @@ namespace AJTools.UI.Dimensioning
             if (!_categoryChecks.Any(c => c.Box.IsChecked == true))
                 return Reject("Tick at least one service to dimension.");
 
+            // Neither run row can ANCHOR a chain - both are picked up along the way, never as the far
+            // end. The saved-settings rule (MepDimensionSettings.Normalize) says the same. Leaving
+            // SameServiceRun out of this test let the window accept "same service only", which Normalize
+            // then silently rewrote by switching Walls back on - the user's choice vanished on save.
             bool anyReference = _targetRows.Any(r =>
-                r.Kind != DimensionTargetKind.MepRun && (r.UseCurrent || r.UseLinked));
+                r.Kind != DimensionTargetKind.MepRun &&
+                r.Kind != DimensionTargetKind.SameServiceRun &&
+                (r.UseCurrent || r.UseLinked));
 
             if (!anyReference)
                 return Reject("Tick at least one reference to measure to - a wall, column, beam, floor, grid or level.");
-
-            if (!TryParseNumber(RowSpacingBox.Text, out double rowSpacing) || rowSpacing < 1 || rowSpacing > 200)
-                return Reject("The gap between stacked rows must be between 1 and 200 mm.");
 
             if (!TryParseNumber(MinLengthBox.Text, out double minLength) || minLength < 0)
                 return Reject("Minimum run length must be 0 or more.");
@@ -364,8 +358,8 @@ namespace AJTools.UI.Dimensioning
                 case DimensionTargetKind.Floor: return "Floors / slabs";
                 case DimensionTargetKind.Grid: return "Grids";
                 case DimensionTargetKind.Level: return "Levels";
-                case DimensionTargetKind.MepRun: return "Other services (duct to pipe, duct to tray)";
-                case DimensionTargetKind.SameServiceRun: return "Same service (duct to duct, pipe to pipe)";
+                case DimensionTargetKind.MepRun: return "Other services in the way (pipe, tray, conduit)";
+                case DimensionTargetKind.SameServiceRun: return "Same service in the way (duct to duct)";
                 default: return kind.ToString();
             }
         }

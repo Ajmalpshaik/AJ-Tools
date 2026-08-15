@@ -250,7 +250,13 @@ namespace AJTools.Services.MepReferenceDimension
                 int seedCategoryId = seedRun?.Category?.Id?.IntValue() ?? -1;
                 bool wantSameCategory = kind == DimensionTargetKind.SameServiceRun;
 
-                foreach (BuiltInCategory category in _settings.GetMeasuredCategories())
+                // EVERY service category is searched here, not just the ones ticked in "Services to
+                // dimension". Those two lists answer different questions: section 1 is what gets
+                // DIMENSIONED, section 2 is what gets MEASURED TO. Driving this from section 1 meant
+                // "other services" was inert on the shipped defaults - with only Ducts ticked there was
+                // no other category left to find - and the only way to pick up a pipe as a reference was
+                // to tick Pipes, which then dimensioned every pipe in its own right.
+                foreach (BuiltInCategory category in MepDimensionSettings.SupportedMeasuredCategories)
                 {
                     bool isSeedCategory = (int)category == seedCategoryId;
                     if (isSeedCategory != wantSameCategory)
@@ -625,12 +631,6 @@ namespace AJTools.Services.MepReferenceDimension
                 return AddPlan(result, axis, seedRun, seedKey, ordered, covered, 0.0);
             }
 
-            if (_settings.ChainStyle == DimensionChainStyle.RowPerRun)
-            {
-                return AddRowPerRun(
-                    result, view, axis, seedRun, seedKey, referenceTarget, runsInBetween, negative);
-            }
-
             bool any = false;
             for (int i = 0; i < ordered.Count - 1; i++)
             {
@@ -648,66 +648,6 @@ namespace AJTools.Services.MepReferenceDimension
 
                 if (AddPlan(result, axis, seedRun, seedKey, pair, segmentCovered, 0.0))
                     any = true;
-            }
-
-            return any;
-        }
-
-        /// <summary>
-        /// One dimension per run, each measured from the SAME reference and stacked on its own row.
-        /// Two ducts going back to one wall read as two independent dimensions, one under the other,
-        /// instead of a single chain where the second duct's figure is measured from the first.
-        /// </summary>
-        private bool AddRowPerRun(
-            DimensionPlanResult result,
-            View view,
-            DimensionAxis axis,
-            Element seedRun,
-            string seedKey,
-            DimensionReferenceCandidate referenceTarget,
-            IList<RunFaces> runsInBetween,
-            bool negative)
-        {
-            double scale = Math.Max(1.0, view?.Scale ?? 1.0);
-            double stepFeet = _settings.RowSpacingMm * Constants.MM_TO_FEET * scale;
-
-            bool any = false;
-            int row = 0;
-
-            // runsInBetween already runs from the reference towards the seed, so the closest run takes
-            // the first row and each one further away steps out by another row.
-            foreach (RunFaces run in runsInBetween)
-            {
-                DimensionReferenceCandidate near = negative ? run.MinFace : run.MaxFace;
-                DimensionReferenceCandidate far = negative ? run.MaxFace : run.MinFace;
-
-                List<DimensionReferenceCandidate> references = new List<DimensionReferenceCandidate>
-                {
-                    referenceTarget,
-                    near
-                };
-
-                if (_settings.IncludeRunWidth && !run.IsSingleReference)
-                    references.Add(far);
-
-                List<string> covered = new List<string> { run.ElementKey };
-
-                List<DimensionReferenceCandidate> ordered = CollapseCoincident(
-                    references
-                        .GroupBy(c => c.StableKey, StringComparer.Ordinal)
-                        .Select(g => g.First())
-                        .OrderBy(c => c.SortCoord)
-                        .ToList(),
-                    covered);
-
-                if (ordered.Count < 2)
-                    continue;
-
-                if (AddPlan(result, axis, seedRun, seedKey, ordered, covered, row * stepFeet))
-                {
-                    any = true;
-                    row++;
-                }
             }
 
             return any;

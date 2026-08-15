@@ -99,11 +99,20 @@ namespace AJTools.Services.Dimensioning
             ViewsProcessed++;
         }
 
+        /// <summary>Earlier AJ Tools dimensions removed because a longer one now covers them.</summary>
+        internal int DimensionsReplaced { get; private set; }
+
         internal void RecordCreated(int elementsCovered = 1)
         {
             DimensionsCreated++;
             if (elementsCovered > 0)
                 ElementsCovered += elementsCovered;
+        }
+
+        internal void RecordReplaced(int count)
+        {
+            if (count > 0)
+                DimensionsReplaced += count;
         }
 
         internal void RecordSkipped(string reason)
@@ -146,6 +155,9 @@ namespace AJTools.Services.Dimensioning
 
             if (ElementsCovered > 0)
                 sb.AppendLine("Elements dimensioned: " + ElementsCovered);
+
+            if (DimensionsReplaced > 0)
+                sb.AppendLine("Earlier dimensions replaced: " + DimensionsReplaced);
 
             if (ViewsProcessed > 1)
                 sb.AppendLine("Views processed: " + ViewsProcessed);

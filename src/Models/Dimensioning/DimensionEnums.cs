@@ -112,13 +112,12 @@ namespace AJTools.Models.Dimensioning
         SingleString,
 
         /// <summary>A separate two-reference dimension element per gap (the pre-1.45.0 behaviour).</summary>
-        SeparateSegments,
+        SeparateSegments
 
-        /// <summary>
-        /// One dimension per RUN, each measured from the same reference and stacked on its own row.
-        /// Two ducts going back to one wall then read as two independent dimensions, one under the other,
-        /// rather than as a single chain.
-        /// </summary>
-        RowPerRun
+        // A third style, RowPerRun (value 2), briefly stacked one row per run. Ajmal did not want it:
+        // rather than piling a new row on top, the tool should REPLACE the dimension it made earlier so
+        // the result stays a single clean string. It was removed in 1.48.0. The value is deliberately
+        // NOT reused - a settings file still holding 2 fails the Enum.IsDefined guard in Normalize()
+        // and falls back to SingleString, which is exactly the intended migration.
     }
 }
