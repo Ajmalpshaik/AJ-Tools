@@ -6,10 +6,10 @@
  *                 Annotation, Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.4.0
+ * Version       : 1.5.0
  *
  * Created Date  : 2026-05-10
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-08-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,15 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.5.0 (2026-08-15) - Auto Dimension panel: the "Auto Duct Dimension" pulldown becomes "Auto MEP
+ *                       Dimension" (AddAutoDuctDimensionTool renamed AddAutoMepDimensionTool) with four
+ *                       children - pick runs, dimension the selection, dimension the whole view, and
+ *                       settings - replacing the two duct-only buttons. Dimensions panel: an
+ *                       "Automatic Dimension Settings" child added to the Automatic Dimension pulldown,
+ *                       and the three existing tooltips reworded now that the tool is settings-driven.
+ *                       The one-icon-reused-across-children pattern is kept and now factored into a
+ *                       local AddMepChild helper; the settings child uses settings.png via
+ *                       RibbonPanelHelper.ApplyIcons, matching the other settings buttons on this tab.
  * v1.4.0 (2026-07-21) - Section Mark Visibility moved onto the Tags panel here, off the AJ Tools tab's
  *                       View panel (RibbonManager.cs) - same command (CmdSectionMarkVisibility),
  *                       AvailabilityClassName, and icon, just re-homed and now a standalone PushButton
@@ -85,7 +94,7 @@ namespace AJTools.App
             }
 
             RibbonPanel autoDimensionPanel = GetOrCreatePanel(DimensionPanelName);
-            AddAutoDuctDimensionTool(autoDimensionPanel);
+            AddAutoMepDimensionTool(autoDimensionPanel);
 
             RibbonPanel dimensionsPanel = GetOrCreatePanel("Dimensions");
             AddDimensionsPanelTools(dimensionsPanel);
@@ -254,9 +263,10 @@ namespace AJTools.App
 
             if (stackedItems.Count >= 2 && stackedItems[0] is PulldownButton autoDimPulldown && stackedItems[1] is PulldownButton quickDimPulldown)
             {
-                AddChildPushButton(autoDimPulldown, "cmdAutoDimensionsGrids", "Automatic Grid\nDimensions", "Create horizontal/vertical grid dimension strings in plan views.", typeof(CmdAutoDimensionsGrids).FullName, "Dimensions.png");
-                AddChildPushButton(autoDimPulldown, "cmdAutoDimensionsLevels", "Automatic Level\nDimensions", "Create level dimension strings in section or elevation views.", typeof(CmdAutoDimensionsLevels).FullName, "Dimensions.png");
-                AddChildPushButton(autoDimPulldown, "cmdAutoDimensions", "Automatic Grid /\nLevel Dimensions", "Plan views: dimension grids. Sections/Elevations: dimension levels and grids.", typeof(CmdAutoDimensions).FullName, "Dimensions.png");
+                AddChildPushButton(autoDimPulldown, "cmdAutoDimensionsGrids", "Automatic Grid\nDimensions", "Create grid dimension rows in plan, section or elevation views. Uses the Automatic Dimension settings for rows, sides, gaps, styles and which grids to include.", typeof(CmdAutoDimensionsGrids).FullName, "Dimensions.png");
+                AddChildPushButton(autoDimPulldown, "cmdAutoDimensionsLevels", "Automatic Level\nDimensions", "Create level dimension rows in section or elevation views. Uses the Automatic Dimension settings.", typeof(CmdAutoDimensionsLevels).FullName, "Dimensions.png");
+                AddChildPushButton(autoDimPulldown, "cmdAutoDimensions", "Automatic Grid /\nLevel Dimensions", "Plans: dimension grids. Sections and elevations: dimension levels and grids. Uses the Automatic Dimension settings.", typeof(CmdAutoDimensions).FullName, "Dimensions.png");
+                AddChildPushButton(autoDimPulldown, "cmdAutoDimensionSettings", "Automatic Dimension\nSettings", "Choose which rows are created, which side they sit on, their gaps and dimension styles, which grids and levels are used, and whether linked models are included.", typeof(CmdAutoDimensionSettings).FullName, "settings.png");
 
                 AddChildPushButton(quickDimPulldown, "cmdQuickParallelCenterLineDimension", "Quick Parallel Dimension\nby Centerline", "Quickly create a dimension string for selected parallel elements using center line references.", typeof(CmdQuickParallelCenterLineDimension).FullName, "Dimensions by Line.png");
                 AddChildPushButton(quickDimPulldown, "cmdQuickParallelFaceEdgeDimension", "Quick Parallel Dimension\nby Face / Edge", "Quickly create dimensions using both side faces/edges for each selected parallel element (for ducts/pipes this captures both sides).", typeof(CmdQuickParallelFaceEdgeDimension).FullName, "Dimensions by Line.png");
@@ -276,15 +286,17 @@ namespace AJTools.App
             pulldown.AddPushButton(btnData);
         }
 
-        private void AddAutoDuctDimensionTool(RibbonPanel panel)
+        private void AddAutoMepDimensionTool(RibbonPanel panel)
         {
             if (panel == null)
                 return;
 
             PulldownButtonData pulldownData = new PulldownButtonData(
-                "cmdAutoDuctDimensionPulldown",
-                "Auto Duct\nDimension");
+                "cmdAutoMepDimensionPulldown",
+                "Auto MEP\nDimension");
 
+            // One icon is loaded here and reused across the pulldown and every child, rather than going
+            // through RibbonPanelHelper.ApplyIcons per button.
             var largeIcon = _iconLoader.LoadLarge(QuickDimensionIcon);
             if (largeIcon != null)
                 pulldownData.LargeImage = largeIcon;
@@ -293,34 +305,60 @@ namespace AJTools.App
             if (smallIcon != null)
                 pulldownData.Image = smallIcon;
 
-            if (panel.AddItem(pulldownData) is PulldownButton pulldown)
+            if (!(panel.AddItem(pulldownData) is PulldownButton pulldown))
+                return;
+
+            AddMepChild(
+                pulldown, largeIcon, smallIcon,
+                "cmdMepReferenceDimension",
+                "Pick runs\nto dimension",
+                "Pick ducts, pipes, cable trays or conduits one at a time and dimension each back to the nearest wall, column, beam, floor, grid or level. Press ESC to finish. One Ctrl+Z undoes the whole session.",
+                typeof(MepReferenceDimensionCommand).FullName);
+
+            AddMepChild(
+                pulldown, largeIcon, smallIcon,
+                "cmdMepReferenceDimensionSelection",
+                "Dimension the\nselected runs",
+                "Dimension the runs already selected, using the Auto MEP Dimension settings.",
+                typeof(MepReferenceDimensionSelectionCommand).FullName);
+
+            AddMepChild(
+                pulldown, largeIcon, smallIcon,
+                "cmdMepReferenceDimensionActiveView",
+                "Dimension every run\nin this view",
+                "Dimension every eligible run visible in the active view. Skips vertical runs, runs under the minimum length, and runs that already have a dimension - all reported at the end.",
+                typeof(MepReferenceDimensionActiveViewCommand).FullName);
+
+            PushButtonData settingsData = new PushButtonData(
+                "cmdMepDimensionSettings",
+                "Auto MEP Dimension\nSettings",
+                _assemblyPath,
+                typeof(CmdMepDimensionSettings).FullName)
             {
-                PushButtonData btnSingle = new PushButtonData(
-                    "cmdDuctReferenceDimension",
-                    "single duct to wall",
-                    _assemblyPath,
-                    typeof(DuctReferenceDimensionCommand).FullName)
-                {
-                    ToolTip = "Create a chained perpendicular reference dimension for ducts, nearby ducts, walls, structural columns, and structural beams."
-                };
-                if (largeIcon != null) btnSingle.LargeImage = largeIcon;
-                if (smallIcon != null) btnSingle.Image = smallIcon;
+                ToolTip = "Choose which services are dimensioned, what they are measured to, and whether each reference comes from this model, from linked models, or both."
+            };
+            RibbonPanelHelper.ApplyIcons(settingsData, _iconLoader, "settings.png");
+            pulldown.AddPushButton(settingsData);
+        }
 
-                pulldown.AddPushButton(btnSingle);
+        private void AddMepChild(
+            PulldownButton pulldown,
+            System.Windows.Media.Imaging.BitmapSource largeIcon,
+            System.Windows.Media.Imaging.BitmapSource smallIcon,
+            string name,
+            string text,
+            string tooltip,
+            string className)
+        {
+            PushButtonData data = new PushButtonData(name, text, _assemblyPath, className)
+            {
+                ToolTip = tooltip
+            };
 
-                PushButtonData btnAll = new PushButtonData(
-                    "cmdDuctReferenceDimensionActiveView",
-                    "all duct to wall",
-                    _assemblyPath,
-                    typeof(DuctReferenceDimensionActiveViewCommand).FullName)
-                {
-                    ToolTip = "Create segmented duct reference dimensions for eligible ducts visible in the active plan view. Skips vertical ducts, ducts shorter than 1000 mm, and ducts already dimensioned."
-                };
-                if (largeIcon != null) btnAll.LargeImage = largeIcon;
-                if (smallIcon != null) btnAll.Image = smallIcon;
+            if (largeIcon != null) data.LargeImage = largeIcon;
+            if (smallIcon != null) data.Image = smallIcon;
 
-                pulldown.AddPushButton(btnAll);
-            }
+            pulldown.AddPushButton(data);
         }
 
         private RibbonPanel GetOrCreatePanel(string panelName)

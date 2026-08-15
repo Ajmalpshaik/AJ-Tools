@@ -127,6 +127,15 @@ place rather than leaving stale info sitting next to the new truth.
   strings (metadata names are stored as plain UTF-8 — a distinctive name found/absent is strong existence
   evidence), combined with a `Release R27` compile against the reference package. Used (b) for the
   Highlight Selection lining work, 2026-07-26.
+- **A reflection probe can HIDE members behind a dependency error — always resolve the dependencies
+  (found 2026-08-15).** `ReflectionOnlyLoadFrom` does not auto-load referenced assemblies, so calling
+  `.GetParameters()` / `.ToString()` on a member whose signature touches an unloaded assembly (e.g.
+  `System.Drawing`) throws *for that member only* and the loop silently prints the rest. Probing
+  `Autodesk.Revit.Creation.Document.NewDimension` that way printed **one** overload and threw once —
+  which reads exactly like "there is only one overload". There are two, and the missing one
+  (`NewDimension(View, Line, ReferenceArray, DimensionType)`) was the useful one. Always register a
+  `ReflectionOnlyAssemblyResolve` handler before enumerating members, and treat an exception inside the
+  loop as *a member you have not seen yet*, never as absence.
 
 **Version-safe API helpers — always route through these, never call the raw Revit API at the call site:**
 - `ElementIdHelper.GetIntegerValue(id)` / `.IntValue()` / `.LongValue()` instead of `ElementId.IntegerValue` (removed in 2026). `WorksetId.IntegerValue` is a different type — leave that one alone.
@@ -140,6 +149,51 @@ place rather than leaving stale info sitting next to the new truth.
   `Autodesk.Revit.UI.Rectangle` does NOT compile against the 2020 API (CS0234) even though newer
   versions/docs place it there. Declare the result with `var` and use `.Left/.Top/.Right/.Bottom`
   (raw device pixels; negative on a second monitor) — compiles and works on every version.
+
+**Dimensions (verified 2026-08-15 against the real installed RevitAPI.dll for 2020 and 2024)**
+- `doc.Create.NewDimension` has **two** overloads on every supported version: `(View, Line, ReferenceArray)`
+  and `(View, Line, ReferenceArray, DimensionType)`. Use the typed one — the style is then correct at
+  creation instead of being patched afterwards. `Dimension.DimensionType`, `.Above`, `.Below`, `.Prefix`,
+  `.Suffix`, `.ValueOverride` and `.AreSegmentsEqual` (the EQ toggle) are all settable after creation.
+- Filter dimension types to `DimensionStyleType.Linear` / `LinearFixed`. Handing a linear dimension an
+  angular or radial type is a guaranteed failure.
+- **Dimensioning to a LINKED element: `Reference.CreateLinkReference(linkInstance)` is NOT enough.**
+  Its result is accepted for face-based family placement but `NewDimension` rejects it with *"the
+  references are not geometric references"* — the same wall Dynamo's `Dimension.ByElements` hits. The
+  reference must be rebuilt from its stable representation with the `RVTLINK/<linkTypeUniqueId>` segment
+  reduced to a bare `RVTLINK`:
+  `<linkInstanceUniqueId>:0:RVTLINK/<linkTypeUniqueId>:<idInLink>:<i>:SURFACE`
+  → `<linkInstanceUniqueId>:0:RVTLINK:<idInLink>:<i>:SURFACE`, then
+  `Reference.ParseFromStableRepresentation(hostDoc, rewritten)`. Implemented as
+  `DimensionSource.PrepareForDimensioning` (`src/Services/Dimensioning/DimensionSource.cs`). That string
+  is undocumented internal Revit structure with no compatibility promise — guard every step and degrade
+  rather than fail. Autodesk also warns that dimensions anchored to a link can be dropped when the link
+  is reloaded or the host reopened; say so in the UI wherever links are switched on.
+- **Identity across documents must be `(link instance id, element id)`, never a bare `ElementId`.** Ids
+  repeat between documents, so an id-keyed dictionary silently drops a linked wall that collides with a
+  host duct. Note also that for a link reference `Reference.ElementId` is the **RevitLinkInstance** and
+  the real element is `Reference.LinkedElementId` — comparing the wrong one makes one dimension to any
+  linked element look like a dimension to *every* linked element.
+- **A Coarse view returns no solids.** Revit draws ducts/pipes as single lines there, so `get_Geometry`
+  with `Options.View = <coarse view>` gives a valid, non-null `GeometryElement` containing `Line`s and no
+  `Solid`. A fallback gated on `geometry != null` therefore never runs. Gate it on "did I actually get a
+  usable Solid", then retry with model options and `DetailLevel = ViewDetailLevel.Fine`. `View` and
+  `DetailLevel` are mutually exclusive on one `Options` — use two.
+- **Round pipes, conduit and round ducts have no planar side faces**, so a face-only reference pass finds
+  nothing at all for them. They must fall back to the **centreline reference**, and the only route that
+  actually works is a geometry pass with **`IncludeNonVisibleObjects = true`** — an MEP centreline is
+  non-visible geometry, so a normal `ComputeReferences` pass never returns it. Walk that
+  `GeometryElement`, take the `Reference` of the `Curve` running parallel to the element and nearest its
+  location curve. `(element.Location as LocationCurve).Curve.Reference` is usually null (the location
+  curve is a copy that never went through a reference-computing extraction), and **`new Reference(element)`
+  is NOT a valid fallback here**: `NewDimension` accepts a whole-element reference only for a *datum*
+  (grid/level); for a pipe or duct it throws *"the references are not geometric references"* — and in a
+  single-string chain that one bad reference destroys every good reference sharing the array. Drop the
+  candidate instead. `QuickParallelDimensionService.TryGetCenterlineCurveReferenceFromGeometry` is the
+  worked example. (Corrected 2026-08-15 — the short form previously recorded here does not work.)
+- **`PlanarFace.Origin` is the plane's parametric origin and can sit outside the face.** Deriving a
+  dimension position from it mis-places the reference on any face not exactly parallel to the measuring
+  direction. Take the position from the tessellated edge point nearest the measuring line instead.
 
 **Tag & leader logic**
 - All tag placement / L-shaped leader tools must use `LeaderLogicService` (`src/Services/LeaderLogic/LeaderLogicService.cs`) for elbow computation — a specific 3-case elbow logic (Normal L-shape, Guard 1 same-X push, Guard 2 same-Y no-elbow) in view-space coordinates that must stay consistent across every tool. Instantiate `LeaderLogicService(view)`, use `ComputeElbow(headModel, leaderEndModel)` or `ApplyLeaderLogic(...)`. For stacking tools use `GetT1()` / `GetE1()`.
@@ -218,6 +272,22 @@ place rather than leaving stale info sitting next to the new truth.
   `StaticResource` compiles fine and only blows up at runtime (see the resource-lookup note below).
 - (Historical: the last two WinForms dialogs carried it as a grey label until both were converted to
   WPF on 2026-07-28 — every window now uses the standard XAML footer.)
+
+**No success popup — and no silent failure either (Ajmal, 2026-08-15, after seeing one live)**
+- **A tool that did everything asked of it finishes SILENTLY.** The model is the result; a dialog
+  confirming what is already on screen is one more click for nothing. Ajmal's exact words on the Auto
+  MEP Dimension report after its first successful live run: *"no ned this popup"*.
+- **A tool that did nothing must always say why**, because there is nothing on screen to look at.
+- **A tool that did some of it should say what it left out** — that is the only case a report earns an
+  interruption. Gate it on "was anything skipped or refused", not on "did the tool run"
+  (`DimensionRunReport.HasUnfinishedWork` is the worked example; `QuickParallelDimensionService` does the
+  same with `if (skippedCount > 0)`).
+- **Don't overcorrect.** v1.45.0 fixed a genuine defect — a report class that was built and never shown,
+  so batch runs finished in total silence — by showing it on *every* run, which broke this rule in the
+  other direction and was reverted one version later. The two failure modes are opposite and both real:
+  the fix is a report that speaks only when it has something to add.
+- Keep per-item lists out of a routine report. The same v1.45.0 report printed one "Read linked model: X"
+  line per link; six links meant six lines of noise on a run that had gone perfectly.
 
 **Validate inside the window, never after `ShowDialog()` (rule from 3 real bugs, 2026-07-27/28)**
 - The pattern to kill: dialog closes → code checks the value → shows an error popup → returns false →

@@ -5,6 +5,95 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.45.2] - 2026-08-15
+
+Ajmal reported that in "How the dimensions are drawn", only *Include each run's own width* actually
+worked. The settings were saving correctly — all four were faults in what the tool did with them.
+
+- **Removed**: **"Overhang past the end reference"**. It could never work. Revit uses the line the tool
+  gives it only to decide **where the dimension sits and which way it runs** — it then draws the
+  dimension between the references itself and throws the extra length away. How far the line carries on
+  past the last witness line is set by the **Dimension Type** in Revit. The box was a dead input, so it
+  is gone and the window now points at the real setting.
+- **Fixed**: **"A separate dimension for each gap"** drew pieces that overlapped each other. Every piece
+  was being stretched at both ends by the overhang above, so each one ran into its neighbours. The
+  pieces now sit exactly end to end.
+- **Fixed**: **"Dimension to a reference on both sides"** shifted each chain sideways along the duct to
+  stop them colliding — a collision that cannot happen, because the two chains run in **opposite**
+  directions away from the duct. They now sit on one straight, continuous line, which is what you would
+  draw by hand. It was also dimensioning the duct's own width **twice**, once per side, when *Include
+  width* was ticked; the width now belongs to one side only.
+- **Fixed**: **"Dimension type"** could show nothing but "(project default)". The list was filtered to
+  styles Revit reports as linear, with nothing to fall back on, so a project whose types do not report
+  that way came up empty. It now falls back to listing every dimension type.
+
+## [1.45.1] - 2026-08-15
+
+- **Changed**: **No popup when it works.** Both dimension tools now finish silently when they
+  dimensioned everything you asked for — the dimensions on the screen are the result, so there is
+  nothing to confirm. Verified live first: 1.45.0 placed 6 dimensions across 6 linked models.
+- **Kept**: the report still appears when **nothing** was created (otherwise there is nothing to look
+  at and no way to know why), and when something was **skipped or refused** — which is what the report
+  was added for in the first place.
+- **Removed**: the list of linked models from a successful report — six lines of noise. It now shows
+  only when nothing was created, where it usefully says where the tool looked. The note about Revit
+  dropping dimensions on link reload now lives only in the settings windows, where you switch links on,
+  instead of after every run.
+
+## [1.45.0] - 2026-08-15
+
+- **Changed**: **"Auto Duct Dimension" is now "Auto MEP Dimension".** It is no longer ducts-only — it
+  dimensions ducts, flexible ducts, pipes, flexible pipes, cable trays and conduits. Round pipes and
+  conduits are measured to their centre line, because they have no flat sides to dimension to.
+- **Added**: **You choose what it measures to** — walls, structural columns, structural beams,
+  architectural columns, floors, grids, levels, and other service runs.
+- **Added**: **Current model and linked models are separate choices, per reference.** You can measure
+  to walls in this model, to walls in your linked architectural model, or to both — and set that
+  independently for every kind of reference. A warning appears when links are switched on, because
+  Revit can drop a dimension that points at a linked element when that link is reloaded.
+- **Added**: **Two settings windows**, one per toolset, so nothing is hard-coded any more: gaps,
+  dimension styles, which side rows sit on, minimum run length, search band, and every option above.
+- **Added**: **Two new ways to run it** — dimension the runs you have already selected, or dimension
+  every eligible run in the view. Picking one at a time still works.
+- **Added**: Sections and elevations, not just plans.
+- **Added**: One continuous dimension string with segments, or a separate dimension per gap (the old
+  behaviour), and an option to dimension to a reference on both sides of a run.
+- **Fixed**: **The report is now shown.** The tool has always counted what it created and skipped and
+  why — and then threw it away. A batch run used to finish in total silence.
+- **Fixed**: **One Ctrl+Z now undoes a whole run.** It used to leave one undo step per dimension, so a
+  batch over a busy view could not be taken back in one go.
+- **Fixed**: **Dimensioning to linked elements works at all.** The obvious API call produces a
+  reference Revit then refuses with "the references are not geometric references"; the reference has
+  to be rebuilt before it is usable.
+- **Fixed**: **Coarse views found nothing.** Revit draws services as single lines in a Coarse view, and
+  the tool's fallback only ran when it got nothing back at all — not when it got lines but no solids.
+- **Fixed**: One reference Revit refused used to abort the entire run, leaving nothing placed. Each
+  dimension now stands or falls on its own and the failures are listed.
+- **Fixed**: A view with exactly two grids produced two identical dimensions stacked one above the
+  other, because the overall row repeats the chain when there are only two.
+- **Fixed**: Curved grids, skewed grids, and grids sitting on top of each other were silently dropped.
+  They are now counted and reported.
+- **Fixed**: Several quieter position and matching errors — face positions taken from a point that can
+  sit outside the face, one bad edge discarding a whole face, all faces on one element collapsing to a
+  single identity, and the search distance being read from a stale crop box when the crop was off.
+- **Changed**: **Automatic Dimension (grids/levels) no longer refuses to run on an uncropped view.** It
+  measures from the grids and levels themselves instead. Rows can go on both sides, the chain and the
+  overall can use different dimension styles, and grids or levels that already carry a dimension are
+  skipped so running twice does not stack a second set.
+- **Fixed (found by a review pass over the new code, before release)**: 22 further defects, including
+  several that would have been obvious on a sheet — a grid could be picked as the "nearest reference"
+  without checking it runs the right way round, which made Revit reject the whole dimension; round
+  pipes still failed because a centre line is hidden geometry that has to be asked for specially; a
+  longer dimension chain was thrown away as a "duplicate" of a shorter one, so which ducts got
+  dimensioned depended on the order they were drawn in; skipping an already-dimensioned grid left a
+  gap in the middle of the chain instead of skipping the whole row; linked grids never worked in a
+  section; a linked model could stretch a dimension 400 m across a 30 m view; and opening either
+  settings window in a project that did not have your saved dimension style quietly erased that
+  setting everywhere.
+- **Note**: Built clean on Revit 2020 (`Release`) and Revit 2025 (`Release R25`), zero errors and zero
+  warnings. Both settings windows were rendered and checked outside Revit. **Not yet loaded in Revit —
+  the tools have not been run against a real model.**
+
 ## [1.44.0] - 2026-08-13
 
 - **Removed**: **Web Panel.** The ribbon button that started a small web server on this computer and

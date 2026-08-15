@@ -748,3 +748,40 @@ AutoDebugger, or code-review only) -> date.
   re-checked `sha256sum -c` still passes. **Lesson**: a release script that ends in "Next steps: ..."
   is a list of things that will eventually be forgotten — automate the step instead of printing it.
   -> 2026-08-04.
+
+- **Symptom**: "Auto Duct Dimension" ran over a whole view and finished in complete silence — no count,
+  no message, no way to tell whether it did 40 dimensions or 4, or why anything was skipped. **Root
+  cause**: `DuctReferenceDimensionReport` tracked created/skipped/failed with reasons and had a fully
+  written `BuildSummary()` — and **nothing ever called it**. The service used only `report.HasActivity`
+  to choose its `Result`. Repo-wide grep confirmed Create Tags, Stack Tags and Shared Parameter all show
+  their summary; this one alone did not. **Fix**: the service now RETURNS the report and the command
+  shows it (shared code must never raise its own dialog — a `TaskDialog` from a non-ribbon caller blocks
+  Revit). Reporting is on by default and switchable in settings. **Lesson**: a report class with no
+  call site is worse than none — it reads as "this is handled" in every later review. -> 2026-08-15.
+
+- **Symptom**: dimensioning to an element inside a Revit link threw *"the references are not geometric
+  references"* even though `Reference.CreateLinkReference(linkInstance)` returned a non-null reference
+  and is present in the API right back to 2020. **Root cause**: `CreateLinkReference` produces a
+  reference Revit accepts for face-based family placement but **not** for `NewDimension`. Its stable
+  representation carries `RVTLINK/<linkTypeUniqueId>`; dimensioning needs a bare `RVTLINK`. **Fix**:
+  rebuild the reference — `ConvertToStableRepresentation(hostDoc)`, reduce that segment, then
+  `ParseFromStableRepresentation`. See `DimensionSource.PrepareForDimensioning`. **Verified how**: the
+  rewrite was traced by hand on a real representation string and the API members were confirmed by
+  reflection against the installed 2020 and 2024 `RevitAPI.dll`; **not yet run inside Revit**.
+  **Lesson**: this is the Modeler-mindset case again — the API returned a perfectly valid-looking object
+  and the obvious call was still wrong. -> 2026-08-15.
+
+- **Symptom**: the duct dimension tool found no faces at all in a **Coarse** plan view. **Root cause**:
+  `get_Geometry` with `Options.View = <coarse view>` returns a valid, non-null `GeometryElement` — full
+  of `Line`s, because Revit draws MEP as single lines at Coarse, and containing no `Solid`. The
+  model-geometry fallback was gated on `geometry != null`, so it never ran. **Fix**: gate the fallback on
+  "did a usable Solid actually come back", then retry with model options and
+  `DetailLevel = ViewDetailLevel.Fine` (`View` and `DetailLevel` cannot both be set on one `Options`).
+  **Lesson**: "not null" is not "usable" — check for the thing you actually need. -> 2026-08-15.
+
+- **Symptom**: a plan view with exactly two grids got two identical dimension strings stacked one above
+  the other. **Root cause**: `AutoDimensionService` created the overall (first-to-last) row
+  unconditionally; with two datums that is the same measurement as the individual chain, just one row
+  further out. **Fix**: suppress the overall row at two datums, on by default and switchable. The same
+  rewrite also isolated each row in its own transaction — previously one reference Revit refused threw
+  out of the single shared transaction and the whole run placed nothing. -> 2026-08-15.

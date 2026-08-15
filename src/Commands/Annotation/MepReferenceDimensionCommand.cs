@@ -1,36 +1,35 @@
 #region Metadata
 /*
- * Tool Name     : Automatic Dimensions (Grids / Levels)
- * File Name     : CmdAutoDimensions.cs
- * Purpose       : Ribbon entry commands for the three auto-dimension modes - combined grids+levels,
- *                 grids only, and levels only. Each loads the saved settings, calls AutoDimensionService,
- *                 and shows the run report.
+ * Tool Name     : Auto MEP Dimension
+ * File Name     : MepReferenceDimensionCommand.cs
+ * Purpose       : Ribbon entry commands for Auto MEP Dimension - pick runs one at a time, dimension the
+ *                 current selection, or dimension every eligible run in the active view. Each loads the
+ *                 saved settings, calls MepReferenceDimensionService, and shows the run report.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.0.0
+ * Version       : 1.0.0
  *
- * Created Date  : 2025-12-10
+ * Created Date  : 2026-08-15
  * Last Updated  : 2026-08-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API, AJTools.Services.AutoDimension, AJTools.Services.Dimensioning,
- *                 AJTools.Models.Dimensioning, AJTools.Utils
+ * Dependencies  : Autodesk Revit API, AJTools.Services.MepReferenceDimension, AJTools.Services.Dimensioning,
+ *                 AJTools.Utils
  *
- * Input         : Active View - grids (plan/section) and/or levels (section/elevation).
- * Output        : Dimension rows created by the service in one undoable step, plus the report shown here.
+ * Input         : Active plan/section view; picked runs, the current selection, or the whole view.
+ * Output        : Dimensions in the model, plus the run report shown here.
  *
  * Notes         :
- * - The service does the model work and RETURNS its report; this command decides what to show, so the
- *   service stays safe to call from a non-ribbon caller.
- * - Settings come from the Automatic Dimension settings window and are shared by all three modes.
+ * - The service does the model work and RETURNS its report; this command decides what to show. Shared
+ *   code that raises its own dialog blocks Revit when driven from anywhere but the ribbon.
+ * - The report is shown whenever the settings ask for it, or whenever nothing was created. The tool it
+ *   replaces built the same report and never displayed it, so a batch run finished in silence.
  *
  * Changelog     :
- * v1.0.0 (2025-12-10) - Initial release.
- * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Dimension behaviour unchanged.
- * v2.0.0 (2026-08-15) - Settings-driven; reports what it did and what it skipped.
+ * v1.0.0 (2026-08-15) - Initial release, replacing DuctReferenceDimensionCommand.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -41,20 +40,20 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using AJTools.Models.Dimensioning;
-using AJTools.Services.AutoDimension;
 using AJTools.Services.Dimensioning;
+using AJTools.Services.MepReferenceDimension;
 using AJTools.Utils;
 
-namespace AJTools.Commands
+namespace AJTools.Commands.Annotation
 {
-    /// <summary>Shared execution for the three Automatic Dimension entry points.</summary>
-    internal static class AutoDimensionCommandRunner
+    /// <summary>Shared execution for the three Auto MEP Dimension entry points.</summary>
+    internal static class MepReferenceDimensionCommandRunner
     {
-        internal static Result Run(ExternalCommandData commandData, AutoDimensionMode mode, string title)
+        internal static Result Run(ExternalCommandData commandData, MepDimensionMode mode, string title)
         {
-            AutoDatumDimensionSettings settings = AutoDatumDimensionSettingsService.Load();
+            MepDimensionSettings settings = MepDimensionSettingsService.Load();
 
-            AutoDimensionRunResult result = AutoDimensionService.Execute(
+            MepDimensionRunResult result = MepReferenceDimensionService.Execute(
                 commandData, mode, settings, title, out string blockingMessage);
 
             if (!string.IsNullOrWhiteSpace(blockingMessage))
@@ -86,16 +85,17 @@ namespace AJTools.Commands
         }
     }
 
-    /// <summary>Launches combined grid and level auto-dimensioning.</summary>
+    /// <summary>Pick runs one at a time until ESC.</summary>
     [Transaction(TransactionMode.Manual)]
-    public class CmdAutoDimensions : IExternalCommand
+    public class MepReferenceDimensionCommand : IExternalCommand
     {
+        private const string ToolTitle = "Auto MEP Dimension";
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                return AutoDimensionCommandRunner.Run(
-                    commandData, AutoDimensionMode.Combined, "Auto Dimension Grids & Levels");
+                return MepReferenceDimensionCommandRunner.Run(commandData, MepDimensionMode.PickRuns, ToolTitle);
             }
             catch (System.Exception ex)
             {
@@ -105,16 +105,17 @@ namespace AJTools.Commands
         }
     }
 
-    /// <summary>Launches grid-only auto-dimensioning.</summary>
+    /// <summary>Dimension whatever is selected when the command starts.</summary>
     [Transaction(TransactionMode.Manual)]
-    public class CmdAutoDimensionsGrids : IExternalCommand
+    public class MepReferenceDimensionSelectionCommand : IExternalCommand
     {
+        private const string ToolTitle = "Auto MEP Dimension - Selection";
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                return AutoDimensionCommandRunner.Run(
-                    commandData, AutoDimensionMode.GridsOnly, "Auto Dimension Grids");
+                return MepReferenceDimensionCommandRunner.Run(commandData, MepDimensionMode.CurrentSelection, ToolTitle);
             }
             catch (System.Exception ex)
             {
@@ -124,16 +125,17 @@ namespace AJTools.Commands
         }
     }
 
-    /// <summary>Launches level-only auto-dimensioning.</summary>
+    /// <summary>Dimension every eligible run in the active view.</summary>
     [Transaction(TransactionMode.Manual)]
-    public class CmdAutoDimensionsLevels : IExternalCommand
+    public class MepReferenceDimensionActiveViewCommand : IExternalCommand
     {
+        private const string ToolTitle = "Auto MEP Dimension - Active View";
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                return AutoDimensionCommandRunner.Run(
-                    commandData, AutoDimensionMode.LevelsOnly, "Auto Dimension Levels");
+                return MepReferenceDimensionCommandRunner.Run(commandData, MepDimensionMode.ActiveView, ToolTitle);
             }
             catch (System.Exception ex)
             {
