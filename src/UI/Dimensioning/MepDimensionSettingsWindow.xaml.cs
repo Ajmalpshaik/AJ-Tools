@@ -364,7 +364,8 @@ namespace AJTools.UI.Dimensioning
                 case DimensionTargetKind.Floor: return "Floors / slabs";
                 case DimensionTargetKind.Grid: return "Grids";
                 case DimensionTargetKind.Level: return "Levels";
-                case DimensionTargetKind.MepRun: return "Other service runs";
+                case DimensionTargetKind.MepRun: return "Other services (duct to pipe, duct to tray)";
+                case DimensionTargetKind.SameServiceRun: return "Same service (duct to duct, pipe to pipe)";
                 default: return kind.ToString();
             }
         }

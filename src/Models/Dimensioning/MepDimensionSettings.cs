@@ -156,7 +156,8 @@ namespace AJTools.Models.Dimensioning
             DimensionTargetKind.Floor,
             DimensionTargetKind.Grid,
             DimensionTargetKind.Level,
-            DimensionTargetKind.MepRun
+            DimensionTargetKind.MepRun,
+            DimensionTargetKind.SameServiceRun
         };
 
         /// <summary>
@@ -183,7 +184,8 @@ namespace AJTools.Models.Dimensioning
                     new MepDimensionTargetOption(DimensionTargetKind.Floor, DimensionModelScope.None),
                     new MepDimensionTargetOption(DimensionTargetKind.Grid, DimensionModelScope.None),
                     new MepDimensionTargetOption(DimensionTargetKind.Level, DimensionModelScope.None),
-                    new MepDimensionTargetOption(DimensionTargetKind.MepRun, DimensionModelScope.CurrentModel)
+                    new MepDimensionTargetOption(DimensionTargetKind.MepRun, DimensionModelScope.CurrentModel),
+                    new MepDimensionTargetOption(DimensionTargetKind.SameServiceRun, DimensionModelScope.None)
                 },
 
                 ChainStyle = DimensionChainStyle.SingleString,
@@ -235,7 +237,9 @@ namespace AJTools.Models.Dimensioning
             Targets = rebuilt;
 
             // At least one datum/solid target must be usable or nothing can ever be measured to.
-            if (Targets.All(t => t.Scope == DimensionModelScope.None || t.Kind == DimensionTargetKind.MepRun))
+            if (Targets.All(t => t.Scope == DimensionModelScope.None ||
+                                 t.Kind == DimensionTargetKind.MepRun ||
+                                 t.Kind == DimensionTargetKind.SameServiceRun))
             {
                 MepDimensionTargetOption wall = Targets.First(t => t.Kind == DimensionTargetKind.Wall);
                 wall.Scope = DimensionModelScope.CurrentModel;
@@ -247,7 +251,12 @@ namespace AJTools.Models.Dimensioning
             MinimumRunLengthMm = Clamp(MinimumRunLengthMm, 0.0, 100000.0, 1000.0);
             SearchBandMm = Clamp(SearchBandMm, 1.0, 5000.0, 150.0);
             PaddingMm = Clamp(PaddingMm, 0.0, 200.0, 6.0);
-            RowSpacingMm = Clamp(RowSpacingMm, 1.0, 200.0, 8.0);
+            // A settings file written before this option existed has no value at all, which arrives as 0.
+            // Clamping 0 to the 1 mm floor would leave the stacked rows 1 mm apart on paper - they would
+            // print on top of each other. Absent means "use the default", not "use the minimum".
+            RowSpacingMm = RowSpacingMm <= 0.0
+                ? 8.0
+                : Clamp(RowSpacingMm, 1.0, 200.0, 8.0);
 
             DimensionTypeName = DimensionTypeName ?? string.Empty;
         }

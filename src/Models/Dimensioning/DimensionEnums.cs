@@ -77,20 +77,30 @@ namespace AJTools.Models.Dimensioning
     /// </summary>
     public enum DimensionTargetKind
     {
-        /// <summary>The MEP run being measured (duct, pipe, cable tray, conduit).</summary>
-        MepRun,
+        /// <summary>
+        /// A run of a DIFFERENT service to the one being measured - a pipe or cable tray picked up while
+        /// dimensioning a duct. Value 0 is fixed: saved settings files store these as integers.
+        /// </summary>
+        MepRun = 0,
 
-        Wall,
-        StructuralColumn,
-        StructuralBeam,
-        ArchitecturalColumn,
-        Floor,
+        Wall = 1,
+        StructuralColumn = 2,
+        StructuralBeam = 3,
+        ArchitecturalColumn = 4,
+        Floor = 5,
 
         /// <summary>A grid line - referenced as a datum, not as a face.</summary>
-        Grid,
+        Grid = 6,
 
         /// <summary>A level - referenced as a datum, not as a face.</summary>
-        Level
+        Level = 7,
+
+        /// <summary>
+        /// A run of the SAME service as the one being measured - duct to duct, pipe to pipe. Kept
+        /// separate from MepRun because wanting a duct measured against nearby pipework is a different
+        /// decision from wanting it measured against the next duct along.
+        /// </summary>
+        SameServiceRun = 8
     }
 
     /// <summary>
