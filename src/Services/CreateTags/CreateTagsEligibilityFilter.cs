@@ -66,6 +66,10 @@ namespace AJTools.Services.CreateTags
         {
             var candidates = new List<TagCandidate>();
 
+            // Read once per run, not per element - this is a file-backed setting, and it is the same
+            // one Smart MEP Tags reads, so no two tagging tools can disagree about a vertical run.
+            bool skipVerticalRuns = TagClashSettings.ShouldSkipVerticalRuns();
+
             foreach (ElementId id in selectedIds)
             {
                 Element elem = doc.GetElement(id);
@@ -114,7 +118,7 @@ namespace AJTools.Services.CreateTags
                         continue;
                     }
 
-                    if (IsVerticalMepCurve(mepCurve))
+                    if (skipVerticalRuns && IsVerticalMepCurve(mepCurve))
                     {
                         tally.Add("Vertical run");
                         continue;
