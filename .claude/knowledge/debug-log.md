@@ -8,6 +8,31 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Connect MEP Elements: split button got stuck showing Settings as the default face — FIXED, suite 1.47.7)
+- **Symptom (Ajmal's words)**: "after that can you change the button configuration - no, if i select
+  the settings it will come like settings first, and i need the settings inside always, like [the]
+  split button for the opening pane; create opening tool - so settings will be inside always, connect
+  only it will come." He wanted the button to behave like the Opening panel's "Create Openings"
+  split button, where the main face never changes away from the primary action.
+- **Root cause**: Revit's `SplitButton.IsSynchronizedWithCurrentItem` defaults to `true`, which makes
+  the button's TOP face permanently switch to whichever child was clicked most recently. `AddSmartConnectTool()`
+  never set this to `false`, so opening the dropdown and clicking "Connect MEP Elements Settings" once
+  made Settings the new default - the next plain click on the button ran Settings again, not Connect.
+  `AddMepOpeningsTool()` had already solved this exact problem with a one-line
+  `splitButton => splitButton.IsSynchronizedWithCurrentItem = false` configuration and a comment
+  explaining why - the Connect MEP Elements button simply never got the same treatment when it was
+  built.
+- **Fix**: added the identical configuration line to `AddSmartConnectTool()`, matching the Opening
+  tool's pattern exactly (including comment wording), so the top face is now permanently pinned to
+  "Connect MEP Elements" regardless of which child ran last.
+- **Lesson**: this is another instance of the pattern already logged twice above for this feature -
+  the fix already existed elsewhere in the ribbon (the Opening panel), and the new tool just didn't
+  inherit it. When building a split/pulldown button, check an existing one in the same ribbon for this
+  exact `IsSynchronizedWithCurrentItem` setting before assuming the default behaviour is fine.
+- **Verified how**: found by reading `AddMepOpeningsTool()` directly and comparing line-by-line
+  against `AddSmartConnectTool()`, not from memory of how SplitButton works. Clean build, zero
+  warnings. **Not yet exercised in Revit** - Ajmal to test after this deploy.
+
 ### 2026-08-16 (Connect MEP Elements: dead code left behind by the 1.47.5 removals — CLEANED UP, suite 1.47.6)
 - **Prompted by Ajmal, directly**: "check entirely we remove something so with remove ites is there
   anything related with that removed feature settings remove. also maybe there is one settings is

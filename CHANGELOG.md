@@ -5,6 +5,14 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.7] - 2026-08-16
+
+- **Fixed**: **the Connect MEP Elements button was getting stuck on Settings.** Click the dropdown,
+  choose "Connect MEP Elements Settings" once, and the top of the button would permanently switch to
+  Settings — the next plain click opened Settings again instead of connecting. The top button now
+  always stays "Connect MEP Elements" no matter which one you opened last, the same way the Opening
+  panel's "Create Openings" button already worked.
+
 ## [1.47.6] - 2026-08-16
 
 A cleanup pass through Connect MEP Elements, asked for straight after the two removals above: "check
