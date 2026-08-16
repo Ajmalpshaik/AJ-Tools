@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.48.2
+ * Version       : 1.48.3
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,13 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.48.3 (2026-08-16) - Auto MEP Dimension Settings window split into two tabs, "What to dimension"
+ *                       (services and reference targets) and "How it's drawn" (chain style and the
+ *                       skip filters). All four sections previously sat in one scroll behind a nine-row
+ *                       reference table, so the two sections changed most often were always below the
+ *                       fold. Each tab keeps its own scrollbar, and the validation message stays outside
+ *                       the tabs so it is readable from either one. Layout only - no control, setting,
+ *                       label or validation rule changed.
  * v1.48.2 (2026-08-16) - Auto MEP Dimension: two ducts measured to the same wall no longer leave two
  *                       overlapping dimensions. Once the outer duct's chain (wall - inner - outer) is
  *                       drawn, the shorter wall - inner dimension the tool made earlier is removed, and
@@ -1754,8 +1761,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.48.2.0")]
-[assembly: AssemblyFileVersion("1.48.2.0")]
+[assembly: AssemblyVersion("1.48.3.0")]
+[assembly: AssemblyFileVersion("1.48.3.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
