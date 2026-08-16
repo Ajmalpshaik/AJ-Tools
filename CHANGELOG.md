@@ -34,6 +34,11 @@ of building new pieces beside them.**
   other warning happened to appear at the same time.
 - **Fixed**: a validation message could squash into five wrapped lines in the footer; it now has its
   own full-width row. The tabs also fade like every other AJ Tools window.
+- **Changed**: the window is now a **fixed size with no scrolling** — everything on a tab is visible
+  at once, nothing to scroll and nothing to resize.
+- **Changed**: the **angle fallback moved onto the Main tab**, into the Bend angle card right beneath
+  the angle it falls back from. It was buried in Advanced, where it read as unrelated to the setting
+  it belongs to. The two remaining one-line Advanced options were merged into a single card.
 
 ## [1.47.8] - 2026-08-16
 
