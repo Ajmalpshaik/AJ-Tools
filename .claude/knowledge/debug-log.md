@@ -8,6 +8,39 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Connect MEP Elements: two overlapping settings could contradict each other — SIMPLIFIED, suite 1.47.5)
+- **Symptom (found together, live testing)**: Ajmal ("still same") reported ducts still not extending
+  as expected. Live inspection of his saved settings file showed `RoutingMode: 2` (Automatic) but
+  `MoveMode: 3` (Neither - leave both alone). The tool followed MoveMode and inserted three new pieces
+  even though RoutingMode said "Automatic," which reads as broken from the outside, because two
+  settings governed overlapping ground and could point different ways.
+- **Root cause**: `SmartConnectMoveMode.None` ("Neither") and `SmartConnectRoutingMode.OffsetWithTwoElbows`
+  ("Never touch the picked pipes") both force `forceInsert = true` for the same reason - the user
+  wants nothing they picked to move - via two unrelated settings that a user has no way to know are
+  linked. Whichever one is set to the "don't touch anything" extreme wins, regardless of what the
+  other says.
+- **Fix, at Ajmal's explicit instruction** ("this no need and remove that related this settings
+  also"): removed `SmartConnectMoveMode.None` outright, not just hid it. "Never touch the picked
+  pipes" in Routing mode is now the ONE place that behaviour lives. `MoveMode` only ever offers Both /
+  FirstOnly / SecondOnly now - all three assume at least one end may move, so there is no longer a
+  second control that can silently override Routing's decision.
+- **Backward compatibility**: `Sanitize()` already resets an out-of-range enum value to `Both` via
+  `Enum.IsDefined` - removing value 3 makes any OLD settings file with `MoveMode: 3` fall into that
+  same path automatically, no migration code required. Verified by reading the guard after the change,
+  not assumed.
+- **Companion simplification, same request**: also removed the nearest-open-end auto-pairing algorithm
+  for a multi-element selection (`BuildNearestPairs`, `ClosestDistance`, `MaxPairDistanceMm`,
+  `SingleUndoForBatch`) - Ajmal's words: "that connection method no need, you can remove - if i need i
+  will select the pipe or what elements then it will connect." A pre-selection of exactly two elements
+  now connects them directly with no matching; more than two asks him to narrow it down.
+- **Lesson**: same shape as the two Routing-mode bugs already logged above - two settings (or two
+  branches) governing the same underlying decision from different angles is where this feature keeps
+  going wrong. Worth checking for on any future addition here: does a new setting duplicate ground
+  that Routing mode or MoveMode already covers?
+- **Verified how**: grepped for every remaining reference to the removed enum value and the removed
+  batch functions before and after editing (both came back empty), then a clean full build across
+  Release/R21-R26, zero warnings. **Not yet exercised in Revit** — Ajmal to test.
+
 ### 2026-08-15 (Connect MEP Elements: in-line gap always made a new duct instead of extending the real one — FIXED, suite 1.47.4)
 - **Symptom (Ajmal's words, live in Revit)**: "in the revit sliting means not single cut. split means
   add a unian in the bitween liek that" → clarified on asking: "in this tool if there is extending

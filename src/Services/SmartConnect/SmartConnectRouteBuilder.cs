@@ -172,8 +172,7 @@ namespace AJTools.Services.SmartConnect
             SmartConnectRoutingMode mode,
             double angleDegrees)
         {
-            bool forceInsert = mode == SmartConnectRoutingMode.OffsetWithTwoElbows ||
-                               settings.MoveMode == SmartConnectMoveMode.None;
+            bool forceInsert = mode == SmartConnectRoutingMode.OffsetWithTwoElbows;
 
             bool mayMoveFirst = !forceInsert &&
                                 CanTrimEnd(firstElement) &&
