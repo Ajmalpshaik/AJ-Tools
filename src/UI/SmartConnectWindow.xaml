@@ -8,10 +8,18 @@
   Dependencies: AJTools.Models, AJTools.Services.SmartConnect
 
   Layout, all from Ajmal on 2026-08-16:
-  - Two tabs instead of one long scrolling page with a collapsible block. Main carries the three
-    things changed day to day; Advanced carries the rest.
+  - Two tabs instead of one long page with a collapsible block. Main carries what is changed day to
+    day; Advanced carries the rest.
+  - FIXED SIZE, NO SCROLLING. ResizeMode is NoResize and neither tab has a ScrollViewer, so every
+    control must fit inside 560 x 700 as authored. Roughly 500px of that is usable for tab content
+    once the title bar, tab strip, footer row and credit line are taken off; Main currently needs
+    about 490 and Advanced about 455. Anything added here eats that headroom - re-check both tabs
+    rather than letting content clip silently, because without a scrollbar there is nothing to
+    reveal it.
   - Advanced explains itself through hover tooltips, not a permanent line of hint text under every
     control. That is what made the old page unreadably long.
+  - The angle fallback lives in the Bend angle card on Main, beside the angle it falls back FROM -
+    it was in Advanced and read as unrelated to the setting it belongs to.
   - "Show failed report" sits in the footer beside Reset/Save/Cancel, because it governs what happens
     while the tool RUNS rather than how it routes.
   - The old "How it makes room for the new run" card is gone entirely: the tool always stretches what
@@ -22,10 +30,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Connect MEP Elements - Settings"
         Width="560"
-        Height="640"
-        MinWidth="520"
-        MinHeight="470"
-        ResizeMode="CanResize"
+        Height="700"
+        ResizeMode="NoResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BackgroundDark}"
@@ -59,9 +65,9 @@
 
             <!--
               A plain string Content on a RadioButton/CheckBox does NOT wrap in WPF - it silently
-              overflows past the window edge instead. Harmless at the default width, but ResizeMode is
-              CanResize with MinWidth=520, and a long option would run past the border with no sign
-              anything was cut off. This template fixes it everywhere at once.
+              overflows past the window edge instead, with no sign anything was cut off. The window is
+              a fixed 560 wide, but the two-column category grid gives each box only about half of
+              that, so a longer label still needs to wrap. This template fixes it everywhere at once.
             -->
             <DataTemplate x:Key="WrappingOptionContent">
                 <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
@@ -162,15 +168,14 @@
 
                 <!-- ============================== MAIN ============================== -->
                 <TabItem Header="Main">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  Padding="0,10,0,0">
+                    <StackPanel Margin="0,10,0,0">
                         <StackPanel>
 
                             <!-- Bend angle -->
                             <Border Style="{StaticResource SectionCard}">
                                 <Grid>
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
@@ -238,6 +243,19 @@
                                              ItemContainerStyle="{StaticResource ModernListBoxItem}"
                                              SelectionMode="Single"
                                              SelectionChanged="OnCustomAnglesSelectionChanged"/>
+
+                                    <!--
+                                      Lives here rather than under Advanced: it is about the angle
+                                      chosen directly above it, so separating the two only made the
+                                      fallback look unrelated to the setting it falls back FROM.
+                                    -->
+                                    <CheckBox x:Name="AngleFallbackCheck"
+                                              Grid.Row="6"
+                                              Grid.ColumnSpan="2"
+                                              Content="If it will not fit, try 45&#176;, 30&#176;, 60&#176;, 90&#176; rather than give up"
+                                              Style="{StaticResource OptionCheckBox}"
+                                              Margin="0,10,0,0"
+                                              ToolTip="Sometimes there is not enough length for the angle you asked for.&#10;This falls back instead of failing, and tells you afterwards which angle it used."/>
                                 </Grid>
                             </Border>
 
@@ -278,14 +296,12 @@
                             </Border>
 
                         </StackPanel>
-                    </ScrollViewer>
+                    </StackPanel>
                 </TabItem>
 
                 <!-- ============================ ADVANCED ============================ -->
                 <TabItem Header="Advanced">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  Padding="0,10,0,0">
+                    <StackPanel Margin="0,10,0,0">
                         <StackPanel>
 
                             <TextBlock Style="{StaticResource GroupHint}"
@@ -337,36 +353,15 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Shapes it will accept -->
+                            <!-- Shapes and behaviour: two one-line options, not worth a card each. -->
                             <Border Style="{StaticResource SectionCard}">
                                 <StackPanel>
-                                    <TextBlock Text="Shapes it will accept" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock Text="Shapes it will accept, and how it behaves" Style="{StaticResource SectionHeader}"/>
 
                                     <CheckBox x:Name="AllowNonParallelCheck"
                                               Content="Runs that are not parallel to each other"
                                               Style="{StaticResource OptionCheckBox}"
-                                              Margin="0"
                                               ToolTip="Covers runs that cross at an angle and runs that pass by each other at different levels.&#10;Switch it off and only dead-parallel facing ends are accepted, which is how the old version behaved."/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Angle fallback -->
-                            <Border Style="{StaticResource SectionCard}">
-                                <StackPanel>
-                                    <TextBlock Text="If your angle will not fit" Style="{StaticResource SectionHeader}"/>
-
-                                    <CheckBox x:Name="AngleFallbackCheck"
-                                              Content="Try 45&#176;, 30&#176;, 60&#176;, 90&#176; rather than give up"
-                                              Style="{StaticResource OptionCheckBox}"
-                                              Margin="0"
-                                              ToolTip="Sometimes there is not enough length for the angle you asked for.&#10;This falls back instead of failing, and tells you afterwards which angle it used."/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Behaviour while working -->
-                            <Border Style="{StaticResource SectionCard}">
-                                <StackPanel>
-                                    <TextBlock Text="How it behaves while you work" Style="{StaticResource SectionHeader}"/>
 
                                     <CheckBox x:Name="BatchFromSelectionCheck"
                                               Content="If exactly two are already selected, connect them directly"
@@ -400,7 +395,7 @@
                             </Border>
 
                         </StackPanel>
-                    </ScrollViewer>
+                    </StackPanel>
                 </TabItem>
 
             </TabControl>
