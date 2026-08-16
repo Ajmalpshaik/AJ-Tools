@@ -5,6 +5,14 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.48.1] - 2026-08-16
+
+- **Fixed**: the **Connect MEP Elements settings window cut off the bottom of the Main tab** — the
+  "Warn me if the new run hits something" box was half hidden behind the buttons, and the window could
+  not be dragged bigger to see it. The window is taller now, **you can drag any edge or corner to
+  resize it**, and each tab scrolls if you make it small or use large Windows text scaling. Nothing
+  about how the tool connects has changed.
+
 ## [1.48.0] - 2026-08-16
 
 Connect MEP Elements rebuilt again, this time around one rule: **it stretches your elements instead

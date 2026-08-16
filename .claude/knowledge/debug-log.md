@@ -8,6 +8,41 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Connect MEP Elements settings: Main tab clipped and the window could not be resized — FIXED, suite 1.48.1)
+- **Symptom (Ajmal's words, with two screenshots)**: "chek this the main page and that reszing in the
+  corner we can drain and resize that also not working." The Main tab's last card ("Warn me if the new
+  run hits something") was cut off behind the footer, and dragging the window edge did nothing. The
+  Advanced tab, in the same window, had ~150px of empty space.
+- **Root cause — a height ESTIMATE written into the design, with no safety net.** 1.48.0 deliberately
+  made this window `ResizeMode="NoResize"` at a fixed 560 x 700 with no ScrollViewer, and the XAML
+  header comment recorded the reasoning: "Main currently needs about 490" of "roughly 500px usable".
+  That number was estimated by reading the markup, never measured on screen, and it was ~60px short —
+  radios, wrapped hint lines and card padding each cost a few px more than assumed. With no scrollbar
+  AND no resize, there were two independent ways to see the hidden control and both had been removed
+  in the same change, so the shortfall was invisible until Ajmal opened it.
+- **Fix**: 560 x 780 default, `ResizeMode="CanResize"` with `MinWidth`/`MinHeight`, and each tab's
+  content wrapped in a `ScrollViewer` (`VerticalScrollBarVisibility="Auto"`, horizontal disabled,
+  `Margin="0,0,8,0"` on the inner StackPanel so cards clear the scrollbar). No control, label,
+  tooltip or setting changed. This is exactly the pattern the other **seven** settings windows in the
+  repo already use — checked by grep, not memory: CreateTags, FlowDirection, MepDimension,
+  AutoDatumDimension, MepOpening, SmartMepTag, RevisionCloud and ArrangeTags are all
+  `CanResize` + `SizeToContent="Manual"` + Min sizes, and the ones with long bodies scroll.
+  SmartConnectWindow was the only exception in the suite.
+- **Lesson**: a fixed-size window is only safe if the content height was MEASURED at 100% DPI, and
+  even then it breaks at larger Windows text scaling. Keep the ScrollViewer as the safety net even
+  when the content is expected to fit — a hidden control with no scrollbar and no resize grip gives
+  the user no way to discover anything is missing. If a future window really must be fixed-size,
+  measure it running, don't estimate it from the markup.
+- **Caught in the same pass**: `tools\verify-version-consistency.ps1` reported the AssemblyInfo header
+  and README.md still at **1.47.8** — the 1.48.0 change bumped the attributes and the changelog but
+  not those two. Both corrected to 1.48.1. Worth running that script after every version bump; it
+  exists precisely because these two are easy to miss.
+- **Verified how**: clean build at `Release` (2020), zero errors / zero warnings, then deployed to the
+  AppData 2020 payload `AJ Tools.20260816170942719` with the manifest and DLL read back at 1.48.1.0.
+  Revit was open during the deploy, so **the running session is still on 1.48.0** — Ajmal restarts
+  Revit, opens the settings window and confirms the Main tab shows the clash card and the window
+  drags bigger. **Not click-tested by me.** → 2026-08-16.
+
 ### 2026-08-16 (Connect MEP Elements v3: Copy Workset had NEVER worked, plus a settings/behaviour rebuild — FIXED, suite 1.48.0)
 - **The bug worth remembering**: `CopyWorkset` (and `CopyInstanceParameters` before it) copied
   `BuiltInParameter.ELEM_PARTITION_PARAM` through a helper that guards on
