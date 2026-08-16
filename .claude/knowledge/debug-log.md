@@ -42,6 +42,20 @@ AutoDebugger, or code-review only) -> date.
   Revit was open during the deploy, so **the running session is still on 1.48.0** — Ajmal restarts
   Revit, opens the settings window and confirms the Main tab shows the clash card and the window
   drags bigger. **Not click-tested by me.** → 2026-08-16.
+- **Released publicly the same session, at Ajmal's explicit instruction** ("release it now", chosen over
+  the recommended test-first option — he was told plainly the build had not been exercised in Revit).
+  The public installer had been stuck at **v1.44.0** since 2026-08-13 while source ran to 1.48.1, so
+  the release notes had to cover 1.45.0-1.48.1 in one entry, written from the FINAL behaviour rather
+  than by concatenating the intermediate changelogs — 1.47.0 shipped batch pairing, routing modes and
+  a "Neither" option that 1.47.5-1.48.0 then removed, so copying those bullets forward would have
+  described features the download does not contain. Worth repeating on any future catch-up release.
+  Ran clean end to end: package.ps1 built all 8 years (~9 min, `SkipAjToolsAutoDeploy` is built into
+  it, so Revit staying open did not matter), all 9 payloads read back at 1.48.1.0, checksum matched,
+  Actions published in 14s, and the **published asset was downloaded and re-hashed** — identical to
+  the local zip. Source tag `v1.48.1`, installer tag `v1.48.1`, all three repos clean and in sync.
+- **Process gotcha**: the shell's working directory persists between commands, so a `cd` into
+  `AJ-Tools-Installer` earlier in the session made `.\dist\create-tag.ps1` fail with "does not exist".
+  `Set-Location` back to the repo root before the source-repo steps in `RELEASE_PROCESS.md`.
 
 ### 2026-08-16 (Connect MEP Elements v3: Copy Workset had NEVER worked, plus a settings/behaviour rebuild — FIXED, suite 1.48.0)
 - **The bug worth remembering**: `CopyWorkset` (and `CopyInstanceParameters` before it) copied
