@@ -7,10 +7,10 @@
  *                 chain is drawn, and which runs are skipped.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-08-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,8 +27,13 @@
  *   returns - a popup after closing loses everything the user typed.
  * - Category tick boxes are built in code rather than XAML so no Checked handler can fire during
  *   InitializeComponent before its sibling controls exist.
+ * - The validation message sits OUTSIDE the tabs, so a problem on one tab is still readable while the
+ *   other tab is showing. Save stays disabled either way.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-16) - Sections split across two tabs ("What to dimension" / "How it's drawn"); tab
+ *                       cross-fade attached to match every other tabbed window. No control, setting,
+ *                       label or validation rule changed - layout only.
  * v1.0.0 (2026-08-15) - Initial release.
  *
  * License       : All Rights Reserved
@@ -74,6 +79,9 @@ namespace AJTools.UI.Dimensioning
             // Shared AJ Tools window exit (fade + short sink). The window's result,
             // validation and close behaviour are unchanged - see WindowMotionHelper's header.
             WindowMotionHelper.AttachStandardExit(this);
+
+            // Shared tab cross-fade, same as every other tabbed AJ Tools window.
+            TabMotionHelper.AttachTabTransitions(this);
 
             _dimensionTypeNames = dimensionTypeNames ?? new List<string>();
 

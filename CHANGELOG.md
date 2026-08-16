@@ -5,6 +5,14 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.48.3] - 2026-08-16
+
+- **Changed**: the **Auto MEP Dimension settings window is now in two tabs** — **What to dimension**
+  (which services, and what they are measured to) and **How it's drawn** (chain style, and which runs
+  get skipped). Everything used to be in one long scroll, and the reference table in the middle is nine
+  rows tall, so the drawing and skip options were always below the fold. Same settings, same buttons,
+  nothing renamed — just easier to reach.
+
 ## [1.48.2] - 2026-08-16
 
 - **Fixed**: **Auto MEP Dimension left two dimensions on the same ducts.** With two ducts measured to

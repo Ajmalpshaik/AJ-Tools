@@ -3,10 +3,16 @@
   Description: Which services get measured, what they are measured to, whether each reference comes
                from the current model or a linked model, plus layout and filter options.
   Author: Ajmal P.S.
-  Version: 1.0.0
-  Last Updated: 2026-08-15
+  Version: 1.1.0
+  Last Updated: 2026-08-16
   Revit Version: 2020 - latest
   Dependencies: AJTools.UI.ModernStyles
+
+  Layout note (v1.1.0): the four sections are split across two tabs. They used to sit in one long
+  scroll, and section 2's reference table is nine rows tall, so sections 3 and 4 were permanently
+  below the fold - the options a modeller changes most often were the ones needing the most scrolling.
+  Each tab keeps its own ScrollViewer so nothing can be hidden at small window sizes or large Windows
+  text scaling.
 -->
 <Window x:Class="AJTools.UI.Dimensioning.MepDimensionSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -29,6 +35,12 @@
 
             <Style x:Key="SectionHeading" TargetType="TextBlock" BasedOn="{StaticResource SubtitleText}">
                 <Setter Property="Margin" Value="0,14,0,6"/>
+            </Style>
+
+            <!-- The first heading in a tab already has the tab strip above it, so it does not need
+                 the full separating margin the later headings use. -->
+            <Style x:Key="FirstSectionHeading" TargetType="TextBlock" BasedOn="{StaticResource SubtitleText}">
+                <Setter Property="Margin" Value="0,0,0,6"/>
             </Style>
 
             <Style x:Key="HintText" TargetType="TextBlock" BasedOn="{StaticResource DisabledText}">
@@ -70,166 +82,185 @@
                     <StackPanel Grid.Row="0" Margin="0,0,0,8">
                         <TextBlock Text="Auto MEP Dimension" Style="{StaticResource TitleText}"/>
                         <TextBlock Style="{StaticResource HintText}"
-                                   Text="Choose which services get dimensioned, what they are measured to, and whether each reference comes from this model or from a linked model."/>
+                                   Text="Set which services get dimensioned and what they are measured to, then how the dimensions are drawn and which runs are left out."/>
                     </StackPanel>
 
                     <!-- Body -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="0,0,8,0">
+                    <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
 
-                            <TextBlock Text="1. Services to dimension" Style="{StaticResource SectionHeading}"/>
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Text="Straight runs of these categories get their own dimension. This does NOT control what they are measured to - that is section 2. Round pipes and conduit are measured to their centre line, because they have no flat sides to dimension to."/>
-                            <!-- Six fixed columns rather than a WrapPanel: the services always read as
-                                 one row instead of breaking 4 + 2 as the window is resized. -->
-                            <UniformGrid x:Name="CategoryPanel" Columns="6" Margin="0,0,0,4"/>
+                        <!-- ========================= WHAT TO DIMENSION ========================= -->
+                        <TabItem Header="What to dimension">
+                            <ScrollViewer Margin="0,10,0,0"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <!-- The right margin keeps content clear of the scrollbar when it appears. -->
+                                <StackPanel Margin="0,0,8,0">
 
-                            <TextBlock Text="2. What to measure to" Style="{StaticResource SectionHeading}"/>
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Text="Tick a box to use that kind of element as a reference. The two columns are independent, so you can measure to walls in this model, in your linked architectural model, or both. The last two rows are different: a service run is never the far end of a dimension, it just adds a witness line where the chain crosses it."/>
+                                    <TextBlock Text="1. Services to dimension" Style="{StaticResource FirstSectionHeading}"/>
+                                    <TextBlock Style="{StaticResource HintText}"
+                                               Text="Straight runs of these categories get their own dimension. This does NOT control what they are measured to - that is section 2. Round pipes and conduit are measured to their centre line, because they have no flat sides to dimension to."/>
+                                    <!-- Six fixed columns rather than a WrapPanel: the services always read as
+                                         one row instead of breaking 4 + 2 as the window is resized. -->
+                                    <UniformGrid x:Name="CategoryPanel" Columns="6" Margin="0,0,0,4"/>
 
-                            <DataGrid x:Name="TargetGrid"
-                                      Style="{StaticResource ModernDataGrid}"
-                                      ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
-                                      AutoGenerateColumns="False"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      CanUserResizeRows="False"
-                                      CanUserReorderColumns="False"
-                                      CanUserSortColumns="False"
-                                      SelectionMode="Single"
-                                      SelectionUnit="FullRow"
-                                      GridLinesVisibility="Horizontal"
-                                      HeadersVisibility="Column"
-                                      AlternationCount="2"
-                                      RowBackground="{StaticResource CardBackground}"
-                                      AlternatingRowBackground="{StaticResource BackgroundMedium}"
-                                      RowHeight="34"
-                                      MinHeight="240"
-                                      Margin="0,0,0,4">
-                                <DataGrid.Resources>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                    </Style>
-                                </DataGrid.Resources>
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Reference" Binding="{Binding DisplayName}" Width="*" IsReadOnly="True"/>
-                                    <DataGridTemplateColumn Header="This model" Width="120">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <CheckBox Style="{StaticResource ModernCheckBox}"
-                                                          HorizontalAlignment="Center"
-                                                          IsChecked="{Binding UseCurrent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Linked models" Width="130">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <CheckBox Style="{StaticResource ModernCheckBox}"
-                                                          HorizontalAlignment="Center"
-                                                          IsChecked="{Binding UseLinked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                    <TextBlock Text="2. What to measure to" Style="{StaticResource SectionHeading}"/>
+                                    <TextBlock Style="{StaticResource HintText}"
+                                               Text="Tick a box to use that kind of element as a reference. The two columns are independent, so you can measure to walls in this model, in your linked architectural model, or both. The last two rows are different: a service run is never the far end of a dimension, it just adds a witness line where the chain crosses it."/>
 
-                            <TextBlock x:Name="LinkWarningText"
-                                       Style="{StaticResource HintText}"
-                                       Foreground="{StaticResource AccentOrange}"
-                                       Text="Revit can drop dimensions that point at a linked element when that link is reloaded or the project is reopened. Use linked references where that is acceptable."/>
+                                    <DataGrid x:Name="TargetGrid"
+                                              Style="{StaticResource ModernDataGrid}"
+                                              ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              CanUserResizeRows="False"
+                                              CanUserReorderColumns="False"
+                                              CanUserSortColumns="False"
+                                              SelectionMode="Single"
+                                              SelectionUnit="FullRow"
+                                              GridLinesVisibility="Horizontal"
+                                              HeadersVisibility="Column"
+                                              AlternationCount="2"
+                                              RowBackground="{StaticResource CardBackground}"
+                                              AlternatingRowBackground="{StaticResource BackgroundMedium}"
+                                              RowHeight="34"
+                                              MinHeight="240"
+                                              Margin="0,0,0,4">
+                                        <DataGrid.Resources>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            </Style>
+                                        </DataGrid.Resources>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Reference" Binding="{Binding DisplayName}" Width="*" IsReadOnly="True"/>
+                                            <DataGridTemplateColumn Header="This model" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox Style="{StaticResource ModernCheckBox}"
+                                                                  HorizontalAlignment="Center"
+                                                                  IsChecked="{Binding UseCurrent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Linked models" Width="130">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox Style="{StaticResource ModernCheckBox}"
+                                                                  HorizontalAlignment="Center"
+                                                                  IsChecked="{Binding UseLinked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
 
-                            <TextBlock Text="3. How the dimensions are drawn" Style="{StaticResource SectionHeading}"/>
+                                    <TextBlock x:Name="LinkWarningText"
+                                               Style="{StaticResource HintText}"
+                                               Foreground="{StaticResource AccentOrange}"
+                                               Text="Revit can drop dimensions that point at a linked element when that link is reloaded or the project is reopened. Use linked references where that is acceptable."/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
 
-                            <StackPanel Margin="0,0,0,6">
-                                <RadioButton x:Name="SingleStringRadio"
-                                             Style="{StaticResource ModernRadioButton}"
-                                             GroupName="ChainStyle"
-                                             Content="One dimension string with segments"
-                                             Margin="0,0,0,4"/>
-                                <RadioButton x:Name="SeparateSegmentsRadio"
-                                             Style="{StaticResource ModernRadioButton}"
-                                             GroupName="ChainStyle"
-                                             Content="A separate dimension for each gap"
-                                             Margin="0,0,0,4"/>
-                            </StackPanel>
+                        <!-- ========================== HOW IT IS DRAWN ========================== -->
+                        <TabItem Header="How it's drawn">
+                            <ScrollViewer Margin="0,10,0,0"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="0,0,8,0">
 
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Text="Dimension a second run against the same wall and the tool REPLACES the dimension it drew for the first one, so you end up with a single longer string instead of two piled on top of each other. It only ever replaces its own work - a dimension you drew by hand is never touched."/>
+                                    <TextBlock Text="3. How the dimensions are drawn" Style="{StaticResource FirstSectionHeading}"/>
 
-                            <CheckBox x:Name="BothSidesCheck"
-                                      Style="{StaticResource ModernCheckBox}"
-                                      Content="Dimension to a reference on both sides of the run"
-                                      Margin="0,0,0,4"/>
+                                    <StackPanel Margin="0,0,0,6">
+                                        <RadioButton x:Name="SingleStringRadio"
+                                                     Style="{StaticResource ModernRadioButton}"
+                                                     GroupName="ChainStyle"
+                                                     Content="One dimension string with segments"
+                                                     Margin="0,0,0,4"/>
+                                        <RadioButton x:Name="SeparateSegmentsRadio"
+                                                     Style="{StaticResource ModernRadioButton}"
+                                                     GroupName="ChainStyle"
+                                                     Content="A separate dimension for each gap"
+                                                     Margin="0,0,0,4"/>
+                                    </StackPanel>
 
-                            <CheckBox x:Name="IncludeWidthCheck"
-                                      Style="{StaticResource ModernCheckBox}"
-                                      Content="Include each run's own width as a segment"
-                                      Margin="0,0,0,8"/>
+                                    <TextBlock Style="{StaticResource HintText}"
+                                               Text="Dimension a second run against the same wall and the tool REPLACES the dimension it drew for the first one, so you end up with a single longer string instead of two piled on top of each other. It only ever replaces its own work - a dimension you drew by hand is never touched."/>
 
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Text="With the width off, the chain steps from the same side of each run, so the segments read as consistent spacing rather than gap-and-width."/>
+                                    <CheckBox x:Name="BothSidesCheck"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Content="Dimension to a reference on both sides of the run"
+                                              Margin="0,0,0,4"/>
 
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Text="How far the dimension line runs on past the last witness line is set by the Dimension Type in Revit, not here."/>
+                                    <CheckBox x:Name="IncludeWidthCheck"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Content="Include each run's own width as a segment"
+                                              Margin="0,0,0,8"/>
 
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Dimension type" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <ComboBox Grid.Column="1" x:Name="DimensionTypeCombo" MaxWidth="360" HorizontalAlignment="Left"/>
-                            </Grid>
+                                    <TextBlock Style="{StaticResource HintText}"
+                                               Text="With the width off, the chain steps from the same side of each run, so the segments read as consistent spacing rather than gap-and-width."/>
 
-                            <TextBlock Text="4. Which runs are skipped" Style="{StaticResource SectionHeading}"/>
+                                    <TextBlock Style="{StaticResource HintText}"
+                                               Text="How far the dimension line runs on past the last witness line is set by the Dimension Type in Revit, not here."/>
 
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="90"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Skip runs shorter than" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox Grid.Column="1" x:Name="MinLengthBox" Style="{StaticResource ModernTextBox}"/>
-                                <TextBlock Grid.Column="2" Text="mm  (0 = no minimum)" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Dimension type" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <ComboBox Grid.Column="1" x:Name="DimensionTypeCombo" MaxWidth="360" HorizontalAlignment="Left"/>
+                                    </Grid>
 
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="90"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Look for references within" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox Grid.Column="1" x:Name="SearchBandBox" Style="{StaticResource ModernTextBox}"/>
-                                <TextBlock Grid.Column="2" Text="mm either side of the measuring line" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </Grid>
+                                    <TextBlock Text="4. Which runs are skipped" Style="{StaticResource SectionHeading}"/>
 
-                            <CheckBox x:Name="SkipVerticalCheck"
-                                      Style="{StaticResource ModernCheckBox}"
-                                      Content="Skip vertical runs (they read as a dot in plan)"
-                                      Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Skip runs shorter than" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBox Grid.Column="1" x:Name="MinLengthBox" Style="{StaticResource ModernTextBox}"/>
+                                        <TextBlock Grid.Column="2" Text="mm  (0 = no minimum)" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    </Grid>
 
-                            <CheckBox x:Name="SkipDimensionedCheck"
-                                      Style="{StaticResource ModernCheckBox}"
-                                      Content="Skip runs that already have a dimension in this view"
-                                      Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Look for references within" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBox Grid.Column="1" x:Name="SearchBandBox" Style="{StaticResource ModernTextBox}"/>
+                                        <TextBlock Grid.Column="2" Text="mm either side of the measuring line" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    </Grid>
 
-                            <CheckBox x:Name="ShowReportCheck"
-                                      Style="{StaticResource ModernCheckBox}"
-                                      Content="Tell me when something was skipped or could not be dimensioned"
-                                      Margin="0,0,0,4"/>
+                                    <CheckBox x:Name="SkipVerticalCheck"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Content="Skip vertical runs (they read as a dot in plan)"
+                                              Margin="0,0,0,4"/>
 
-                            <TextBlock Style="{StaticResource HintText}" Margin="18,0,0,6"
-                                       Text="A run that dimensioned everything never shows a message - the dimensions are the result. This only speaks up when something was left out."/>
-                        </StackPanel>
-                    </ScrollViewer>
+                                    <CheckBox x:Name="SkipDimensionedCheck"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Content="Skip runs that already have a dimension in this view"
+                                              Margin="0,0,0,4"/>
+
+                                    <CheckBox x:Name="ShowReportCheck"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Content="Tell me when something was skipped or could not be dimensioned"
+                                              Margin="0,0,0,4"/>
+
+                                    <TextBlock Style="{StaticResource HintText}" Margin="18,0,0,6"
+                                               Text="A run that dimensioned everything never shows a message - the dimensions are the result. This only speaks up when something was left out."/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
 
                     <!-- Validation -->
                     <TextBlock Grid.Row="2"
