@@ -2,23 +2,29 @@
   Tool Name: Connect MEP Elements (Smart Connect) - Settings Window
   Description: Settings for how Connect MEP Elements routes, what it may pick, and what it copies.
   Author: Ajmal P.S.
-  Version: 2.1.0
-  Last Updated: 2026-08-15
+  Version: 3.0.0
+  Last Updated: 2026-08-16
   Revit Version: 2020
   Dependencies: AJTools.Models, AJTools.Services.SmartConnect
 
-  Layout note: only the four choices a modeller actually changes day to day sit on the main page.
-  Everything else is real, kept, and correct out of the box - it lives under "Advanced settings",
-  collapsed, with a plain-English line under each control saying when you would touch it.
+  Layout, all from Ajmal on 2026-08-16:
+  - Two tabs instead of one long scrolling page with a collapsible block. Main carries the three
+    things changed day to day; Advanced carries the rest.
+  - Advanced explains itself through hover tooltips, not a permanent line of hint text under every
+    control. That is what made the old page unreadably long.
+  - "Show failed report" sits in the footer beside Reset/Save/Cancel, because it governs what happens
+    while the tool RUNS rather than how it routes.
+  - The old "How it makes room for the new run" card is gone entirely: the tool always stretches what
+    was picked, so there is nothing left to choose.
 -->
 <Window x:Class="AJTools.UI.SmartConnectWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Connect MEP Elements - Settings"
         Width="560"
-        Height="660"
-        MinWidth="500"
-        MinHeight="480"
+        Height="640"
+        MinWidth="520"
+        MinHeight="470"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
@@ -44,43 +50,40 @@
                 <Setter Property="Margin" Value="0,0,0,8"/>
             </Style>
 
-            <!-- The one-line "what is this for" under a control. -->
-            <Style x:Key="Hint" TargetType="TextBlock">
+            <Style x:Key="GroupHint" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
                 <Setter Property="FontSize" Value="11"/>
                 <Setter Property="TextWrapping" Value="Wrap"/>
-                <Setter Property="Margin" Value="26,0,0,10"/>
-            </Style>
-
-            <Style x:Key="GroupHint" TargetType="TextBlock" BasedOn="{StaticResource Hint}">
                 <Setter Property="Margin" Value="0,0,0,8"/>
             </Style>
 
             <!--
-              Both option styles wrap their text instead of clipping it. A plain string Content on a
-              RadioButton/CheckBox does NOT wrap by default in WPF - it silently overflows past the
-              edge of the window instead. That was latent here: harmless at the window's normal
-              width, but ResizeMode is CanResize with MinWidth=500, and at that width a long option
-              (e.g. "If exactly two are already selected, connect them directly") could run past the
-              border with no visible sign anything was cut off. The DataTemplate below fixes it
-              everywhere at once.
+              A plain string Content on a RadioButton/CheckBox does NOT wrap in WPF - it silently
+              overflows past the window edge instead. Harmless at the default width, but ResizeMode is
+              CanResize with MinWidth=520, and a long option would run past the border with no sign
+              anything was cut off. This template fixes it everywhere at once.
             -->
             <DataTemplate x:Key="WrappingOptionContent">
                 <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
             </DataTemplate>
 
             <Style x:Key="OptionCheckBox" TargetType="CheckBox" BasedOn="{StaticResource ModernCheckBox}">
-                <Setter Property="Margin" Value="0,0,0,2"/>
+                <Setter Property="Margin" Value="0,0,0,7"/>
                 <Setter Property="HorizontalAlignment" Value="Left"/>
                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                 <Setter Property="ContentTemplate" Value="{StaticResource WrappingOptionContent}"/>
+                <!-- Long enough to actually read a full sentence before it vanishes. -->
+                <Setter Property="ToolTipService.ShowDuration" Value="30000"/>
+                <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
             </Style>
 
             <Style x:Key="OptionRadioButton" TargetType="RadioButton" BasedOn="{StaticResource ModernRadioButton}">
-                <Setter Property="Margin" Value="0,0,0,2"/>
+                <Setter Property="Margin" Value="0,0,0,7"/>
                 <Setter Property="HorizontalAlignment" Value="Left"/>
                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                 <Setter Property="ContentTemplate" Value="{StaticResource WrappingOptionContent}"/>
+                <Setter Property="ToolTipService.ShowDuration" Value="30000"/>
+                <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
             </Style>
         </ResourceDictionary>
     </Window.Resources>
@@ -94,9 +97,19 @@
                    HorizontalAlignment="Center"
                    Margin="0,0,0,8"/>
 
-        <!-- Action bar -->
+        <!--
+          Action bar: the run-time option on the left, the window's own buttons on the right.
+          ErrorText gets its OWN full-width row rather than a star column between the two, because
+          with the checkbox and three buttons all sized Auto the leftover width collapses to almost
+          nothing and a one-line validation message wrapped into five.
+        -->
         <Grid DockPanel.Dock="Bottom" Margin="12,0,12,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -104,313 +117,293 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock x:Name="ErrorText"
-                       Grid.Column="0"
-                       VerticalAlignment="Center"
+                       Grid.Row="0"
+                       Grid.ColumnSpan="5"
                        Foreground="{StaticResource AccentDanger}"
                        TextWrapping="Wrap"
-                       Margin="0,0,10,0"/>
+                       Margin="0,0,0,8"/>
 
-            <Button Grid.Column="1"
+            <CheckBox x:Name="ShowFailedReportCheck"
+                      Grid.Row="1"
+                      Grid.Column="0"
+                      Content="Show failed report"
+                      VerticalAlignment="Center"
+                      Margin="0,0,12,0"
+                      Style="{StaticResource ModernCheckBox}"
+                      ToolTipService.ShowDuration="30000"
+                      ToolTipService.InitialShowDelay="350"
+                      ToolTip="Ticked: a popup appears right away naming the reason a connection failed.&#10;Unticked: nothing is shown - you simply try again."/>
+
+            <Button Grid.Row="1" Grid.Column="2"
                     Content="Reset"
                     Style="{StaticResource SecondaryButton}"
                     MinWidth="90"
                     Margin="0,0,8,0"
                     Click="OnResetClick"/>
 
-            <Button Grid.Column="2"
+            <Button Grid.Row="1" Grid.Column="3"
                     Content="Save"
                     Style="{StaticResource ModernButton}"
                     IsDefault="True"
-                    MinWidth="110"
+                    MinWidth="100"
                     Margin="0,0,8,0"
                     Click="OnOkClick"/>
 
-            <Button Grid.Column="3"
+            <Button Grid.Row="1" Grid.Column="4"
                     Content="Cancel"
                     Style="{StaticResource SecondaryButton}"
                     IsCancel="True"
-                    MinWidth="110"
+                    MinWidth="100"
                     Click="OnCancelClick"/>
         </Grid>
 
-        <Grid Margin="12,12,12,6">
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-                <Border Background="{StaticResource CardBackground}"
-                        BorderBrush="{StaticResource BorderSoft}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="12">
-                    <StackPanel>
+        <Grid Margin="12,12,12,8">
+            <TabControl Background="Transparent" BorderThickness="0">
 
-                        <StackPanel Margin="0,0,0,12">
-                            <TextBlock Text="Connect MEP Elements"
-                                       FontSize="16"
-                                       FontWeight="Bold"
-                                       Foreground="{StaticResource TextPrimary}"/>
-                            <TextBlock Text="Saved and remembered. The button then connects straight away without asking."
-                                       Style="{StaticResource GroupHint}"
-                                       Margin="0,3,0,0"/>
-                        </StackPanel>
+                <!-- ============================== MAIN ============================== -->
+                <TabItem Header="Main">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="0,10,0,0">
+                        <StackPanel>
 
-                        <!-- ============ 1. Bend angle ============ -->
-                        <Border Style="{StaticResource SectionCard}">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                            <!-- Bend angle -->
+                            <Border Style="{StaticResource SectionCard}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                                           Text="Bend angle"
-                                           Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                               Text="Bend angle"
+                                               Style="{StaticResource SectionHeader}"/>
 
-                                <!-- 90 and 45 sit on one line - there is nothing to explain that
-                                     needs its own row, so the shared hint below covers both. -->
-                                <UniformGrid Grid.Row="1" Grid.ColumnSpan="2"
-                                             Columns="2"
-                                             Margin="0,0,0,6">
-                                    <RadioButton x:Name="Angle90Radio"
-                                                 Content="90&#176; — square across"
-                                                 GroupName="AnglePreset"
-                                                 Style="{StaticResource OptionRadioButton}"
-                                                 Checked="OnPresetAngleChecked"/>
+                                    <UniformGrid Grid.Row="1" Grid.ColumnSpan="2"
+                                                 Columns="2"
+                                                 Margin="0,0,0,6">
+                                        <RadioButton x:Name="Angle90Radio"
+                                                     Content="90&#176; — square across"
+                                                     GroupName="AnglePreset"
+                                                     Style="{StaticResource OptionRadioButton}"
+                                                     Checked="OnPresetAngleChecked"/>
 
-                                    <RadioButton x:Name="Angle45Radio"
-                                                 Content="45&#176; — gentler on flow"
-                                                 GroupName="AnglePreset"
-                                                 Style="{StaticResource OptionRadioButton}"
-                                                 Checked="OnPresetAngleChecked"/>
-                                </UniformGrid>
+                                        <RadioButton x:Name="Angle45Radio"
+                                                     Content="45&#176; — gentler on flow"
+                                                     GroupName="AnglePreset"
+                                                     Style="{StaticResource OptionRadioButton}"
+                                                     Checked="OnPresetAngleChecked"/>
+                                    </UniformGrid>
 
-                                <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
-                                           Text="90&#176; takes the least room. 45&#176; is kinder to flow but needs a longer run to fit."
-                                           Style="{StaticResource GroupHint}"/>
+                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                                               Text="90&#176; takes the least room. 45&#176; is kinder to flow but needs a longer run to fit."
+                                               Style="{StaticResource GroupHint}"/>
 
-                                <TextBlock Grid.Row="3" Grid.ColumnSpan="2"
-                                           Text="Something else — type it, press Add, then pick it from the list (5&#176; to 90&#176;)"
-                                           Style="{StaticResource GroupHint}"
-                                           Margin="0,8,0,6"/>
+                                    <TextBlock Grid.Row="3" Grid.ColumnSpan="2"
+                                               Text="Something else — type it, press Add, then pick it from the list (5&#176; to 90&#176;)"
+                                               Style="{StaticResource GroupHint}"
+                                               Margin="0,4,0,6"/>
 
-                                <TextBox x:Name="CustomAngleBox"
-                                         Grid.Row="4"
-                                         Grid.Column="0"
-                                         Height="28"
-                                         Style="{StaticResource ModernTextBox}"
-                                         VerticalContentAlignment="Center"/>
+                                    <TextBox x:Name="CustomAngleBox"
+                                             Grid.Row="4"
+                                             Grid.Column="0"
+                                             Height="28"
+                                             Style="{StaticResource ModernTextBox}"
+                                             VerticalContentAlignment="Center"/>
 
-                                <Button x:Name="AddAngleButton"
-                                        Grid.Row="4"
-                                        Grid.Column="1"
-                                        Content="Add"
-                                        Style="{StaticResource ModernButton}"
-                                        MinWidth="90"
-                                        Margin="8,0,0,0"
-                                        Click="OnAddCustomAngleClick"/>
+                                    <Button x:Name="AddAngleButton"
+                                            Grid.Row="4"
+                                            Grid.Column="1"
+                                            Content="Add"
+                                            Style="{StaticResource ModernButton}"
+                                            MinWidth="90"
+                                            Margin="8,0,0,0"
+                                            Click="OnAddCustomAngleClick"/>
 
-                                <ListBox x:Name="CustomAnglesList"
-                                         Grid.Row="5"
-                                         Grid.ColumnSpan="2"
-                                         MinHeight="60"
-                                         MaxHeight="110"
-                                         Margin="0,8,0,0"
-                                         Style="{StaticResource ModernListBox}"
-                                         ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                                         SelectionMode="Single"
-                                         SelectionChanged="OnCustomAnglesSelectionChanged"/>
-                            </Grid>
-                        </Border>
+                                    <ListBox x:Name="CustomAnglesList"
+                                             Grid.Row="5"
+                                             Grid.ColumnSpan="2"
+                                             MinHeight="58"
+                                             MaxHeight="104"
+                                             Margin="0,8,0,0"
+                                             Style="{StaticResource ModernListBox}"
+                                             ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                             SelectionMode="Single"
+                                             SelectionChanged="OnCustomAnglesSelectionChanged"/>
+                                </Grid>
+                            </Border>
 
-                        <!-- ============ 2. Which pipe may move ============ -->
-                        <Border Style="{StaticResource SectionCard}">
-                            <StackPanel>
-                                <TextBlock Text="Which pipe is allowed to move" Style="{StaticResource SectionHeader}"/>
-                                <TextBlock Style="{StaticResource GroupHint}"
-                                           Text="To join two runs, one or both usually has to grow or be cut back. This is who gets changed."/>
-
-                                <RadioButton x:Name="MoveBothRadio"
-                                             Content="Both — they share it equally"
-                                             GroupName="MoveMode"
-                                             Style="{StaticResource OptionRadioButton}"/>
-                                <RadioButton x:Name="MoveFirstRadio"
-                                             Content="Only the first one I pick"
-                                             GroupName="MoveMode"
-                                             Style="{StaticResource OptionRadioButton}"
-                                             Margin="0,6,0,2"/>
-                                <RadioButton x:Name="MoveSecondRadio"
-                                             Content="Only the second one I pick"
-                                             GroupName="MoveMode"
-                                             Style="{StaticResource OptionRadioButton}"
-                                             Margin="0,6,0,2"/>
-
-                                <TextBlock Style="{StaticResource GroupHint}"
-                                           Margin="0,8,0,0"
-                                           Text="Equipment, air terminals and flex can never be cut, so they are always left alone whatever you choose here. To leave BOTH picked pipes alone on purpose, use &quot;Never touch the picked pipes&quot; under Show advanced settings &#8594; How it makes room for the new run."/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- ============ 3. Clash warning ============ -->
-                        <Border Style="{StaticResource SectionCard}">
-                            <StackPanel>
-                                <CheckBox x:Name="WarnOnClashCheck"
-                                          Content="Warn me if the new run hits something"
-                                          Style="{StaticResource OptionCheckBox}"/>
-                                <TextBlock Style="{StaticResource Hint}"
-                                           Margin="26,4,0,0"
-                                           Text="Checks the new pieces against walls, floors, beams and other services. Leave it off unless you want it — it is the only setting here that slows the tool down."/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- ============ Advanced toggle ============ -->
-                        <Button x:Name="AdvancedToggleButton"
-                                Content="Show advanced settings"
-                                Style="{StaticResource SecondaryButton}"
-                                HorizontalAlignment="Left"
-                                MinWidth="200"
-                                Margin="0,2,0,10"
-                                Click="OnToggleAdvancedClick"/>
-
-                        <StackPanel x:Name="AdvancedPanel" Visibility="Collapsed">
-
-                            <TextBlock Style="{StaticResource GroupHint}"
-                                       Margin="0,0,0,10"
-                                       Text="These are already set the way they should be. Nothing below needs changing to use the tool — each one says what it is for."/>
-
-                            <!-- How it makes room -->
+                            <!-- Which element may move -->
                             <Border Style="{StaticResource SectionCard}">
                                 <StackPanel>
-                                    <TextBlock Text="How it makes room for the new run" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock Text="Which element is allowed to move" Style="{StaticResource SectionHeader}"/>
 
-                                    <RadioButton x:Name="ModeAutoRadio"
-                                                 Content="Work it out for me"
-                                                 GroupName="RoutingMode"
-                                                 Style="{StaticResource OptionRadioButton}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Tries cutting the pipes back first; if that will not work, it leaves them alone and adds new pieces instead. Leave it here."/>
+                                    <RadioButton x:Name="MoveBothRadio"
+                                                 Content="Both — they share it equally"
+                                                 GroupName="MoveMode"
+                                                 Style="{StaticResource OptionRadioButton}"
+                                                 ToolTip="The travel needed to meet is split evenly between the two elements you picked."/>
+                                    <RadioButton x:Name="MoveFirstRadio"
+                                                 Content="Only the first one I pick"
+                                                 GroupName="MoveMode"
+                                                 Style="{StaticResource OptionRadioButton}"
+                                                 ToolTip="The second element never moves. The first one travels the whole distance."/>
+                                    <RadioButton x:Name="MoveSecondRadio"
+                                                 Content="Only the second one I pick"
+                                                 GroupName="MoveMode"
+                                                 Style="{StaticResource OptionRadioButton}"
+                                                 ToolTip="The first element never moves. The second one travels the whole distance."/>
 
-                                    <RadioButton x:Name="ModeSingleElbowRadio"
-                                                 Content="Always cut the picked pipes back"
-                                                 GroupName="RoutingMode"
-                                                 Style="{StaticResource OptionRadioButton}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Fewest new elements, but it fails outright on anything that cannot be cut, like a pump or a flex duct."/>
-
-                                    <RadioButton x:Name="ModeOffsetRadio"
-                                                 Content="Never touch the picked pipes"
-                                                 GroupName="RoutingMode"
-                                                 Style="{StaticResource OptionRadioButton}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Margin="26,0,0,0"
-                                               Text="Everything is added around them. Use it when the two runs are set out correctly and must not shift by even a millimetre."/>
+                                    <TextBlock Style="{StaticResource GroupHint}"
+                                               Margin="0,2,0,0"
+                                               Text="Your elements are always stretched to meet. Equipment, air terminals and flex can never be stretched, so a piece is run up to them instead."/>
                                 </StackPanel>
                             </Border>
+
+                            <!-- Clash warning -->
+                            <Border Style="{StaticResource SectionCard}">
+                                <CheckBox x:Name="WarnOnClashCheck"
+                                          Content="Warn me if the new run hits something"
+                                          Style="{StaticResource OptionCheckBox}"
+                                          Margin="0"
+                                          ToolTip="Checks anything the tool creates against walls, floors, beams and other services.&#10;Leave it off unless you want it - it is the only setting here that slows the tool down."/>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ============================ ADVANCED ============================ -->
+                <TabItem Header="Advanced">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="0,10,0,0">
+                        <StackPanel>
+
+                            <TextBlock Style="{StaticResource GroupHint}"
+                                       Text="These are already set the way they should be. Hover any option to see what it does."/>
 
                             <!-- What you are allowed to pick -->
                             <Border Style="{StaticResource SectionCard}">
                                 <StackPanel>
                                     <TextBlock Text="What you are allowed to pick" Style="{StaticResource SectionHeader}"/>
                                     <TextBlock Style="{StaticResource GroupHint}"
-                                               Text="Pipe, Duct and Cable Tray are always allowed. Turn one of these off only if you keep picking that kind by mistake."/>
+                                               Text="Pipe, Duct and Cable Tray are always allowed."/>
 
-                                    <CheckBox x:Name="AllowConduitCheck"
-                                              Content="Conduit"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}" Text="Treated exactly like the other straight runs."/>
+                                    <UniformGrid Columns="2">
+                                        <CheckBox x:Name="AllowConduitCheck"
+                                                  Content="Conduit"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="Treated exactly like the other straight runs - stretched to meet like a pipe or duct."/>
 
-                                    <CheckBox x:Name="AllowFlexCheck"
-                                              Content="Flex Duct and Flex Pipe"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="You can connect to them, but they are never cut or straightened — a new piece is run up to them."/>
+                                        <CheckBox x:Name="AllowFlexDuctCheck"
+                                                  Content="Flex Duct"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="You can connect to it, but it is never stretched or straightened.&#10;A piece is run up to it instead."/>
 
-                                    <CheckBox x:Name="AllowFamilyInstanceCheck"
-                                              Content="Equipment, air terminals, fittings and accessories"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Anything with a spare connector. This is what lets you run a duct straight into a grille or an AHU."/>
+                                        <CheckBox x:Name="AllowFlexPipeCheck"
+                                                  Content="Flex Pipe"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="You can connect to it, but it is never stretched or straightened.&#10;A piece is run up to it instead."/>
 
-                                    <CheckBox x:Name="AllowNonParallelCheck"
-                                              Content="Runs that are not parallel to each other"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Margin="26,0,0,0"
-                                               Text="Covers runs that cross at an angle and runs that pass by each other at different levels. Switch it off and only dead-parallel ends are accepted, which is how the old version behaved."/>
+                                        <CheckBox x:Name="AllowAirTerminalsCheck"
+                                                  Content="Air terminals"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="Grilles and diffusers. This is what lets you run a duct straight into one."/>
+
+                                        <CheckBox x:Name="AllowEquipmentCheck"
+                                                  Content="Equipment"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="Mechanical equipment, plumbing fixtures, sprinklers, electrical equipment —&#10;anything else carrying a spare connector."/>
+
+                                        <CheckBox x:Name="AllowFittingsCheck"
+                                                  Content="Fittings"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="Pipe, duct, cable tray and conduit fittings that still have a spare connector."/>
+
+                                        <CheckBox x:Name="AllowAccessoriesCheck"
+                                                  Content="Accessories"
+                                                  Style="{StaticResource OptionCheckBox}"
+                                                  ToolTip="Valves, dampers and similar in-line accessories with a spare connector."/>
+                                    </UniformGrid>
                                 </StackPanel>
                             </Border>
 
-                            <!-- If the angle will not fit -->
+                            <!-- Shapes it will accept -->
+                            <Border Style="{StaticResource SectionCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Shapes it will accept" Style="{StaticResource SectionHeader}"/>
+
+                                    <CheckBox x:Name="AllowNonParallelCheck"
+                                              Content="Runs that are not parallel to each other"
+                                              Style="{StaticResource OptionCheckBox}"
+                                              Margin="0"
+                                              ToolTip="Covers runs that cross at an angle and runs that pass by each other at different levels.&#10;Switch it off and only dead-parallel facing ends are accepted, which is how the old version behaved."/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Angle fallback -->
                             <Border Style="{StaticResource SectionCard}">
                                 <StackPanel>
                                     <TextBlock Text="If your angle will not fit" Style="{StaticResource SectionHeader}"/>
 
                                     <CheckBox x:Name="AngleFallbackCheck"
                                               Content="Try 45&#176;, 30&#176;, 60&#176;, 90&#176; rather than give up"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Margin="26,0,0,0"
-                                               Text="Sometimes there is not enough length for the angle you asked for. This makes it fall back instead of failing, and it tells you afterwards which angle it actually used."/>
+                                              Style="{StaticResource OptionCheckBox}"
+                                              Margin="0"
+                                              ToolTip="Sometimes there is not enough length for the angle you asked for.&#10;This falls back instead of failing, and tells you afterwards which angle it used."/>
                                 </StackPanel>
                             </Border>
 
-                            <!-- How it behaves while you work -->
+                            <!-- Behaviour while working -->
                             <Border Style="{StaticResource SectionCard}">
                                 <StackPanel>
                                     <TextBlock Text="How it behaves while you work" Style="{StaticResource SectionHeader}"/>
 
                                     <CheckBox x:Name="BatchFromSelectionCheck"
                                               Content="If exactly two are already selected, connect them directly"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Select the two elements first, click the button, done - no picking on screen. Off means it always asks you to pick, even with two already selected. Selecting more than two just asks you to narrow it down to two."/>
-
-                                    <CheckBox x:Name="SummaryReportCheck"
-                                              Content="Show a failed pair in the next prompt, not a popup"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Margin="26,0,0,0"
-                                               Text="While you are picking pair after pair, a failure appears on the status line of the next prompt so nothing interrupts you. Off means a popup you have to dismiss each time."/>
+                                              Style="{StaticResource OptionCheckBox}"
+                                              Margin="0"
+                                              ToolTip="Select the two elements first, click the button, done - no picking on screen.&#10;Off means it always asks you to pick, even with two already selected.&#10;Selecting more than two asks you to narrow it down to two."/>
                                 </StackPanel>
                             </Border>
 
-                            <!-- Matching the run it joins -->
+                            <!-- Making the new pieces match -->
                             <Border Style="{StaticResource SectionCard}">
                                 <StackPanel>
                                     <TextBlock Text="Making the new pieces match" Style="{StaticResource SectionHeader}"/>
 
                                     <CheckBox x:Name="CopyInsulationCheck"
                                               Content="Copy insulation and lining"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Without this the new pieces come out bare, and an insulated run ends up with a gap in it."/>
+                                              Style="{StaticResource OptionCheckBox}"
+                                              ToolTip="Without this a bridging piece comes out bare, and an insulated run ends up with a gap in it."/>
 
-                                    <CheckBox x:Name="CopyParametersCheck"
-                                              Content="Copy Comments, Mark and Workset"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Keeps the new pieces on the same workset and carrying the same data as the run they join, so schedules stay clean."/>
+                                    <CheckBox x:Name="CopyWorksetCheck"
+                                              Content="Copy Workset"
+                                              Style="{StaticResource OptionCheckBox}"
+                                              ToolTip="Keeps anything the tool creates on the same workset as the run it joins."/>
 
                                     <CheckBox x:Name="AutoTransitionCheck"
                                               Content="Add a reducer when the two are different sizes"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Margin="26,0,0,0"
-                                               Text="Puts the size change in the middle of the new run, so the elbow at each end stays a plain same-size elbow."/>
+                                              Style="{StaticResource OptionCheckBox}"
+                                              Margin="0"
+                                              ToolTip="Puts the size change in the middle of the new run, so the elbow at each end&#10;stays a plain same-size elbow."/>
                                 </StackPanel>
                             </Border>
 
                         </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
 
-                    </StackPanel>
-                </Border>
-            </ScrollViewer>
+            </TabControl>
         </Grid>
     </DockPanel>
 </Window>

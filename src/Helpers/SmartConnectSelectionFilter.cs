@@ -1,10 +1,17 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Selection Filter
 // Description: Restricts selection to supported and compatible MEP elements.
 // Author: Ajmal P.S.
-// Version: 2.0.0
-// Last Updated: 2026-08-15
+// Version: 3.0.0
+// Last Updated: 2026-08-16
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI.Selection, AJTools.Models
+//
+// v3.0.0 - The two grouped picking flags were split one-per-category. Flex is now Flex Duct and Flex
+// Pipe separately; the old "family instances with a connector" flag is now Air Terminals, Fittings,
+// Accessories and Equipment. Equipment is the CATCH-ALL: any connector-bearing family instance that
+// is not an air terminal, fitting or accessory falls under it (plumbing fixtures, sprinklers,
+// electrical equipment). That is deliberate - naming only four explicit categories would have
+// silently dropped everything else, which used to be pickable.
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -17,10 +24,10 @@ namespace AJTools.Utils
     /// Selection filter for Connect MEP Elements supported categories.
     /// </summary>
     /// <remarks>
-    /// Straight runs (Pipe, Duct, Cable Tray, Conduit) are always candidates. Flex curves and
-    /// connector-bearing family instances (equipment, air terminals, fittings, accessories) are
-    /// candidates only when the matching setting is on. A family instance qualifies by actually
-    /// having an open End connector, not by belonging to a hard-coded category list.
+    /// Straight runs (Pipe, Duct, Cable Tray) are always candidates. Conduit, flex curves and
+    /// connector-bearing family instances are candidates only when their own setting is on. A family
+    /// instance must also actually have an open End connector - belonging to an allowed category is
+    /// necessary but not sufficient.
     /// </remarks>
     internal sealed class SmartConnectSelectionFilter : ISelectionFilter
     {
@@ -31,15 +38,23 @@ namespace AJTools.Utils
             BuiltInCategory.OST_CableTray
         };
 
-        private static readonly HashSet<BuiltInCategory> ConduitCategories = new HashSet<BuiltInCategory>
+        private static readonly HashSet<BuiltInCategory> AirTerminalCategories = new HashSet<BuiltInCategory>
         {
-            BuiltInCategory.OST_Conduit
+            BuiltInCategory.OST_DuctTerminal
         };
 
-        private static readonly HashSet<BuiltInCategory> FlexCurveCategories = new HashSet<BuiltInCategory>
+        private static readonly HashSet<BuiltInCategory> FittingCategories = new HashSet<BuiltInCategory>
         {
-            BuiltInCategory.OST_FlexPipeCurves,
-            BuiltInCategory.OST_FlexDuctCurves
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_CableTrayFitting,
+            BuiltInCategory.OST_ConduitFitting
+        };
+
+        private static readonly HashSet<BuiltInCategory> AccessoryCategories = new HashSet<BuiltInCategory>
+        {
+            BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_DuctAccessory
         };
 
         private readonly SmartConnectSettings _settings;
@@ -104,23 +119,42 @@ namespace AJTools.Utils
                     return element is MEPCurve;
                 }
 
-                if (ConduitCategories.Contains(category))
+                if (category == BuiltInCategory.OST_Conduit)
                 {
                     return effective.AllowConduit && element is MEPCurve;
                 }
 
-                if (FlexCurveCategories.Contains(category))
+                if (category == BuiltInCategory.OST_FlexDuctCurves)
                 {
-                    return effective.AllowFlexCurves && element is MEPCurve;
+                    return effective.AllowFlexDuct && element is MEPCurve;
+                }
+
+                if (category == BuiltInCategory.OST_FlexPipeCurves)
+                {
+                    return effective.AllowFlexPipe && element is MEPCurve;
+                }
+
+                if (AirTerminalCategories.Contains(category))
+                {
+                    return effective.AllowAirTerminals && HasOpenEndConnector(element);
+                }
+
+                if (FittingCategories.Contains(category))
+                {
+                    return effective.AllowFittings && HasOpenEndConnector(element);
+                }
+
+                if (AccessoryCategories.Contains(category))
+                {
+                    return effective.AllowAccessories && HasOpenEndConnector(element);
                 }
             }
 
-            if (!effective.AllowFamilyInstanceConnectors)
-            {
-                return false;
-            }
-
-            return HasOpenEndConnector(element);
+            // Everything else that carries a spare connector - mechanical equipment, plumbing
+            // fixtures, sprinklers, electrical equipment - is governed by the one Equipment flag.
+            // Keeping this as a catch-all rather than a category list is what stops the split from
+            // quietly dropping a category that used to be pickable.
+            return effective.AllowEquipment && HasOpenEndConnector(element);
         }
 
         /// <summary>
@@ -203,30 +237,6 @@ namespace AJTools.Utils
         }
 
         /// <summary>
-        /// Kept for compatibility with existing callers: reports the built-in category of a straight run.
-        /// </summary>
-        public static bool TryGetSupportedCategory(Element element, out BuiltInCategory category)
-        {
-            category = BuiltInCategory.INVALID;
-
-            BuiltInCategory resolved;
-            if (!TryGetBuiltInCategory(element, out resolved))
-            {
-                return false;
-            }
-
-            if (!CoreCurveCategories.Contains(resolved) &&
-                !ConduitCategories.Contains(resolved) &&
-                !FlexCurveCategories.Contains(resolved))
-            {
-                return false;
-            }
-
-            category = resolved;
-            return true;
-        }
-
-        /// <summary>
         /// Maps a flex category onto the rigid category it can legitimately join, so that
         /// "flex duct to duct" and "flex pipe to pipe" are treated as compatible picks.
         /// </summary>
@@ -301,17 +311,21 @@ namespace AJTools.Utils
             SmartConnectSettings effective = settings ?? new SmartConnectSettings();
 
             var parts = new List<string> { "Pipe", "Duct", "Cable Tray" };
+
             if (effective.AllowConduit)
             {
                 parts.Add("Conduit");
             }
 
-            if (effective.AllowFlexCurves)
+            // Flex duct and flex pipe are separate settings but collapse to one word in the prompt,
+            // which has limited room on Revit's status bar.
+            if (effective.AllowFlexDuct || effective.AllowFlexPipe)
             {
                 parts.Add("Flex");
             }
 
-            if (effective.AllowFamilyInstanceConnectors)
+            if (effective.AllowAirTerminals || effective.AllowEquipment ||
+                effective.AllowFittings || effective.AllowAccessories)
             {
                 parts.Add("MEP equipment");
             }

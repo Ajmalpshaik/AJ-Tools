@@ -5,6 +5,36 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.48.0] - 2026-08-16
+
+Connect MEP Elements rebuilt again, this time around one rule: **it stretches your elements instead
+of building new pieces beside them.**
+
+- **Changed**: **the tool always stretches what you picked.** The whole "How it makes room for the
+  new run" choice is gone — there is nothing left to decide. A new piece is only ever created where
+  there is genuinely nothing to stretch: the bridging run across an offset crank (that piece *is* the
+  connection), and the run up to a flex duct or equipment, which can never be lengthened.
+- **Fixed**: if an element **could** be stretched but you had set "only the first one I pick" to hold
+  it still, the tool used to quietly bolt a new piece onto it instead — the exact thing you asked me
+  to remove. It now says so plainly and tells you which setting is in the way.
+- **Fixed**: **"Copy Workset" never actually worked** — not in this version, not in the previous one.
+  The workset was being copied the wrong way internally, so it silently did nothing every single time.
+  Found by the audit, not by testing.
+- **Changed**: the settings window is now **two tabs, Main and Advanced**, and the advanced options
+  explain themselves when you **hover** over them instead of carrying a permanent line of text each.
+  That is what made the old page so long.
+- **Changed**: **"What you are allowed to pick" is now one tick box per category** — Conduit, Flex
+  Duct, Flex Pipe, Air terminals, Equipment, Fittings, Accessories. Equipment covers everything else
+  with a spare connector (sprinklers, plumbing fixtures, electrical equipment) so nothing you could
+  pick before was lost.
+- **Changed**: only the **workset** is copied onto new pieces now. Comments and Mark are not.
+- **Changed**: **"Show failed report"** sits in the bottom-left corner. Ticked, a failure pops up with
+  the reason straight away; unticked, nothing shows and you just try again.
+- **Fixed**: the "built at 45° instead of the 90° you chose" note was being swallowed whenever any
+  other warning happened to appear at the same time.
+- **Fixed**: a validation message could squash into five wrapped lines in the footer; it now has its
+  own full-width row. The tabs also fade like every other AJ Tools window.
+
 ## [1.47.8] - 2026-08-16
 
 - **Fixed**: repo housekeeping pass — several docs had drifted from the real code:

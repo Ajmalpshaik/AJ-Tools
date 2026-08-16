@@ -1,21 +1,27 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Route Builder
 // Description: Plans and creates Connect MEP Elements routing geometry and fittings between two MEP elements.
 // Author: Ajmal P.S.
-// Version: 2.0.0
-// Last Updated: 2026-08-15
+// Version: 3.0.0
+// Last Updated: 2026-08-16
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models, AJTools.Utils
 //
 // How this works
 // --------------
 // One planner works out where each open end has to finish up (the "plan point") and how far it
-// travels along its own outward direction to get there. Two execution strategies then reach those
-// points: trim the existing run's end, or leave the run alone and insert a new piece up to the point.
-// Single Elbow mode trims where it is allowed to; Offset + 2 Elbows never touches the picked
-// elements, which is what makes equipment, air terminals and flex runs connectable at all.
+// travels along its own outward direction to get there.
 //
-// Every attempt runs inside its own sub-transaction, so a failed angle or mode rolls back cleanly
-// and the next one starts from untouched geometry.
+// The picked elements are then ALWAYS STRETCHED to reach those points. A new piece is created in
+// only two places, both of them unavoidable:
+//   - the bridging run across an offset crank or skew, which has to exist because it IS the
+//     connection - there is no pair of ends to stretch together;
+//   - the run up to an end that CanTrimEnd rejects (a flex duct or pipe, a piece of equipment, or a
+//     curved run), because such an end can never be lengthened.
+// An end that COULD be stretched but is held back by the user's "which element may move" choice is
+// refused outright rather than quietly given a new piece - that was the v2 behaviour Ajmal removed.
+//
+// Every attempt runs inside its own sub-transaction, so a failed angle rolls back cleanly and the
+// next one starts from untouched geometry.
 
 using System;
 using System.Collections.Generic;
@@ -88,38 +94,33 @@ namespace AJTools.Services.SmartConnect
                 return SmartConnectRouteResult.Failed(compatibilityError);
             }
 
-            IList<SmartConnectRoutingMode> modes = BuildModeOrder(effective.RoutingMode);
             IList<double> angles = SmartConnectSettingsService.BuildAngleAttemptOrder(effective);
 
             string lastError = "No workable route was found for these two elements.";
 
-            foreach (SmartConnectRoutingMode mode in modes)
+            foreach (double angle in angles)
             {
-                foreach (double angle in angles)
+                SmartConnectRouteResult attempt = RunAttemptInSubTransaction(
+                    firstElement,
+                    secondElement,
+                    effective,
+                    angle);
+
+                if (attempt.Success)
                 {
-                    SmartConnectRouteResult attempt = RunAttemptInSubTransaction(
-                        firstElement,
-                        secondElement,
-                        effective,
-                        mode,
-                        angle);
+                    // Only an offset crank is actually built to the requested angle. A straight
+                    // bridge, a corner and a skew take their angle from the shape of the two
+                    // runs, so reporting them as "built at X instead of your Y" is nonsense -
+                    // it fired on every clean in-line connection.
+                    attempt.AngleWasSubstituted =
+                        !attempt.AngleFixedByGeometry &&
+                        !SmartConnectSettingsService.AreAnglesEqual(attempt.AngleUsedDegrees, effective.SelectedAngleDegrees);
+                    return attempt;
+                }
 
-                    if (attempt.Success)
-                    {
-                        // Only an offset crank is actually built to the requested angle. A straight
-                        // bridge, a corner and a skew take their angle from the shape of the two
-                        // runs, so reporting them as "built at X instead of your Y" is nonsense -
-                        // it fired on every clean in-line connection.
-                        attempt.AngleWasSubstituted =
-                            !attempt.AngleFixedByGeometry &&
-                            !SmartConnectSettingsService.AreAnglesEqual(attempt.AngleUsedDegrees, effective.SelectedAngleDegrees);
-                        return attempt;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(attempt.ErrorMessage))
-                    {
-                        lastError = attempt.ErrorMessage;
-                    }
+                if (!string.IsNullOrWhiteSpace(attempt.ErrorMessage))
+                {
+                    lastError = attempt.ErrorMessage;
                 }
             }
 
@@ -130,7 +131,6 @@ namespace AJTools.Services.SmartConnect
             Element firstElement,
             Element secondElement,
             SmartConnectSettings settings,
-            SmartConnectRoutingMode mode,
             double angleDegrees)
         {
             using (SubTransaction attemptTransaction = new SubTransaction(_document))
@@ -139,7 +139,7 @@ namespace AJTools.Services.SmartConnect
                 {
                     attemptTransaction.Start();
 
-                    SmartConnectRouteResult result = TryAttempt(firstElement, secondElement, settings, mode, angleDegrees);
+                    SmartConnectRouteResult result = TryAttempt(firstElement, secondElement, settings, angleDegrees);
                     if (result.Success)
                     {
                         attemptTransaction.Commit();
@@ -169,18 +169,24 @@ namespace AJTools.Services.SmartConnect
             Element firstElement,
             Element secondElement,
             SmartConnectSettings settings,
-            SmartConnectRoutingMode mode,
             double angleDegrees)
         {
-            bool forceInsert = mode == SmartConnectRoutingMode.OffsetWithTwoElbows;
+            // Two different questions, deliberately kept apart:
+            //
+            //   canTrim*  - CAN this end physically be stretched? False only for a flex run, a piece
+            //               of equipment, or a curved run. This is the ONLY thing that justifies
+            //               creating a piece instead of stretching.
+            //   mayMove*  - is it ALLOWED to be stretched, given the user's "which element may move"
+            //               choice? A locked-but-stretchable end must refuse, not quietly get a new
+            //               piece bolted onto it - that would be exactly the behaviour v3 removed.
+            bool canTrimFirst = CanTrimEnd(firstElement);
+            bool canTrimSecond = CanTrimEnd(secondElement);
 
-            bool mayMoveFirst = !forceInsert &&
-                                CanTrimEnd(firstElement) &&
+            bool mayMoveFirst = canTrimFirst &&
                                 (settings.MoveMode == SmartConnectMoveMode.Both ||
                                  settings.MoveMode == SmartConnectMoveMode.FirstOnly);
 
-            bool mayMoveSecond = !forceInsert &&
-                                 CanTrimEnd(secondElement) &&
+            bool mayMoveSecond = canTrimSecond &&
                                  (settings.MoveMode == SmartConnectMoveMode.Both ||
                                   settings.MoveMode == SmartConnectMoveMode.SecondOnly);
 
@@ -201,14 +207,23 @@ namespace AJTools.Services.SmartConnect
 
             var result = new SmartConnectRouteResult
             {
-                ModeUsed = mode,
                 PlanUsed = plan.Kind,
                 AngleUsedDegrees = plan.ResultingAngleDegrees,
                 AngleFixedByGeometry = plan.AngleFixedByGeometry
             };
 
             string executeError;
-            if (!TryExecutePlan(firstElement, secondElement, plan, settings, mayMoveFirst, mayMoveSecond, result, out executeError))
+            if (!TryExecutePlan(
+                firstElement,
+                secondElement,
+                plan,
+                settings,
+                mayMoveFirst,
+                mayMoveSecond,
+                canTrimFirst,
+                canTrimSecond,
+                result,
+                out executeError))
             {
                 return SmartConnectRouteResult.Failed(executeError);
             }
@@ -225,23 +240,6 @@ namespace AJTools.Services.SmartConnect
 
             result.Success = true;
             return result;
-        }
-
-        private static IList<SmartConnectRoutingMode> BuildModeOrder(SmartConnectRoutingMode requested)
-        {
-            switch (requested)
-            {
-                case SmartConnectRoutingMode.SingleElbow:
-                    return new List<SmartConnectRoutingMode> { SmartConnectRoutingMode.SingleElbow };
-                case SmartConnectRoutingMode.OffsetWithTwoElbows:
-                    return new List<SmartConnectRoutingMode> { SmartConnectRoutingMode.OffsetWithTwoElbows };
-                default:
-                    return new List<SmartConnectRoutingMode>
-                    {
-                        SmartConnectRoutingMode.SingleElbow,
-                        SmartConnectRoutingMode.OffsetWithTwoElbows
-                    };
-            }
         }
 
         // ------------------------------------------------------------------
@@ -380,7 +378,7 @@ namespace AJTools.Services.SmartConnect
 
             if (!settings.AllowNonParallelEnds)
             {
-                errorMessage = "These open ends are not parallel. In the settings, click \"Show advanced settings\" and tick \"Runs that are not parallel to each other\".";
+                errorMessage = "These open ends are not parallel. In the settings, open the Advanced tab and tick \"Runs that are not parallel to each other\".";
                 return false;
             }
 
@@ -449,8 +447,6 @@ namespace AJTools.Services.SmartConnect
                         Kind = SmartConnectPlanKind.Inline,
                         FirstConnector = firstConnector,
                         SecondConnector = secondConnector,
-                        FirstDirection = firstDirection,
-                        SecondDirection = secondDirection,
                         FirstPlanPoint = firstPoint.Add(firstDirection.Multiply(inlineFirstShift)),
                         SecondPlanPoint = secondPoint.Add(secondDirection.Multiply(inlineSecondShift)),
                         FirstShift = inlineFirstShift,
@@ -463,7 +459,8 @@ namespace AJTools.Services.SmartConnect
                     return true;
                 }
 
-                // Neither end may be trimmed (equipment, flex, or "Never touch the picked pipes") -
+                // Neither end can be stretched - each is either equipment, a flex run, or a curved
+                // run, none of which can ever be lengthened -
                 // there is genuinely no existing element to stretch, so a new bridging piece is the
                 // only way to close the gap.
                 plan = new SmartConnectRoutePlan
@@ -471,8 +468,6 @@ namespace AJTools.Services.SmartConnect
                     Kind = SmartConnectPlanKind.Inline,
                     FirstConnector = firstConnector,
                     SecondConnector = secondConnector,
-                    FirstDirection = firstDirection,
-                    SecondDirection = secondDirection,
                     FirstPlanPoint = firstPoint,
                     SecondPlanPoint = secondPoint,
                     FirstShift = 0,
@@ -525,8 +520,6 @@ namespace AJTools.Services.SmartConnect
                 Kind = SmartConnectPlanKind.ParallelOffset,
                 FirstConnector = firstConnector,
                 SecondConnector = secondConnector,
-                FirstDirection = firstDirection,
-                SecondDirection = secondDirection,
                 FirstPlanPoint = firstPoint.Add(firstDirection.Multiply(firstShift)),
                 SecondPlanPoint = secondPoint.Add(secondDirection.Multiply(secondShift)),
                 FirstShift = firstShift,
@@ -629,8 +622,6 @@ namespace AJTools.Services.SmartConnect
                     Kind = SmartConnectPlanKind.Corner,
                     FirstConnector = firstConnector,
                     SecondConnector = secondConnector,
-                    FirstDirection = firstDirection,
-                    SecondDirection = secondDirection,
                     FirstPlanPoint = firstPlanPoint,
                     SecondPlanPoint = firstPlanPoint,
                     FirstShift = firstTravel,
@@ -654,8 +645,6 @@ namespace AJTools.Services.SmartConnect
                 Kind = SmartConnectPlanKind.Skew,
                 FirstConnector = firstConnector,
                 SecondConnector = secondConnector,
-                FirstDirection = firstDirection,
-                SecondDirection = secondDirection,
                 FirstPlanPoint = firstPlanPoint,
                 SecondPlanPoint = secondPlanPoint,
                 FirstShift = firstTravel,
@@ -737,6 +726,8 @@ namespace AJTools.Services.SmartConnect
             SmartConnectSettings settings,
             bool mayMoveFirst,
             bool mayMoveSecond,
+            bool canTrimFirst,
+            bool canTrimSecond,
             SmartConnectRouteResult result,
             out string errorMessage)
         {
@@ -760,6 +751,7 @@ namespace AJTools.Services.SmartConnect
                 plan.FirstPlanPoint,
                 plan.FirstShift,
                 mayMoveFirst,
+                canTrimFirst,
                 template,
                 "first",
                 createdIds,
@@ -776,6 +768,7 @@ namespace AJTools.Services.SmartConnect
                 plan.SecondPlanPoint,
                 plan.SecondShift,
                 mayMoveSecond,
+                canTrimSecond,
                 template,
                 "second",
                 createdIds,
@@ -814,8 +807,9 @@ namespace AJTools.Services.SmartConnect
         }
 
         /// <summary>
-        /// Gets one end of the route to its plan point, either by trimming the picked element or by
-        /// inserting a new piece, and reports which element now carries the connector to bridge from.
+        /// Gets one end of the route to its plan point. Stretching the picked element is always
+        /// preferred; a new piece is inserted ONLY when the element physically cannot be stretched.
+        /// Reports which element now carries the connector to bridge from.
         /// </summary>
         private bool TryReachPlanPoint(
             Element element,
@@ -823,6 +817,7 @@ namespace AJTools.Services.SmartConnect
             XYZ planPoint,
             double shift,
             bool mayMove,
+            bool canTrim,
             SegmentTemplate template,
             string sideLabel,
             List<ElementId> createdIds,
@@ -853,9 +848,30 @@ namespace AJTools.Services.SmartConnect
                 return false;
             }
 
+            // This end could have been stretched - the user's "which element may move" choice is the
+            // only thing stopping it. Bolting a new piece on instead would be the exact behaviour v3
+            // removed, so refuse and say which setting is in the way.
+            if (canTrim)
+            {
+                errorMessage = "The " + sideLabel + " element would have to move to reach the other one, " +
+                               "but \"Which element is allowed to move\" is set to leave it alone. " +
+                               "Set it to \"Both\" to let this one move too.";
+                return false;
+            }
+
+            if (shift < 0)
+            {
+                errorMessage = "The " + sideLabel + " element would have to be shortened to meet the other one, " +
+                               "and it is something that cannot be shortened.";
+                return false;
+            }
+
             if (shift < MinSegmentLength)
             {
-                errorMessage = "The " + sideLabel + " element would have to be shortened, but it is set not to move.";
+                errorMessage = string.Format(
+                    "The piece needed to reach the {0} element would be only {1:0.#} mm long - too short to create.",
+                    sideLabel,
+                    RevitCompat.InternalToMm(shift));
                 return false;
             }
 
@@ -1066,7 +1082,10 @@ namespace AJTools.Services.SmartConnect
                 return;
             }
 
-            if (settings.CopyInstanceParameters)
+            // Workset only. Comments and Mark used to be copied too, but Ajmal asked for them to
+            // stop (2026-08-16) - a bridging piece inheriting another run's Mark is misleading on a
+            // schedule, whereas the workset genuinely should follow the run it joins.
+            if (settings.CopyWorkset)
             {
                 foreach (ElementId createdId in createdIds)
                 {
@@ -1076,9 +1095,7 @@ namespace AJTools.Services.SmartConnect
                         continue;
                     }
 
-                    CopyStringParameter(source, created, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                    CopyStringParameter(source, created, BuiltInParameter.ALL_MODEL_MARK);
-                    CopyElementIdParameter(source, created, BuiltInParameter.ELEM_PARTITION_PARAM);
+                    CopyIntegerParameter(source, created, BuiltInParameter.ELEM_PARTITION_PARAM);
                 }
             }
 
@@ -2098,45 +2115,22 @@ namespace AJTools.Services.SmartConnect
             }
         }
 
-        private static void CopyStringParameter(Element source, Element target, BuiltInParameter parameterId)
+        /// <summary>
+        /// Copies an Integer-storage parameter. Workset (ELEM_PARTITION_PARAM) is one of these: it
+        /// holds the workset id as a plain int, NOT an ElementId. Copying it through an ElementId
+        /// helper silently did nothing, because the storage-type guard returned early every time -
+        /// which is why "Copy Workset" never actually worked before 2026-08-16.
+        /// </summary>
+        private static void CopyIntegerParameter(Element source, Element target, BuiltInParameter parameterId)
         {
             Parameter sourceParameter = source == null ? null : source.get_Parameter(parameterId);
             Parameter targetParameter = target == null ? null : target.get_Parameter(parameterId);
 
             if (sourceParameter == null ||
                 targetParameter == null ||
-                sourceParameter.StorageType != StorageType.String ||
-                targetParameter.StorageType != StorageType.String ||
-                targetParameter.IsReadOnly)
-            {
-                return;
-            }
-
-            string value = sourceParameter.AsString();
-            if (string.IsNullOrEmpty(value))
-            {
-                return;
-            }
-
-            try
-            {
-                targetParameter.Set(value);
-            }
-            catch
-            {
-                // Never block a connection over a comment.
-            }
-        }
-
-        private static void CopyElementIdParameter(Element source, Element target, BuiltInParameter parameterId)
-        {
-            Parameter sourceParameter = source == null ? null : source.get_Parameter(parameterId);
-            Parameter targetParameter = target == null ? null : target.get_Parameter(parameterId);
-
-            if (sourceParameter == null ||
-                targetParameter == null ||
-                sourceParameter.StorageType != StorageType.ElementId ||
-                targetParameter.StorageType != StorageType.ElementId ||
+                sourceParameter.StorageType != StorageType.Integer ||
+                targetParameter.StorageType != StorageType.Integer ||
+                !sourceParameter.HasValue ||
                 targetParameter.IsReadOnly)
             {
                 return;
@@ -2144,11 +2138,11 @@ namespace AJTools.Services.SmartConnect
 
             try
             {
-                targetParameter.Set(sourceParameter.AsElementId());
+                targetParameter.Set(sourceParameter.AsInteger());
             }
             catch
             {
-                // Worksets are not always assignable; the segment keeps the active workset.
+                // A non-workshared model has no assignable workset; the piece keeps the active one.
             }
         }
 

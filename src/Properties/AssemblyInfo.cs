@@ -24,6 +24,29 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.48.0 (2026-08-16) - Connect MEP Elements v3: the routing-mode choice is GONE and the tool now
+ *                       always stretches what was picked. A piece is created only where nothing can
+ *                       be stretched - the bridging run across a crank, and the run up to flex or
+ *                       equipment. An end that COULD stretch but is held back by "which element may
+ *                       move" now refuses with a clear message instead of quietly getting a piece
+ *                       bolted on (that was the v2 behaviour Ajmal asked to remove). Settings window
+ *                       rebuilt as Main/Advanced tabs with hover tooltips instead of a permanent hint
+ *                       line under every control. The two grouped picking flags were split one per
+ *                       category (Conduit, Flex Duct, Flex Pipe, Air terminals, Equipment, Fittings,
+ *                       Accessories) with Equipment as the deliberate catch-all so nothing that used
+ *                       to be pickable was silently dropped. Comments/Mark copying reduced to workset
+ *                       only. "Show failed report" replaced the carry-into-next-prompt behaviour with
+ *                       a popup, and moved to the footer.
+ *                       A 5-dimension multi-agent housekeeping audit raised 24 findings, 18 survived
+ *                       adversarial verification, all fixed. The one that mattered: CopyWorkset had
+ *                       NEVER worked, in v2 either - ELEM_PARTITION_PARAM has Integer storage, but it
+ *                       was being copied through an ElementId helper whose storage-type guard
+ *                       returned early every single time. Now copied via a new CopyIntegerParameter.
+ *                       Also removed: SmartConnectRoutePlan.FirstDirection/SecondDirection and
+ *                       ConnectionOutcome.Label (all write-only), and an
+ *                       "&& !result.Warnings.Any()" guard that suppressed the "built at X instead of
+ *                       your Y" notice whenever any unrelated warning happened to be present. Added
+ *                       the shared TabMotionHelper call every other tabbed AJ Tools window makes.
  * v1.47.8 (2026-08-16) - Repo housekeeping pass: synced README.md/AssemblyInfo.cs's stale 1.46.0
  *                       version claims to the real 1.47.4, removed the "Auto Dimension" ribbon panel
  *                       from README.md/docs/USAGE.md (merged into "Dimensions" in v1.46.0),
@@ -1714,8 +1737,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.8.0")]
-[assembly: AssemblyFileVersion("1.47.8.0")]
+[assembly: AssemblyVersion("1.48.0.0")]
+[assembly: AssemblyFileVersion("1.48.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
