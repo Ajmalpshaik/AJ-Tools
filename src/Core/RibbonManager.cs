@@ -838,11 +838,17 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddSmartConnectTool()
         {
+            // "Connect MEP Elements" is the permanent default face - a single click always runs it
+            // directly. "Connect MEP Elements Settings" only lives in the dropdown - it never takes
+            // over the main face. IsSynchronizedWithCurrentItem = false is what keeps the top face
+            // fixed on "Connect MEP Elements" (the first-added child) no matter which child was
+            // actually run last - same pattern as the Opening panel's "Create Openings" tool.
             return CreateSplitToolSpec(
                 "Connect MEP\nElements",
                 "Connect MEP elements with a routed run, using your saved settings - no dialog. Select exactly two elements first to connect them directly, or click and pick pairs until Esc.",
                 "SmartConnect.png",
                 "SmartConnect.png",
+                splitButton => splitButton.IsSynchronizedWithCurrentItem = false,
                 CreateSplitChildTool(
                     "Connect MEP\nElements",
                     "Connect MEP elements (Pipe, Duct, Cable Tray, Conduit, Flex, and MEP equipment) with a routed run, using your saved settings. Select exactly two elements first to connect them directly, or click and pick pairs until Esc.",

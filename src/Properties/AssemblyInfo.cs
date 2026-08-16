@@ -24,6 +24,16 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.47.7 (2026-08-16) - Fixed the "Connect MEP Elements" split button getting stuck on Settings.
+ *                       Revit's SplitButton defaults to showing whichever child was clicked last as
+ *                       the permanent top face (IsSynchronizedWithCurrentItem = true) - so opening
+ *                       the dropdown and clicking "Connect MEP Elements Settings" once made Settings
+ *                       the new default action, and the next plain click ran Settings again instead
+ *                       of connecting. AddSmartConnectTool() was missing the
+ *                       IsSynchronizedWithCurrentItem = false configuration that the Opening panel's
+ *                       "Create Openings" split button already has for exactly this reason. The main
+ *                       face is now permanently pinned to "Connect MEP Elements" regardless of which
+ *                       child was run last, matching the Opening tool's pattern precisely.
  * v1.47.6 (2026-08-16) - Connect MEP Elements: cleanup pass Ajmal asked for after the two 1.47.5
  *                       removals - "check entirely we remove something, is there anything related
  *                       with that removed feature settings... if any settings only work if that
@@ -1696,8 +1706,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.6.0")]
-[assembly: AssemblyFileVersion("1.47.6.0")]
+[assembly: AssemblyVersion("1.47.7.0")]
+[assembly: AssemblyFileVersion("1.47.7.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
