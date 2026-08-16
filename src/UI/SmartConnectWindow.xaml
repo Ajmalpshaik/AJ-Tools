@@ -2,7 +2,7 @@
   Tool Name: Connect MEP Elements (Smart Connect) - Settings Window
   Description: Settings for how Connect MEP Elements routes, what it may pick, and what it copies.
   Author: Ajmal P.S.
-  Version: 3.0.0
+  Version: 3.1.0
   Last Updated: 2026-08-16
   Revit Version: 2020
   Dependencies: AJTools.Models, AJTools.Services.SmartConnect
@@ -10,12 +10,13 @@
   Layout, all from Ajmal on 2026-08-16:
   - Two tabs instead of one long page with a collapsible block. Main carries what is changed day to
     day; Advanced carries the rest.
-  - FIXED SIZE, NO SCROLLING. ResizeMode is NoResize and neither tab has a ScrollViewer, so every
-    control must fit inside 560 x 700 as authored. Roughly 500px of that is usable for tab content
-    once the title bar, tab strip, footer row and credit line are taken off; Main currently needs
-    about 490 and Advanced about 455. Anything added here eats that headroom - re-check both tabs
-    rather than letting content clip silently, because without a scrollbar there is nothing to
-    reveal it.
+  - RESIZABLE, AND EACH TAB SCROLLS. This was authored fixed-size (NoResize, no ScrollViewer) on the
+    assumption that Main fit inside 560 x 700 - it did not: the clash-warning card at the bottom of
+    Main was cut off with no scrollbar to reveal it, and the window could not be dragged bigger to
+    see it. Both tabs now sit in a ScrollViewer and ResizeMode is CanResize with MinWidth/MinHeight,
+    matching every other settings window in the suite. The default 560 x 780 shows all of Main
+    without scrolling; the scrollbar is the safety net for larger Windows text scaling or a window
+    dragged smaller, so content can never disappear silently again.
   - Advanced explains itself through hover tooltips, not a permanent line of hint text under every
     control. That is what made the old page unreadably long.
   - The angle fallback lives in the Bend angle card on Main, beside the angle it falls back FROM -
@@ -30,8 +31,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Connect MEP Elements - Settings"
         Width="560"
-        Height="700"
-        ResizeMode="NoResize"
+        Height="780"
+        MinWidth="520"
+        MinHeight="520"
+        ResizeMode="CanResize"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BackgroundDark}"
@@ -168,8 +171,11 @@
 
                 <!-- ============================== MAIN ============================== -->
                 <TabItem Header="Main">
-                    <StackPanel Margin="0,10,0,0">
-                        <StackPanel>
+                    <ScrollViewer Margin="0,10,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <!-- The right margin keeps the cards clear of the scrollbar when it appears. -->
+                        <StackPanel Margin="0,0,8,0">
 
                             <!-- Bend angle -->
                             <Border Style="{StaticResource SectionCard}">
@@ -296,13 +302,15 @@
                             </Border>
 
                         </StackPanel>
-                    </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- ============================ ADVANCED ============================ -->
                 <TabItem Header="Advanced">
-                    <StackPanel Margin="0,10,0,0">
-                        <StackPanel>
+                    <ScrollViewer Margin="0,10,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,8,0">
 
                             <TextBlock Style="{StaticResource GroupHint}"
                                        Text="These are already set the way they should be. Hover any option to see what it does."/>
@@ -395,7 +403,7 @@
                             </Border>
 
                         </StackPanel>
-                    </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
             </TabControl>

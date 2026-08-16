@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.47.8
+ * Version       : 1.48.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,13 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.48.1 (2026-08-16) - Connect MEP Elements Settings window: the Main tab was cut off at the bottom
+ *                       (the "Warn me if the new run hits something" card) and the window could not be
+ *                       dragged bigger to reveal it - v1.48.0 made it a fixed 560 x 700 with no
+ *                       scrollbar, on an estimate of the content height that turned out ~60px short.
+ *                       Now 560 x 780 by default, ResizeMode CanResize with MinWidth/MinHeight, and
+ *                       both tabs sit in a ScrollViewer - the same pattern every other settings window
+ *                       in the suite already used. Settings, wording and behaviour are unchanged.
  * v1.48.0 (2026-08-16) - Connect MEP Elements v3: the routing-mode choice is GONE and the tool now
  *                       always stretches what was picked. A piece is created only where nothing can
  *                       be stretched - the bridging run across a crank, and the run up to flex or
@@ -1737,8 +1744,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.48.0.0")]
-[assembly: AssemblyFileVersion("1.48.0.0")]
+[assembly: AssemblyVersion("1.48.1.0")]
+[assembly: AssemblyFileVersion("1.48.1.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

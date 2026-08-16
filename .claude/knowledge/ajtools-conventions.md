@@ -289,6 +289,19 @@ place rather than leaving stale info sitting next to the new truth.
 - Keep per-item lists out of a routine report. The same v1.45.0 report printed one "Read linked model: X"
   line per link; six links meant six lines of noise on a run that had gone perfectly.
 
+**Settings windows are resizable AND scroll — never fixed-size on an estimated content height (2026-08-16)**
+- The house shape, used by all eight settings windows: `Width`/`Height` for the default size,
+  `MinWidth`/`MinHeight`, `ResizeMode="CanResize"`, `SizeToContent="Manual"`, and a long body wrapped in
+  `<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">` with
+  `Margin="0,0,8,0"` on the inner panel so content clears the scrollbar. In a `TabControl`, the
+  ScrollViewer goes inside each `TabItem`, not around the whole control.
+- **Do not author a window `NoResize` with no ScrollViewer because the content "fits".** Content height
+  read off the markup is an estimate; it was ~60px optimistic on the Connect MEP Elements window and cut
+  a whole control off with no scrollbar and no resize grip to reveal it. Larger Windows text scaling
+  breaks such a window even when the estimate was right at 100% DPI. Full case in `debug-log.md`
+  (2026-08-16, suite 1.48.1). `NoResize` is fine for a HUD-style overlay (`GameHudWindow`), not for a
+  form the user reads.
+
 **Validate inside the window, never after `ShowDialog()` (rule from 3 real bugs, 2026-07-27/28)**
 - The pattern to kill: dialog closes → code checks the value → shows an error popup → returns false →
   command returns `Result.Cancelled`. The user loses everything they typed and has to relaunch from the
