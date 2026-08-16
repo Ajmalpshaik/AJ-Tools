@@ -8,6 +8,57 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Auto MEP Dimension: two ducts to one wall left two stacked dimensions — FIXED, suite 1.48.2)
+- **Symptom (Ajmal's words)**: "dimention everyrun in the view tool its not understanding Already
+  dimensioned earlier ... 2 duct need to do same wall so if the inside duct first dimention and 2 duct
+  dimeiton if run it will come for that also but onld one also will be there so 2 diemntion will be
+  there. and also for the if outside duct took first and dimeiton the inside duct no need to dimention
+  becouse this already include."  Two requirements in one message: (a) the longer wall-inner-outer chain
+  must REPLACE the short wall-inner dimension, and (b) a run already carried inside an existing chain
+  must be SKIPPED.
+- **Root cause — a placement test gating an identity question.** All three duplicate/supersede paths
+  (`HasSimilarExistingDimension`, `FindSupersededOwnedDimensions`, and the in-run `createdRecords`
+  filter) ran through `RecordsOverlap`, which required `Math.Abs(existing.RunCoord - proposed.RunCoord)
+  <= bandTolerance * 1.25` — **187.5 mm** on the shipped 150 mm search band. `RunCoord` is where the
+  dimension string sits **along the run**, and `TryCreateDimensionLine` places every chain through its
+  own seed run's midpoint (`plan.Axis.Origin`, the seed's mid-length). Two parallel ducts of different
+  lengths therefore put their strings **metres** apart down the run, so `RecordsOverlap` returned false
+  and the real test — `AddsNothingNew`, a strict subset test over the references — was **never reached**.
+  The machinery was all present and correct; a geometric pre-filter in front of it made it unreachable.
+- **Why it looked like the "already dimensioned" check was broken**: the run-level gate
+  (`ExistingDimensionCoversElement`) does work, so a second run adds nothing new. What Ajmal saw was the
+  FIRST run leaving two dimensions and no later run ever able to tidy them up — `FindSupersededOwnedDimensions`
+  is behind the same broken gate.
+- **Fix** (`MepReferenceDimensionService` v1.1.0, `MepDimensionModels` v1.1.0):
+  1. `RecordsOverlap` dropped the along-the-run station test entirely; it now only asks "same measuring
+     direction, overlapping measured extent". Containment is decided by the references, where it belongs.
+  2. `AddsNothingNew` gained an **element-identity fallback**. The face-key test compares
+     `Reference.ConvertToStableRepresentation` strings, which is exact for two records built in the same
+     collector pass but **cannot be relied on for a dimension read back out of the model** — Revit does
+     not promise `Dimension.References` hands back the same string that was passed to `NewDimension`. The
+     fallback compares `"linkInstanceId:elementId"` sets (via the existing `GetReferenceTargetKey`), which
+     survives that round trip, and additionally requires the proposed span to sit INSIDE the existing one
+     so the two halves of a `DimensionBothSides` run — same elements, opposite directions — are never
+     mistaken for each other.
+  3. `DimensionLineRecord.RunCoord` removed (its only reader was the deleted test) and `RunDirection`
+     removed (set in three places, **read nowhere** — already dead before this change).
+- **Deliberately unchanged**: `DimensionOwnership.IsOwned` still gates every delete, so a dimension drawn
+  by hand is never removed however well it matches (Ajmal's rule, 2026-08-15).
+- **Lesson — the general trap, and it is the third time this repo has hit this shape**: when a cheap
+  geometric pre-filter guards an expensive identity/content test, the pre-filter silently decides the
+  outcome. Ask what the guard is actually measuring: here "are these two strings drawn in the same place"
+  was standing in for "does one of these document everything the other does", and those are different
+  questions. Same family as the 1.47.2 sign error (a tie-break chosen on travel distance silently decided
+  bend direction) and the 1.47.0 pair (two places holding one rule). **If a filter and the test behind it
+  answer different questions, the filter must be provably weaker than the test, not merely plausible.**
+- **Verified how**: code-review only, plus clean rebuilds at `Release` (2020/net472) and `Release R25`
+  (.NET 8), zero errors / zero warnings, and `tools\verify-version-consistency.ps1` clean on all six
+  references (it caught CHANGELOG.md and README.md still at 1.48.1). Deployed to the 2020 AppData payload
+  `AJ Tools.20260816173635439`, manifest and DLL read back at **1.48.2.0**. **The AJ AI Bridge was NOT
+  connected this session (ping refused), so nothing was checked against the live model, and Revit was open
+  during the deploy — the running session is still on 1.48.1.** Ajmal restarts Revit and re-tests the
+  two-duct case both ways round. **Not click-tested by me.** → 2026-08-16.
+
 ### 2026-08-16 (Connect MEP Elements settings: Main tab clipped and the window could not be resized — FIXED, suite 1.48.1)
 - **Symptom (Ajmal's words, with two screenshots)**: "chek this the main page and that reszing in the
   corner we can drain and resize that also not working." The Main tab's last card ("Warn me if the new

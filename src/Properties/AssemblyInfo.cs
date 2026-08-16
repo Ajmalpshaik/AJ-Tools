@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.48.1
+ * Version       : 1.48.2
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,16 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.48.2 (2026-08-16) - Auto MEP Dimension: two ducts measured to the same wall no longer leave two
+ *                       overlapping dimensions. Once the outer duct's chain (wall - inner - outer) is
+ *                       drawn, the shorter wall - inner dimension the tool made earlier is removed, and
+ *                       a run already carried inside an existing chain is skipped instead of being
+ *                       dimensioned again. The duplicate test used to require both dimension strings to
+ *                       sit within 187.5 mm of each other ALONG the run before it would compare what
+ *                       they measured - two parallel ducts of different lengths never do, so the check
+ *                       could not fire. It now compares what each dimension documents, and recognises a
+ *                       chain left by an earlier run of the tool as well as one from the current run.
+ *                       Hand-drawn dimensions are still never deleted.
  * v1.48.1 (2026-08-16) - Connect MEP Elements Settings window: the Main tab was cut off at the bottom
  *                       (the "Warn me if the new run hits something" card) and the window could not be
  *                       dragged bigger to reveal it - v1.48.0 made it a fixed 560 x 700 with no
@@ -1744,8 +1754,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.48.1.0")]
-[assembly: AssemblyFileVersion("1.48.1.0")]
+[assembly: AssemblyVersion("1.48.2.0")]
+[assembly: AssemblyFileVersion("1.48.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
