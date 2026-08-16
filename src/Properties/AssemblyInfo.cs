@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.46.0
+ * Version       : 1.47.8
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-08-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,14 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.47.8 (2026-08-16) - Repo housekeeping pass: synced README.md/AssemblyInfo.cs's stale 1.46.0
+ *                       version claims to the real 1.47.4, removed the "Auto Dimension" ribbon panel
+ *                       from README.md/docs/USAGE.md (merged into "Dimensions" in v1.46.0),
+ *                       rewrote CONTRIBUTING.md's Development Setup to match the actual build
+ *                       requirements, fixed a stale example tag in RELEASE_PROCESS.md, added the
+ *                       missing Release R21-R27 configurations to AJ Tools.sln so Visual Studio's
+ *                       Configuration Manager can reach them, and corrected the vestigial
+ *                       RootNamespace (AJ_Tools -> AJTools) in the csproj. No tool behavior changed.
  * v1.47.7 (2026-08-16) - Fixed the "Connect MEP Elements" split button getting stuck on Settings.
  *                       Revit's SplitButton defaults to showing whichever child was clicked last as
  *                       the permanent top face (IsSynchronizedWithCurrentItem = true) - so opening
@@ -1706,8 +1714,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.7.0")]
-[assembly: AssemblyFileVersion("1.47.7.0")]
+[assembly: AssemblyVersion("1.47.8.0")]
+[assembly: AssemblyFileVersion("1.47.8.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

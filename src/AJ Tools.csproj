@@ -17,7 +17,7 @@
   <PropertyGroup>
     <Configurations>Debug;Release;Debug R21;Release R21;Debug R22;Release R22;Debug R23;Release R23;Debug R24;Release R24;Debug R25;Release R25;Debug R26;Release R26;Debug R27;Release R27</Configurations>
     <OutputType>Library</OutputType>
-    <RootNamespace>AJ_Tools</RootNamespace>
+    <RootNamespace>AJTools</RootNamespace>
     <AssemblyName>AJ Tools</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <UseWPF>true</UseWPF>
