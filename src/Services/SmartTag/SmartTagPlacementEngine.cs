@@ -11,6 +11,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using AJTools.Models.SmartTag;
 using AJTools.Services.LeaderLogic;
+using AJTools.Services.TagClash;
 using AJTools.Utils;
 
 namespace AJTools.Services.SmartTag
@@ -176,14 +177,11 @@ namespace AJTools.Services.SmartTag
             return XYZ.BasisY;
         }
 
+        // Thin wrapper kept so the eight call sites below read unchanged; the maths itself now lives
+        // once, in TagViewGeometry.
         private static UV ProjectToViewPlane(XYZ point, XYZ viewRight, XYZ viewUp)
         {
-            if (point == null)
-                return new UV(0, 0);
-
-            double u = point.DotProduct(viewRight);
-            double v = point.DotProduct(viewUp);
-            return new UV(u, v);
+            return TagViewGeometry.ProjectToView(point, viewRight, viewUp);
         }
 
         private static AnnotationBox CreateCandidateBoxInViewPlane(
@@ -201,41 +199,11 @@ namespace AJTools.Services.SmartTag
                 uv.U + halfW, uv.V + halfH);
         }
 
+        // Thin wrapper kept so the eight call sites below read unchanged; the eight-corner walk (one of
+        // six copies of it that were in this project) now lives once, in TagViewGeometry.
         private static AnnotationBox ConvertBoundingBoxToViewPlane(BoundingBoxXYZ bb, XYZ viewRight, XYZ viewUp)
         {
-            if (bb == null || bb.Min == null || bb.Max == null)
-                return null;
-
-            XYZ min = bb.Min;
-            XYZ max = bb.Max;
-            Transform transform = bb.Transform ?? Transform.Identity;
-            XYZ[] corners = new[]
-            {
-                new XYZ(min.X, min.Y, min.Z),
-                new XYZ(min.X, min.Y, max.Z),
-                new XYZ(min.X, max.Y, min.Z),
-                new XYZ(min.X, max.Y, max.Z),
-                new XYZ(max.X, min.Y, min.Z),
-                new XYZ(max.X, min.Y, max.Z),
-                new XYZ(max.X, max.Y, min.Z),
-                new XYZ(max.X, max.Y, max.Z)
-            };
-
-            double minU = double.MaxValue;
-            double minV = double.MaxValue;
-            double maxU = double.MinValue;
-            double maxV = double.MinValue;
-
-            foreach (XYZ corner in corners)
-            {
-                UV uv = ProjectToViewPlane(transform.OfPoint(corner), viewRight, viewUp);
-                if (uv.U < minU) minU = uv.U;
-                if (uv.V < minV) minV = uv.V;
-                if (uv.U > maxU) maxU = uv.U;
-                if (uv.V > maxV) maxV = uv.V;
-            }
-
-            return new AnnotationBox(minU, minV, maxU, maxV);
+            return TagViewGeometry.ToViewBox(bb, viewRight, viewUp);
         }
 
 #if DEBUG
@@ -558,6 +526,10 @@ namespace AJTools.Services.SmartTag
 
             // â”€â”€ CRITERION 4: LEADER CONSISTENCY (0â€“20 pts) â”€â”€
             // Max-leader filtering is intentionally disabled. Offset value should control placement.
+            // So this is a FLAT 20 on every position, not a real criterion - the score is effectively
+            // out of 80 with 20 free points, and the "score >= 60" early exit above is calibrated
+            // against that. Left exactly as-is on purpose: removing the 20 would silently retune every
+            // placement decision Smart MEP Tag makes. Only change it together with that threshold.
             totalScore += 20;
 
             return totalScore;
@@ -789,61 +761,15 @@ namespace AJTools.Services.SmartTag
             if (tag == null || view == null)
                 return false;
 
-            BoundingBoxXYZ bb = null;
-            try
-            {
-                bb = tag.get_BoundingBox(view);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
-            AnnotationBox box = ConvertBoundingBoxToViewPlane(bb, viewRight, viewUp);
+            // The bounding-box read, the eight-corner projection and the re-centre-on-the-head trick
+            // that used to be written out here are all in TagViewGeometry.GetTagTextBox now - this was
+            // the third copy of that trick in the project.
+            AnnotationBox box = TagViewGeometry.GetTagTextBox(tag, view, viewRight, viewUp);
             if (box == null)
                 return false;
 
-            double minX = box.MinX;
-            double maxX = box.MaxX;
-            double minY = box.MinY;
-            double maxY = box.MaxY;
-
-            try
-            {
-                UV headUv = ProjectToViewPlane(tag.TagHeadPosition, viewRight, viewUp);
-                bool headInside = headUv != null
-                    && headUv.U > minX && headUv.U < maxX
-                    && headUv.V > minY && headUv.V < maxY;
-
-                if (headInside)
-                {
-                    double left = headUv.U - minX;
-                    double right = maxX - headUv.U;
-                    double down = headUv.V - minY;
-                    double up = maxY - headUv.V;
-
-                    double halfWidth = Math.Min(left, right);
-                    double halfHeight = Math.Min(down, up);
-
-                    if (halfWidth > Constants.ZERO_LENGTH_TOLERANCE)
-                    {
-                        minX = headUv.U - halfWidth;
-                        maxX = headUv.U + halfWidth;
-                    }
-
-                    if (halfHeight > Constants.ZERO_LENGTH_TOLERANCE)
-                    {
-                        minY = headUv.V - halfHeight;
-                        maxY = headUv.V + halfHeight;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            width = maxX - minX;
-            height = maxY - minY;
+            width = box.MaxX - box.MinX;
+            height = box.MaxY - box.MinY;
             return width > Constants.ZERO_LENGTH_TOLERANCE
                 && height > Constants.ZERO_LENGTH_TOLERANCE;
         }
@@ -1226,54 +1152,13 @@ namespace AJTools.Services.SmartTag
             if (doc == null || tag == null || view == null || leaderLogic == null)
                 return true;
 
-            try
-            {
-                tag.HasLeader = true;
-            }
-            catch (Exception)
-            {
-                // Best effort only.
-            }
-
-            bool hasLeader;
-            try
-            {
-                hasLeader = tag.HasLeader;
-            }
-            catch (Exception)
-            {
-                hasLeader = false;
-            }
-
-            if (!hasLeader)
-                return true;
-
-            XYZ head;
-            try
-            {
-                head = tag.TagHeadPosition;
-            }
-            catch (Exception)
-            {
-                return true;
-            }
-
-            if (head == null)
-                return true;
-
-            XYZ l1 = LeaderLogicService.GetL1(tag);
-            if (l1 == null)
-                l1 = TryResolveLeaderEndByRollbackProbe(doc, tag);
-
-            if (l1 == null)
-                return true;
-
-            XYZ elbow = leaderLogic.ComputeElbow(head, l1);
-            if (elbow == null)
-                return true;
-
-            elbow = AdjustElbowOutsideTextBoundsRight(tag, view, leaderLogic, elbow);
-            return TrySetLeaderElbowPreserveCondition(tag, elbow);
+            // Tidy(): enable the leader, probe for the leader end (these tags were just created, so it
+            // is not always readable straight away), nudge the elbow clear of the text, and retry via
+            // the Free condition if Revit refuses. Exactly what the hand-written body here used to do -
+            // it now lives in TagLeaderService so Stack Tags, Rearrange Tags and L-Shape Leader share
+            // the same implementation instead of each keeping their own copy.
+            return TagLeaderService.ApplyLShapedLeader(
+                doc, tag, view, leaderLogic, TagLeaderOptions.Tidy());
         }
 
         private static bool PlaceSingleTag(
@@ -1390,219 +1275,14 @@ namespace AJTools.Services.SmartTag
             }
         }
 
-        private static XYZ TryResolveLeaderEndByRollbackProbe(Document doc, IndependentTag tag)
-        {
-            if (doc == null || tag == null || !tag.IsValidObject)
-                return null;
-
-            try
-            {
-                using (SubTransaction st = new SubTransaction(doc))
-                {
-                    st.Start();
-                    XYZ probed = null;
-                    try
-                    {
-                        if (LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
-                            probed = LeaderLogicService.GetL1(tag);
-                    }
-                    catch (Exception)
-                    {
-                    }
-
-                    st.RollBack();
-                    return probed;
-                }
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        private static XYZ AdjustElbowOutsideTextBoundsRight(
-            IndependentTag tag,
-            View activeView,
-            LeaderLogicService leaderLogic,
-            XYZ elbow)
-        {
-            if (tag == null || leaderLogic == null || elbow == null)
-                return elbow;
-
-            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
-                return elbow;
-
-            UV elbowUv = leaderLogic.ProjectToView(elbow);
-            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
-                return elbow;
-
-            double rightMarginFeet = GetScaledElbowOutsideMarginFeet(activeView);
-            double targetX = maxX + rightMarginFeet;
-            double deltaX = targetX - elbowUv.U;
-            return leaderLogic.OffsetInView(elbow, deltaX, 0);
-        }
-
-        private static double GetScaledElbowOutsideMarginFeet(View activeView)
-        {
-            int scale = 1;
-            try
-            {
-                if (activeView != null && activeView.Scale > 0)
-                    scale = activeView.Scale;
-            }
-            catch (Exception)
-            {
-            }
-
-            return ElbowOutsideTextMarginMm * Constants.MM_TO_FEET * scale;
-        }
-
-        private static bool TryGetTagBoundsInView(
-            IndependentTag tag,
-            View activeView,
-            LeaderLogicService leaderLogic,
-            out double minX,
-            out double maxX,
-            out double minY,
-            out double maxY)
-        {
-            minX = 0;
-            maxX = 0;
-            minY = 0;
-            maxY = 0;
-
-            BoundingBoxXYZ bb = GetTagBoundingBox(tag, activeView);
-            if (bb == null || bb.Min == null || bb.Max == null)
-                return false;
-
-            XYZ min = bb.Min;
-            XYZ max = bb.Max;
-            Transform transform = bb.Transform ?? Transform.Identity;
-            XYZ[] corners = new[]
-            {
-                new XYZ(min.X, min.Y, min.Z),
-                new XYZ(min.X, min.Y, max.Z),
-                new XYZ(min.X, max.Y, min.Z),
-                new XYZ(min.X, max.Y, max.Z),
-                new XYZ(max.X, min.Y, min.Z),
-                new XYZ(max.X, min.Y, max.Z),
-                new XYZ(max.X, max.Y, min.Z),
-                new XYZ(max.X, max.Y, max.Z)
-            };
-
-            double localMinX = double.MaxValue;
-            double localMinY = double.MaxValue;
-            double localMaxX = double.MinValue;
-            double localMaxY = double.MinValue;
-
-            foreach (XYZ corner in corners)
-            {
-                XYZ worldCorner = transform.OfPoint(corner);
-                UV uv = leaderLogic.ProjectToView(worldCorner);
-                if (uv.U < localMinX) localMinX = uv.U;
-                if (uv.U > localMaxX) localMaxX = uv.U;
-                if (uv.V < localMinY) localMinY = uv.V;
-                if (uv.V > localMaxY) localMaxY = uv.V;
-            }
-
-            try
-            {
-                UV headUv = leaderLogic.ProjectToView(tag.TagHeadPosition);
-                bool headInside = headUv != null
-                    && headUv.U > localMinX && headUv.U < localMaxX
-                    && headUv.V > localMinY && headUv.V < localMaxY;
-
-                if (headInside)
-                {
-                    double left = headUv.U - localMinX;
-                    double right = localMaxX - headUv.U;
-                    double down = headUv.V - localMinY;
-                    double up = localMaxY - headUv.V;
-
-                    double halfWidth = Math.Min(left, right);
-                    double halfHeight = Math.Min(down, up);
-
-                    if (halfWidth > Constants.ZERO_LENGTH_TOLERANCE)
-                    {
-                        localMinX = headUv.U - halfWidth;
-                        localMaxX = headUv.U + halfWidth;
-                    }
-
-                    if (halfHeight > Constants.ZERO_LENGTH_TOLERANCE)
-                    {
-                        localMinY = headUv.V - halfHeight;
-                        localMaxY = headUv.V + halfHeight;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            if (localMinX > localMaxX || localMinY > localMaxY)
-                return false;
-
-            minX = localMinX;
-            maxX = localMaxX;
-            minY = localMinY;
-            maxY = localMaxY;
-            return true;
-        }
-
-        private static BoundingBoxXYZ GetTagBoundingBox(IndependentTag tag, View activeView)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                if (activeView != null)
-                {
-                    BoundingBoxXYZ viewBox = tag.get_BoundingBox(activeView);
-                    if (viewBox != null)
-                        return viewBox;
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            try
-            {
-                return tag.get_BoundingBox(null);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        private static bool IsPointInsideBounds(UV point, double minX, double maxX, double minY, double maxY)
-        {
-            if (point == null)
-                return false;
-
-            return point.U >= minX && point.U <= maxX
-                && point.V >= minY && point.V <= maxY;
-        }
-
-        private static bool TrySetLeaderElbowPreserveCondition(IndependentTag tag, XYZ elbow)
-        {
-            if (LeaderLogicService.TrySetLeaderElbow(tag, elbow))
-                return true;
-
-            bool hadInitialCondition = LeaderLogicService.TryGetLeaderEndCondition(tag, out LeaderEndCondition initialCondition);
-            if (!LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
-                return false;
-
-            if (!LeaderLogicService.TrySetLeaderElbow(tag, elbow))
-                return false;
-
-            if (hadInitialCondition && !LeaderLogicService.TrySetLeaderEndCondition(tag, initialCondition))
-                return false;
-
-            return true;
-        }
+        // Removed 2026-08-16 (about 210 lines): TryResolveLeaderEndByRollbackProbe,
+        // AdjustElbowOutsideTextBoundsRight, GetScaledElbowOutsideMarginFeet, TryGetTagBoundsInView,
+        // GetTagBoundingBox, IsPointInsideBounds and TrySetLeaderElbowPreserveCondition all lived
+        // here. Every one of them was a private copy of something another tag tool also had its own
+        // copy of - the rollback probe was byte-identical to StackTagsService's, and the bounds and
+        // elbow-nudge helpers were near-verbatim in ForceTagLeaderLShapeService. They now live once,
+        // in Services/LeaderLogic/TagLeaderService.cs and Services/TagClash/TagViewGeometry.cs, and
+        // ApplyLeaderBehavior above calls them. Behaviour is unchanged.
     }
 
 }

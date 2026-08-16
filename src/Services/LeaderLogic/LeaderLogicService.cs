@@ -24,11 +24,9 @@ using AJTools.Utils;
 
 namespace AJTools.Services.LeaderLogic
 {
-    public enum LeaderToggleState
-    {
-        Side,
-        TopBottom
-    }
+    // Removed 2026-08-16: an unused "LeaderToggleState { Side, TopBottom }" enum lived here. Nothing
+    // ever referenced it - it was the only trace of the elbow-side flip that L-Shape Leader's tooltip
+    // used to promise but never implemented. The tooltip has been corrected instead.
 
     /// <summary>
     /// Reusable service for computing L-shaped leader geometry (elbow points)

@@ -212,7 +212,10 @@ namespace AJTools.Services.SmartTag
 
         // Size thresholds in feet (Revit internal units).
         private static readonly double MinDuctWidth = 100.0 * Constants.MM_TO_FEET;      // 100mm
-        private static readonly double MinPipeDiameter = 0.0 * Constants.MM_TO_FEET;    // 0mm (No limit)
+        // 0mm = no minimum. Anything above 0 is enforced; see PassesSizeFilter, which skips the
+        // check entirely at 0 rather than running "diameter >= 0 && diameter < 0", a condition that
+        // can never be true and read as a working filter for anyone skimming it.
+        private static readonly double MinPipeDiameter = 0.0 * Constants.MM_TO_FEET;
         private static readonly double MinCurveLength = 1000.0 * Constants.MM_TO_FEET;    // 1000mm (1 meter) minimum curve length
         private static readonly double DensityRadius = 500.0 * Constants.MM_TO_FEET;     // 500mm
         private const int DensityThreshold = 5;
@@ -586,9 +589,10 @@ namespace AJTools.Services.SmartTag
                         break;
 
                     case BuiltInCategory.OST_PipeCurves:
-                        // Check pipe diameter — skip small branch connections.
+                        // Check pipe diameter — skip small branch connections. Skipped entirely while
+                        // MinPipeDiameter is 0 (its current value), so no pipe is filtered by size.
                         Pipe pipe = elem as Pipe;
-                        if (pipe != null)
+                        if (pipe != null && MinPipeDiameter > 0)
                         {
                             double diameter = GetPipeDiameter(pipe);
                             if (diameter >= 0 && diameter < MinPipeDiameter)

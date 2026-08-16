@@ -24,6 +24,38 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.1 (2026-08-16) - Tag tools de-duplicated onto shared blocks, and four honest bugs fixed.
+ *                       Behaviour preserved everywhere except the two reporting fixes noted below.
+ *                       SHARED BLOCKS: the L-shaped leader routine existed FOUR times over (Smart MEP
+ *                       Tags, Stack Tags, Rearrange Tags, L-Shape Leader) and the copies had drifted -
+ *                       two nudged the elbow clear of the tag text and retried when Revit refused, two
+ *                       did neither. Those differences are now OPTIONS on one routine
+ *                       (Services/LeaderLogic/TagLeaderService.cs), so each tool keeps exactly the
+ *                       behaviour it had while a leader fix lands everywhere at once. Rearrange Tags'
+ *                       deliberate refusal to touch the leader end is preserved as
+ *                       PreserveLeaderEnd - it is a real requirement, not drift. Likewise the
+ *                       nearest-first stacking loop existed twice, with a character-for-character
+ *                       identical AlignToBaseX in both; it is now
+ *                       Services/TagArrange/TagStackService.cs, with the two genuine differences
+ *                       (what is carried, what happens at each slot) passed in as callbacks. The
+ *                       bounding-box/tag-text-box measurement existed three times and now lives once
+ *                       in TagViewGeometry. Net: about 730 lines removed from the four tools.
+ *                       FIXED: L-Shape Leader's header and ribbon tooltip both promised "run again on
+ *                       the same tag flips the elbow side". The code never did that - same head plus
+ *                       same leader end always gives the same elbow. Wording corrected rather than
+ *                       inventing a side-flip nobody asked for on a tool that works; the unused
+ *                       LeaderToggleState enum that was the only trace of the idea is removed.
+ *                       FIXED: Stack Tags and Rearrange Tags rolled the WHOLE click back in silence
+ *                       when one element could not be placed, which looks exactly like the click doing
+ *                       nothing. Both now say how many attempts were undone and why. Arranging stays
+ *                       all-or-nothing - only the silence is fixed.
+ *                       FIXED: the pipe diameter filter read as a working filter but could never fire
+ *                       (MinPipeDiameter is 0, so "diameter >= 0 && diameter < 0"). Now skipped
+ *                       explicitly at 0 and documented as "no minimum".
+ *                       DOCUMENTED: scoring criterion 4 adds a flat 20 to every candidate position and
+ *                       is not a real criterion - the score is out of 80 with 20 free points, and the
+ *                       "score >= 60" early exit is calibrated against that. Left exactly as-is on
+ *                       purpose; removing it would silently retune every Smart MEP Tag placement.
  * v1.49.0 (2026-08-16) - NEW TOOL: Fix Tag Clash, on the AJ Annotation "Tags" panel, with Clear Tag
  *                       Clash Marks and its own settings. It works the opposite way round to the old
  *                       Smart MEP Tag approach: instead of asking "does this clash?" before every
@@ -1792,8 +1824,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.0.0")]
-[assembly: AssemblyFileVersion("1.49.0.0")]
+[assembly: AssemblyVersion("1.49.1.0")]
+[assembly: AssemblyFileVersion("1.49.1.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
