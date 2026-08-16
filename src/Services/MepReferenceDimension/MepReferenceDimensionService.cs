@@ -7,10 +7,10 @@
  *                 creates the dimensions in a single undoable step, and returns the run report.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-08-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -33,8 +33,16 @@
  * - Existing dimensions are matched on (link instance id, element id) pairs, because for a linked
  *   reference Reference.ElementId is the RevitLinkInstance, not the element. Comparing the wrong one
  *   makes one dimension to any linked element look like a dimension to every linked element.
+ * - Whether one dimension already documents another is decided by its REFERENCES, never by where its
+ *   string was drawn. Each chain is placed through its own seed run's midpoint, so two parallel runs of
+ *   different lengths sit metres apart along the run even when one chain completely contains the other.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-16) - Two dimensions measuring the same wall-to-run relationship are no longer left
+ *                       stacked. RecordsOverlap dropped the "same station along the run" gate that
+ *                       rejected exactly the pairs it was meant to catch, and AddsNothingNew gained an
+ *                       element-identity fallback so a chain from an EARLIER command run is recognised
+ *                       too, not just one created in the current run.
  * v1.0.0 (2026-08-15) - Initial release, replacing DuctReferenceDimensionService.
  *
  * License       : All Rights Reserved
@@ -81,7 +89,6 @@ namespace AJTools.Services.MepReferenceDimension
     {
         private const string TransactionGroupName = "AJ Annotation - Auto MEP Dimension";
         private const string TransactionName = "Auto MEP Dimension";
-        private const double ExistingLineToleranceFactor = 1.25;
         private const double VerticalRunDotTolerance = 0.90;
 
         private static readonly HashSet<ViewType> SupportedPlanViews = new HashSet<ViewType>
@@ -330,7 +337,7 @@ namespace AJTools.Services.MepReferenceDimension
                 // first duct's dimension into one longer string, instead of leaving two overlapping.
                 List<DimensionLineRecord> supersededHere = createdRecords
                     .Where(r => RecordsOverlap(r, proposed, MepDimensionGeometry.CoordinateMergeTolerance * 150.0) &&
-                                AddsNothingNew(proposed, r))
+                                AddsNothingNew(proposed, r, MepDimensionGeometry.CoordinateMergeTolerance * 150.0))
                     .ToList();
 
                 List<ElementId> toDelete = supersededHere
@@ -592,17 +599,16 @@ namespace AJTools.Services.MepReferenceDimension
                 DimensionLineRecord existing = new DimensionLineRecord
                 {
                     DimensionDirection = plan.Axis.DimensionDirection,
-                    RunDirection = plan.Axis.RunDirection,
-                    RunCoord = runCoord,
                     MinDimensionCoord = minCoord,
                     MaxDimensionCoord = maxCoord,
-                    StableReferenceKeys = BuildStableKeySet(doc, dimension)
+                    StableReferenceKeys = BuildStableKeySet(doc, dimension),
+                    ElementKeys = BuildElementKeySet(dimension)
                 };
 
                 if (!RecordsOverlap(existing, proposed, plan.Axis.AxisBandTolerance))
                     continue;
 
-                if (AddsNothingNew(existing, proposed))
+                if (AddsNothingNew(existing, proposed, plan.Axis.AxisBandTolerance))
                     return true;
             }
 
@@ -656,18 +662,17 @@ namespace AJTools.Services.MepReferenceDimension
                 DimensionLineRecord existing = new DimensionLineRecord
                 {
                     DimensionDirection = plan.Axis.DimensionDirection,
-                    RunDirection = plan.Axis.RunDirection,
-                    RunCoord = runCoord,
                     MinDimensionCoord = minCoord,
                     MaxDimensionCoord = maxCoord,
-                    StableReferenceKeys = BuildStableKeySet(doc, dimension)
+                    StableReferenceKeys = BuildStableKeySet(doc, dimension),
+                    ElementKeys = BuildElementKeySet(dimension)
                 };
 
                 if (!RecordsOverlap(existing, proposed, plan.Axis.AxisBandTolerance))
                     continue;
 
                 // Only when the new dimension carries everything the old one did.
-                if (AddsNothingNew(proposed, existing))
+                if (AddsNothingNew(proposed, existing, plan.Axis.AxisBandTolerance))
                     found.Add(dimension.Id);
             }
 
@@ -685,17 +690,56 @@ namespace AJTools.Services.MepReferenceDimension
         /// then marked as covered and never dimensioned at all. Whether that happened depended purely on
         /// which run had the lower element id. A chain that reaches further must survive.
         /// </remarks>
-        private static bool AddsNothingNew(DimensionLineRecord existing, DimensionLineRecord proposed)
+        private static bool AddsNothingNew(
+            DimensionLineRecord existing,
+            DimensionLineRecord proposed,
+            double tolerance)
         {
-            if (existing?.StableReferenceKeys == null || proposed?.StableReferenceKeys == null)
+            if (existing == null || proposed == null)
                 return false;
 
-            if (proposed.StableReferenceKeys.Count == 0)
+            // Preferred test - face for face. Two records built inside the SAME command run come from
+            // one collector pass, so their stable representations are directly comparable.
+            if (existing.StableReferenceKeys != null &&
+                proposed.StableReferenceKeys != null &&
+                proposed.StableReferenceKeys.Count > 0 &&
+                proposed.StableReferenceKeys.IsSubsetOf(existing.StableReferenceKeys))
+            {
+                return true;
+            }
+
+            // Fallback, for a dimension read back out of the model. Revit does not promise that the
+            // stable representation Dimension.References hands back is the same string that was passed
+            // to NewDimension, so a chain left by an EARLIER command run can fail the face test while
+            // documenting exactly the same thing. Element identity survives that round trip.
+            if (existing.ElementKeys == null || proposed.ElementKeys == null || proposed.ElementKeys.Count == 0)
                 return false;
 
-            return proposed.StableReferenceKeys.IsSubsetOf(existing.StableReferenceKeys);
+            if (!proposed.ElementKeys.IsSubsetOf(existing.ElementKeys))
+                return false;
+
+            // Touching the same elements is not enough on its own: with "dimension both sides" on, the
+            // two chains from one run touch the same run and reach in OPPOSITE directions, and neither
+            // documents the other. Requiring the proposed span to sit inside the existing one separates
+            // a genuinely shorter chain from a chain that merely starts at the same place.
+            return proposed.MinDimensionCoord >= existing.MinDimensionCoord - tolerance &&
+                   proposed.MaxDimensionCoord <= existing.MaxDimensionCoord + tolerance;
         }
 
+        /// <summary>
+        /// Cheap geometric pre-filter: do these two dimensions measure the same way, over overlapping
+        /// ground? What each one actually documents is decided by <see cref="AddsNothingNew"/>.
+        /// </summary>
+        /// <remarks>
+        /// This deliberately does NOT compare where each dimension sits ALONG the run, which is what it
+        /// used to do. Every chain is drawn through its own seed run's midpoint, so two parallel ducts of
+        /// different lengths put their strings metres apart down the run - and the old test demanded they
+        /// agree to within 187.5 mm before it would even look at the references. The result was the bug
+        /// Ajmal reported: the long wall-to-outer-duct chain never recognised the short wall-to-inner-duct
+        /// dimension it supersedes, so both were left stacked on the drawing. Whether one dimension
+        /// carries everything another does is a question about references, not about where the string
+        /// was placed.
+        /// </remarks>
         private static bool RecordsOverlap(DimensionLineRecord existing, DimensionLineRecord proposed, double bandTolerance)
         {
             if (existing == null || proposed == null)
@@ -706,9 +750,6 @@ namespace AJTools.Services.MepReferenceDimension
             {
                 return false;
             }
-
-            if (Math.Abs(existing.RunCoord - proposed.RunCoord) > bandTolerance * ExistingLineToleranceFactor)
-                return false;
 
             return MepDimensionGeometry.IntervalsOverlap(
                 existing.MinDimensionCoord,
@@ -721,27 +762,47 @@ namespace AJTools.Services.MepReferenceDimension
         private static DimensionLineRecord BuildLineRecord(DimensionPlan plan)
         {
             HashSet<string> keys = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> elementKeys = new HashSet<string>(StringComparer.Ordinal);
+
             if (plan.References != null)
             {
                 foreach (DimensionReferenceCandidate candidate in plan.References)
                 {
                     if (!string.IsNullOrWhiteSpace(candidate.StableKey))
                         keys.Add(candidate.StableKey);
+
+                    if (!string.IsNullOrWhiteSpace(candidate.ElementKey))
+                        elementKeys.Add(candidate.ElementKey);
                 }
             }
 
             return new DimensionLineRecord
             {
                 DimensionDirection = plan.Axis.DimensionDirection,
-                RunDirection = plan.Axis.RunDirection,
-                RunCoord = plan.DimensionLine == null
-                    ? plan.Axis.OriginRunCoord
-                    : ((plan.DimensionLine.GetEndPoint(0) + plan.DimensionLine.GetEndPoint(1)) * 0.5)
-                        .DotProduct(plan.Axis.RunDirection),
                 MinDimensionCoord = plan.References.Min(r => r.SortCoord),
                 MaxDimensionCoord = plan.References.Max(r => r.SortCoord),
-                StableReferenceKeys = keys
+                StableReferenceKeys = keys,
+                ElementKeys = elementKeys
             };
+        }
+
+        /// <summary>
+        /// The elements an existing dimension points at, in the same "linkInstanceId:elementId" form the
+        /// candidates use. For a linked reference the real element is Reference.LinkedElementId, not
+        /// Reference.ElementId - GetReferenceTargetKey owns that distinction.
+        /// </summary>
+        private static HashSet<string> BuildElementKeySet(Dimension dimension)
+        {
+            HashSet<string> keys = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (Reference reference in EnumerateReferences(dimension))
+            {
+                string key = DimensionSource.GetReferenceTargetKey(reference);
+                if (!string.IsNullOrWhiteSpace(key))
+                    keys.Add(key);
+            }
+
+            return keys;
         }
 
         private static HashSet<string> BuildStableKeySet(Document doc, Dimension dimension)

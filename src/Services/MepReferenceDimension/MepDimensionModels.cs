@@ -7,10 +7,10 @@
  *                 already exists.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-08-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -31,6 +31,12 @@
  * - All coordinates in these objects are HOST coordinates.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-16) - DimensionLineRecord now carries ElementKeys, so a chain left by an earlier
+ *                       command run is recognised by the elements it touches rather than by face
+ *                       reference strings that do not survive the Dimension.References round trip.
+ *                       RunCoord and RunDirection removed - RunCoord backed a "same station along the
+ *                       run" test that rejected the very chains it was meant to match, and RunDirection
+ *                       was never read at all.
  * v1.0.0 (2026-08-15) - Initial release, replacing DuctReferenceDimensionModels.
  *
  * License       : All Rights Reserved
@@ -181,16 +187,25 @@ namespace AJTools.Services.MepReferenceDimension
         /// </summary>
         public ElementId CreatedId { get; set; }
 
+        /// <summary>The direction this dimension measures along.</summary>
         public XYZ DimensionDirection { get; set; }
-        public XYZ RunDirection { get; set; }
 
-        /// <summary>Position of the dimension line across the run.</summary>
-        public double RunCoord { get; set; }
-
+        /// <summary>The measured extent along DimensionDirection.</summary>
         public double MinDimensionCoord { get; set; }
+
+        /// <summary>The measured extent along DimensionDirection.</summary>
         public double MaxDimensionCoord { get; set; }
 
         /// <summary>Stable representations of every reference this dimension carries.</summary>
         public HashSet<string> StableReferenceKeys { get; set; }
+
+        /// <summary>
+        /// "linkInstanceId:elementId" for every element this dimension touches. Coarser than
+        /// StableReferenceKeys, deliberately: Revit does not promise that the stable representation it
+        /// hands back from Dimension.References is the same string that was passed to NewDimension, so
+        /// face keys alone cannot recognise a chain an EARLIER command run left behind. Element
+        /// identity survives that round trip.
+        /// </summary>
+        public HashSet<string> ElementKeys { get; set; }
     }
 }

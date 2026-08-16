@@ -5,6 +5,20 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.48.2] - 2026-08-16
+
+- **Fixed**: **Auto MEP Dimension left two dimensions on the same ducts.** With two ducts measured to
+  the same wall, dimensioning the inner one and then the outer one gave you both the short
+  wall-to-inner dimension *and* the full wall-to-inner-to-outer chain, stacked on the same ducts. Now
+  the longer chain takes over and the short dimension it replaces is removed, so you are left with one.
+  Taken the other way round it also behaves: if the outer duct is dimensioned first, the inner duct is
+  **skipped**, because the chain already measures it.
+- **Fixed**: this now works **across separate runs of the tool**, not just within one. Running
+  "Dimension every run in the view" a second time no longer adds a second dimension over work the tool
+  did earlier.
+- **Unchanged**: a dimension **you** drew by hand is still never deleted — the tool only tidies up its
+  own.
+
 ## [1.48.1] - 2026-08-16
 
 - **Fixed**: the **Connect MEP Elements settings window cut off the bottom of the Main tab** — the
