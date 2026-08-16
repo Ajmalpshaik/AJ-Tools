@@ -13,6 +13,7 @@ using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using AJTools.Models.SmartTag;
+using AJTools.Services.CreateTags;
 using AJTools.Utils;
 
 namespace AJTools.Services.SmartTag
@@ -230,6 +231,9 @@ namespace AJTools.Services.SmartTag
             View activeView = preflight.ActiveView;
             var candidates = new List<TagCandidate>();
 
+            // Read once per run, not per element - this is a file-backed setting.
+            bool skipVerticalRuns = TagClashSettings.ShouldSkipVerticalRuns();
+
             // ── Collect all existing tags in this view ONCE ──
             // Used by Filter 3 to skip already-tagged elements.
             HashSet<ElementId> alreadyTaggedIds = CollectAlreadyTaggedElementIds(doc, activeView);
@@ -343,19 +347,23 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // FILTER 4.5 — VERTICAL DUCTS
-                if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct duct)
+                // FILTER 4.5 — VERTICAL RUNS
+                // One rule for every tagging tool now. This used to be hard-coded ON and duct-only,
+                // while Create Tags and Stack Tags already skipped duct, pipe AND cable tray - so the
+                // same vertical pipe was treated differently depending on which button was pressed.
+                // The check itself lives in CreateTagsEligibilityFilter so there is a single
+                // implementation; it moves to the shared eligibility block in the wider tidy-up.
+                if (skipVerticalRuns
+                    && elem is MEPCurve verticalCandidate
+                    && CreateTagsEligibilityFilter.IsVerticalMepCurve(verticalCandidate))
                 {
-                    if (IsVerticalDuct(duct))
+                    results.Add(new TagPlacementResult
                     {
-                        results.Add(new TagPlacementResult
-                        {
-                            ElementId = eid, Category = bic, Success = false,
-                            SkipReason = TagSkipReason.FilteredOutType,
-                            Note = "Vertical duct is excluded"
-                        });
-                        continue;
-                    }
+                        ElementId = eid, Category = bic, Success = false,
+                        SkipReason = TagSkipReason.FilteredOutType,
+                        Note = "Vertical run is excluded"
+                    });
+                    continue;
                 }
 
                 // ── Build the candidate ──
@@ -535,21 +543,6 @@ namespace AJTools.Services.SmartTag
                 if (nearbyCount <= DensityThreshold)
                     current.IsDenseZone = false;
             }
-        }
-
-        private static bool IsVerticalDuct(Duct duct)
-        {
-            if (duct == null) return false;
-            if (duct.Location is LocationCurve locCurve && locCurve.Curve is Line line)
-            {
-                XYZ dir = line.Direction;
-                // If Z is almost 1 or -1, it's vertical
-                if (Math.Abs(dir.Z) > 0.95)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         /// <summary>

@@ -24,6 +24,37 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.0 (2026-08-16) - NEW TOOL: Fix Tag Clash, on the AJ Annotation "Tags" panel, with Clear Tag
+ *                       Clash Marks and its own settings. It works the opposite way round to the old
+ *                       Smart MEP Tag approach: instead of asking "does this clash?" before every
+ *                       placement (up to 24 scored positions per element - roughly 240,000 clash
+ *                       questions before 10,000 tags exist), the tags are placed first and only the
+ *                       few that actually collide are worked on afterwards. Point it at any view and
+ *                       it separates the clashing tags, however they were placed - Smart MEP Tags,
+ *                       Create Tags, Stack Tags, Revit's own Tag All, or by hand.
+ *                       The rule for who moves: the tag sitting closest to its own element keeps its
+ *                       place, the stretched one moves; ties break on element id so a re-run gives the
+ *                       same answer. A tag clashing with a text note or dimension always gives way,
+ *                       because the annotation cannot move for it. Two guards stop A-pushes-B-pushes-A
+ *                       looping forever: a tag that wins a contest is frozen for the rest of the run,
+ *                       and no tag may travel further than the drift limit from where it started.
+ *                       Anything still clashing when the rounds run out is coloured and left selected.
+ *                       New shared pieces this introduces, both built to be reused by the other tag
+ *                       tools rather than copied again: TagClashEngine (the one clash engine, with the
+ *                       old engine's AnnotationBox, AnnotationSpatialIndex and tuned 1.5mm/5mm
+ *                       tolerances kept deliberately) and TagViewGeometry (view projection, rotated
+ *                       bounding boxes, and the tag-text-box measurement that currently exists in three
+ *                       private copies). The clash check also now sees detail components, detail lines,
+ *                       generic annotations, keynote tags, spot elevations/coordinates and revision
+ *                       clouds, which the old engine was blind to.
+ *                       CHANGED: skipping vertical runs is now a setting rather than hard-coded, and
+ *                       one rule for every tagging tool. Smart MEP Tags previously skipped vertical
+ *                       DUCTS only while Create Tags and Stack Tags skipped duct, pipe and cable tray,
+ *                       so the same vertical pipe behaved differently depending on the button pressed.
+ *                       Both now read the same setting and use the same check. Default is on, matching
+ *                       Create Tags' existing behaviour - Smart MEP Tags is the tool whose behaviour
+ *                       changes. Settings are file-backed (%APPDATA%\AJTools\TagClash.config) so they
+ *                       survive closing Revit, unlike the in-memory Smart MEP Tag / Create Tags trackers.
  * v1.48.3 (2026-08-16) - Auto MEP Dimension Settings window split into two tabs, "What to dimension"
  *                       (services and reference targets) and "How it's drawn" (chain style and the
  *                       skip filters). All four sections previously sat in one scroll behind a nine-row
@@ -1761,8 +1792,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.48.3.0")]
-[assembly: AssemblyFileVersion("1.48.3.0")]
+[assembly: AssemblyVersion("1.49.0.0")]
+[assembly: AssemblyFileVersion("1.49.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

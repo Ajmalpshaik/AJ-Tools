@@ -988,3 +988,106 @@ else:
   the IDENTICAL broken script, and the auto-fix retry loop depends on a retry being a fresh attempt.
 Reasoning text arrives either in a separate `reasoning_content` field (clean — the normal parse already
 skips it) or inlined as `<think>…</think>` (must be stripped, or `CodeExtractionHelper` reads it as script).
+
+## Tag clash: place first, fix after — and ONE engine (decided by Ajmal 2026-08-16, v1.49.0)
+
+**The architecture decision.** Smart MEP Tag's original engine asks "does this clash?" *before* every
+placement: up to 24 scored positions per element (4 sides × 3 points along the run × 2 leader lengths),
+each one querying the annotation index. For 10,000 tags that is ~240,000 clash questions asked before a
+single tag exists. Ajmal's call, and it is the right one: **place every tag at its best geometric spot
+first, then find the clashes, then work only on the few that actually collide** — out of 10,000 tags
+maybe 100 clash, so the expensive search runs 100 times instead of 240,000.
+
+**But the clash check was never the main cost — measure before optimising.** Reading the code, the
+bigger costs in the old path are (a) `PlaceSingleTag` opening **one Revit Transaction per tag**, and
+(b) `elem.get_BoundingBox(activeView)` being read 2–3 times per element during filtering. The spatial
+index query itself is already cheap. The place-then-fix design happens to fix (a) too, because
+placement no longer needs clash state and can go in one transaction — but do not repeat the claim that
+"the clash check was making it slow". It wasn't. **Neither figure has been timed on a real model.**
+
+**One engine, and do not write a second.** `Services/TagClash/TagClashEngine.cs` is the single clash
+engine for every tagging tool. Its five jobs: build the picture, "is this spot clear?", find all
+clashes, fix a group, flag the failures. Kept deliberately from the old engine because they were good:
+`AnnotationBox`, `AnnotationSpatialIndex` (matters *more* here — comparing 10,000 tags pairwise without
+it is ~50M comparisons), the tuned 1.5 mm / 5 mm paper tolerances, and the rotated-bounding-box and
+tag-text-box techniques (now in `TagViewGeometry`).
+
+**The fix rule, and why the two guards are not optional.** When tags clash, the one whose head sits
+closest to its own element keeps its place; the stretched one moves. Ties break on element id so a
+re-run gives the same answer. A tag clashing with a text note or dimension **always** gives way — the
+annotation cannot move for it. Two guards stop the loop running forever: a tag that wins a contest is
+**frozen** for the rest of the run, and no tag may travel further than the **drift limit** from where
+it started. Without both, A-pushes-B-pushes-A oscillates and never converges.
+
+**Index handling inside a pass.** The avoidance index is built ONCE per pass, not per move — rebuilding
+per move is O(tags) each time and undoes the whole point. After a successful move the tag's NEW box is
+added to that index so nothing later in the pass lands on it; the OLD box stays (the index has no
+remove), which only makes the vacated spot look busy until the next pass rebuilds. That is the safe
+direction to be wrong in. Tag boxes are **shifted** by the move delta rather than re-read from Revit —
+re-reading forces a regeneration per tag, exactly the cost this design exists to avoid.
+
+**Vertical runs are now a setting, and one rule for all tagging tools.** Previously hard-coded and
+inconsistent: Smart MEP Tags skipped vertical **ducts only**, while Create Tags and Stack Tags skipped
+duct, pipe **and** cable tray — so the same vertical pipe behaved differently depending on the button.
+Both now read `TagClashSettings.ShouldSkipVerticalRuns()` and share
+`CreateTagsEligibilityFilter.IsVerticalMepCurve`. Default on (Create Tags' old behaviour); Smart MEP
+Tags is the tool whose behaviour changed.
+
+**Settings that survive a restart.** `SmartTagSettingsTracker` and `CreateTagsSettingsTracker` keep
+state in a **static field**, so every setting is lost when Revit closes. Only `TagArrangeSettings` was
+file-backed. New settings go in `%APPDATA%\AJTools\TagClash.config` via `TagClashSettings` (multi-key
+`key=value`), and the save is verified by **read-back** — a settings write that silently fails is worse
+than one that reports the problem.
+
+### Known duplication in the tag tools — measured, not guessed (2026-08-16)
+
+Counted by diffing the files, ~1,300 lines of the ~10,200-line Tags panel:
+
+| Same job | Copies | Where |
+|---|---|---|
+| Attach an L-shaped leader | 4 | Smart MEP Tags, Stack Tags, Rearrange Tags, L-Shape Leader |
+| Leader-end rollback probe | 3 | 2 of them byte-identical (27 lines each) |
+| Measure a tag's text box / bounds | 3 | Smart MEP Tags (×2 in one file), L-Shape Leader |
+| Push elbow clear of text | 2 | 21 lines each, same code |
+| Stacking loop | 2 | Rearrange Tags, Stack Tags — same loop, only the carried type differs |
+| Move a tag + fix its leader | 2 | Rearrange Tags, Stack Tags |
+| Create tag + set type | 3 | Smart MEP Tags, Create Tags, Stack Tags |
+| 8-corner bounding box loop | 6 | across 4 files |
+| Settings tracker / window | 2 / 3 | two windows are ~2/3 identical XAML |
+
+**Behaviour that drifted because of the copies** — Stack Tags is missing the elbow nudge and the
+retry-if-Revit-refuses that Smart MEP Tags and Create Tags have, and both Stack Tags and Rearrange Tags
+roll the WHOLE click back **silently** if one element fails, so it looks like nothing happened.
+**One difference is deliberate, keep it:** Rearrange Tags refuses to touch the leader end on purpose
+("Keep L1 exactly as-is: do not toggle leader end condition as fallback") — it works on tags already
+placed, and forcing the leader end would move where the leader meets the duct.
+
+**Order matters: tidy before plugging in.** The clash engine has to plug into 5 tools. While those
+tools hold 4 copies of the leader code and 2 of the stacking code, plugging in means writing 5
+different plug-ins. Extract the shared blocks first, then there is one place to plug into.
+
+### Also found, not yet fixed (2026-08-16)
+
+- **L-Shape Leader's tooltip and file header both claim "run again to flip the elbow side". The code
+  does not do that** — same head + same leader end gives the same elbow every time. The
+  `LeaderToggleState` enum (Side / TopBottom) in `LeaderLogicService` is declared and used **nowhere**.
+  Either build the flip or fix the words; do not leave it claiming a feature it lacks.
+- **Smart MEP Tag's 300 mm offset cannot be changed.** The per-category offset exists in the model and
+  the tracker reads it, but the settings window has no field for it and `TryBuildStateFromRows` copies
+  the old value straight back.
+- **`MinPipeDiameter` is `0.0 * MM_TO_FEET`**, so `diameter >= 0 && diameter < 0` is never true — the
+  pipe size filter is dead code.
+- **Scoring criterion 4 ("leader consistency") adds a flat 20 to every position**, with a comment
+  saying max-leader filtering is intentionally disabled. It is a 3-criteria score with 20 free points.
+- The clash engine was blind to detail components, detail lines, generic annotations, keynote tags,
+  spot elevations/coordinates and revision clouds — `TagClashEngine.CollectStaticObstacles` now covers
+  them; the old `SmartTagPlacementEngine.CollectExistingAnnotations` still only sees tags/text/dims.
+
+### Remote container cannot build this project (2026-08-16)
+
+Claude Code on the web runs Linux: no `dotnet`, no `msbuild`, no `mono`, and no Revit API assemblies
+(they come from the `Nice3point.Revit.Api.*` NuGet packages). The project is `net472`/`net48` with
+`UseWPF` — **WPF cannot build on Linux at all**, so installing the SDK would not help. Work done there
+is written but **never compiled**. Say so plainly in the report, prefer additive new files over
+rewiring working tools, and leave anything risky for a session that can run
+`msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true`.

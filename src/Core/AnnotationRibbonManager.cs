@@ -169,6 +169,16 @@ namespace AJTools.App
                 AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Configure category-wise enable/disable and the minimum length to tag for Create Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
             }
 
+            PulldownButtonData fixTagClashData = new PulldownButtonData("cmdFixTagClashPulldown", "Fix Tag\nClash");
+            RibbonPanelHelper.ApplyIcons(fixTagClashData, _iconLoader, "Arrange Tag.png");
+
+            if (panel.AddItem(fixTagClashData) is PulldownButton fixTagClashPulldown)
+            {
+                AddChildPushButton(fixTagClashPulldown, "cmdFixTagClash", "Fix Tag\nClash", "Find every clashing tag in the active view and separate them. The tag closest to its own element keeps its place; the others move. Whatever cannot be separated is coloured and left selected. Works on any tags, however they were placed - run it again to have another go.", typeof(CmdFixTagClash).FullName, "Arrange Tag.png");
+                AddChildPushButton(fixTagClashPulldown, "cmdClearTagClashMarks", "Clear Tag\nClash Marks", "Remove the clash colour from the tags in the active view. Resets the graphic override on every tag in this view, so a deliberate manual override here is cleared too.", typeof(CmdClearTagClashMarks).FullName, "Reset Overrides.png");
+                AddChildPushButton(fixTagClashPulldown, "cmdFixTagClashSettings", "Fix Tag Clash\nSettings", "Set how many rounds to try, how far a tag may move, the colour used for tags that could not be separated, and whether vertical runs are skipped when tagging.", typeof(CmdFixTagClashSettings).FullName, "settings.png");
+            }
+
             PushButtonData centerRoomTagsData = new PushButtonData("cmdCenterRoomTags", "Center Room\nTags", _assemblyPath, typeof(CmdCenterRoomTags).FullName)
             {
                 ToolTip = "Move every room tag in the active view to the center of its tagged room. Handles local rooms and loaded linked rooms; skips orphaned, pinned, and unreadable tags."
