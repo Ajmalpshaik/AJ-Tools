@@ -151,7 +151,7 @@ namespace AJTools.Commands
             {
                 transaction.Start();
 
-                outcome = Connect(routeBuilder, new ElementPair(first, second, 0), settings);
+                outcome = Connect(routeBuilder, new ElementPair(first, second), settings);
 
                 if (outcome.Success)
                 {
@@ -203,7 +203,7 @@ namespace AJTools.Commands
                 {
                     transaction.Start();
 
-                    ConnectionOutcome outcome = Connect(routeBuilder, new ElementPair(firstElement, secondElement, 0), settings);
+                    ConnectionOutcome outcome = Connect(routeBuilder, new ElementPair(firstElement, secondElement), settings);
                     outcomes.Add(outcome);
 
                     if (outcome.Success)
@@ -363,11 +363,6 @@ namespace AJTools.Commands
         /// </summary>
         private static void ShowSummary(List<ConnectionOutcome> outcomes)
         {
-            ShowSummary(outcomes, null);
-        }
-
-        private static void ShowSummary(List<ConnectionOutcome> outcomes, List<string> extraNotes)
-        {
             if (outcomes.Count == 0)
             {
                 return;
@@ -376,10 +371,6 @@ namespace AJTools.Commands
             int succeeded = outcomes.Count(outcome => outcome.Success);
             int failed = outcomes.Count - succeeded;
             List<string> warnings = outcomes.SelectMany(outcome => outcome.Warnings).ToList();
-            if (extraNotes != null)
-            {
-                warnings.AddRange(extraNotes);
-            }
 
             if (failed == 0 && warnings.Count == 0)
             {
@@ -450,18 +441,15 @@ namespace AJTools.Commands
 
         private sealed class ElementPair
         {
-            public ElementPair(Element first, Element second, double distance)
+            public ElementPair(Element first, Element second)
             {
                 First = first;
                 Second = second;
-                Distance = distance;
             }
 
             public Element First { get; private set; }
 
             public Element Second { get; private set; }
-
-            public double Distance { get; private set; }
         }
 
         private sealed class ConnectionOutcome

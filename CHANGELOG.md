@@ -5,6 +5,21 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.6] - 2026-08-16
+
+A cleanup pass through Connect MEP Elements, asked for straight after the two removals above: "check
+entirely... is there anything related with that removed feature settings... if any settings only
+work if that removed feature exists, remove it too."
+
+- **Removed**: three more pieces of leftover code found by that check — a number that was being
+  tracked and passed around but never actually read by anything anymore, a reporting path that only
+  ever fed itself an empty value, and a whole scoring method with no caller left anywhere in the tool
+  (a leftover from before Connect MEP Elements was rebuilt, not from yesterday's changes, but the same
+  kind of thing). None of this changes what you see or how the tool behaves — it is code that was
+  quietly doing nothing.
+- **Fixed**: a code comment and two file descriptions that still mentioned "batch" or the removed
+  "Neither" option, left over from before yesterday's simplification.
+
 ## [1.47.5] - 2026-08-16
 
 Two things simplified in Connect MEP Elements, both at Ajmal's request while testing live, both

@@ -1,5 +1,5 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Settings Model
-// Description: Stores persisted Connect MEP Elements routing, batch, and quality preferences.
+// Description: Stores persisted Connect MEP Elements routing, selection, and quality preferences.
 // Author: Ajmal P.S.
 // Version: 2.0.0
 // Last Updated: 2026-08-15

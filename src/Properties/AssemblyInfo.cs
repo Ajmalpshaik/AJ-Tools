@@ -24,6 +24,21 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.47.6 (2026-08-16) - Connect MEP Elements: cleanup pass Ajmal asked for after the two 1.47.5
+ *                       removals - "check entirely we remove something, is there anything related
+ *                       with that removed feature settings... if any settings only work if that
+ *                       removed feature exists, remove it too." Found and removed: ElementPair.Distance
+ *                       (SmartConnectCommand.cs) - write-only, always passed 0, only ever read by the
+ *                       nearest-pairing sort that 1.47.5 deleted. ShowSummary's extraNotes parameter /
+ *                       2-arg overload (SmartConnectCommand.cs) - existed only for the "N elements
+ *                       left unpaired" batch message, always null now that both callers pass a single
+ *                       ConnectionOutcome. TryGetBestOpenConnectorPair, AreDomainsCompatible and
+ *                       ComputeOrientationPenalty (SmartConnectConnectorUtils.cs) - zero callers
+ *                       anywhere, leftover from before the 1.47.0 route-builder rewrite, not directly
+ *                       caused by 1.47.5 but the same class of problem so removed in the same pass.
+ *                       Also corrected: a code comment illustrating text-wrapping still quoted the
+ *                       deleted "Neither - leave both alone" option string; two file-header
+ *                       descriptions still said "batch" for a setting that no longer batches anything.
  * v1.47.5 (2026-08-16) - Connect MEP Elements simplified twice at Ajmal's request, both times
  *                       removing a redundant/confusing mechanism rather than just hiding it.
  *                       (1) Removed the nearest-open-end auto-pairing algorithm for a big selection
@@ -1681,8 +1696,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.5.0")]
-[assembly: AssemblyFileVersion("1.47.5.0")]
+[assembly: AssemblyVersion("1.47.6.0")]
+[assembly: AssemblyFileVersion("1.47.6.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
