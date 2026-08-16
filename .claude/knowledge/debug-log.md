@@ -58,6 +58,25 @@ AutoDebugger, or code-review only) -> date.
   connected this session (ping refused), so nothing was checked against the live model, and Revit was open
   during the deploy — the running session is still on 1.48.1.** Ajmal restarts Revit and re-tests the
   two-duct case both ways round. **Not click-tested by me.** → 2026-08-16.
+- **Released publicly the same session, at Ajmal's explicit choice** (asked test-first vs release-now; he
+  picked release-now, having been told plainly it was not yet exercised in Revit — the same call he made
+  for 1.48.1). Ran clean end to end: all 9 payloads read back at 1.48.2.0 before packaging, checksum
+  matched, Actions published in well under a minute, and the **published asset was downloaded and
+  re-hashed — byte-for-byte identical** to the local zip and to the published `SHA256SUMS.txt`
+  (`3180be14…59e`). Release notes came through non-empty and correct. Source tag `v1.48.2`, installer tag
+  `v1.48.2`, all three repos clean and in sync (AJ AI Brain needed nothing).
+- **Deploy gotcha worth keeping — `Release R27` cannot be built from this shell with VS MSBuild.** It
+  fails `NETSDK1045: The current .NET SDK does not support targeting .NET 10.0` because the machine-wide
+  SDK on PATH is 9.0.317. `package.ps1` already knows this and routes the 2027 build through the
+  **user-local** SDK at `%LOCALAPPDATA%\Microsoft\dotnet\dotnet.exe`, which has .NET 10. For a manual
+  R27 build or deploy, use that dotnet.exe directly
+  (`& "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe" build "src\AJ Tools.csproj" -c "Release R27"`) —
+  the VS MSBuild path in the 2026-08-05 note below works for every OTHER config but not this one.
+- **Only three Revit versions are actually installed on this machine** (2020, 2024, 2027 — checked under
+  `C:\Program Files\Autodesk\`), even though AppData carries manifest folders for all eight years because
+  the deploy target creates them. All three were brought to 1.48.2.0; the unused year folders were left
+  behind, which is why a version sweep across all eight always shows stale entries that do not matter.
+  `package.ps1` builds all eight regardless, and that is what the public zip ships. → 2026-08-16.
 
 ### 2026-08-16 (Connect MEP Elements settings: Main tab clipped and the window could not be resized — FIXED, suite 1.48.1)
 - **Symptom (Ajmal's words, with two screenshots)**: "chek this the main page and that reszing in the
