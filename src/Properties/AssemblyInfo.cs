@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.47.6
+ * Version       : 1.47.8
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,7 +24,7 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
- * v1.47.6 (2026-08-16) - Repo housekeeping pass: synced README.md/AssemblyInfo.cs's stale 1.46.0
+ * v1.47.8 (2026-08-16) - Repo housekeeping pass: synced README.md/AssemblyInfo.cs's stale 1.46.0
  *                       version claims to the real 1.47.4, removed the "Auto Dimension" ribbon panel
  *                       from README.md/docs/USAGE.md (merged into "Dimensions" in v1.46.0),
  *                       rewrote CONTRIBUTING.md's Development Setup to match the actual build
@@ -32,6 +32,31 @@
  *                       missing Release R21-R27 configurations to AJ Tools.sln so Visual Studio's
  *                       Configuration Manager can reach them, and corrected the vestigial
  *                       RootNamespace (AJ_Tools -> AJTools) in the csproj. No tool behavior changed.
+ * v1.47.7 (2026-08-16) - Fixed the "Connect MEP Elements" split button getting stuck on Settings.
+ *                       Revit's SplitButton defaults to showing whichever child was clicked last as
+ *                       the permanent top face (IsSynchronizedWithCurrentItem = true) - so opening
+ *                       the dropdown and clicking "Connect MEP Elements Settings" once made Settings
+ *                       the new default action, and the next plain click ran Settings again instead
+ *                       of connecting. AddSmartConnectTool() was missing the
+ *                       IsSynchronizedWithCurrentItem = false configuration that the Opening panel's
+ *                       "Create Openings" split button already has for exactly this reason. The main
+ *                       face is now permanently pinned to "Connect MEP Elements" regardless of which
+ *                       child was run last, matching the Opening tool's pattern precisely.
+ * v1.47.6 (2026-08-16) - Connect MEP Elements: cleanup pass Ajmal asked for after the two 1.47.5
+ *                       removals - "check entirely we remove something, is there anything related
+ *                       with that removed feature settings... if any settings only work if that
+ *                       removed feature exists, remove it too." Found and removed: ElementPair.Distance
+ *                       (SmartConnectCommand.cs) - write-only, always passed 0, only ever read by the
+ *                       nearest-pairing sort that 1.47.5 deleted. ShowSummary's extraNotes parameter /
+ *                       2-arg overload (SmartConnectCommand.cs) - existed only for the "N elements
+ *                       left unpaired" batch message, always null now that both callers pass a single
+ *                       ConnectionOutcome. TryGetBestOpenConnectorPair, AreDomainsCompatible and
+ *                       ComputeOrientationPenalty (SmartConnectConnectorUtils.cs) - zero callers
+ *                       anywhere, leftover from before the 1.47.0 route-builder rewrite, not directly
+ *                       caused by 1.47.5 but the same class of problem so removed in the same pass.
+ *                       Also corrected: a code comment illustrating text-wrapping still quoted the
+ *                       deleted "Neither - leave both alone" option string; two file-header
+ *                       descriptions still said "batch" for a setting that no longer batches anything.
  * v1.47.5 (2026-08-16) - Connect MEP Elements simplified twice at Ajmal's request, both times
  *                       removing a redundant/confusing mechanism rather than just hiding it.
  *                       (1) Removed the nearest-open-end auto-pairing algorithm for a big selection
@@ -1689,8 +1714,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.6.0")]
-[assembly: AssemblyFileVersion("1.47.6.0")]
+[assembly: AssemblyVersion("1.47.8.0")]
+[assembly: AssemblyFileVersion("1.47.8.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

@@ -5,7 +5,7 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-## [1.47.6] - 2026-08-16
+## [1.47.8] - 2026-08-16
 
 - **Fixed**: repo housekeeping pass — several docs had drifted from the real code:
   - README.md and `AssemblyInfo.cs`'s own header comment both still said **1.46.0** while the real
@@ -27,6 +27,29 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 - **Changed**: `RootNamespace` in `src/AJ Tools.csproj` was the vestigial `AJ_Tools` (with an
   underscore) while every real namespace in the codebase has always been `AJTools` — confirmed nothing
   referenced the old value, so it now matches.
+
+## [1.47.7] - 2026-08-16
+
+- **Fixed**: **the Connect MEP Elements button was getting stuck on Settings.** Click the dropdown,
+  choose "Connect MEP Elements Settings" once, and the top of the button would permanently switch to
+  Settings — the next plain click opened Settings again instead of connecting. The top button now
+  always stays "Connect MEP Elements" no matter which one you opened last, the same way the Opening
+  panel's "Create Openings" button already worked.
+
+## [1.47.6] - 2026-08-16
+
+A cleanup pass through Connect MEP Elements, asked for straight after the two removals above: "check
+entirely... is there anything related with that removed feature settings... if any settings only
+work if that removed feature exists, remove it too."
+
+- **Removed**: three more pieces of leftover code found by that check — a number that was being
+  tracked and passed around but never actually read by anything anymore, a reporting path that only
+  ever fed itself an empty value, and a whole scoring method with no caller left anywhere in the tool
+  (a leftover from before Connect MEP Elements was rebuilt, not from yesterday's changes, but the same
+  kind of thing). None of this changes what you see or how the tool behaves — it is code that was
+  quietly doing nothing.
+- **Fixed**: a code comment and two file descriptions that still mentioned "batch" or the removed
+  "Neither" option, left over from before yesterday's simplification.
 
 ## [1.47.5] - 2026-08-16
 

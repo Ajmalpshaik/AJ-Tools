@@ -8,6 +8,66 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Connect MEP Elements: split button got stuck showing Settings as the default face — FIXED, suite 1.47.7)
+- **Symptom (Ajmal's words)**: "after that can you change the button configuration - no, if i select
+  the settings it will come like settings first, and i need the settings inside always, like [the]
+  split button for the opening pane; create opening tool - so settings will be inside always, connect
+  only it will come." He wanted the button to behave like the Opening panel's "Create Openings"
+  split button, where the main face never changes away from the primary action.
+- **Root cause**: Revit's `SplitButton.IsSynchronizedWithCurrentItem` defaults to `true`, which makes
+  the button's TOP face permanently switch to whichever child was clicked most recently. `AddSmartConnectTool()`
+  never set this to `false`, so opening the dropdown and clicking "Connect MEP Elements Settings" once
+  made Settings the new default - the next plain click on the button ran Settings again, not Connect.
+  `AddMepOpeningsTool()` had already solved this exact problem with a one-line
+  `splitButton => splitButton.IsSynchronizedWithCurrentItem = false` configuration and a comment
+  explaining why - the Connect MEP Elements button simply never got the same treatment when it was
+  built.
+- **Fix**: added the identical configuration line to `AddSmartConnectTool()`, matching the Opening
+  tool's pattern exactly (including comment wording), so the top face is now permanently pinned to
+  "Connect MEP Elements" regardless of which child ran last.
+- **Lesson**: this is another instance of the pattern already logged twice above for this feature -
+  the fix already existed elsewhere in the ribbon (the Opening panel), and the new tool just didn't
+  inherit it. When building a split/pulldown button, check an existing one in the same ribbon for this
+  exact `IsSynchronizedWithCurrentItem` setting before assuming the default behaviour is fine.
+- **Verified how**: found by reading `AddMepOpeningsTool()` directly and comparing line-by-line
+  against `AddSmartConnectTool()`, not from memory of how SplitButton works. Clean build, zero
+  warnings. **Not yet exercised in Revit** - Ajmal to test after this deploy.
+
+### 2026-08-16 (Connect MEP Elements: dead code left behind by the 1.47.5 removals — CLEANED UP, suite 1.47.6)
+- **Prompted by Ajmal, directly**: "check entirely we remove something so with remove ites is there
+  anything related with that removed feature settings remove. also maybe there is one settings is
+  there that will work only if that remove features if we already revie that settings also we can
+  remove am i right so if anything like that remove it." A genuine ask to sweep for orphaned code
+  after a feature removal, not just trust that deleting the obvious call site was enough.
+- **Method**: grepped for every remaining textual reference to what 1.47.5 removed (the auto-pairing
+  algorithm and `SmartConnectMoveMode.None`) across the whole repo, then read every property/method
+  those removals touched to check whether anything downstream still consumed it. Did not rely on
+  memory of what I wrote - re-grepped each candidate's call sites fresh.
+- **Found, all confirmed dead by an actual empty-caller-list grep, not assumed**:
+  1. `ElementPair.Distance` (`SmartConnectCommand.cs`) - both construction sites passed a literal
+     `0`, and nothing anywhere read `.Distance`. It existed solely for `BuildNearestPairs`' sort,
+     which 1.47.5 deleted.
+  2. `ShowSummary`'s `extraNotes` parameter and its 2-argument overload (`SmartConnectCommand.cs`) -
+     existed only to carry the old "N selected elements left unpaired" batch message. Both remaining
+     callers now pass a single-outcome list, so the 2-arg overload was only ever invoked with `null`.
+  3. `TryGetBestOpenConnectorPair`, `AreDomainsCompatible`, `ComputeOrientationPenalty`
+     (`SmartConnectConnectorUtils.cs`) - zero callers anywhere in the repo. This predates 1.47.5; it
+     was left behind by the 1.47.0 route-builder rewrite, which built its own inline domain check
+     directly in `SmartConnectRouteBuilder.cs` instead. Same class of problem, caught in the same pass
+     because Ajmal asked for a thorough check, not a narrowly-scoped one.
+- **Also fixed**: a code comment illustrating WPF text-wrapping still quoted the exact string of the
+  deleted "Neither - leave both alone" radio option as its example; swapped for a string that still
+  exists. Two file-header descriptions still said "batch" for settings that no longer batch anything.
+- **Lesson**: deleting the call site that prompted a removal is not the same as confirming nothing
+  else depended on what got removed. The right check is mechanical - grep for the removed name/type
+  everywhere, then grep for every OTHER thing that removal's data flowed into, and confirm each one
+  still has a real caller. "I don't remember anything else using it" is not verification.
+- **Verified how**: build-clean confirmation only goes so far here, since orphaned-but-still-callable
+  methods and always-null parameters both compile fine with zero warnings - the actual proof was the
+  grep showing zero remaining call sites for each removed item, done before deleting, not after.
+  Clean build across Release and R21-R26 confirms nothing broke; it does not by itself confirm the
+  removed code was dead, which is why the grep step came first. **Not yet exercised in Revit**.
+
 ### 2026-08-16 (Connect MEP Elements: two overlapping settings could contradict each other — SIMPLIFIED, suite 1.47.5)
 - **Symptom (found together, live testing)**: Ajmal ("still same") reported ducts still not extending
   as expected. Live inspection of his saved settings file showed `RoutingMode: 2` (Automatic) but

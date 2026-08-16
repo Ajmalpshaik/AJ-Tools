@@ -61,8 +61,9 @@
               RadioButton/CheckBox does NOT wrap by default in WPF - it silently overflows past the
               edge of the window instead. That was latent here: harmless at the window's normal
               width, but ResizeMode is CanResize with MinWidth=500, and at that width a long option
-              (e.g. "Neither - leave both alone and add new pieces") could run past the border with
-              no visible sign anything was cut off. The DataTemplate below fixes it everywhere at once.
+              (e.g. "If exactly two are already selected, connect them directly") could run past the
+              border with no visible sign anything was cut off. The DataTemplate below fixes it
+              everywhere at once.
             -->
             <DataTemplate x:Key="WrappingOptionContent">
                 <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
