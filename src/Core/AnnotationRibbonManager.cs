@@ -138,7 +138,7 @@ namespace AJTools.App
 
             PushButtonData lShapeLeaderData = new PushButtonData("cmdForceTagLeaderLShape", "L-Shape\nLeader", _assemblyPath, typeof(CmdForceTagLeaderLShape).FullName)
             {
-                ToolTip = "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc."
+                ToolTip = "Force tags to use a right-angle leader. Preselect tags or pick tags (Tab cycles) until Esc."
             };
             RibbonPanelHelper.ApplyIcons(lShapeLeaderData, _iconLoader, "L-ShapeLeader.png");
 

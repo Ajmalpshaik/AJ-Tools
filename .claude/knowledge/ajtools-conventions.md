@@ -1066,7 +1066,30 @@ placed, and forcing the leader end would move where the leader meets the duct.
 tools hold 4 copies of the leader code and 2 of the stacking code, plugging in means writing 5
 different plug-ins. Extract the shared blocks first, then there is one place to plug into.
 
-### Also found, not yet fixed (2026-08-16)
+### Duplication: DONE (2026-08-16, v1.49.1)
+
+The table above is history now. The shared blocks exist and all four tools call them:
+
+| Shared block | Replaces | Callers |
+|---|---|---|
+| `Services/LeaderLogic/TagLeaderService.cs` | 4 leader copies, 3 rollback probes, 2 elbow nudges | Smart MEP Tags, Create Tags, Stack Tags, Rearrange Tags, L-Shape Leader |
+| `Services/TagArrange/TagStackService.cs` | 2 stacking loops, 2 nearest-first searches, 2 identical `AlignToBaseX` | Rearrange Tags, Stack Tags |
+| `Services/TagClash/TagViewGeometry.cs` | 3 tag-bounds copies, 6 eight-corner loops | Smart MEP Tags, L-Shape Leader, Fix Tag Clash |
+
+About 730 lines came out of the four tool files. **The differences between the copies became options,
+not lost behaviour** — `TagLeaderOptions.Tidy()` (nudge + retry + probe) versus
+`PreserveLeaderEnd(useRollbackProbe)` (neither). Rearrange Tags' refusal to touch the leader end is a
+real requirement and is preserved; Stack Tags' `TryMoveExistingTag` also sets
+`EnableLeaderIfMissing = false`, because the original only ever *read* `HasLeader` and never switched
+one on.
+
+**Two traps worth remembering from doing it.** First: when deleting a contiguous run of "unused"
+private methods, check what is sandwiched between them — `TryForceLShapeVertical` and
+`TryApplyComputedElbowVertical` sat between two helpers being removed and went with them, which would
+have silently deleted the only vertical-tag-text support in the project. Second: brace-balance alone
+does not catch that, because whole methods were removed cleanly; only re-reading the call graph did.
+
+### Found and fixed in the same pass (2026-08-16, v1.49.1)
 
 - **L-Shape Leader's tooltip and file header both claim "run again to flip the elbow side". The code
   does not do that** — same head + same leader end gives the same elbow every time. The

@@ -62,7 +62,8 @@ namespace AJTools.Services.ForceTagLeaderLShape
     /// </summary>
     internal static class ForceTagLeaderLShapeService
     {
-        private const double ElbowOutsideTextMarginMm = 3.0;
+        // The 3mm outside-text margin that used to be a constant here now lives with the nudge itself,
+        // in TagLeaderService - one value, one place, shared with Smart MEP Tags.
 
         /// <summary>
         /// Attempts to force the given tag's leader into an L-shape elbow. Returns false when the
@@ -131,30 +132,8 @@ namespace AJTools.Services.ForceTagLeaderLShape
             if (elbow == null)
                 return true;
 
-            elbow = AdjustElbowOutsideTextBoundsRight(tag, activeView, leaderLogic, elbow);
+            elbow = TagLeaderService.NudgeElbowClearOfText(tag, activeView, leaderLogic, elbow);
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
-        }
-
-        private static XYZ AdjustElbowOutsideTextBoundsRight(
-            Element tag,
-            View activeView,
-            LeaderLogicService leaderLogic,
-            XYZ elbow)
-        {
-            if (tag == null || leaderLogic == null || elbow == null)
-                return elbow;
-
-            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
-                return elbow;
-
-            UV elbowUv = leaderLogic.ProjectToView(elbow);
-            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
-                return elbow;
-
-            double rightMarginFeet = GetScaledElbowOutsideMarginFeet(activeView);
-            double targetX = maxX + rightMarginFeet;
-            double deltaX = targetX - elbowUv.U;
-            return leaderLogic.OffsetInView(elbow, deltaX, 0);
         }
 
         private static bool TryForceLShapeVertical(Element tag, View activeView, LeaderLogicService leaderLogic)
@@ -191,193 +170,21 @@ namespace AJTools.Services.ForceTagLeaderLShape
             if (elbow == null)
                 return true;
 
-            elbow = AdjustElbowTopBottom(tag, activeView, leaderLogic, elbow, head, end);
+            elbow = TagLeaderService.NudgeElbowClearOfTextVertical(
+                tag, activeView, leaderLogic, elbow, head, end);
 
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
 
-        private static XYZ AdjustElbowTopBottom(
-            Element tag,
-            View activeView,
-            LeaderLogicService leaderLogic,
-            XYZ elbow,
-            XYZ head,
-            XYZ leaderEnd)
-        {
-            if (tag == null || leaderLogic == null || elbow == null)
-                return elbow;
-
-            if (!TryGetTagBoundsInView(tag, activeView, leaderLogic, out double minX, out double maxX, out double minY, out double maxY))
-                return elbow;
-
-            UV elbowUv = leaderLogic.ProjectToView(elbow);
-            if (!IsPointInsideBounds(elbowUv, minX, maxX, minY, maxY))
-                return elbow;
-
-            double marginFeet = GetScaledElbowOutsideMarginFeet(activeView);
-            UV headUv = leaderLogic.ProjectToView(head);
-            UV endUv = leaderLogic.ProjectToView(leaderEnd);
-
-            double targetY;
-            if (endUv.V < headUv.V)
-            {
-                // Element is below, push elbow to the bottom
-                targetY = minY - marginFeet;
-            }
-            else
-            {
-                // Element is above, push elbow to the top
-                targetY = maxY + marginFeet;
-            }
-
-            double deltaY = targetY - elbowUv.V;
-            return leaderLogic.OffsetInView(elbow, 0, deltaY);
-        }
-
-        private static double GetScaledElbowOutsideMarginFeet(View activeView)
-        {
-            int scale = 1;
-            try
-            {
-                if (activeView != null && activeView.Scale > 0)
-                    scale = activeView.Scale;
-            }
-            catch
-            {
-                // Falls through to the scale = 1 default above - not worth failing the whole tool over.
-            }
-
-            return ElbowOutsideTextMarginMm * Constants.MM_TO_FEET * scale;
-        }
-
-        private static bool TryGetTagBoundsInView(
-            Element tag,
-            View activeView,
-            LeaderLogicService leaderLogic,
-            out double minX,
-            out double maxX,
-            out double minY,
-            out double maxY)
-        {
-            minX = 0;
-            maxX = 0;
-            minY = 0;
-            maxY = 0;
-
-            BoundingBoxXYZ bb = GetTagBoundingBox(tag, activeView);
-            if (bb == null || bb.Min == null || bb.Max == null)
-                return false;
-
-            XYZ min = bb.Min;
-            XYZ max = bb.Max;
-            Transform transform = bb.Transform ?? Transform.Identity;
-            XYZ[] corners = new[]
-            {
-                new XYZ(min.X, min.Y, min.Z),
-                new XYZ(min.X, min.Y, max.Z),
-                new XYZ(min.X, max.Y, min.Z),
-                new XYZ(min.X, max.Y, max.Z),
-                new XYZ(max.X, min.Y, min.Z),
-                new XYZ(max.X, min.Y, max.Z),
-                new XYZ(max.X, max.Y, min.Z),
-                new XYZ(max.X, max.Y, max.Z)
-            };
-
-            double localMinX = double.MaxValue;
-            double localMinY = double.MaxValue;
-            double localMaxX = double.MinValue;
-            double localMaxY = double.MinValue;
-
-            foreach (XYZ corner in corners)
-            {
-                XYZ worldCorner = transform.OfPoint(corner);
-                UV uv = leaderLogic.ProjectToView(worldCorner);
-                if (uv.U < localMinX) localMinX = uv.U;
-                if (uv.U > localMaxX) localMaxX = uv.U;
-                if (uv.V < localMinY) localMinY = uv.V;
-                if (uv.V > localMaxY) localMaxY = uv.V;
-            }
-
-            // Bounding boxes may include leader geometry. Re-center around TagHeadPosition
-            // to better represent text extents when one side is heavily skewed.
-            if (TryGetXYZProperty(tag, "TagHeadPosition", out XYZ headPoint))
-            {
-                UV headUv = leaderLogic.ProjectToView(headPoint);
-                bool headInside = headUv != null
-                    && headUv.U > localMinX && headUv.U < localMaxX
-                    && headUv.V > localMinY && headUv.V < localMaxY;
-
-                if (headInside)
-                {
-                    double left = headUv.U - localMinX;
-                    double right = localMaxX - headUv.U;
-                    double down = headUv.V - localMinY;
-                    double up = localMaxY - headUv.V;
-
-                    double halfWidth = Math.Min(left, right);
-                    double halfHeight = Math.Min(down, up);
-
-                    if (halfWidth > Constants.ZERO_LENGTH_TOLERANCE)
-                    {
-                        localMinX = headUv.U - halfWidth;
-                        localMaxX = headUv.U + halfWidth;
-                    }
-
-                    if (halfHeight > Constants.ZERO_LENGTH_TOLERANCE)
-                    {
-                        localMinY = headUv.V - halfHeight;
-                        localMaxY = headUv.V + halfHeight;
-                    }
-                }
-            }
-
-            if (localMinX > localMaxX || localMinY > localMaxY)
-                return false;
-
-            minX = localMinX;
-            maxX = localMaxX;
-            minY = localMinY;
-            maxY = localMaxY;
-            return true;
-        }
-
-        private static BoundingBoxXYZ GetTagBoundingBox(Element tag, View activeView)
-        {
-            if (tag == null)
-                return null;
-
-            try
-            {
-                if (activeView != null)
-                {
-                    BoundingBoxXYZ viewBox = tag.get_BoundingBox(activeView);
-                    if (viewBox != null)
-                        return viewBox;
-                }
-            }
-            catch
-            {
-                // Falls through to the null/model-bounds fallback below.
-            }
-
-            try
-            {
-                return tag.get_BoundingBox(null);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static bool IsPointInsideBounds(UV point, double minX, double maxX, double minY, double maxY)
-        {
-            if (point == null)
-                return false;
-
-            return point.U >= minX && point.U <= maxX
-                && point.V >= minY && point.V <= maxY;
-        }
+        // Removed 2026-08-16 (about 240 lines): AdjustElbowOutsideTextBoundsRight,
+        // AdjustElbowTopBottom, GetScaledElbowOutsideMarginFeet, TryGetTagBoundsInView,
+        // GetTagBoundingBox and IsPointInsideBounds. The first was near-verbatim identical to
+        // SmartTagPlacementEngine's copy, and the bounds/re-centre-on-the-head work was a third
+        // copy of the same trick. They now live once, in Services/LeaderLogic/TagLeaderService.cs
+        // (NudgeElbowClearOfText / NudgeElbowClearOfTextVertical) and
+        // Services/TagClash/TagViewGeometry.cs. This file keeps only what is genuinely its own:
+        // reflection-based tag property access, and the horizontal/vertical split that makes it the
+        // one tool able to handle vertical tag text. Behaviour is unchanged.
 
         private static bool EnsureLeaderEnabled(Element tag)
         {
