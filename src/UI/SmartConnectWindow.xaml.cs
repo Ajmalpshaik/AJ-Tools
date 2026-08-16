@@ -1,10 +1,15 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Settings Window
 // Description: Code-behind for the Connect MEP Elements settings UI.
 // Author: Ajmal P.S.
-// Version: 2.1.0
-// Last Updated: 2026-08-15
+// Version: 3.0.0
+// Last Updated: 2026-08-16
 // Revit Version: 2020
 // Dependencies: AJTools.Models, AJTools.Services.SmartConnect
+//
+// v3.0.0 - Matches the window's move to two tabs: the routing-mode radios are gone (the tool always
+// stretches now), the grouped picking flags became one checkbox per category, Comments/Mark copying
+// became workset-only, and the advanced controls explain themselves through ToolTips rather than a
+// permanent hint line each. OnToggleAdvancedClick went with the collapsible block it drove.
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -42,6 +47,9 @@ namespace AJTools.UI
             // Shared AJ Tools window exit (fade + short sink). The window's result,
             // validation and close behaviour are unchanged - see WindowMotionHelper's header.
             WindowMotionHelper.AttachStandardExit(this);
+
+            // Shared tab cross-fade, same as every other tabbed AJ Tools window.
+            TabMotionHelper.AttachTabTransitions(this);
 
             CustomAnglesList.ItemsSource = _customAngles;
             CustomAnglesList.DisplayMemberPath = "DisplayName";
@@ -139,18 +147,12 @@ namespace AJTools.UI
         {
             ErrorText.Text = string.Empty;
             _customAngles.Clear();
-            ApplySettingsToControls(new SmartConnectSettings());
-        }
 
-        /// <summary>
-        /// Shows or hides the advanced block. Everything in it stays live either way - collapsing it
-        /// only keeps it out of the way, it never resets or ignores a setting.
-        /// </summary>
-        private void OnToggleAdvancedClick(object sender, RoutedEventArgs e)
-        {
-            bool isHidden = AdvancedPanel.Visibility != Visibility.Visible;
-            AdvancedPanel.Visibility = isHidden ? Visibility.Visible : Visibility.Collapsed;
-            AdvancedToggleButton.Content = isHidden ? "Hide advanced settings" : "Show advanced settings";
+            // Reassign Settings too, not just the controls. TryCollectSettings carries FallbackAngles
+            // through from this field (the window has no control for them), so resetting the controls
+            // alone would leave a customised fallback order in place after a Reset + Save.
+            Settings = new SmartConnectSettings();
+            ApplySettingsToControls(Settings);
         }
 
         // ------------------------------------------------------------------
@@ -161,25 +163,26 @@ namespace AJTools.UI
         {
             SmartConnectSettings source = settings ?? new SmartConnectSettings();
 
-            ModeAutoRadio.IsChecked = source.RoutingMode == SmartConnectRoutingMode.Auto;
-            ModeSingleElbowRadio.IsChecked = source.RoutingMode == SmartConnectRoutingMode.SingleElbow;
-            ModeOffsetRadio.IsChecked = source.RoutingMode == SmartConnectRoutingMode.OffsetWithTwoElbows;
-
             MoveBothRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.Both;
             MoveFirstRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.FirstOnly;
             MoveSecondRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.SecondOnly;
 
             AngleFallbackCheck.IsChecked = source.UseAngleFallback;
+
             AllowConduitCheck.IsChecked = source.AllowConduit;
-            AllowFlexCheck.IsChecked = source.AllowFlexCurves;
-            AllowFamilyInstanceCheck.IsChecked = source.AllowFamilyInstanceConnectors;
+            AllowFlexDuctCheck.IsChecked = source.AllowFlexDuct;
+            AllowFlexPipeCheck.IsChecked = source.AllowFlexPipe;
+            AllowAirTerminalsCheck.IsChecked = source.AllowAirTerminals;
+            AllowEquipmentCheck.IsChecked = source.AllowEquipment;
+            AllowFittingsCheck.IsChecked = source.AllowFittings;
+            AllowAccessoriesCheck.IsChecked = source.AllowAccessories;
             AllowNonParallelCheck.IsChecked = source.AllowNonParallelEnds;
 
             BatchFromSelectionCheck.IsChecked = source.BatchFromSelection;
-            SummaryReportCheck.IsChecked = source.ShowSummaryReport;
+            ShowFailedReportCheck.IsChecked = source.ShowFailedReport;
 
             CopyInsulationCheck.IsChecked = source.CopyInsulationAndLining;
-            CopyParametersCheck.IsChecked = source.CopyInstanceParameters;
+            CopyWorksetCheck.IsChecked = source.CopyWorkset;
             AutoTransitionCheck.IsChecked = source.AutoTransitionOnSizeMismatch;
             WarnOnClashCheck.IsChecked = source.WarnOnClash;
 
@@ -260,7 +263,6 @@ namespace AJTools.UI
 
             settings = new SmartConnectSettings
             {
-                RoutingMode = ReadRoutingMode(),
                 MoveMode = ReadMoveMode(),
                 SelectedAngleDegrees = selectedAngle,
                 CustomAngles = _customAngles.Select(item => item.Value).ToList(),
@@ -271,34 +273,26 @@ namespace AJTools.UI
                 FallbackAngles = Settings != null && Settings.FallbackAngles != null
                     ? Settings.FallbackAngles.ToList()
                     : new SmartConnectSettings().FallbackAngles,
+
                 AllowConduit = AllowConduitCheck.IsChecked == true,
-                AllowFlexCurves = AllowFlexCheck.IsChecked == true,
-                AllowFamilyInstanceConnectors = AllowFamilyInstanceCheck.IsChecked == true,
+                AllowFlexDuct = AllowFlexDuctCheck.IsChecked == true,
+                AllowFlexPipe = AllowFlexPipeCheck.IsChecked == true,
+                AllowAirTerminals = AllowAirTerminalsCheck.IsChecked == true,
+                AllowEquipment = AllowEquipmentCheck.IsChecked == true,
+                AllowFittings = AllowFittingsCheck.IsChecked == true,
+                AllowAccessories = AllowAccessoriesCheck.IsChecked == true,
                 AllowNonParallelEnds = AllowNonParallelCheck.IsChecked == true,
+
                 BatchFromSelection = BatchFromSelectionCheck.IsChecked == true,
-                ShowSummaryReport = SummaryReportCheck.IsChecked == true,
+                ShowFailedReport = ShowFailedReportCheck.IsChecked == true,
+
                 CopyInsulationAndLining = CopyInsulationCheck.IsChecked == true,
-                CopyInstanceParameters = CopyParametersCheck.IsChecked == true,
+                CopyWorkset = CopyWorksetCheck.IsChecked == true,
                 AutoTransitionOnSizeMismatch = AutoTransitionCheck.IsChecked == true,
                 WarnOnClash = WarnOnClashCheck.IsChecked == true
             };
 
             return true;
-        }
-
-        private SmartConnectRoutingMode ReadRoutingMode()
-        {
-            if (ModeSingleElbowRadio.IsChecked == true)
-            {
-                return SmartConnectRoutingMode.SingleElbow;
-            }
-
-            if (ModeOffsetRadio.IsChecked == true)
-            {
-                return SmartConnectRoutingMode.OffsetWithTwoElbows;
-            }
-
-            return SmartConnectRoutingMode.Auto;
         }
 
         private SmartConnectMoveMode ReadMoveMode()

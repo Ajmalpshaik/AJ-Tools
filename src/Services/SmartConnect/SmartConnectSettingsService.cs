@@ -185,11 +185,6 @@ namespace AJTools.Services.SmartConnect
         {
             SmartConnectSettings result = settings ?? new SmartConnectSettings();
 
-            if (!Enum.IsDefined(typeof(SmartConnectRoutingMode), result.RoutingMode))
-            {
-                result.RoutingMode = SmartConnectRoutingMode.Auto;
-            }
-
             if (!Enum.IsDefined(typeof(SmartConnectMoveMode), result.MoveMode))
             {
                 result.MoveMode = SmartConnectMoveMode.Both;

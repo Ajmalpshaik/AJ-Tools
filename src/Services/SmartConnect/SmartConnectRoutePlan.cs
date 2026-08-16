@@ -1,14 +1,16 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Route Plan
 // Description: Geometry plan and result types shared by the Connect MEP Elements route builder.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-08-15
+// Version: 1.1.0
+// Last Updated: 2026-08-16
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, AJTools.Models
+// Dependencies: Autodesk.Revit.DB
+//
+// v1.1.0 - Removed SmartConnectRouteResult.ModeUsed along with SmartConnectRoutingMode itself. It was
+// write-only in any case: nothing ever read it, which the 2026-08-15 audit had already flagged.
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using AJTools.Models;
 
 namespace AJTools.Services.SmartConnect
 {
@@ -42,18 +44,13 @@ namespace AJTools.Services.SmartConnect
 
         public Connector SecondConnector { get; set; }
 
-        /// <summary>Outward direction of the first end (away from its own element).</summary>
-        public XYZ FirstDirection { get; set; }
-
-        public XYZ SecondDirection { get; set; }
-
         /// <summary>Where the first end has to finish up.</summary>
         public XYZ FirstPlanPoint { get; set; }
 
         public XYZ SecondPlanPoint { get; set; }
 
         /// <summary>
-        /// Travel along <see cref="FirstDirection"/> to reach <see cref="FirstPlanPoint"/>.
+        /// Travel along the first end's own outward direction to reach <see cref="FirstPlanPoint"/>.
         /// Positive extends the run, negative pulls it back.
         /// </summary>
         public double FirstShift { get; set; }
@@ -80,8 +77,6 @@ namespace AJTools.Services.SmartConnect
         public string ErrorMessage { get; set; }
 
         public List<string> Warnings { get; } = new List<string>();
-
-        public SmartConnectRoutingMode ModeUsed { get; set; }
 
         public SmartConnectPlanKind PlanUsed { get; set; }
 

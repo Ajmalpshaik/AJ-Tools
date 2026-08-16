@@ -6,7 +6,7 @@
  *                 settings. Connects an exact pre-selected pair directly, or picks pairs one by one.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.1.0
+ * Version       : 3.0.0
  *
  * Created Date  : 2026-03-25
  * Last Updated  : 2026-08-16
@@ -19,15 +19,18 @@
  *
  * Input         : Active project. Either exactly two elements pre-selected, or two picked elements
  *                 per connection (Esc to finish). All behaviour comes from the saved settings.
- * Output        : A connecting run, plus a summary when anything failed or is worth a second look.
+ * Output        : A connecting run. A failure is reported as it happens when "Show failed report" is
+ *                 on; anything merely worth a second look is collected and shown once at the end.
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - Project-only tool; validates an editable, non-family document before picking.
  * - No settings dialog: the ribbon's "Connect MEP Elements Settings" button owns that.
- * - Esc during a pick ends the session; the summary still reports what was completed.
+ * - Esc during a pick ends the session.
  * - Selecting exactly two elements first connects them directly, no matching or pairing involved.
  *   Selecting more than two asks the user to narrow it down to two, rather than guessing pairs.
+ * - Failures are never listed twice: ReportFailure shows them as they happen, ShowWarnings at the
+ *   end deliberately carries warnings only.
  * - Production-ready implementation.
  *
  * Changelog     :
@@ -44,6 +47,12 @@
  *                       directly, no matching involved; more than two asks the user to narrow it
  *                       down instead of guessing. Removed the now-unneeded single-undo-for-batch
  *                       setting along with it, since there is no longer a multi-pair batch to group.
+ * v3.0.0 (2026-08-16) - "Show failed report" replaced the old carry-into-the-next-prompt behaviour:
+ *                       a failure is now a popup naming the reason, or nothing at all when the box is
+ *                       unticked. ShowSummary became ShowWarnings and no longer lists failures, since
+ *                       they have already been reported as they happened - listing them again was
+ *                       reporting the same problem twice. The carried-message plumbing (Shorten,
+ *                       MaxPromptErrorLength, the prompt prefix) went with it.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -72,7 +81,6 @@ namespace AJTools.Commands
     {
         private const string ToolTitle = "Connect MEP Elements";
         private const int MaxSummaryLines = 12;
-        private const int MaxPromptErrorLength = 110;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -139,7 +147,7 @@ namespace AJTools.Commands
             string compatibilityError;
             if (!SmartConnectSelectionFilter.AreCompatible(first, second, out compatibilityError))
             {
-                DialogHelper.ShowError(ToolTitle, compatibilityError);
+                ReportFailure(compatibilityError, settings);
                 return Result.Cancelled;
             }
 
@@ -163,10 +171,14 @@ namespace AJTools.Commands
                 }
             }
 
-            // Same reporting rule as everywhere else in the tool: silent on a clean success, one
-            // dialog when something failed or is worth a second look.
-            ShowSummary(new List<ConnectionOutcome> { outcome });
-            return outcome.Success ? Result.Succeeded : Result.Cancelled;
+            if (!outcome.Success)
+            {
+                ReportFailure(outcome.Message, settings);
+                return Result.Cancelled;
+            }
+
+            ShowWarnings(new List<ConnectionOutcome> { outcome });
+            return Result.Succeeded;
         }
 
         // ------------------------------------------------------------------
@@ -178,7 +190,6 @@ namespace AJTools.Commands
             Document document = uiDocument.Document;
             var routeBuilder = new SmartConnectRouteBuilder(document);
             var outcomes = new List<ConnectionOutcome>();
-            string carriedMessage = string.Empty;
 
             while (true)
             {
@@ -188,9 +199,9 @@ namespace AJTools.Commands
 
                 try
                 {
-                    if (!TryPickPair(uiDocument, settings, carriedMessage, out firstElement, out secondElement, out pickError))
+                    if (!TryPickPair(uiDocument, settings, out firstElement, out secondElement, out pickError))
                     {
-                        carriedMessage = ReportOrCarry(pickError, settings);
+                        ReportFailure(pickError, settings);
                         continue;
                     }
                 }
@@ -209,12 +220,11 @@ namespace AJTools.Commands
                     if (outcome.Success)
                     {
                         transaction.Commit();
-                        carriedMessage = string.Empty;
                     }
                     else
                     {
                         transaction.RollBack();
-                        carriedMessage = ReportOrCarry(outcome.Message, settings);
+                        ReportFailure(outcome.Message, settings);
                     }
                 }
             }
@@ -224,40 +234,30 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            // With the setting off, every failure already popped its own dialog during the loop -
-            // listing them again at the end would report the same problem twice.
-            if (settings.ShowSummaryReport)
-            {
-                ShowSummary(outcomes);
-            }
+            // Failures have already been reported one by one as they happened, so only the things
+            // worth a second look are left to show.
+            ShowWarnings(outcomes);
 
             return outcomes.Any(outcome => outcome.Success) ? Result.Succeeded : Result.Cancelled;
         }
 
         /// <summary>
-        /// With summaries on, a failure is carried into the next pick prompt instead of interrupting
-        /// with a popup; with summaries off it is shown straight away.
+        /// Shows why an attempt failed, as a popup, when the user has asked for failed reports.
+        /// With the setting off nothing is shown at all and the user simply tries again.
         /// </summary>
-        private static string ReportOrCarry(string errorMessage, SmartConnectSettings settings)
+        private static void ReportFailure(string errorMessage, SmartConnectSettings settings)
         {
-            if (string.IsNullOrWhiteSpace(errorMessage))
+            if (string.IsNullOrWhiteSpace(errorMessage) || !settings.ShowFailedReport)
             {
-                return string.Empty;
-            }
-
-            if (settings.ShowSummaryReport)
-            {
-                return errorMessage;
+                return;
             }
 
             DialogHelper.ShowError(ToolTitle, errorMessage);
-            return string.Empty;
         }
 
         private static bool TryPickPair(
             UIDocument uiDocument,
             SmartConnectSettings settings,
-            string carriedMessage,
             out Element firstElement,
             out Element secondElement,
             out string errorMessage)
@@ -266,14 +266,10 @@ namespace AJTools.Commands
             secondElement = null;
             errorMessage = string.Empty;
 
-            string prefix = string.IsNullOrWhiteSpace(carriedMessage)
-                ? string.Empty
-                : "Last attempt: " + Shorten(carriedMessage) + " | ";
-
             Reference firstReference = uiDocument.Selection.PickObject(
                 ObjectType.Element,
                 new SmartConnectSelectionFilter(settings),
-                prefix + "Select the first element (" +
+                "Select the first element (" +
                 SmartConnectSelectionFilter.DescribeSupportedCategories(settings) + "). Esc to finish.");
 
             firstElement = uiDocument.Document.GetElement(firstReference);
@@ -314,7 +310,6 @@ namespace AJTools.Commands
             var outcome = new ConnectionOutcome
             {
                 Success = result.Success,
-                Label = label,
                 Message = result.Success ? string.Empty : label + " - " + result.ErrorMessage
             };
 
@@ -323,7 +318,11 @@ namespace AJTools.Commands
                 outcome.Warnings.Add(label + " - " + warning);
             }
 
-            if (result.Success && result.AngleWasSubstituted && !result.Warnings.Any())
+            // No !Warnings.Any() guard here: the builder sets AngleWasSubstituted only when the
+            // angle was NOT geometry-fixed, and adds its own geometry warning only when it WAS, so
+            // the two can never both fire for one route. Guarding on it only suppressed this notice
+            // whenever an unrelated insulation or clash warning happened to be present.
+            if (result.Success && result.AngleWasSubstituted)
             {
                 outcome.Warnings.Add(string.Format(
                     "{0} - built at {1:0.##}° instead of the chosen {2:0.##}°.",
@@ -358,65 +357,34 @@ namespace AJTools.Commands
         }
 
         /// <summary>
-        /// Reports what happened. A clean run says nothing at all, matching the rest of AJ Tools;
-        /// anything skipped or worth a second look gets one dialog.
+        /// Shows anything worth a second look - a route built at a different angle, insulation that
+        /// would not copy, a clash. Failures are NOT listed here: they are reported as they happen,
+        /// so repeating them at the end would report the same problem twice. A clean run says nothing
+        /// at all, matching the rest of AJ Tools.
         /// </summary>
-        private static void ShowSummary(List<ConnectionOutcome> outcomes)
+        private static void ShowWarnings(List<ConnectionOutcome> outcomes)
         {
-            if (outcomes.Count == 0)
-            {
-                return;
-            }
-
-            int succeeded = outcomes.Count(outcome => outcome.Success);
-            int failed = outcomes.Count - succeeded;
             List<string> warnings = outcomes.SelectMany(outcome => outcome.Warnings).ToList();
-
-            if (failed == 0 && warnings.Count == 0)
+            if (warnings.Count == 0)
             {
                 return;
             }
 
             var builder = new StringBuilder();
-            builder.AppendLine("Connected " + succeeded + " of " + outcomes.Count + ".");
+            builder.AppendLine("Worth checking:");
 
-            if (failed > 0)
-            {
-                builder.AppendLine();
-                builder.AppendLine("Not connected:");
-                AppendLines(builder, outcomes.Where(outcome => !outcome.Success).Select(outcome => outcome.Message));
-            }
-
-            if (warnings.Count > 0)
-            {
-                builder.AppendLine();
-                builder.AppendLine("Worth checking:");
-                AppendLines(builder, warnings);
-            }
-
-            if (failed > 0)
-            {
-                DialogHelper.ShowError(ToolTitle, builder.ToString().TrimEnd());
-            }
-            else
-            {
-                DialogHelper.ShowInfo(ToolTitle, builder.ToString().TrimEnd());
-            }
-        }
-
-        private static void AppendLines(StringBuilder builder, IEnumerable<string> lines)
-        {
-            var list = lines.ToList();
-            foreach (string line in list.Take(MaxSummaryLines))
+            foreach (string line in warnings.Take(MaxSummaryLines))
             {
                 builder.AppendLine("  - " + line);
             }
 
-            int remaining = list.Count - MaxSummaryLines;
+            int remaining = warnings.Count - MaxSummaryLines;
             if (remaining > 0)
             {
                 builder.AppendLine("  - ...and " + remaining + " more.");
             }
+
+            DialogHelper.ShowInfo(ToolTitle, builder.ToString().TrimEnd());
         }
 
         private static string Describe(Element element)
@@ -427,16 +395,6 @@ namespace AJTools.Commands
             }
 
             return SmartConnectSelectionFilter.GetElementDisplayName(element) + " " + element.Id.IntValue();
-        }
-
-        private static string Shorten(string text)
-        {
-            if (string.IsNullOrEmpty(text) || text.Length <= MaxPromptErrorLength)
-            {
-                return text;
-            }
-
-            return text.Substring(0, MaxPromptErrorLength - 3) + "...";
         }
 
         private sealed class ElementPair
@@ -455,8 +413,6 @@ namespace AJTools.Commands
         private sealed class ConnectionOutcome
         {
             public bool Success { get; set; }
-
-            public string Label { get; set; }
 
             public string Message { get; set; }
 

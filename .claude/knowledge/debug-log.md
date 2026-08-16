@@ -8,6 +8,41 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Connect MEP Elements v3: Copy Workset had NEVER worked, plus a settings/behaviour rebuild — FIXED, suite 1.48.0)
+- **The bug worth remembering**: `CopyWorkset` (and `CopyInstanceParameters` before it) copied
+  `BuiltInParameter.ELEM_PARTITION_PARAM` through a helper that guards on
+  `StorageType != StorageType.ElementId` and returns early. **Workset is Integer storage, not
+  ElementId** - it holds the workset id as a plain int. So the guard tripped on every single call and
+  the copy silently did nothing, in v2 as well as v3. Nothing threw, nothing warned, the setting
+  looked live in the UI, and the build was clean the whole time.
+- **Why it survived so long**: a helper named `CopyElementIdParameter` reads as obviously correct for
+  a parameter that "points at a workset". The storage type is the thing that matters, and it is not
+  visible at the call site. **Lesson: when copying a BuiltInParameter, confirm its StorageType from
+  the API rather than inferring it from what the parameter conceptually refers to.** A guard that
+  silently returns is invisible; prefer one that is impossible to get wrong, or verify the pairing.
+- **Found by**: a 5-dimension multi-agent housekeeping audit (24 raised, 18 confirmed after
+  adversarial verification). NOT by the build, and not by reading the diff - the call site looked
+  perfectly reasonable.
+- **Behaviour rebuilt in the same pass, at Ajmal's instruction** ("instead of creating new pipe or
+  duct, stretch the elements like that we need"): `SmartConnectRoutingMode` deleted entirely. The tool
+  now always stretches the picked elements; a piece is created only where nothing can be stretched -
+  the bridging run across a crank, and the run up to flex/equipment (`CanTrimEnd` false).
+- **The subtle half of that change**: `mayMove` conflated two different questions - CAN this end be
+  stretched, and is it ALLOWED to be. With `MoveMode.FirstOnly`, a perfectly stretchable second
+  element hit the insert path and got a new piece bolted onto it, which is precisely the behaviour
+  being removed. Now split into `canTrim*` (physical) and `mayMove*` (permission): a locked-but-
+  stretchable end refuses with a message naming the setting, and only a genuinely un-stretchable end
+  gets a piece.
+- **Also removed as dead**: `SmartConnectRoutePlan.FirstDirection`/`SecondDirection` and
+  `ConnectionOutcome.Label` (all write-only), plus a `&& !result.Warnings.Any()` guard that suppressed
+  the "built at X instead of your Y" notice whenever any unrelated warning was present.
+- **Convention gap caught**: this window was the only tabbed window in the repo not calling
+  `TabMotionHelper.AttachTabTransitions` - the other five all do. Worth checking that helper list when
+  adding a TabControl to any AJ Tools window.
+- **Verified how**: the workset storage-type claim checked against the real Revit 2020 API before
+  fixing, not taken on the auditor's word. Clean builds at Release (2020) and R21/R24/R25/R26, zero
+  warnings. **Not yet exercised in Revit** - Ajmal to test.
+
 ### 2026-08-16 (Connect MEP Elements: split button got stuck showing Settings as the default face — FIXED, suite 1.47.7)
 - **Symptom (Ajmal's words)**: "after that can you change the button configuration - no, if i select
   the settings it will come like settings first, and i need the settings inside always, like [the]
