@@ -7,14 +7,17 @@ meta, versioning consistency, project structure, git/branch state) over the whol
 fixed everything that was safe to fix without deleting anything Ajmal didn't create this session.
 No build could be run in this pass (no MSBuild/dotnet available in this environment — remote
 Linux session, not Ajmal's own PC) — every fix below is source/doc-only and verified by direct
-reading/grep, not by compiling. Version bump: 1.47.4 -> 1.47.5 (patch: repo housekeeping, no new
-tool, no behavior change).
+reading/grep, not by compiling. Version bump: 1.47.4 -> 1.47.5 originally (patch: repo housekeeping,
+no new tool, no behavior change) — **renumbered to 1.47.6** after master independently advanced to
+1.47.5 with a real behavior change (Connect MEP Elements simplification, commit `94b505c`) while this
+PR sat waiting for review; merged master into this branch and moved this pass's changelog/AssemblyInfo
+entries to sit on top of 1.47.5 instead of colliding with it.
 
 **Fixed this pass:**
 - **Version drift** (2 of 6 tracked locations were stale): README.md and `AssemblyInfo.cs`'s own
   header comment both still said 1.46.0 while the real suite version was already 1.47.4. Confirmed
   against `tools/verify-version-consistency.ps1`'s own six checked locations — synced all six, then
-  bumped to 1.47.5 for this pass itself so all six still agree.
+  bumped for this pass itself (1.47.6, see the renumbering note above) so all six still agree.
 - **Stale ribbon docs**: README.md and `docs/USAGE.md` both still described a separate "Auto
   Dimension" panel on `AJ Annotation`. That panel was merged into "Dimensions" in v1.46.0 (confirmed
   against `AnnotationRibbonManager.cs`'s own code comment and `AddDimensionsPanelTools`) — both docs
@@ -58,7 +61,7 @@ tool, no behavior change).
 
 **Verification**: all six locations `tools/verify-version-consistency.ps1` checks (AssemblyInfo
 header, `AssemblyVersion`/`AssemblyFileVersion` attributes, AssemblyInfo's own changelog, CHANGELOG.md
-top entry, README.md) now agree on 1.47.5 — confirmed by grepping each pattern directly (the script
+top entry, README.md) now agree on 1.47.6 — confirmed by grepping each pattern directly (the script
 itself needs PowerShell, not available in this Linux session, so it was not executed). Revit was not
 launched; nothing here touches compiled behavior, but the `.sln` config addition is unverified in a
 real Visual Studio and should be spot-checked there.

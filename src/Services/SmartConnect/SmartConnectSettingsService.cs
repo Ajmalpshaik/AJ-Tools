@@ -32,8 +32,6 @@ namespace AJTools.Services.SmartConnect
         public const double MaxAllowedAngle = 90.0;
 
         private const double AngleEqualityTolerance = 0.0001;
-        private const double MinPairDistanceMm = 100.0;
-        private const double MaxPairDistanceMm = 50000.0;
 
         private static readonly double[] DefaultFallbackAngles = { 45.0, 30.0, 60.0, 90.0 };
 
@@ -122,32 +120,6 @@ namespace AJTools.Services.SmartConnect
             }
 
             return TryNormalizeAngle(value, out normalizedAngle);
-        }
-
-        public static bool TryParseDistanceMm(string rawText, out double distanceMm)
-        {
-            distanceMm = 0;
-            string text = rawText == null ? null : rawText.Trim();
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return false;
-            }
-
-            double value;
-            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) &&
-                !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
-            {
-                return false;
-            }
-
-            if (double.IsNaN(value) || double.IsInfinity(value) ||
-                value < MinPairDistanceMm || value > MaxPairDistanceMm)
-            {
-                return false;
-            }
-
-            distanceMm = Math.Round(value, 1, MidpointRounding.AwayFromZero);
-            return true;
         }
 
         public static bool IsPredefinedAngle(double angleDegrees)
@@ -250,14 +222,6 @@ namespace AJTools.Services.SmartConnect
             }
 
             result.FallbackAngles = fallbacks;
-
-            if (double.IsNaN(result.MaxPairDistanceMm) ||
-                double.IsInfinity(result.MaxPairDistanceMm) ||
-                result.MaxPairDistanceMm < MinPairDistanceMm ||
-                result.MaxPairDistanceMm > MaxPairDistanceMm)
-            {
-                result.MaxPairDistanceMm = 3000.0;
-            }
 
             return result;
         }

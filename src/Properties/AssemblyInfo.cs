@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.47.5
+ * Version       : 1.47.6
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,7 +24,7 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
- * v1.47.5 (2026-08-16) - Repo housekeeping pass: synced README.md/AssemblyInfo.cs's stale 1.46.0
+ * v1.47.6 (2026-08-16) - Repo housekeeping pass: synced README.md/AssemblyInfo.cs's stale 1.46.0
  *                       version claims to the real 1.47.4, removed the "Auto Dimension" ribbon panel
  *                       from README.md/docs/USAGE.md (merged into "Dimensions" in v1.46.0),
  *                       rewrote CONTRIBUTING.md's Development Setup to match the actual build
@@ -32,6 +32,20 @@
  *                       missing Release R21-R27 configurations to AJ Tools.sln so Visual Studio's
  *                       Configuration Manager can reach them, and corrected the vestigial
  *                       RootNamespace (AJ_Tools -> AJTools) in the csproj. No tool behavior changed.
+ * v1.47.5 (2026-08-16) - Connect MEP Elements simplified twice at Ajmal's request, both times
+ *                       removing a redundant/confusing mechanism rather than just hiding it.
+ *                       (1) Removed the nearest-open-end auto-pairing algorithm for a big selection
+ *                       (BuildNearestPairs, ClosestDistance, MaxPairDistanceMm, SingleUndoForBatch).
+ *                       Selecting exactly two elements now connects them directly - no matching
+ *                       involved; selecting more than two asks the user to narrow it down instead of
+ *                       guessing pairs. (2) Removed SmartConnectMoveMode.None ("Neither - leave both
+ *                       alone") from "Which pipe is allowed to move." It duplicated the "Never touch
+ *                       the picked pipes" routing mode via a second, unrelated setting - the two
+ *                       could disagree, and in fact did during live testing (RoutingMode said
+ *                       Automatic, MoveMode said Neither, the tool followed MoveMode and looked
+ *                       broken). An older settings file with the removed value 3 falls back to
+ *                       "Both" automatically via the existing Enum.IsDefined guard in Sanitize() -
+ *                       no migration code needed.
  * v1.47.4 (2026-08-15) - Fixed the real bug Ajmal caught by testing live: two straight ducts (or
  *                       pipes) dead in line with a gap between them were always bridged with a
  *                       brand new third piece, even when both picked elements were free to move.
@@ -1675,8 +1689,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.47.5.0")]
-[assembly: AssemblyFileVersion("1.47.5.0")]
+[assembly: AssemblyVersion("1.47.6.0")]
+[assembly: AssemblyFileVersion("1.47.6.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

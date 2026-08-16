@@ -3,13 +3,13 @@
  * Tool Name     : Connect MEP Elements (Smart Connect)
  * File Name     : SmartConnectCommand.cs
  * Purpose       : Connects MEP elements with a routed run, using the saved Connect MEP Elements
- *                 settings. Works either on a pre-selection (batch) or by picking pairs one by one.
+ *                 settings. Connects an exact pre-selected pair directly, or picks pairs one by one.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.0.0
+ * Version       : 2.1.0
  *
  * Created Date  : 2026-03-25
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-08-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -17,16 +17,17 @@
  *
  * Dependencies  : Autodesk Revit API, AJTools.Services.SmartConnect, AJTools.UI, AJTools.Utils
  *
- * Input         : Active project. Either a pre-selection of MEP elements, or two picked elements per
- *                 connection (Esc to finish). All behaviour comes from the saved settings.
- * Output        : A connecting run built between each pair, plus a summary of what was and was not done.
+ * Input         : Active project. Either exactly two elements pre-selected, or two picked elements
+ *                 per connection (Esc to finish). All behaviour comes from the saved settings.
+ * Output        : A connecting run, plus a summary when anything failed or is worth a second look.
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - Project-only tool; validates an editable, non-family document before picking.
  * - No settings dialog: the ribbon's "Connect MEP Elements Settings" button owns that.
  * - Esc during a pick ends the session; the summary still reports what was completed.
- * - Batch runs honour the single-undo setting, so a whole batch can be undone in one step.
+ * - Selecting exactly two elements first connects them directly, no matching or pairing involved.
+ *   Selecting more than two asks the user to narrow it down to two, rather than guessing pairs.
  * - Production-ready implementation.
  *
  * Changelog     :
@@ -36,6 +37,13 @@
  *                       away. Added batch connect from a pre-selection, nearest open-end pairing,
  *                       optional single undo for a whole batch, and one end-of-run summary in place
  *                       of a popup per failure.
+ * v2.1.0 (2026-08-16) - Removed the nearest-open-end auto-pairing algorithm (BuildNearestPairs) and
+ *                       its distance setting, at Ajmal's request: "that connection method no need,
+ *                       you can remove - if i need i will select the pipe or what elements then it
+ *                       will connect." A pre-selection of exactly two elements now connects them
+ *                       directly, no matching involved; more than two asks the user to narrow it
+ *                       down instead of guessing. Removed the now-unneeded single-undo-for-batch
+ *                       setting along with it, since there is no longer a multi-pair batch to group.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -86,10 +94,21 @@ namespace AJTools.Commands
             {
                 SmartConnectSettings settings = new SmartConnectSettingsService().Load();
 
-                List<Element> preSelection = CollectSupportedSelection(uiDocument, settings);
-                if (settings.BatchFromSelection && preSelection.Count >= 2)
+                if (settings.BatchFromSelection)
                 {
-                    return RunBatch(uiDocument, settings, preSelection);
+                    List<Element> preSelection = CollectSupportedSelection(uiDocument, settings);
+                    if (preSelection.Count == 2)
+                    {
+                        return RunDirectPair(uiDocument, settings, preSelection[0], preSelection[1]);
+                    }
+
+                    if (preSelection.Count > 2)
+                    {
+                        DialogHelper.ShowInfo(
+                            ToolTitle,
+                            "Select exactly two elements to connect them directly, or none to pick pairs on screen.");
+                        return Result.Cancelled;
+                    }
                 }
 
                 return RunInteractive(uiDocument, settings);
@@ -107,182 +126,47 @@ namespace AJTools.Commands
         }
 
         // ------------------------------------------------------------------
-        // Batch mode
+        // Direct pair (exactly two elements pre-selected)
         // ------------------------------------------------------------------
 
-        private Result RunBatch(UIDocument uiDocument, SmartConnectSettings settings, List<Element> candidates)
+        /// <summary>
+        /// Connects exactly the two elements the user already selected - no matching, no guessing
+        /// which pairs with which. One decision (what to select) belongs to the user; the tool just
+        /// connects what it was handed.
+        /// </summary>
+        private Result RunDirectPair(UIDocument uiDocument, SmartConnectSettings settings, Element first, Element second)
         {
-            Document document = uiDocument.Document;
-            List<ElementPair> pairs = BuildNearestPairs(candidates, settings);
-
-            if (pairs.Count == 0)
+            string compatibilityError;
+            if (!SmartConnectSelectionFilter.AreCompatible(first, second, out compatibilityError))
             {
-                DialogHelper.ShowInfo(
-                    ToolTitle,
-                    "None of the selected elements could be paired up." + Environment.NewLine + Environment.NewLine +
-                    "They need free open ends, matching categories, and open ends no further apart than " +
-                    settings.MaxPairDistanceMm.ToString("0.##") + " mm.");
+                DialogHelper.ShowError(ToolTitle, compatibilityError);
                 return Result.Cancelled;
             }
 
-            var outcomes = new List<ConnectionOutcome>();
+            Document document = uiDocument.Document;
             var routeBuilder = new SmartConnectRouteBuilder(document);
+            ConnectionOutcome outcome;
 
-            if (settings.SingleUndoForBatch)
+            using (Transaction transaction = new Transaction(document, "Connect MEP Elements"))
             {
-                using (Transaction transaction = new Transaction(document, "Connect MEP Elements (batch)"))
+                transaction.Start();
+
+                outcome = Connect(routeBuilder, new ElementPair(first, second, 0), settings);
+
+                if (outcome.Success)
                 {
-                    transaction.Start();
-
-                    foreach (ElementPair pair in pairs)
-                    {
-                        outcomes.Add(Connect(routeBuilder, pair, settings));
-                    }
-
-                    if (outcomes.Any(outcome => outcome.Success))
-                    {
-                        transaction.Commit();
-                    }
-                    else
-                    {
-                        transaction.RollBack();
-                    }
+                    transaction.Commit();
                 }
-            }
-            else
-            {
-                foreach (ElementPair pair in pairs)
+                else
                 {
-                    using (Transaction transaction = new Transaction(document, "Connect MEP Elements"))
-                    {
-                        transaction.Start();
-
-                        ConnectionOutcome outcome = Connect(routeBuilder, pair, settings);
-                        outcomes.Add(outcome);
-
-                        if (outcome.Success)
-                        {
-                            transaction.Commit();
-                        }
-                        else
-                        {
-                            transaction.RollBack();
-                        }
-                    }
+                    transaction.RollBack();
                 }
             }
 
-            // Selected elements that never made it into a pair are not failures, but staying quiet
-            // about them would read as "all done" when part of the selection was simply ignored.
-            var extraNotes = new List<string>();
-            int unpaired = candidates.Count - (pairs.Count * 2);
-            if (unpaired > 0)
-            {
-                extraNotes.Add(string.Format(
-                    "{0} selected element{1} left alone - no free end within {2:0.##} mm of a matching one.",
-                    unpaired,
-                    unpaired == 1 ? " was" : "s were",
-                    settings.MaxPairDistanceMm));
-            }
-
-            // A batch always reports through the summary - one popup per failed pair would be
-            // unusable on a selection of any size.
-            ShowSummary(outcomes, extraNotes);
-            return outcomes.Any(outcome => outcome.Success) ? Result.Succeeded : Result.Cancelled;
-        }
-
-        /// <summary>
-        /// Greedy nearest open-end matching: the closest compatible pair is taken first, and each
-        /// element is used once, so a selected run never gets pulled in two directions at a time.
-        /// </summary>
-        private static List<ElementPair> BuildNearestPairs(List<Element> candidates, SmartConnectSettings settings)
-        {
-            double maxDistance = RevitCompat.MmToInternal(settings.MaxPairDistanceMm);
-            var scored = new List<ElementPair>();
-
-            // Read each element's open ends ONCE. Reading them inside the pair loop meant every
-            // element's connectors were walked n-1 times, which is what made a large selection crawl.
-            var openEnds = new List<XYZ[]>(candidates.Count);
-            foreach (Element candidate in candidates)
-            {
-                IList<Connector> connectors = SmartConnectConnectorUtils.GetOpenConnectors(candidate);
-                var origins = new XYZ[connectors.Count];
-                for (int index = 0; index < connectors.Count; index++)
-                {
-                    origins[index] = connectors[index].Origin;
-                }
-
-                openEnds.Add(origins);
-            }
-
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (openEnds[i].Length == 0)
-                {
-                    continue;
-                }
-
-                for (int j = i + 1; j < candidates.Count; j++)
-                {
-                    if (openEnds[j].Length == 0)
-                    {
-                        continue;
-                    }
-
-                    Element first = candidates[i];
-                    Element second = candidates[j];
-
-                    string compatibilityError;
-                    if (!SmartConnectSelectionFilter.AreCompatible(first, second, out compatibilityError))
-                    {
-                        continue;
-                    }
-
-                    double distance = ClosestDistance(openEnds[i], openEnds[j]);
-                    if (distance > maxDistance)
-                    {
-                        continue;
-                    }
-
-                    scored.Add(new ElementPair(first, second, distance));
-                }
-            }
-
-            var used = new HashSet<ElementId>();
-            var result = new List<ElementPair>();
-
-            foreach (ElementPair pair in scored.OrderBy(item => item.Distance))
-            {
-                if (used.Contains(pair.First.Id) || used.Contains(pair.Second.Id))
-                {
-                    continue;
-                }
-
-                used.Add(pair.First.Id);
-                used.Add(pair.Second.Id);
-                result.Add(pair);
-            }
-
-            return result;
-        }
-
-        private static double ClosestDistance(XYZ[] firstEnds, XYZ[] secondEnds)
-        {
-            double best = double.MaxValue;
-
-            foreach (XYZ firstOrigin in firstEnds)
-            {
-                foreach (XYZ secondOrigin in secondEnds)
-                {
-                    double candidate = firstOrigin.DistanceTo(secondOrigin);
-                    if (candidate < best)
-                    {
-                        best = candidate;
-                    }
-                }
-            }
-
-            return best;
+            // Same reporting rule as everywhere else in the tool: silent on a clean success, one
+            // dialog when something failed or is worth a second look.
+            ShowSummary(new List<ConnectionOutcome> { outcome });
+            return outcome.Success ? Result.Succeeded : Result.Cancelled;
         }
 
         // ------------------------------------------------------------------
