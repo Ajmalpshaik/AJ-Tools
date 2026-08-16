@@ -301,6 +301,22 @@ place rather than leaving stale info sitting next to the new truth.
   breaks such a window even when the estimate was right at 100% DPI. Full case in `debug-log.md`
   (2026-08-16, suite 1.48.1). `NoResize` is fine for a HUD-style overlay (`GameHudWindow`), not for a
   form the user reads.
+- **A scrollbar is the safety net, not the layout.** Ajmal asked for the Auto MEP Dimension settings to
+  be split (2026-08-16, suite 1.48.3) and he was right: four numbered sections shared one scroll, and
+  section 2's reference table is nine rows (~340 px), so sections 3 and 4 — the chain style and the skip
+  filters, the ones changed most often — were permanently below the fold. **Trigger to watch for: a
+  settings window holding a tall FIXED-height element (a `DataGrid`, a long list) with more sections
+  after it.** That element does not shrink, so everything below it is unreachable without scrolling past
+  it every single time. Split into a `TabControl` at that point — by what the user is deciding, not by
+  an even count of sections ("What to dimension" = scope, "How it's drawn" = output and filters).
+- When splitting an existing window into tabs, keep the **validation message and the action buttons
+  outside the `TabControl`**, or an error raised by a control on tab 1 becomes invisible while tab 2 is
+  showing. Call `TabMotionHelper.AttachTabTransitions(this)` — every other tabbed window does.
+- **Cheap proof that a layout-only refactor really is layout-only**: diff every
+  `Text=`/`Content=`/`x:Name=`/`Header=` string in the XAML before and after
+  (`git show HEAD:<file> | grep -oE '(Text|Content|x:Name|Header)="[^"]*"' | sort`, then `comm` against
+  the same over the new file). A dropped hint or control shows up immediately; the build alone will not
+  catch a deleted unnamed `TextBlock`.
 
 **Validate inside the window, never after `ShowDialog()` (rule from 3 real bugs, 2026-07-27/28)**
 - The pattern to kill: dialog closes → code checks the value → shows an error popup → returns false →
