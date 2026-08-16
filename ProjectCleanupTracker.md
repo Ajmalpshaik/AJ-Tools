@@ -1,5 +1,74 @@
 # Project Cleanup Tracker
 
+## 2026-08-16 Repo Housekeeping Pass
+
+Ajmal asked for general repo housekeeping. Ran a five-way parallel audit (file hygiene, docs/GitHub
+meta, versioning consistency, project structure, git/branch state) over the whole tracked repo, then
+fixed everything that was safe to fix without deleting anything Ajmal didn't create this session.
+No build could be run in this pass (no MSBuild/dotnet available in this environment — remote
+Linux session, not Ajmal's own PC) — every fix below is source/doc-only and verified by direct
+reading/grep, not by compiling. Version bump: 1.47.4 -> 1.47.5 originally (patch: repo housekeeping,
+no new tool, no behavior change) — renumbered to 1.47.6 after master independently advanced to 1.47.5
+with a real behavior change (Connect MEP Elements simplification, commit `94b505c`) while this PR sat
+waiting for review, then **renumbered again to 1.47.8** after master advanced twice more (1.47.6
+dead-code sweep `d8f7d42`, 1.47.7 SplitButton fix `d17078f`) while this PR was open awaiting merge.
+Both times: merged master into this branch and moved this pass's changelog/AssemblyInfo entries to sit
+on top of master's real version, instead of colliding with it. Master is actively moving faster than
+this PR is being merged — if it advances again before this merges, expect another renumbering pass.
+
+**Fixed this pass:**
+- **Version drift** (2 of 6 tracked locations were stale): README.md and `AssemblyInfo.cs`'s own
+  header comment both still said 1.46.0 while the real suite version was already 1.47.4. Confirmed
+  against `tools/verify-version-consistency.ps1`'s own six checked locations — synced all six, then
+  bumped for this pass itself (1.47.8, see the renumbering note above) so all six still agree.
+- **Stale ribbon docs**: README.md and `docs/USAGE.md` both still described a separate "Auto
+  Dimension" panel on `AJ Annotation`. That panel was merged into "Dimensions" in v1.46.0 (confirmed
+  against `AnnotationRibbonManager.cs`'s own code comment and `AddDimensionsPanelTools`) — both docs
+  now list the real 5-panel tab with Auto MEP Dimension folded into the Dimensions bullet.
+- **CONTRIBUTING.md**: Development Setup told contributors to install Revit and VS2019 with only
+  .NET Framework 4.7.2 — contradicted README.md/INSTALL.md's actual requirements (no local Revit
+  needed to build; VS2022 covers the full 2020-2027 multi-target range). Rewritten to match, and its
+  `Properties/AssemblyInfo.cs` path reference corrected to `src/Properties/AssemblyInfo.cs`.
+- **RELEASE_PROCESS.md**: step 9 hardcoded the old example tag `v1.43.0` where every other version
+  reference in the same file uses the `vX.Y.Z` placeholder — fixed for consistency.
+- **`AJ Tools.sln` missing configurations**: the .sln's `SolutionConfigurationPlatforms` /
+  `ProjectConfigurationPlatforms` sections only had Debug/Release x Any CPU/x64/x86 — none of the
+  `Debug R21`...`Release R27` configs that `src/AJ Tools.csproj` and `Directory.Build.props` already
+  declare. Opening the solution in Visual Studio's Configuration Manager could not reach 8 of the
+  16 real build configurations. Generated and inserted the missing entries programmatically
+  (mirroring the exact ActiveCfg/Build.0 pattern already used for Debug/Release, since the project
+  has no `<Platforms>` element and only ever builds "Any CPU" under the hood regardless of the
+  solution-platform label) — not build-tested here, needs a real Visual Studio open to fully confirm.
+- **`RootNamespace` cleanup**: `src/AJ Tools.csproj` declared `<RootNamespace>AJ_Tools</RootNamespace>`
+  (underscore) while every real namespace in the codebase has always been `AJTools`. Confirmed via
+  repo-wide grep that nothing referenced the old value (no .resx/Designer.cs files either) before
+  changing it to match.
+
+**Found but NOT changed — needs Ajmal's own OK first (nothing here was created this session):**
+- `.claude/scratch/` has 51 one-off probe/debug `.cs` files (252K) that the folder's own README says
+  to delete after use; none have been cleaned up since they landed in one bulk commit on 2026-08-04.
+  Two of them (`route-L-shape.cs`, `split-downstream.cs`) are confirmed-superseded early drafts of
+  scripts that were later refined and promoted into `.agents/skills/`.
+- `docs/images/aj-tools-ribbon-preview.png` (42K) has zero references anywhere in the tracked repo —
+  either embed it in README.md or delete it.
+- `src/Resources/DuctStandardsConfig/duct_standards_default.json` is shipped in every build via a
+  wildcard csproj include but is never read by any code path — `DuctStandardsConfigService.cs`
+  generates its real default config in C# and saves it under a different filename in AppData.
+- `.claude/knowledge/ajtools-conventions.md` (961 lines), `ajtools-conventions-log.md` (2147 lines),
+  and `debug-log.md` (899 lines) all exceed CLAUDE.md's own ~300-line split guidance — flagging for a
+  future `ajtools-knowledge-sync` pass, not fixed here.
+- Two remote branches, `claude/aj-connect-final-cleanup` and `claude/revit-connector-architecture-2l5s3h`,
+  are fully merged into `master` (zero unique commits each, confirmed via `git diff --stat` and
+  `git merge-base --is-ancestor`) and are safe to delete whenever convenient — same pattern as the
+  2026-07-18 branch review below. Not deleted here.
+
+**Verification**: all six locations `tools/verify-version-consistency.ps1` checks (AssemblyInfo
+header, `AssemblyVersion`/`AssemblyFileVersion` attributes, AssemblyInfo's own changelog, CHANGELOG.md
+top entry, README.md) now agree on 1.47.8 — confirmed by grepping each pattern directly (the script
+itself needs PowerShell, not available in this Linux session, so it was not executed). Revit was not
+launched; nothing here touches compiled behavior, but the `.sln` config addition is unverified in a
+real Visual Studio and should be spot-checked there.
+
 ## 2026-07-18 GitHub Branch Review - What's Safe to Delete Later
 
 Ajmal asked to check all 5 non-master branches sitting on GitHub after the v1.13.8 catch-up sync, and

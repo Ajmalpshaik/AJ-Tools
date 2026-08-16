@@ -5,6 +5,29 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.8] - 2026-08-16
+
+- **Fixed**: repo housekeeping pass — several docs had drifted from the real code:
+  - README.md and `AssemblyInfo.cs`'s own header comment both still said **1.46.0** while the real
+    suite version was already **1.47.4** (confirmed against the `AssemblyVersion` attribute and this
+    changelog's own top entry) — synced.
+  - README.md and `docs/USAGE.md` still listed a separate **"Auto Dimension"** ribbon panel on
+    `AJ Annotation`. That panel was folded into **"Dimensions"** back in v1.46.0 — the docs now match
+    the real 5-panel tab (Dimensions, Annotation, Family, Tags, Text).
+  - `CONTRIBUTING.md`'s Development Setup told contributors to install Revit and Visual Studio 2019
+    with only .NET Framework 4.7.2, contradicting README.md/INSTALL.md (no local Revit needed to
+    build; VS 2022 covers the full 2020–2027 multi-target range) — rewritten to match.
+  - `RELEASE_PROCESS.md` step 9 hardcoded an old example tag (`v1.43.0`) instead of the `vX.Y.Z`
+    placeholder used everywhere else in the document.
+- **Fixed**: `AJ Tools.sln` was missing the `Release R21` … `Release R27` solution configurations that
+  `src/AJ Tools.csproj` and `Directory.Build.props` already define. Opening the solution in Visual
+  Studio's Configuration Manager could not reach 8 of the project's 16 build configurations — added the
+  missing solution/project configuration entries (command-line builds against the `.csproj` directly
+  were never affected).
+- **Changed**: `RootNamespace` in `src/AJ Tools.csproj` was the vestigial `AJ_Tools` (with an
+  underscore) while every real namespace in the codebase has always been `AJTools` — confirmed nothing
+  referenced the old value, so it now matches.
+
 ## [1.47.7] - 2026-08-16
 
 - **Fixed**: **the Connect MEP Elements button was getting stuck on Settings.** Click the dropdown,

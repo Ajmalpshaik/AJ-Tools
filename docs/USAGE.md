@@ -27,9 +27,8 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 
 ### AJ Annotation
 
-- Auto Dimension: Auto Duct Dimension (single duct to wall, all duct to wall)
-- Dimensions: Automatic Dimension, Automatic Grid Dimensions, Automatic Level Dimensions,
-  Quick Dimension, Copy Dimension Text
+- Dimensions: Auto MEP Dimension, Automatic Dimension, Automatic Grid Dimensions,
+  Automatic Level Dimensions, Quick Dimension, Copy Dimension Text
 - Annotation: Duct Flow Annotations (+ settings), Revision Clouds, Revision Clouds by Elements
   (+ settings), Copy/Swap Text Notes, Copy Text Notes
 - Family: Center Annotation
