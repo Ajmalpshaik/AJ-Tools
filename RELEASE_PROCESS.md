@@ -95,11 +95,11 @@ powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -P
 
 ```powershell
 gh run watch (gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status
-gh release view v1.43.0 --repo Ajmalpshaik/AJ-Tools-Installer
+gh release view vX.Y.Z --repo Ajmalpshaik/AJ-Tools-Installer
 
 # Download the published asset and check it against the published checksum.
 # Run from a scratch folder - this writes the zip into the current directory.
-gh release download v1.43.0 --repo Ajmalpshaik/AJ-Tools-Installer
+gh release download vX.Y.Z --repo Ajmalpshaik/AJ-Tools-Installer
 sha256sum -c SHA256SUMS.txt
 ```
 

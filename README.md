@@ -4,7 +4,7 @@ AJ Tools is the main development repository for the AJ Tools add-in for Autodesk
 builds for Revit 2020 through 2027; Revit 2020 is the tested baseline and the version the published
 installer currently ships.
 
-Current suite version: **1.46.0** (as reported by `src/Properties/AssemblyInfo.cs` — see
+Current suite version: **1.47.5** (as reported by `src/Properties/AssemblyInfo.cs` — see
 [CHANGELOG.md](CHANGELOG.md) for the release-numbering note)
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
@@ -93,9 +93,8 @@ The add-in registers **two** ribbon tabs:
   - **Game** — Game Mode
   - **About**
 - `AJ Annotation`: separate annotation tab with the following panels:
-  - **Auto Dimension** — Auto Duct Dimension (single duct to wall, all duct to wall)
-  - **Dimensions** — Automatic Dimension, Automatic Grid Dimensions, Automatic Level Dimensions,
-    Quick Dimension, Copy Dimension Text
+  - **Dimensions** — Auto MEP Dimension, Automatic Dimension, Automatic Grid Dimensions,
+    Automatic Level Dimensions, Quick Dimension, Copy Dimension Text
   - **Annotation** — Duct Flow Annotations, Revision Clouds, Revision Clouds by Elements,
     Copy/Swap Text Notes, Copy Text Notes
   - **Text** — Arrange Text in Box
