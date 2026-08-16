@@ -3,8 +3,8 @@
  * Tool Name     : Connect MEP Elements - Settings
  * File Name     : CmdSmartConnectSettings.cs
  * Purpose       : Settings dialog for Connect MEP Elements. Stores how the tool routes, what it is
- *                 allowed to pick, which element may be trimmed, how batches behave, and what is
- *                 copied onto the pieces it creates.
+ *                 allowed to pick, which element may be trimmed, and what is copied onto the pieces
+ *                 it creates.
  *
  * Author        : Ajmal P.S.
  * Version       : 1.0.0
@@ -18,7 +18,7 @@
  *
  * Dependencies  : Autodesk Revit API, AJTools.Models, AJTools.Services.SmartConnect, AJTools.UI
  *
- * Input         : Routing, picking, trimming, batch and quality options chosen in the window.
+ * Input         : Routing, picking, trimming and quality options chosen in the window.
  * Output        : Saved Connect MEP Elements settings (no model change).
  *
  * Notes         :

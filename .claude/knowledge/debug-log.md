@@ -8,6 +8,41 @@ AutoDebugger, or code-review only) -> date.
 
 ## Log
 
+### 2026-08-16 (Connect MEP Elements: dead code left behind by the 1.47.5 removals — CLEANED UP, suite 1.47.6)
+- **Prompted by Ajmal, directly**: "check entirely we remove something so with remove ites is there
+  anything related with that removed feature settings remove. also maybe there is one settings is
+  there that will work only if that remove features if we already revie that settings also we can
+  remove am i right so if anything like that remove it." A genuine ask to sweep for orphaned code
+  after a feature removal, not just trust that deleting the obvious call site was enough.
+- **Method**: grepped for every remaining textual reference to what 1.47.5 removed (the auto-pairing
+  algorithm and `SmartConnectMoveMode.None`) across the whole repo, then read every property/method
+  those removals touched to check whether anything downstream still consumed it. Did not rely on
+  memory of what I wrote - re-grepped each candidate's call sites fresh.
+- **Found, all confirmed dead by an actual empty-caller-list grep, not assumed**:
+  1. `ElementPair.Distance` (`SmartConnectCommand.cs`) - both construction sites passed a literal
+     `0`, and nothing anywhere read `.Distance`. It existed solely for `BuildNearestPairs`' sort,
+     which 1.47.5 deleted.
+  2. `ShowSummary`'s `extraNotes` parameter and its 2-argument overload (`SmartConnectCommand.cs`) -
+     existed only to carry the old "N selected elements left unpaired" batch message. Both remaining
+     callers now pass a single-outcome list, so the 2-arg overload was only ever invoked with `null`.
+  3. `TryGetBestOpenConnectorPair`, `AreDomainsCompatible`, `ComputeOrientationPenalty`
+     (`SmartConnectConnectorUtils.cs`) - zero callers anywhere in the repo. This predates 1.47.5; it
+     was left behind by the 1.47.0 route-builder rewrite, which built its own inline domain check
+     directly in `SmartConnectRouteBuilder.cs` instead. Same class of problem, caught in the same pass
+     because Ajmal asked for a thorough check, not a narrowly-scoped one.
+- **Also fixed**: a code comment illustrating WPF text-wrapping still quoted the exact string of the
+  deleted "Neither - leave both alone" radio option as its example; swapped for a string that still
+  exists. Two file-header descriptions still said "batch" for settings that no longer batch anything.
+- **Lesson**: deleting the call site that prompted a removal is not the same as confirming nothing
+  else depended on what got removed. The right check is mechanical - grep for the removed name/type
+  everywhere, then grep for every OTHER thing that removal's data flowed into, and confirm each one
+  still has a real caller. "I don't remember anything else using it" is not verification.
+- **Verified how**: build-clean confirmation only goes so far here, since orphaned-but-still-callable
+  methods and always-null parameters both compile fine with zero warnings - the actual proof was the
+  grep showing zero remaining call sites for each removed item, done before deleting, not after.
+  Clean build across Release and R21-R26 confirms nothing broke; it does not by itself confirm the
+  removed code was dead, which is why the grep step came first. **Not yet exercised in Revit**.
+
 ### 2026-08-16 (Connect MEP Elements: two overlapping settings could contradict each other — SIMPLIFIED, suite 1.47.5)
 - **Symptom (found together, live testing)**: Ajmal ("still same") reported ducts still not extending
   as expected. Live inspection of his saved settings file showed `RoutingMode: 2` (Automatic) but
