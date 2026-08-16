@@ -5,6 +5,22 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.47.5] - 2026-08-16
+
+Two things simplified in Connect MEP Elements, both at Ajmal's request while testing live, both
+removed outright rather than just hidden.
+
+- **Removed**: **the automatic pairing for a big selection.** Select several elements and the tool no
+  longer tries to guess who connects to whom by nearest end. Select **exactly two** elements and click
+  the button — they connect directly, same as picking them on screen. Select more than two and it
+  asks you to narrow it down to two instead of guessing.
+- **Removed**: **"Neither" from "Which pipe is allowed to move."** It did the same job as "Never touch
+  the picked pipes" over in Routing, just via a different setting — and the two could disagree. That's
+  exactly what happened during testing: Routing was set to "Automatic" but "Which pipe is allowed to
+  move" was set to "Neither," and the tool followed the second setting, which looked like a bug. To
+  leave both picked pipes alone on purpose, use **"Never touch the picked pipes"** under Show advanced
+  settings → How it makes room for the new run — one setting for that, not two.
+
 ## [1.47.4] - 2026-08-15
 
 - **Fixed**: **a bug Ajmal caught by testing the tool live.** Two straight ducts (or pipes) sitting in

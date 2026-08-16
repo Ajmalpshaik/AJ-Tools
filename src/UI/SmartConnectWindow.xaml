@@ -249,40 +249,14 @@
                                              GroupName="MoveMode"
                                              Style="{StaticResource OptionRadioButton}"
                                              Margin="0,6,0,2"/>
-                                <RadioButton x:Name="MoveNoneRadio"
-                                             Content="Neither — leave both alone and add new pieces"
-                                             GroupName="MoveMode"
-                                             Style="{StaticResource OptionRadioButton}"
-                                             Margin="0,6,0,2"/>
 
                                 <TextBlock Style="{StaticResource GroupHint}"
                                            Margin="0,8,0,0"
-                                           Text="Equipment, air terminals and flex can never be cut, so they are always left alone whatever you choose here."/>
+                                           Text="Equipment, air terminals and flex can never be cut, so they are always left alone whatever you choose here. To leave BOTH picked pipes alone on purpose, use &quot;Never touch the picked pipes&quot; under Show advanced settings &#8594; How it makes room for the new run."/>
                             </StackPanel>
                         </Border>
 
-                        <!-- ============ 3. Selecting a lot at once ============ -->
-                        <Border Style="{StaticResource SectionCard}">
-                            <StackPanel>
-                                <TextBlock Text="When you select a lot at once" Style="{StaticResource SectionHeader}"/>
-                                <TextBlock Style="{StaticResource GroupHint}"
-                                           Text="Select a group of elements before clicking the button and it pairs them up by their nearest free ends and joins the lot in one go."/>
-
-                                <TextBlock Text="Do not join ends further apart than (mm)"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           FontSize="12"
-                                           Margin="0,0,0,6"/>
-
-                                <TextBox x:Name="MaxPairDistanceBox"
-                                         Height="28"
-                                         Width="140"
-                                         HorizontalAlignment="Left"
-                                         Style="{StaticResource ModernTextBox}"
-                                         VerticalContentAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- ============ 4. Clash warning ============ -->
+                        <!-- ============ 3. Clash warning ============ -->
                         <Border Style="{StaticResource SectionCard}">
                             <StackPanel>
                                 <CheckBox x:Name="WarnOnClashCheck"
@@ -391,16 +365,10 @@
                                     <TextBlock Text="How it behaves while you work" Style="{StaticResource SectionHeader}"/>
 
                                     <CheckBox x:Name="BatchFromSelectionCheck"
-                                              Content="Use my selection instead of asking me to pick"
+                                              Content="If exactly two are already selected, connect them directly"
                                               Style="{StaticResource OptionCheckBox}"/>
                                     <TextBlock Style="{StaticResource Hint}"
-                                               Text="Off means it always asks you to pick pairs, even when you already had things selected."/>
-
-                                    <CheckBox x:Name="SingleUndoCheck"
-                                              Content="One undo for a whole selection"
-                                              Style="{StaticResource OptionCheckBox}"/>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="Off means each pair becomes its own undo step, so you would press Ctrl+Z once per joint."/>
+                                               Text="Select the two elements first, click the button, done - no picking on screen. Off means it always asks you to pick, even with two already selected. Selecting more than two just asks you to narrow it down to two."/>
 
                                     <CheckBox x:Name="SummaryReportCheck"
                                               Content="Show a failed pair in the next prompt, not a popup"

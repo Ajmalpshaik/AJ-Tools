@@ -37,10 +37,7 @@ namespace AJTools.Models
         FirstOnly = 1,
 
         /// <summary>Only the second picked element may move; the first stays put.</summary>
-        SecondOnly = 2,
-
-        /// <summary>Neither element moves; the route is inserted between them as they are.</summary>
-        None = 3
+        SecondOnly = 2
     }
 
     /// <summary>
@@ -81,22 +78,20 @@ namespace AJTools.Models
 
         public SmartConnectMoveMode MoveMode { get; set; } = SmartConnectMoveMode.Both;
 
-        // --- Batch and reporting ---
+        // --- Selection and reporting ---
 
-        /// <summary>When elements are already selected, connect them all instead of asking for picks.</summary>
+        /// <summary>
+        /// When exactly two supported elements are already selected, connect them directly instead
+        /// of asking for picks on screen. No pairing or matching happens - the two selected elements
+        /// are simply the pair.
+        /// </summary>
         public bool BatchFromSelection { get; set; } = true;
-
-        /// <summary>Commit a whole batch as one undo step instead of one per pair.</summary>
-        public bool SingleUndoForBatch { get; set; } = true;
 
         /// <summary>
         /// While picking pairs, carry a failed attempt into the next pick prompt rather than
-        /// interrupting with a popup. Batch runs always report through the end-of-run summary.
+        /// interrupting with a popup.
         /// </summary>
         public bool ShowSummaryReport { get; set; } = true;
-
-        /// <summary>Open ends further apart than this (mm) are never auto-paired in batch mode.</summary>
-        public double MaxPairDistanceMm { get; set; } = 3000.0;
 
         // --- Quality of the created run ---
 

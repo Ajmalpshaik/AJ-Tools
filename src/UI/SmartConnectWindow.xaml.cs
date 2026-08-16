@@ -168,7 +168,6 @@ namespace AJTools.UI
             MoveBothRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.Both;
             MoveFirstRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.FirstOnly;
             MoveSecondRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.SecondOnly;
-            MoveNoneRadio.IsChecked = source.MoveMode == SmartConnectMoveMode.None;
 
             AngleFallbackCheck.IsChecked = source.UseAngleFallback;
             AllowConduitCheck.IsChecked = source.AllowConduit;
@@ -177,9 +176,7 @@ namespace AJTools.UI
             AllowNonParallelCheck.IsChecked = source.AllowNonParallelEnds;
 
             BatchFromSelectionCheck.IsChecked = source.BatchFromSelection;
-            SingleUndoCheck.IsChecked = source.SingleUndoForBatch;
             SummaryReportCheck.IsChecked = source.ShowSummaryReport;
-            MaxPairDistanceBox.Text = source.MaxPairDistanceMm.ToString("0.##", CultureInfo.CurrentCulture);
 
             CopyInsulationCheck.IsChecked = source.CopyInsulationAndLining;
             CopyParametersCheck.IsChecked = source.CopyInstanceParameters;
@@ -261,13 +258,6 @@ namespace AJTools.UI
                 selectedAngle = selectedCustom.Value;
             }
 
-            double maxPairDistance;
-            if (!SmartConnectSettingsService.TryParseDistanceMm(MaxPairDistanceBox.Text, out maxPairDistance))
-            {
-                errorMessage = "Enter a pairing distance between 100 and 50000 mm.";
-                return false;
-            }
-
             settings = new SmartConnectSettings
             {
                 RoutingMode = ReadRoutingMode(),
@@ -286,9 +276,7 @@ namespace AJTools.UI
                 AllowFamilyInstanceConnectors = AllowFamilyInstanceCheck.IsChecked == true,
                 AllowNonParallelEnds = AllowNonParallelCheck.IsChecked == true,
                 BatchFromSelection = BatchFromSelectionCheck.IsChecked == true,
-                SingleUndoForBatch = SingleUndoCheck.IsChecked == true,
                 ShowSummaryReport = SummaryReportCheck.IsChecked == true,
-                MaxPairDistanceMm = maxPairDistance,
                 CopyInsulationAndLining = CopyInsulationCheck.IsChecked == true,
                 CopyInstanceParameters = CopyParametersCheck.IsChecked == true,
                 AutoTransitionOnSizeMismatch = AutoTransitionCheck.IsChecked == true,
@@ -323,11 +311,6 @@ namespace AJTools.UI
             if (MoveSecondRadio.IsChecked == true)
             {
                 return SmartConnectMoveMode.SecondOnly;
-            }
-
-            if (MoveNoneRadio.IsChecked == true)
-            {
-                return SmartConnectMoveMode.None;
             }
 
             return SmartConnectMoveMode.Both;

@@ -840,18 +840,18 @@ namespace AJTools.App
         {
             return CreateSplitToolSpec(
                 "Connect MEP\nElements",
-                "Connect MEP elements with a routed run, using your saved settings - no dialog. Select several elements first to connect them all in one go, or click and pick pairs until Esc.",
+                "Connect MEP elements with a routed run, using your saved settings - no dialog. Select exactly two elements first to connect them directly, or click and pick pairs until Esc.",
                 "SmartConnect.png",
                 "SmartConnect.png",
                 CreateSplitChildTool(
                     "Connect MEP\nElements",
-                    "Connect MEP elements (Pipe, Duct, Cable Tray, Conduit, Flex, and MEP equipment) with a routed run, using your saved settings. Select several elements first to connect them all in one go, or click and pick pairs until Esc.",
+                    "Connect MEP elements (Pipe, Duct, Cable Tray, Conduit, Flex, and MEP equipment) with a routed run, using your saved settings. Select exactly two elements first to connect them directly, or click and pick pairs until Esc.",
                     typeof(SmartConnectCommand),
                     "SmartConnect.png",
                     "SmartConnect.png"),
                 CreateSplitChildTool(
                     "Connect MEP Elements\nSettings",
-                    "Choose how the run is routed and at what angle, which categories may be picked, which element may be trimmed, how batches and undo behave, and what is copied onto the new pieces.",
+                    "Choose how the run is routed and at what angle, which categories may be picked, which element may be trimmed, and what is copied onto the new pieces.",
                     typeof(CmdSmartConnectSettings),
                     "settings.png",
                     "settings.png"));
