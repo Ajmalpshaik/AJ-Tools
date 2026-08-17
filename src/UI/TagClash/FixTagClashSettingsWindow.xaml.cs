@@ -247,6 +247,14 @@ namespace AJTools.UI.TagClash
             TryReadDouble(ToleranceBox.Text, out tolerance);
             TryReadDouble(GapBox.Text, out gap);
 
+            // Saving REWRITES THE WHOLE FILE, so every value this window does not own must be carried
+            // through or it is wiped. SkipVerticalRuns was already carried for exactly this reason
+            // (v1.49.2); the five Smart MEP Tag values added in v1.49.7 were NOT, so opening this
+            // window and pressing Save silently reset that tool's size rules and leader choices.
+            // Re-read them here rather than trusting a snapshot taken when this window opened - the
+            // other settings window may have been used in between.
+            TagClashSettingsState stored = TagClashSettings.Load();
+
             Result = new TagClashSettingsState
             {
                 FixPasses = passes,
@@ -256,7 +264,14 @@ namespace AJTools.UI.TagClash
                 MarkColour = ReadColour(),
                 MarkFailures = MarkFailuresBox.IsChecked == true,
                 SkipVerticalRuns = _skipVerticalRuns,
-                FullSearch = FullSearchBox.IsChecked == true
+                FullSearch = FullSearchBox.IsChecked == true,
+
+                // Not shown on this window - owned by Smart MEP Tag Settings, passed straight through.
+                SmartTagMinLengthMm = stored.SmartTagMinLengthMm,
+                SmartTagFilterBySize = stored.SmartTagFilterBySize,
+                SmartTagMinWidthMm = stored.SmartTagMinWidthMm,
+                SmartTagMinHeightMm = stored.SmartTagMinHeightMm,
+                SmartTagNoLeaderCategories = stored.SmartTagNoLeaderCategories
             };
 
             DialogResult = true;

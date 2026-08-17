@@ -72,35 +72,15 @@ namespace AJTools.Services.CreateTags
                     return Result.Cancelled;
             }
 
-            // Selection first, tagging afterwards - never mid-selection (Ajmal, 2026-08-17).
-            // Already selected before pressing the button? Tag that. Nothing selected? Hand it to
-            // Revit's own picker, where he can single-click, ctrl+click, or drag a crossing window,
-            // and nothing happens until he presses Finish. PickObjectS, not PickObject in a loop:
-            // the loop form would tag each element the instant it was clicked, which is exactly what
-            // he said he does not want.
-            ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
-
-            if (selectedIds == null || selectedIds.Count == 0)
-            {
-                try
-                {
-                    IList<Reference> picked = uidoc.Selection.PickObjects(
-                        ObjectType.Element,
-                        "Select the elements to tag - click, ctrl+click or drag a window, then press Finish");
-
-                    selectedIds = picked == null
-                        ? new List<ElementId>()
-                        : picked.Where(r => r != null).Select(r => r.ElementId).ToList();
-                }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                {
-                    // Esc before finishing - nothing selected, nothing to report.
-                    return Result.Cancelled;
-                }
-            }
-
-            if (selectedIds == null || selectedIds.Count == 0)
-                return Result.Cancelled;
+            // Two ways to work, decided by whether anything was selected before the button was
+            // pressed (Ajmal, 2026-08-17):
+            //   BATCH     - elements already selected: every one of them is tagged in one go.
+            //   ONE BY ONE - nothing selected: click an element and it is tagged immediately, click
+            //                the next, Esc to finish. Deliberately PickObject (single) in a loop and
+            //                NOT PickObjects with a Finish button - he asked for the tag to appear on
+            //                the click, not for a multi-selection to gather first.
+            ICollection<ElementId> preSelectedIds = uidoc.Selection.GetElementIds();
+            bool oneByOne = preSelectedIds == null || preSelectedIds.Count == 0;
 
             var tracker = new CreateTagsSettingsTracker(doc);
             CreateTagsSettingsState settings = CreateTagsSettingsTracker.EnsureDefaults(tracker.LastState);
@@ -109,80 +89,61 @@ namespace AJTools.Services.CreateTags
             var tally = new SkipTally();
             HashSet<ElementId> alreadyTagged = SmartMepTagService.CollectAlreadyTaggedElementIds(doc, activeView);
 
-            List<TagCandidate> candidates = CreateTagsEligibilityFilter.BuildEligibleCandidates(
-                doc, activeView, selectedIds, settings, minLengthInternal, alreadyTagged, tally);
-
-            if (candidates.Count == 0)
-            {
-                ShowNothingToTag(tally);
-                return Result.Cancelled;
-            }
-
-            var familyResults = new List<TagPlacementResult>();
-            List<string> tagWarnings = SmartMepTagService.SelectTagFamilies(doc, preflight, candidates, familyResults);
-            foreach (TagPlacementResult result in familyResults)
-                tally.Add(string.Format("No tag family loaded for {0}", SmartTagSettingsTracker.GetCategoryLabel(result.Category)));
-
-            if (candidates.Count == 0)
-            {
-                ShowNothingToTag(tally);
-                return Result.Cancelled;
-            }
-
-            int totalEligible = candidates.Count;
             int placedCount = 0;
             bool hadCommit = false;
+            var tagWarnings = new List<string>();
             LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
-            List<TagCandidate> remaining = new List<TagCandidate>(candidates);
+
+            // No clicking for POSITIONS in either mode (changed 2026-08-17). Every tag lands at the
+            // offset from its own element, on the side the project's rule specifies, with the same
+            // L-shaped leader routine as before.
+            double offsetFeet = ResolveTagOffsetFeet(settings);
+            XYZ viewRight = TagViewGeometry.GetViewRight(activeView);
+            XYZ viewUp = TagViewGeometry.GetViewUp(activeView);
 
             using (TransactionGroup tg = new TransactionGroup(doc, "Create Tags"))
             {
                 tg.Start();
 
-                // No clicking for positions any more (changed 2026-08-17). Every tag is placed
-                // straight away at the offset from its own element, using the same side rule the
-                // tagging tools already follow and the same L-shaped leader routine as before.
-                double offsetFeet = ResolveTagOffsetFeet(activeView, settings);
-                XYZ viewRight = TagViewGeometry.GetViewRight(activeView);
-                XYZ viewUp = TagViewGeometry.GetViewUp(activeView);
-
-                foreach (TagCandidate candidate in remaining)
+                if (!oneByOne)
                 {
-                    XYZ tagPoint = ResolveAutomaticTagPoint(candidate, offsetFeet, viewRight, viewUp);
-                    if (tagPoint == null)
-                    {
-                        tally.Add("Could not work out where to put this tag");
-                        continue;
-                    }
+                    placedCount += TagElements(
+                        doc, activeView, preflight, settings, minLengthInternal, preSelectedIds,
+                        alreadyTagged, leaderLogic, offsetFeet, viewRight, viewUp, tally, tagWarnings,
+                        ref hadCommit);
+                }
+                else
+                {
+                    // One element per click, tagged on the spot. The picker reopens until Esc, and
+                    // alreadyTagged grows as we go, so clicking the same element twice is reported as
+                    // already tagged rather than stacking a second tag on it.
+                    var single = new List<ElementId>(1) { ElementId.InvalidElementId };
 
-                    using (Transaction t = new Transaction(doc, "Create Tag"))
+                    while (true)
                     {
-                        t.Start();
-                        bool placed;
+                        Reference picked;
                         try
                         {
-                            placed = TryCreateTagAt(doc, activeView, leaderLogic, candidate, tagPoint);
+                            picked = uidoc.Selection.PickObject(
+                                ObjectType.Element,
+                                "Click an element to tag it - Esc to finish");
                         }
-                        catch (Exception)
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
-                            placed = false;
+                            break;
                         }
 
-                        if (placed)
-                        {
-                            t.Commit();
-                            hadCommit = true;
-                            placedCount++;
-                        }
-                        else
-                        {
-                            t.RollBack();
-                            tally.Add("Could not place a tag for this element");
-                        }
+                        if (picked == null)
+                            break;
+
+                        single[0] = picked.ElementId;
+
+                        placedCount += TagElements(
+                            doc, activeView, preflight, settings, minLengthInternal, single,
+                            alreadyTagged, leaderLogic, offsetFeet, viewRight, viewUp, tally,
+                            tagWarnings, ref hadCommit);
                     }
                 }
-
-                remaining.Clear();
 
                 if (hadCommit)
                     tg.Assimilate();
@@ -196,20 +157,129 @@ namespace AJTools.Services.CreateTags
         }
 
         /// <summary>
-        /// How far a tag sits from its element, in feet, from the user's mm-on-paper setting.
+        /// Filters a set of element ids down to what can actually be tagged, resolves a tag family
+        /// for each, and places every tag. Returns how many went in.
         /// </summary>
         /// <remarks>
-        /// Scaled by the view, per the standing rule that every mm clearance is computed against
-        /// view.Scale rather than hardcoded - a distance tuned at one scale is wrong at every other.
+        /// One routine for both ways of working: the batch path calls it once with everything that was
+        /// selected, the one-by-one path calls it once per click with a single id. Keeping them on the
+        /// same routine is what stops the two modes drifting into different skip rules - the exact
+        /// drift that had to be undone across the tag tools in v1.49.1.
+        ///
+        /// <paramref name="alreadyTagged"/> is updated in place as tags go in, so in one-by-one mode
+        /// clicking the same element twice is reported as already tagged instead of stacking a second
+        /// tag on top of the first.
         /// </remarks>
-        private static double ResolveTagOffsetFeet(View view, CreateTagsSettingsState settings)
+        private static int TagElements(
+            Document doc,
+            View activeView,
+            PreFlightResult preflight,
+            CreateTagsSettingsState settings,
+            double minLengthInternal,
+            ICollection<ElementId> elementIds,
+            HashSet<ElementId> alreadyTagged,
+            LeaderLogicService leaderLogic,
+            double offsetFeet,
+            XYZ viewRight,
+            XYZ viewUp,
+            SkipTally tally,
+            List<string> tagWarnings,
+            ref bool hadCommit)
+        {
+            List<TagCandidate> candidates = CreateTagsEligibilityFilter.BuildEligibleCandidates(
+                doc, activeView, elementIds, settings, minLengthInternal, alreadyTagged, tally);
+
+            if (candidates.Count == 0)
+                return 0;
+
+            var familyResults = new List<TagPlacementResult>();
+            List<string> warnings = SmartMepTagService.SelectTagFamilies(
+                doc, preflight, candidates, familyResults);
+
+            foreach (TagPlacementResult result in familyResults)
+            {
+                tally.Add(string.Format(
+                    "No tag family loaded for {0}",
+                    SmartTagSettingsTracker.GetCategoryLabel(result.Category)));
+            }
+
+            if (warnings != null)
+            {
+                foreach (string warning in warnings)
+                {
+                    // One-by-one mode calls this on every click, so the same warning would otherwise
+                    // be repeated once per element in the end-of-run summary.
+                    if (!tagWarnings.Contains(warning))
+                        tagWarnings.Add(warning);
+                }
+            }
+
+            int placed = 0;
+
+            foreach (TagCandidate candidate in candidates)
+            {
+                XYZ tagPoint = ResolveAutomaticTagPoint(candidate, offsetFeet, viewRight, viewUp);
+                if (tagPoint == null)
+                {
+                    tally.Add("Could not work out where to put this tag");
+                    continue;
+                }
+
+                using (Transaction t = new Transaction(doc, "Create Tag"))
+                {
+                    t.Start();
+                    bool ok;
+                    try
+                    {
+                        ok = TryCreateTagAt(doc, activeView, leaderLogic, candidate, tagPoint);
+                    }
+                    catch (Exception)
+                    {
+                        ok = false;
+                    }
+
+                    if (ok)
+                    {
+                        t.Commit();
+                        hadCommit = true;
+                        placed++;
+                        alreadyTagged.Add(candidate.ElementId);
+                    }
+                    else
+                    {
+                        t.RollBack();
+                        tally.Add("Could not place a tag for this element");
+                    }
+                }
+            }
+
+            return placed;
+        }
+
+        /// <summary>
+        /// How far a tag sits from its element, in feet. A REAL distance in the model, not a size on
+        /// the printed sheet.
+        /// </summary>
+        /// <remarks>
+        /// NOT multiplied by the view scale, and that is deliberate - it was, in the first build of
+        /// this, and it put every tag scale-times too far away: at 1:100 a 300mm setting threw the tag
+        /// 30 METRES off its duct. The 300mm default was taken from Smart MEP Tags, and that tool's
+        /// offset is a model distance (SmartTagSettingsTracker.ResolveOffsetInternal is
+        /// <c>mm * MM_TO_FEET</c> with no scale term). Copying its number while changing its meaning
+        /// is what broke it.
+        ///
+        /// This is a real exception to the "check view.Scale first" rule, which is about clearances
+        /// measured on the SHEET - tag-to-tag gaps, elbow pushes, clash margins. A tag sitting 300mm
+        /// off a duct is a distance in the building, and it should stay 300mm whether the sheet is
+        /// 1:50 or 1:100.
+        /// </remarks>
+        private static double ResolveTagOffsetFeet(CreateTagsSettingsState settings)
         {
             double offsetMm = settings != null && settings.TagOffsetMm > 0.0
                 ? settings.TagOffsetMm
                 : CreateTagsSettingsTracker.DefaultTagOffsetMm;
 
-            int viewScale = TagViewGeometry.GetViewScale(view);
-            return offsetMm * Constants.MM_TO_FEET * viewScale;
+            return offsetMm * Constants.MM_TO_FEET;
         }
 
         /// <summary>
@@ -233,7 +303,13 @@ namespace AJTools.Services.CreateTags
                 ? viewRight
                 : viewUp.Negate();
 
-            return candidate.Midpoint.Add(direction.Multiply(offsetFeet));
+            // Measured from the element's EDGE, not its centre. Going from the centre means the
+            // distance the user typed is eaten by half the duct before it clears anything - on a wide
+            // duct the tag lands inside it. Same shape as the placement engine's own
+            // "hostHalfW + offsetFromHostToTextEdge".
+            double hostHalf = Math.Max(0.0, candidate.HostWidth) * 0.5;
+
+            return candidate.Midpoint.Add(direction.Multiply(hostHalf + offsetFeet));
         }
 
         /// <summary>
@@ -290,14 +366,34 @@ namespace AJTools.Services.CreateTags
             DialogHelper.ShowInfo(ToolTitle, body);
         }
 
+        /// <summary>
+        /// Reports the run - but only when there is something to report.
+        /// </summary>
+        /// <remarks>
+        /// House rule: a tool that did everything asked of it finishes SILENTLY (the model is the
+        /// result), a tool that did nothing must say why, and a tool that did only part of it says
+        /// what it left out. So the report is gated on "was anything skipped or warned about", not on
+        /// "did the tool run".
+        ///
+        /// This matters more since tagging went one-element-per-click: that mode ends on Esc, and
+        /// popping up "0 tag(s) created" every time someone finishes with Esc - or after a clean run
+        /// where every tag went in - is exactly the confirming-the-obvious dialog the rule exists to
+        /// stop.
+        /// </remarks>
         private static void ShowRunSummary(int placedCount, SkipTally tally, List<string> tagWarnings)
         {
-            string summary = tally.BuildSummary();
+            string summary = tally?.BuildSummary();
+            bool hasWarnings = tagWarnings != null && tagWarnings.Count > 0;
+
+            if (summary == null && !hasWarnings)
+                return;
+
             string body = string.Format("{0} tag(s) created.", placedCount);
+
             if (summary != null)
                 body += "\n\nSkipped:\n" + summary;
 
-            if (tagWarnings != null && tagWarnings.Count > 0)
+            if (hasWarnings)
                 body += "\n\nNote:\n- " + string.Join("\n- ", tagWarnings);
 
             DialogHelper.ShowInfo(ToolTitle, body);

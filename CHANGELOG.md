@@ -5,20 +5,35 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-## [1.50.0] - 2026-08-17
+## [1.50.1] - 2026-08-17
 
 - **Changed**: **Create Tags no longer asks you where to put each tag.** Pick the elements, press
   Finish, and every tag appears at once — at the distance you set, on the correct side, with the
   L-shaped leader. Before, you had to click a spot for every single tag: 47 ducts meant 47 clicks.
-- **How you select**: elements already selected when you press the button get tagged straight away.
-  If nothing is selected, the tool asks you to pick — **single click, ctrl+click, or drag a window** —
-  and **nothing is tagged until you press Finish**. It never tags while you are still selecting.
+- **Two ways to work**:
+  - **Select the elements first**, then press the button — every one is tagged at once.
+  - **Run it with nothing selected** — then you click **one element at a time and it is tagged the
+    moment you click it**. Click the next, and the next. **Esc** when you are done.
+- **Changed**: the tool now finishes **silently** when everything went in. It only shows a report when
+  something was skipped or needs saying — so pressing Esc no longer pops up "0 tags created".
 - **Which side the tag goes**: a run lying **horizontally** in the view is tagged **below** it; a run
   lying **vertically** is tagged to its **right**. Same rule the other tagging tools follow, so
   mirrored branches come out matching instead of one above and one below.
-- **Added**: **"Distance from the element"** in Create Tags Settings — how far the tag sits from what
-  it tags, in mm on the printed sheet. Default 300mm, matching what Smart MEP Tags already uses, so a
-  view tagged by either tool looks the same. It stays the same size on paper whatever the view scale.
+- **Added**: **"Distance from the element"** in Create Tags Settings — how far the tag sits from the
+  **edge** of what it tags. Default 300mm, the same offset Smart MEP Tags has always used, so a view
+  tagged by either tool looks the same.
+  - It is a **real distance in the model**, not a size on the sheet — 300mm stays 300mm whether you
+    print at 1:50 or 1:100.
+  - Measured from the element's **edge**, not its centre, so the full distance you type is clear space
+    — on a wide duct the tag no longer starts inside it.
+- **Fixed**: **opening Fix Tag Clash Settings and pressing Save wiped your Smart MEP Tag size settings
+  and leader choices.** Both windows write the same file, and saving rewrites all of it — the Fix Tag
+  Clash window was not carrying the newer Smart MEP Tag values through, so they were reset. They are
+  now passed through untouched, the same way the vertical-run setting already was.
+- **Fixed**: **Fix Tag Clash now tells you when the drift limit is what stopped it.** With the limit
+  set to 1mm nothing can move at all — a tag is bigger than that — so the tool reported "0 of 50
+  separated" with the real reason buried in a list. It now says plainly that nothing could move,
+  why, and to raise the limit (50mm is the normal value).
 - **Changed**: **Stack Tags is now its own button** on the Tags panel, with its own dropdown holding
   Stack Tags and the gap setting. It used to be hidden inside the Create Tags dropdown. The two do
   different jobs — Create Tags puts each tag beside its own element, Stack Tags gathers a whole batch

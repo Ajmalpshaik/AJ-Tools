@@ -208,6 +208,28 @@ namespace AJTools.Commands
                     settings.MaxDriftMm, run.BlockedByDriftLimit));
             }
 
+            // When the drift limit is what stopped everything, say so in plain words and name the
+            // setting to change. The line above already reports the number, but a count buried in a
+            // list reads as detail, not as "this one setting is the reason nothing happened" - which
+            // is exactly how it looked to Ajmal on a 1mm limit, where no tag can move at all because
+            // a tag is taller than that on the sheet.
+            bool driftBlockedEverything =
+                run.BlockedByDriftLimit > 0 && run.Fixed == 0 && run.StillClashing > 0;
+
+            if (driftBlockedEverything)
+            {
+                sb.AppendLine();
+                sb.AppendLine(string.Format(
+                    "NOTHING COULD MOVE. Every attempt was refused by the {0:F0}mm drift limit, which "
+                    + "is how far a tag is allowed to travel from where it started.",
+                    settings.MaxDriftMm));
+                sb.AppendLine();
+                sb.AppendLine(string.Format(
+                    "{0:F0}mm is smaller than a tag, so there is nowhere for one to go. Raise it in "
+                    + "Fix Tag Clash Settings - {1:F0}mm is the normal value - and run this again.",
+                    settings.MaxDriftMm, TagClashSettings.DefaultMaxDriftMm));
+            }
+
             if (run.StillClashing > 0)
             {
                 sb.AppendLine();

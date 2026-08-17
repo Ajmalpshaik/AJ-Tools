@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.50.0
+ * Version       : 1.50.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,7 +24,7 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
- * v1.50.0 (2026-08-17) - Create Tags no longer asks where to put each tag, and Stack Tags moves out to
+ * v1.50.1 (2026-08-17) - Create Tags no longer asks where to put each tag, and Stack Tags moves out to
  *                       its own ribbon button. Minor bump, not patch: the interaction changes.
  *                       NEW BEHAVIOUR: pick the elements, press Finish, and every tag is placed at
  *                       once - at the distance set in the new Create Tags Settings field, on the side
@@ -32,20 +32,59 @@
  *                       is tagged BELOW it, a vertical run to its RIGHT), with the same L-shaped
  *                       leader routine as before. The old flow demanded a pre-selection and then one
  *                       PickPoint per tag - up to 47 clicks for 47 ducts.
- *                       SELECTION MODEL, and this is the part Ajmal was specific about: selection
- *                       FIRST, tagging afterwards, never mid-selection. Elements already selected when
- *                       the button is pressed are tagged straight away; otherwise it hands over to
- *                       Revit's own PickObjectS - single click, ctrl+click, crossing window, all of it
- *                       - and NOTHING happens until Finish. Deliberately not PickObject in a loop:
- *                       that form tags each element the instant it is clicked, which is exactly what
- *                       he said he did not want ("I will finish the selection then tag").
- *                       NEW SETTING: "Distance from the element", mm on the printed sheet, default
- *                       300mm to match the offset Smart MEP Tags already uses so a view tagged by
- *                       either tool reads the same. Stored in PAPER mm, not internal feet like the
- *                       minimum length beside it - it is multiplied by the view scale where it is
- *                       used, so storing feet would freeze in whichever scale was active when it was
- *                       set. 0 is refused here (a tag cannot sit on its own element), unlike the
- *                       minimum length where 0 legitimately means "no minimum".
+ *                       SELECTION MODEL - TWO modes, and the first attempt at this got it wrong.
+ *                       Elements already selected when the button is pressed are all tagged at once.
+ *                       Nothing selected means ONE ELEMENT PER CLICK, each tagged the instant it is
+ *                       clicked, Esc to finish - PickObject (single) in a loop.
+ *                       The first build used PickObjectS with a Finish button for the second mode,
+ *                       reading his "I will finish the selection then tag" as applying to it. It does
+ *                       not: that sentence was about the pre-selected case. Corrected same day on his
+ *                       "if I run the tool without selecting, that time one by one I can select the
+ *                       element - not multiple selection, I don't want". The batch path is for a
+ *                       selection made BEFORE the tool runs; the picking path is one at a time.
+ *                       Both go through one TagElements routine so the two modes cannot drift into
+ *                       different skip rules - the exact drift undone across the tag tools in 1.49.1.
+ *                       alreadyTagged is updated as tags go in, so clicking the same element twice in
+ *                       one-by-one mode reports "already tagged" rather than stacking a second tag.
+ *                       REPORT now follows the house rule properly: silent when everything went in,
+ *                       and only shown when something was skipped or warned about. It used to pop up
+ *                       unconditionally, which in one-by-one mode meant "0 tag(s) created" every time
+ *                       a run was ended with Esc.
+ *                       NEW SETTING: "Distance from the element", default 300mm, the same offset
+ *                       Smart MEP Tags already uses so a view tagged by either tool reads the same.
+ *                       0 is refused (a tag cannot sit on its own element), unlike the minimum length
+ *                       beside it where 0 legitimately means "no minimum".
+ *                       TWO BUGS IN THE FIRST BUILD OF THIS SETTING, both found by Ajmal in Revit and
+ *                       both fixed here:
+ *                       1) IT WAS MULTIPLIED BY THE VIEW SCALE. The 300mm default was copied from
+ *                       Smart MEP Tags, whose offset is a MODEL distance
+ *                       (SmartTagSettingsTracker.ResolveOffsetInternal is mm * MM_TO_FEET, no scale
+ *                       term) - but this treated it as a paper size and scaled it. At 1:100 a 300mm
+ *                       setting threw the tag 30 METRES off its duct. Copying a number while changing
+ *                       its meaning is the whole bug. It is a real exception to the "check view.Scale
+ *                       first" rule: that rule is about clearances measured on the SHEET (tag gaps,
+ *                       elbow pushes, clash margins), whereas a tag sitting 300mm off a duct is a
+ *                       distance in the building and must not change with the sheet scale.
+ *                       2) IT MEASURED FROM THE ELEMENT'S CENTRE, so half the duct ate the distance
+ *                       and a wide duct had the tag starting inside it. Now measured from the EDGE
+ *                       (hostHalfW + offset), the same shape as the placement engine's own
+ *                       "hostHalfW + offsetFromHostToTextEdge".
+ *                       FIXED, a regression I introduced in v1.49.7 and Ajmal hit while testing:
+ *                       FixTagClashSettingsWindow built a fresh TagClashSettingsState carrying only
+ *                       the fields it shows. Save REWRITES THE WHOLE FILE, so the five Smart MEP Tag
+ *                       values added in 1.49.7 were wiped every time that window was saved - size
+ *                       rules and per-category leader choices back to nothing. SkipVerticalRuns was
+ *                       already carried through for precisely this reason (noted in the 1.49.2 entry);
+ *                       the new fields were not. Now re-read via Load() at save time rather than from
+ *                       a snapshot taken when the window opened, so using the other settings window in
+ *                       between cannot lose anything either. The lesson: any window writing a SHARED
+ *                       settings file must carry every value it does not own, and adding a field to
+ *                       that file means auditing every writer of it.
+ *                       FIXED: Fix Tag Clash reported "0 of 50 separated" with the real cause - a 1mm
+ *                       drift limit refusing all 424 attempted moves - as one line in a list of
+ *                       counts. A tag is taller than 1mm on the sheet, so nothing can move anywhere.
+ *                       It now says so in plain words when drift blocked EVERY move, and names the
+ *                       setting and the normal value to put back.
  *                       RIBBON: Stack Tags is now its own pulldown button on the Tags panel, carrying
  *                       Stack Tags + the arrange gap settings, instead of being a child of Create
  *                       Tags. The two do different jobs - Create Tags puts each tag beside its own
@@ -2097,8 +2136,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.50.0.0")]
-[assembly: AssemblyFileVersion("1.50.0.0")]
+[assembly: AssemblyVersion("1.50.1.0")]
+[assembly: AssemblyFileVersion("1.50.1.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

@@ -31,9 +31,9 @@ namespace AJTools.Models.CreateTags
         /// How far the tag sits from its element, in mm on the printed sheet.
         /// </summary>
         /// <remarks>
-        /// Stored in paper mm, not internal feet, unlike MinLengthInternal above - a distance on the
-        /// sheet has to be multiplied by the view scale at the moment it is used, so keeping it in
-        /// feet here would bake in whichever scale happened to be active when it was set.
+        /// A real distance in the model, NOT a size on the printed sheet - it is not multiplied by the
+        /// view scale. Matches how Smart MEP Tags has always treated its own 300mm offset. Kept in mm
+        /// rather than internal feet purely so the settings window reads it back without converting.
         /// </remarks>
         public double TagOffsetMm { get; set; }
     }
