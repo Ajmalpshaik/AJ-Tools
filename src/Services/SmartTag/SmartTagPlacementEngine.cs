@@ -110,37 +110,28 @@ namespace AJTools.Services.SmartTag
         }
 
         /// <summary>
-        /// Reorders a direction priority so the two sideways directions come first, keeping the
-        /// relative order of everything else. Used for tags placed without a leader, which read best
-        /// sitting beside the element rather than above or below it.
+        /// The only two directions a no-leader tag may use: beside the element, left or right on
+        /// screen, whichever is clearer.
         /// </summary>
         /// <remarks>
-        /// Reorders rather than replaces on purpose: the caller's priority already encodes the
-        /// element's orientation and the pre-flight result, and throwing that away would undo
-        /// decisions made elsewhere. Every direction is still present, so a tag boxed in on both
-        /// sides can still go above or below rather than failing to place.
+        /// RESTRICTS rather than reorders, and that distinction is the whole fix (v1.49.9). v1.49.7
+        /// merely put these two first in the priority list, which decided nothing: the scoring loop
+        /// keeps the HIGHEST-scoring direction, not the first one it tries, so "below" - usually the
+        /// emptiest space around a duct - still won and accessory tags kept landing underneath. Order
+        /// only ever mattered for an exact tie or the score >= 60 early exit. Handing the loop just
+        /// these two is what actually forces the choice; the scorer then picks whichever side is
+        /// clearer, which is also what makes "if one side clashes, use the other" work.
+        ///
+        /// Left/right in VIEW space regardless of which way the duct runs - Ajmal's explicit choice
+        /// (2026-08-17) after being shown that on a duct running left-right this puts the tag at the
+        /// accessory's connector ends. He wants the tags in one straight column down the sheet more
+        /// than he wants them off the connectors.
+        ///
+        /// Both positions are a pure viewRight offset from the element midpoint, so the tag comes out
+        /// exactly level with the accessory centre - the alignment asked for, already free.
         /// </remarks>
-        private static TagDirection[] SidewaysFirst(TagDirection[] priority)
-        {
-            if (priority == null || priority.Length == 0)
-                return new[] { TagDirection.Right, TagDirection.Left, TagDirection.Top, TagDirection.Bottom };
-
-            var reordered = new List<TagDirection>(priority.Length);
-
-            foreach (TagDirection direction in priority)
-            {
-                if (direction == TagDirection.Right || direction == TagDirection.Left)
-                    reordered.Add(direction);
-            }
-
-            foreach (TagDirection direction in priority)
-            {
-                if (direction != TagDirection.Right && direction != TagDirection.Left)
-                    reordered.Add(direction);
-            }
-
-            return reordered.ToArray();
-        }
+        private static readonly TagDirection[] SidewaysOnly =
+            new[] { TagDirection.Right, TagDirection.Left };
 
         private static bool IsPlanView(ViewType viewType)
         {
@@ -933,7 +924,7 @@ namespace AJTools.Services.SmartTag
                         // Gated on the SETTING, not on tryLeader, so the existing no-leader FALLBACK
                         // pass (used when no leader position could be found) keeps its old order.
                         TagDirection[] priority = leaderDisabledForCategory
-                            ? SidewaysFirst(GetDirectionPriority(candidate, preflight))
+                            ? SidewaysOnly
                             : GetDirectionPriority(candidate, preflight);
 
                         foreach (TagDirection dir in priority)

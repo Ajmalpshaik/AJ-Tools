@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.8
+ * Version       : 1.49.9
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,32 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.9 (2026-08-17) - FIXES v1.49.7's no-leader placement, found by Ajmal testing it in Revit.
+ *                       Accessory tags with the leader turned off were still landing BELOW the
+ *                       accessory instead of beside it.
+ *                       ROOT CAUSE, and it is a lesson worth keeping: v1.49.7 put Right and Left FIRST
+ *                       in the direction priority list and assumed that decided the outcome. It does
+ *                       not. The scoring loop keeps the HIGHEST-scoring direction, not the first one
+ *                       it evaluates - so the order only ever mattered for an exact tie or the
+ *                       score >= 60 early exit. Below a duct is usually the emptiest space in the
+ *                       view, so it kept scoring best and kept winning. The change read as if it
+ *                       worked and did nothing.
+ *                       FIX: hand the loop ONLY Right and Left (SidewaysOnly) instead of reordering
+ *                       all four. Restricting the choice is what forces it; the scorer then picks
+ *                       whichever side is clearer, which is also what makes "if one side clashes, use
+ *                       the other" work. No change to the scorer itself.
+ *                       CHECKED, so no fallback was added: ScoreCandidatePosition only disqualifies a
+ *                       position (-1) when the tag would overlap its OWN host element, and Right/Left
+ *                       are offset clear of the host by construction (hostHalfW + offset + halfW).
+ *                       Cutting four candidates to two therefore cannot leave an accessory untagged.
+ *                       ALIGNMENT: already correct and needed no work - Right/Left are a pure viewRight
+ *                       offset from the element midpoint, with no vertical component, so the tag comes
+ *                       out exactly level with the accessory centre.
+ *                       AJMAL'S EXPLICIT CHOICE: left/right in VIEW space whatever way the duct runs.
+ *                       He was shown that on a duct running left-right this puts the tag at the
+ *                       accessory's connector ends, and chose it anyway - one straight column of tags
+ *                       down the sheet matters more to him than clearing the connectors. Do not
+ *                       "correct" this to perpendicular-to-run without asking him again.
  * v1.49.8 (2026-08-17) - Tag spacing can no longer be set too small to work. Ajmal asked whether the
  *                       Rearrange Tags spacing setting is still needed now that clash detection
  *                       exists, and whether it could be automatic. Checked the code before answering:
@@ -2011,8 +2037,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.8.0")]
-[assembly: AssemblyFileVersion("1.49.8.0")]
+[assembly: AssemblyVersion("1.49.9.0")]
+[assembly: AssemblyFileVersion("1.49.9.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

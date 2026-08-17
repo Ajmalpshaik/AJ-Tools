@@ -5,6 +5,23 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.9] - 2026-08-17
+
+- **Fixed**: **accessory tags with the leader turned off were still landing below the accessory**
+  instead of beside it. Found by Ajmal testing 1.49.7 in Revit.
+- **What was wrong**: 1.49.7 put "left" and "right" *first* in the list of places to try, and assumed
+  that settled it. It didn't — the tool scores every position and keeps the **best-scoring** one, not
+  the first one it looks at. Below a duct is usually the emptiest space, so it kept winning. The change
+  looked right and did nothing.
+- **The fix**: the tool is now given **only** left and right to choose from, instead of being asked to
+  prefer them. It then picks whichever side is clearer — which is also what makes "if one side clashes,
+  use the other" work properly.
+- **Already correct**: the tag comes out exactly **level with the accessory centre**, so a row of
+  tagged accessories reads as one straight column down the sheet.
+- **Note**: the tag goes left or right **on screen**, whichever way the duct runs. On a duct running
+  left-to-right that places the tag at the accessory's connector ends — Ajmal's deliberate choice, to
+  keep the tags in one straight column.
+
 ## [1.49.8] - 2026-08-17
 
 - **Fixed**: **the tag spacing setting can no longer be set too small to work.** It was a blind number
