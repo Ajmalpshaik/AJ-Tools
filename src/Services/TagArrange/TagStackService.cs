@@ -63,53 +63,48 @@ namespace AJTools.Services.TagArrange
     internal static class TagStackService
     {
         /// <summary>
-        /// Works out a vertical step that cannot make the stacked tags overlap, and reports whether
-        /// the user's own spacing had to be raised to get there.
+        /// Fallback tag height, mm on the sheet, used only when nothing could be measured - which in
+        /// practice means Stack Tags run in a view with no tags in it yet. Rearrange Tags always has
+        /// the user's own selected tags to measure, so it never reaches this.
+        /// </summary>
+        private const double AssumedTagHeightPaperMm = 10.0;
+
+        /// <summary>
+        /// Turns the user's requested GAP between tags into the centre-to-centre step the stacking
+        /// loop needs, by adding the height of the tallest tag.
         /// </summary>
         /// <param name="view">The active view - supplies scale and the view axes.</param>
-        /// <param name="requestedSpacingMm">The spacing from Arrange Tags Settings, mm on the sheet.</param>
-        /// <param name="measurableTags">
-        /// Tags that can actually be measured. Rearrange Tags passes the tags the user selected, so the
-        /// answer is exact. Stack Tags has not created its tags yet at this point, so it passes the tags
-        /// already in the view as a stand-in.
+        /// <param name="requestedGapMm">
+        /// The clear space the user wants BETWEEN tags, mm on the sheet. 1mm means 1mm of visible gap.
         /// </param>
-        /// <param name="appliedSpacingMm">The spacing actually used, mm on the sheet.</param>
-        /// <param name="wasRaised">True when the setting was too small and had to be raised.</param>
-        /// <returns>The step in feet, ready to hand to StackFromPoint.</returns>
+        /// <param name="measurableTags">
+        /// Tags to measure. Rearrange Tags passes the tags the user selected, so the answer is exact.
+        /// Stack Tags has not created its tags yet, so it passes the tags already in the view.
+        /// </param>
+        /// <returns>The centre-to-centre step in feet, ready for StackFromPoint.</returns>
         /// <remarks>
-        /// Why this exists (v1.49.8, Ajmal's question): the spacing setting is a plain number that knows
-        /// nothing about the tags. It steps from one tag's POSITION to the next, never measuring how tall
-        /// a tag is - so a two-line tag, or a taller tag family, silently overlaps at a spacing that
-        /// looked fine before. Neither stacking tool does any clash checking, so nothing catches it.
+        /// The setting used to BE the step (v1.49.8 and earlier), and that was the bug Ajmal hit: he
+        /// set 1-2mm expecting a tight gap and got tags on top of each other, because his tags are
+        /// 12mm tall and the step was 1mm. A number typed as "spacing" means the space you can SEE
+        /// between two tags - not the distance between their centres, which nobody can judge by eye
+        /// without knowing the tag height first.
         ///
-        /// This does NOT replace the setting with clash detection, which was the other option
-        /// considered. Clash detection only guarantees "not touching", and it moves each tag by the
-        /// shortest distance that clears - which on a column of mixed-length tags produces UNEVEN gaps.
-        /// An even column is the whole point of Rearrange Tags. So the setting stays and keeps meaning
-        /// "how far apart I want them"; this only stops it being set too small to work.
+        /// Reading it as a gap also removes the whole class of problem: any positive gap is
+        /// un-overlappable by construction, so the v1.49.8 "your spacing was too small, I raised it"
+        /// guard and its message are gone. There is nothing left to guard against.
         ///
-        /// Measuring finds the TALLEST tag, not the average: one tall tag in the batch would otherwise
-        /// overlap its neighbour while every other gap looked right.
+        /// Measures the TALLEST tag, not the average - one tall tag would otherwise overlap its
+        /// neighbour while every other gap looked right.
         /// </remarks>
-        internal static double ResolveSafeVerticalOffsetFeet(
+        internal static double ResolveVerticalStepFeet(
             View view,
-            double requestedSpacingMm,
-            IEnumerable<Element> measurableTags,
-            out double appliedSpacingMm,
-            out bool wasRaised)
+            double requestedGapMm,
+            IEnumerable<Element> measurableTags)
         {
-            appliedSpacingMm = requestedSpacingMm;
-            wasRaised = false;
-
-            // Every return below is "mm on the sheet -> feet in the model", which MUST include the view
-            // scale. Dropping it on any one path makes the step scale-times too small - at 1:100 that
-            // stacks every tag on the same spot - and it is silent, because the code still reads as a
-            // sensible unit conversion.
             if (view == null)
-                return requestedSpacingMm * Constants.MM_TO_FEET;
+                return (AssumedTagHeightPaperMm + Math.Max(0.0, requestedGapMm)) * Constants.MM_TO_FEET;
 
             int viewScale = TagViewGeometry.GetViewScale(view);
-
             double tallestPaperMm = 0.0;
 
             if (measurableTags != null)
@@ -134,27 +129,18 @@ namespace AJTools.Services.TagArrange
                     }
                     catch (Exception)
                     {
-                        // A tag that will not measure simply does not raise the floor.
+                        // A tag that will not measure simply does not raise the height.
                     }
                 }
             }
 
-            // Nothing measurable - there is no honest basis to override the user, so leave it alone.
             if (tallestPaperMm <= 0.0)
-                return requestedSpacingMm * Constants.MM_TO_FEET * viewScale;
+                tallestPaperMm = AssumedTagHeightPaperMm;
 
-            // The same minimum gap the clash engine uses, so a stack this tool calls tidy is also a
-            // stack Fix Tag Clash agrees is clear.
-            double minGapMm = TagClashSettings.Load().MinGapMm;
-            double safestSpacingMm = tallestPaperMm + minGapMm;
-
-            if (requestedSpacingMm < safestSpacingMm)
-            {
-                appliedSpacingMm = safestSpacingMm;
-                wasRaised = true;
-            }
-
-            return appliedSpacingMm * Constants.MM_TO_FEET * viewScale;
+            // Every return here is "mm on the sheet -> feet in the model" and MUST carry the view
+            // scale. Dropping it on any one path makes the step scale-times too small - at 1:100 that
+            // stacks every tag on one spot - and it still reads as a sensible unit conversion.
+            return (tallestPaperMm + Math.Max(0.0, requestedGapMm)) * Constants.MM_TO_FEET * viewScale;
         }
 
         /// <summary>

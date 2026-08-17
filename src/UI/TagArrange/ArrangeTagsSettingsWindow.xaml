@@ -63,7 +63,7 @@
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Vertical gap used when Rearrange Tags stacks the selected tags."
+                        <TextBlock Text="The clear gap left between stacked tags by Rearrange Tags and Stack Tags."
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondary}"
                                    TextWrapping="Wrap"
@@ -72,7 +72,7 @@
 
                     <!-- Spacing input -->
                     <StackPanel Grid.Row="1">
-                        <TextBlock Text="Vertical spacing"
+                        <TextBlock Text="Gap between tags"
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{StaticResource TextPrimary}"
@@ -87,7 +87,7 @@
                                      Style="{StaticResource ModernTextBox}"
                                      MaxLength="12"
                                      TextChanged="OnSpacingChanged"
-                                     ToolTip="Distance between stacked tags, measured on the printed sheet."/>
+                                     ToolTip="The clear space left between one tag and the next, measured on the printed sheet. The tag's own height is added on top, so tags can never overlap - 1mm gives a tight stack, 10mm an open one."/>
                             <TextBlock Grid.Column="1"
                                        Text="mm"
                                        FontSize="12"

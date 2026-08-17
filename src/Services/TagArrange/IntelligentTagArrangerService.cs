@@ -90,11 +90,13 @@ namespace AJTools.Services.TagArrange
             }
 
             LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
-            double spacingMm = TagArrangeSettings.GetTagSpacingMm();
+            double gapMm = TagArrangeSettings.GetTagSpacingMm();
 
-            // Exact here: these are the tags the user selected, so they can all be measured.
-            double verticalOffset = TagStackService.ResolveSafeVerticalOffsetFeet(
-                activeView, spacingMm, selectedTags, out double appliedSpacingMm, out bool spacingRaised);
+            // The setting is the GAP the user wants to SEE between tags; the tallest tag's own height
+            // is added here to get the centre-to-centre step. Exact for this tool - these are the tags
+            // the user selected, so every one of them can be measured.
+            double verticalOffset = TagStackService.ResolveVerticalStepFeet(
+                activeView, gapMm, selectedTags);
 
             bool hadCommit = false;
             int undoneAttempts = 0;
@@ -164,23 +166,10 @@ namespace AJTools.Services.TagArrange
                         undoneAttempts));
             }
 
-            // Said once, after the click loop, never inside it - every click re-arranges the whole
-            // selection, so a message in the loop would pop up on every single click. Only shown when
-            // the setting was actually overridden, which is a thing the user should fix once in
-            // Settings rather than a running commentary: a tool that quietly ignores a number the user
-            // typed is worse than one that says why.
-            if (hadCommit && spacingRaised)
-            {
-                DialogHelper.ShowInfo(
-                    ToolTitle,
-                    string.Format(
-                        "Tag spacing was increased from {0:F0}mm to {1:F0}mm for this run.\n\n"
-                        + "The tallest tag in the selection would not fit in {0:F0}mm, so that spacing "
-                        + "would have overlapped them.\n\n"
-                        + "Set it to {1:F0}mm or more in Arrange Tags Settings to stop this message.",
-                        TagArrangeSettings.GetTagSpacingMm(), appliedSpacingMm));
-            }
-
+            // No "your spacing was too small, I raised it" message any more (it existed in v1.49.8/9).
+            // The setting is now the GAP between tags, and any positive gap is un-overlappable by
+            // construction, so there is nothing left to warn about and nothing to override. A tool
+            // that silently does what the user typed is the goal.
             return hadCommit ? Result.Succeeded : Result.Cancelled;
         }
 

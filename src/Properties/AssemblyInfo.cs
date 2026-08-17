@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.9
+ * Version       : 1.49.10
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,33 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.10 (2026-08-17) - Tag spacing now means the GAP BETWEEN tags, not the centre-to-centre step.
+ *                       Ajmal set 1-2mm, watched the tool override him to 17mm, and asked why his
+ *                       setting was being ignored. He was right and the setting was wrong.
+ *                       THE REAL BUG: the number was the distance from one tag's CENTRE to the next
+ *                       one's. His tags are 12mm tall on the sheet, so 8mm centre-to-centre overlapped
+ *                       by 4mm and 1mm put them almost on top of each other. Nobody can judge that
+ *                       number by eye without first knowing the tag height - a number typed as
+ *                       "spacing" means the space you can SEE between two tags.
+ *                       FIX: the setting is now the clear GAP, and the tallest tag's own height is
+ *                       added to get the step. 1mm gives a tight stack, 10mm an open one, and every
+ *                       value works. TagStackService.ResolveVerticalStepFeet replaces
+ *                       ResolveSafeVerticalOffsetFeet - the old name is gone rather than deprecated,
+ *                       because the two read identically at a call site and mean different things.
+ *                       DELETED with it: the whole v1.49.8 "your spacing was too small, I raised it to
+ *                       X" guard, in both tools. Any positive gap is un-overlappable by construction,
+ *                       so there is nothing left to guard against and nothing to interrupt the user
+ *                       about. That guard was the right answer to the wrong problem - it defended a
+ *                       setting that should not have existed in that form.
+ *                       CONSEQUENCE, worth knowing: existing saved values now produce WIDER stacks,
+ *                       because the tag height is added on top. A stored 12mm was a 12mm step; it is
+ *                       now a 12mm visible gap.
+ *                       Window wording follows: "Gap between tags", and the live preview says how much
+ *                       clear space is left rather than how far apart the tags stack. Validation was
+ *                       already 0.1mm minimum, so 1-2mm never needed unlocking - it was only ever the
+ *                       stacking maths refusing them.
+ *                       ALSO: Center Room Tags now uses Center Annotation's icon (Reset Position.png)
+ *                       instead of the stacking icon, so the two centring tools read as a pair.
  * v1.49.9 (2026-08-17) - FIXES v1.49.7's no-leader placement, found by Ajmal testing it in Revit.
  *                       Accessory tags with the leader turned off were still landing BELOW the
  *                       accessory instead of beside it.
@@ -2037,8 +2064,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.9.0")]
-[assembly: AssemblyFileVersion("1.49.9.0")]
+[assembly: AssemblyVersion("1.49.10.0")]
+[assembly: AssemblyFileVersion("1.49.10.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
