@@ -5,12 +5,18 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-## [1.50.2] - 2026-08-18
+## [1.50.3] - 2026-08-18
 
-- **Changed**: **the whole Tags panel is now small stacked buttons**, matching the Smart MEP Tags /
-  Rearrange Tags / L-Shape Leader group on the left instead of the big buttons beside it.
-  - **Create Tags, Stack Tags, Fix Tag Clash** — one column of three
-  - **Center Room Tags, Section Mark Visibility** — one column of two
+- **Changed**: **the whole Tags panel is now small stacked buttons**, instead of a mix of small and
+  large, and laid out in two columns:
+
+  | | |
+  |---|---|
+  | Smart MEP Tags | Fix Tag Clash |
+  | Rearrange Tags | Stack Tags |
+  | Create Tags | L-Shape Leader |
+
+  with **Center Room Tags** and **Section Mark Visibility** as a third column.
 - **Unchanged**: every dropdown keeps exactly the same contents, and all tooltips and behaviour are
   the same. Only the size and arrangement of the buttons changed.
 
