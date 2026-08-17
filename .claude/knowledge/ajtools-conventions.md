@@ -79,13 +79,26 @@ place rather than leaving stale info sitting next to the new truth.
   - The `Release R21`…`R27` configurations exist only in the csproj (via `Directory.Build.props`), NOT in
     `AJ Tools.sln` — building the .sln with `-p:Configuration="Release R25"` fails with MSB4126. Build
     `src\AJ Tools.csproj` directly for any R-config; only plain `Release`/`Debug` work at solution level.
-  - **"Warning-free" is true for `Release` (2020) only** (measured 2026-07-27): a clean rebuild of
-    `Release` gives 0 warnings, but `Release R25` (.NET 8) gives ~650 pre-existing **CA1416**
-    ("only supported on windows") warnings — every WinForms call in `CmdSmartMepTagSettings.cs` (202)
-    and `CmdReassignLevel.cs` (178), plus AiShell files (~270). They are noise, not bugs, and they
-    disappear from a file the moment its WinForms UI is replaced by WPF. So on any R-config, judge a
-    change by *warnings from the files you touched*, not by the total — and don't "fix" the total by
-    suppressing CA1416; convert the offending dialog to WPF instead.
+  - **"Warning-free" now holds for `Release R25` too — re-measure before assuming a warning baseline
+    (corrected 2026-08-17).** The long-standing note here said `Release R25` carried ~650, later ~274,
+    pre-existing **CA1416** ("only supported on windows") warnings, and told you to judge a change by
+    *warnings from the files you touched* rather than by the total. **That no longer reproduces.** A
+    clean `msbuild "src\AJ Tools.csproj" -t:Rebuild -p:Configuration="Release R25" -p:Platform=x64`
+    on 2026-08-17 reported **0 errors and 0 warnings**, same as `Release` (2020).
+  - **The cause is NOT "the WinForms is gone"** — four real source files still reference
+    `System.Windows.Forms` (`AiShell/Helpers/BridgeStatusToast.cs`,
+    `AiShell/Services/AiTaskWarningBarService.cs`, `AiShell/ViewModels/AiShellViewModel.cs`,
+    `AiShell/Views/SavedScriptsWindow.xaml.cs`), and there is **no** `NoWarn`, `AnalysisLevel` or
+    analyzer suppression anywhere in `Directory.Build.props` or the csproj (checked). So the platform
+    analyzer simply is not firing in this configuration any more. **Why is not established — do not
+    write a cause into this file until someone verifies one.**
+  - **What this changes in practice**: the old "ignore the total, look only at your own files" advice is
+    now actively harmful — it would let a genuine new warning hide inside a baseline that no longer
+    exists. **Treat both `Release` and `Release R25` as a hard zero-warning gate.** If a future build
+    suddenly reports hundreds of CA1416 again, that is the analyzer coming back, not a regression you
+    introduced — re-measure the baseline before chasing it.
+  - Still true regardless: never "fix" a CA1416 total by suppressing it; convert the offending dialog
+    to WPF instead.
   - **MSBuild gotcha (proven 2026-07-26, the ProgramData deploy-path bug)**: inside a target's ItemGroup,
     when an item is created via a transform (`Include="@(Src->'...')"`) its **metadata elements'**
     `%(FullPath)` binds to the SOURCE item being transformed — but a later `%(NewItem.FullPath)` reference
@@ -453,7 +466,7 @@ place rather than leaving stale info sitting next to the new truth.
   long tools (the two other Purge windows, Transfer Views, the tagging services) are the same shape and
   can reuse this helper unchanged.
 
-**The suite version lives in SIX places and WILL drift — run `toolserify-version-consistency.ps1`**
+**The suite version lives in SIX places and WILL drift — run `tools\verify-version-consistency.ps1`**
 - The six: `AssemblyInfo.cs` header `Version :`, its `[assembly: AssemblyVersion]` and
   `[AssemblyFileVersion]` attributes, its newest changelog entry, `CHANGELOG.md`'s newest `## [x.y.z]`,
   and `README.md`'s "Current suite version". The AssemblyVersion attribute is the source of truth.
@@ -463,6 +476,21 @@ place rather than leaving stale info sitting next to the new truth.
   does not solve a recurring drift.
 - Run it after every version bump, before committing: exit 0 = all six agree. It also reports the
   deployed DLL version, informational only (it lags whenever a bump happened after the last deploy).
+- **A branch merged in from outside this machine is the highest-risk moment for this drift, and the
+  script is the only thing that catches it (proven 2026-08-17).** PR #32 (1.49.0 → 1.49.4) was authored
+  in a Linux container that could not build, and it **merged to `master` sitting at 3-of-6 drifted** —
+  the two version attributes and the AssemblyInfo changelog were bumped to 1.49.4, while the
+  AssemblyInfo header line, `CHANGELOG.md` and `README.md` were all still on 1.48.3. Nothing about the
+  merge looked wrong and both configs compiled clean with zero warnings. **So run this script right
+  after any merge/PR that came from elsewhere, not only after a bump you did by hand.**
+- **How to run these `tools\verify-*.ps1` scripts** (each of the following cost a failed command on
+  2026-08-17): run them from the repo **root**, not from `src\`; in PowerShell give the leading `.\`,
+  because `& "tools\x.ps1"` makes PowerShell try to load `tools` as a **module** and fail with a
+  misleading *"The module 'tools' could not be loaded"*; and run `verify-tab-motion.ps1` in its **own**
+  `powershell.exe` process. That last one builds a WPF `Application`, so running it in a session where
+  `verify-wpf-styles.ps1` or `verify-window-styles.ps1` already ran dies with *"Cannot create more than
+  one System.Windows.Application instance in the same AppDomain"* — which reads exactly like a code
+  failure and is only a harness clash. All five pass as of 2026-08-17.
 
 **A dispatcher pump lets the X button and Esc through — a busy window MUST veto its own close (v1.40.4)**
 - `Dispatcher.Invoke(..., DispatcherPriority.Render)` on the calling thread waits by pushing a **nested
@@ -477,7 +505,7 @@ place rather than leaving stale info sitting next to the new truth.
   motion helper runs. `PurgeUnusedElementsWindow` / `PurgeUnplacedViewsWindow` are the reference.
 - `AttachStandardExit` now returns early when `e.Cancel` is already true, so a veto from any other
   handler (busy guard, unsaved-changes prompt, validation refusal) is respected instead of being
-  overridden by the animation. `toolserify-exit-motion.ps1` has a permanent case for this.
+  overridden by the animation. `tools\verify-exit-motion.ps1` has a permanent case for this.
 - **Nulling `FocusVisualStyle` obliges the template to draw its own focus ring.** `ModernListCheckBox`
   and `ToggleSwitchCheckBox` inherited `{x:Null}` from `ModernCheckBox` without one, leaving five
   controls with no keyboard marker at all (found by audit, fixed v1.40.4). Check this whenever a style
