@@ -268,6 +268,34 @@ place rather than leaving stale info sitting next to the new truth.
   `SmartMepTagService.cs`, not exposed in its own Settings window — the two tools' settings are
   independent of each other. Full story in `ajtools-conventions-log.md` 2026-07-28.
 
+**The long-run confirm: which tools ask, and which deliberately do NOT (v1.49.5, 2026-08-17)**
+- One shared call, `DialogHelper.ConfirmLongRun(title, count, whatWillHappen)`, which also owns the
+  `LongRunConfirmThreshold = 500`. **Never re-type the "Revit will be busy… single undo step…
+  Continue?" paragraph** — it existed twice before this pass and was about to exist seven times. The
+  threshold used to live on `TagClashSettings`; it moved because tools with nothing to do with tag
+  clash now share it. It is deliberately not in any settings window: a nag threshold, not a modelling
+  choice.
+- **The test for whether a tool needs it is not "is it slow" — it is "does ONE action commit the user
+  to ALL the work, with nothing to press afterwards".** Tags panel tools that ask: Smart MEP Tags,
+  Fix Tag Clash, Stack Tags (one click builds the whole stack), Rearrange Tags (every click re-arranges
+  the whole selection), L-Shape Leader (**preselected path only**), Center Room Tags, Clear Tag Clash
+  Marks.
+- **Create Tags deliberately has NO confirm, and adding one would be a regression.** It asks for one
+  click *per tag* and its own prompt already reads *"Click a location for the next tag (3 of 47
+  remaining) - Esc to finish"* — self-paced, live count, cannot freeze. Same reasoning for L-Shape
+  Leader's pick-one-at-a-time path, which is why only its preselected branch got the confirm. If a
+  future audit reports these as "missing the guard", that is the audit being wrong.
+- **A tool that owns a real window should get a progress bar, not a prompt** (`ProgressReporter`,
+  `PurgeUnusedElementsWindow`). The confirm exists precisely because these tools run *without* a
+  window, so there is nowhere to put progress or a Cancel short of rebuilding them as modeless windows
+  driven by an `ExternalEvent`. Section Mark Visibility was skipped on exactly this ground.
+- **When a tool already asks something, add the count to THAT question — don't stack a second dialog.**
+  Clear Tag Clash Marks already warned that a deliberate manual override would be cleared; it now also
+  says how many tags, in the same prompt. Two prompts back to back for one click is worse than the
+  problem being solved. It needed `TagClashHighlighter.CountTagsInView`, written with the **same
+  collector shape as `ClearAll`** so the number quoted is the number acted on — if you ever change one,
+  change both.
+
 **Credit line — every window carries it (Ajmal's rule, 2026-07-27)**
 - Exact text, no variations: **`Created & All Rights Reserved @ Ajmal P.S.`**
   (in XAML: `Created &amp; All Rights Reserved @ Ajmal P.S.`). No year, no "(c)", no "AJ Tools" suffix —
