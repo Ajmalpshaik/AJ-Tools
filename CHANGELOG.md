@@ -5,6 +5,73 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.4] - 2026-08-17
+
+- **Added**: **a count-and-confirm before a long run.** Smart MEP Tags and Fix Tag Clash now tell you
+  what they are about to do when the job is big (over 500 elements) and let you back out first —
+  "About to place tags on 3,204 elements… Revit will be busy and can't be stopped part way. It is a
+  single undo step." Neither tool can show a progress bar or a Cancel button, because they run without
+  a window; asking up front is the honest alternative to Revit going white with no warning.
+- **Changed**: Fix Tag Clash Settings' clash tolerance and minimum gap now sit behind a **Show advanced
+  settings** tick box, since they are almost never touched. It opens itself automatically whenever
+  either value is not the default, so a changed setting can never sit hidden and then get blamed on the
+  tool.
+- **Added**: **a "Reset to defaults" button on all four tagging settings windows.** Smart MEP Tag and
+  Create Tags had none at all, and the two that did disagreed on the wording. Window widths evened up
+  as two matching pairs — the two category-grid windows stay at 640, the two simple ones go to 520.
+
+## [1.49.3] - 2026-08-17
+
+- **Added**: the **Skip vertical ducts, pipes and cable trays** tick box now also appears in **Smart MEP
+  Tag Settings**, so it can be set from either tagging tool instead of only from Create Tags. There is
+  one stored value behind both tick boxes — change it in either place and Smart MEP Tags, Create Tags
+  and Stack Tags all follow. Each window says so under the tick box.
+- **Unchanged**: no change to how any tool actually treats a vertical run.
+
+## [1.49.2] - 2026-08-17
+
+- **Changed**: the **Skip vertical ducts, pipes and cable trays** tick box moved out of the Fix Tag
+  Clash settings window and into the **Create Tags settings window**, where a tagging rule belongs. It
+  only landed in the clash window because that is the one tagging store that survives closing Revit.
+  The value still lives in that same file so it keeps persisting — only the tick box moved.
+- **Unchanged**: no change to how any tool actually treats a vertical run.
+
+## [1.49.1] - 2026-08-16
+
+- **Changed**: the five tag tools now share three common blocks instead of each carrying its own copy.
+  The L-shaped leader routine existed **four times over** and the copies had drifted apart — two nudged
+  the elbow clear of the tag text and retried when Revit refused, two did neither. Those differences are
+  now options on one routine, so each tool keeps exactly the behaviour it had while a leader fix lands
+  everywhere at once. About **730 lines removed** with no change to what the tools do.
+- **Fixed**: L-Shape Leader's tooltip promised that running it again on the same tag flips the elbow
+  side. It never did that. The wording is corrected rather than inventing a side-flip nobody asked for.
+- **Fixed**: **Stack Tags and Rearrange Tags used to roll the whole click back in silence** when one
+  element could not be placed, which looks exactly like the click doing nothing. Both now say how many
+  attempts were undone and why. Arranging stays all-or-nothing — only the silence is fixed.
+- **Fixed**: the pipe diameter filter read like a working filter but could never fire. It is now
+  skipped explicitly and documented as "no minimum".
+
+## [1.49.0] - 2026-08-16
+
+- **Added**: **NEW TOOL — Fix Tag Clash**, on the AJ Annotation "Tags" panel, with **Clear Tag Clash
+  Marks** and its own settings. It works the opposite way round to the old approach: instead of asking
+  "does this clash?" before every single placement, the tags are placed first and only the few that
+  actually collide are worked on afterwards. Point it at any view and it separates the clashing tags,
+  however they were placed — Smart MEP Tags, Create Tags, Stack Tags, Revit's own Tag All, or by hand.
+- **How it decides who moves**: the tag sitting closest to its own element keeps its place and the
+  stretched one moves. A tag clashing with a text note or dimension always gives way, because the
+  annotation cannot move for it. Two guards stop tags shoving each other back and forth forever — a tag
+  that wins is frozen for the rest of the run, and no tag may travel further than the drift limit from
+  where it started. Anything still clashing when the rounds run out is coloured and left selected.
+- **Added**: the clash check now also sees detail components, detail lines, generic annotations, keynote
+  tags, spot elevations/coordinates and revision clouds, which the old check was blind to.
+- **Changed**: **skipping vertical runs is now a setting rather than hard-coded, and one rule for every
+  tagging tool.** Smart MEP Tags previously skipped vertical **ducts only**, while Create Tags and Stack
+  Tags skipped ducts, pipes and cable trays — so the same vertical pipe behaved differently depending on
+  which button you pressed. Both now read the same setting. Default is on, matching what Create Tags
+  always did, so **Smart MEP Tags is the tool whose behaviour changes here.**
+- Settings are saved to a file (`%APPDATA%\AJTools\TagClash.config`) so they survive closing Revit.
+
 ## [1.48.3] - 2026-08-16
 
 - **Changed**: the **Auto MEP Dimension settings window is now in two tabs** — **What to dimension**
