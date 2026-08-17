@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.50.2
+ * Version       : 1.50.3
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,10 +24,13 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
- * v1.50.2 (2026-08-18) - The whole Tags panel is stacked small buttons now, matching the Smart MEP
- *                       Tags / Rearrange Tags / L-Shape Leader group Ajmal pointed at. Create Tags,
- *                       Stack Tags and Fix Tag Clash become one column of three; Center Room Tags and
- *                       Section Mark Visibility become a column of two.
+ * v1.50.3 (2026-08-18) - The whole Tags panel is stacked small buttons, in the order Ajmal laid out:
+ *                           Smart MEP Tags | Fix Tag Clash
+ *                           Rearrange Tags | Stack Tags
+ *                           Create Tags    | L-Shape Leader
+ *                       plus Center Room Tags / Section Mark Visibility as a third column of two.
+ *                       Done in two steps in one sitting - first every button switched from large to
+ *                       stacked, then the six were reordered into these two columns.
  *                       WHAT ACTUALLY CONTROLS BUTTON SIZE, since it is not obvious: AddStackedItems
  *                       vs AddItem, nothing else. AddStackedItems packs 2 or 3 rows into the width of
  *                       one normal button, and Revit then draws the SMALL (16x16) icon; AddItem makes
@@ -2151,8 +2154,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.50.2.0")]
-[assembly: AssemblyFileVersion("1.50.2.0")]
+[assembly: AssemblyVersion("1.50.3.0")]
+[assembly: AssemblyFileVersion("1.50.3.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
