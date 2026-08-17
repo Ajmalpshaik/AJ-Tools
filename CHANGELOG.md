@@ -5,6 +5,24 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.10] - 2026-08-17
+
+- **Fixed**: **the tag spacing setting now means the gap you can see between tags**, not the distance
+  between their centres. Ajmal set 1–2mm, the tool overrode him to 17mm, and he asked why his setting
+  was being ignored — he was right, and the setting was measuring the wrong thing.
+  - His tags are **12mm tall** on the sheet. At an 8mm centre-to-centre step they overlapped by 4mm;
+    at 1mm they sat almost on top of each other. That number was impossible to judge by eye without
+    knowing the tag height first.
+  - Now **1mm gives a tight stack, 10mm an open one**, and **every value works** — the tag's own
+    height is added on top automatically.
+- **Removed**: the "tag spacing was increased from X to Y" message, in both Rearrange Tags and Stack
+  Tags. Any gap above zero can't overlap, so there is nothing left to warn about and nothing gets
+  overridden. **The tool now just does what you typed.**
+- **Worth knowing**: your existing saved value will now give a **wider** stack than before, because the
+  tag height is added on top. A saved 12mm was a 12mm step; it is now a 12mm visible gap.
+- **Changed**: **Center Room Tags now uses the same icon as Center Annotation**, so the two centring
+  tools read as a pair instead of it borrowing the stacking icon.
+
 ## [1.49.9] - 2026-08-17
 
 - **Fixed**: **accessory tags with the leader turned off were still landing below the accessory**

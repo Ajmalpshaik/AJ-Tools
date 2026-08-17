@@ -183,7 +183,10 @@ namespace AJTools.App
             {
                 ToolTip = "Move every room tag in the active view to the center of its tagged room. Handles local rooms and loaded linked rooms; skips orphaned, pinned, and unreadable tags."
             };
-            RibbonPanelHelper.ApplyIcons(centerRoomTagsData, _iconLoader, "Arrange Tag.png");
+            // Same icon as Center Annotation (Ajmal, 2026-08-17) - both centre something, so they read
+            // as a pair. It used to borrow Arrange Tag.png, which is the stacking icon and made it
+            // look like another arranging tool.
+            RibbonPanelHelper.ApplyIcons(centerRoomTagsData, _iconLoader, "Reset Position.png");
 
             panel.AddItem(centerRoomTagsData);
 

@@ -169,19 +169,24 @@ namespace AJTools.UI.TagArrange
         {
             ErrorText.Text = message;
             SaveButton.IsEnabled = false;
-            PreviewText.Text = "Tags stack this far apart on the printed sheet.";
+            PreviewText.Text = "The clear space left between one tag and the next, on the printed sheet.";
             return false;
         }
 
         private string BuildPreview(double spacingMm)
         {
-            string sheet = $"Tags stack {Format(spacingMm)} mm apart on the printed sheet.";
+            // Says "gap BETWEEN tags", not "tags stack this far apart" - the wording matters. The
+            // number used to be the centre-to-centre step, which is why 1mm produced overlapping tags
+            // and read as the tool ignoring the setting. It is the clear space now, and the tag's own
+            // height is added on top, so every value works and nothing gets overridden.
+            string sheet = $"Leaves {Format(spacingMm)} mm of clear space between one tag and the next "
+                + "on the printed sheet. Each tag's own height is added on top, so they cannot overlap.";
 
             if (_viewScale <= 0)
                 return sheet + " The gap in the model follows the scale of the view you run the tool in.";
 
             double modelMm = spacingMm * _viewScale;
-            return sheet + $" In the current view (1:{_viewScale}) that is {Format(modelMm)} mm in the model.";
+            return sheet + $" In the current view (1:{_viewScale}) that gap is {Format(modelMm)} mm in the model.";
         }
 
         /// <summary>

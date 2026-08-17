@@ -120,18 +120,15 @@ namespace AJTools.Services.CreateTags
                 return Result.Cancelled;
             }
 
-            double spacingMm = TagArrangeSettings.GetTagSpacingMm();
+            double gapMm = TagArrangeSettings.GetTagSpacingMm();
 
-            // This tool's own tags do not exist yet - they are created as the user clicks - so the tags
-            // ALREADY in the view stand in for them. Same view, same scale, and in practice the same
-            // tag families, so the tallest one found is a fair guide to what is about to be created.
-            // An empty view measures nothing and the user's spacing is left exactly as set.
-            double verticalOffset = TagStackService.ResolveSafeVerticalOffsetFeet(
-                activeView,
-                spacingMm,
-                CollectExistingTagsInView(doc, activeView),
-                out double appliedSpacingMm,
-                out bool spacingRaised);
+            // The setting is the GAP the user wants to SEE between tags; the tallest tag's own height
+            // is added to get the centre-to-centre step. This tool's own tags do not exist yet - they
+            // are created as the user clicks - so the tags ALREADY in the view stand in for them.
+            // Same view, same scale, in practice the same families. An empty view falls back to an
+            // assumed tag height rather than guessing zero.
+            double verticalOffset = TagStackService.ResolveVerticalStepFeet(
+                activeView, gapMm, CollectExistingTagsInView(doc, activeView));
 
             LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
 
@@ -216,20 +213,8 @@ namespace AJTools.Services.CreateTags
                 return Result.Cancelled;
             }
 
-            // Folded into the summary this tool already shows, rather than a second dialog on top -
-            // and after the click loop, never inside it, since every click restacks the whole batch.
-            if (spacingRaised)
-            {
-                if (tagWarnings == null)
-                    tagWarnings = new List<string>();
-
-                tagWarnings.Add(string.Format(
-                    "Tag spacing was increased from {0:F0}mm to {1:F0}mm - the tags in this view are "
-                    + "too tall to sit {0:F0}mm apart without overlapping. Set it to {1:F0}mm or more "
-                    + "in Arrange Tags Settings to stop this note.",
-                    TagArrangeSettings.GetTagSpacingMm(), appliedSpacingMm));
-            }
-
+            // No "spacing was increased" note any more (it existed in v1.49.8/9). The setting is now
+            // the GAP between tags, so any positive value works and nothing gets overridden.
             ShowSummary(createdTagIds.Count, tally, tagWarnings);
 
             return createdTagIds.Count > 0 ? Result.Succeeded : Result.Cancelled;
