@@ -24,6 +24,17 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.3 (2026-08-17) - Same "Skip vertical ducts, pipes and cable trays" tick box added to Smart MEP
+ *                       Tag Settings as well, so it can be set from either tagging tool's own settings
+ *                       instead of only from Create Tags. One stored value behind both tick boxes -
+ *                       change it in either place and Smart MEP Tags, Create Tags and Stack Tags all
+ *                       follow. Each window says so under the tick box.
+ *                       Three windows now write that one settings file (both tick boxes, plus Fix Tag
+ *                       Clash carrying the value through untouched), so the read-modify-write-and-verify
+ *                       save moved into TagClashSettings.TrySetSkipVerticalRuns rather than being
+ *                       copied into a second command - the same single-source rule the 1.49.1 clean-up
+ *                       was about. Smart MEP Tag Settings tooltip reworded off "category-wise
+ *                       enable/disable". No behaviour change to how any tool treats a vertical run.
  * v1.49.2 (2026-08-17) - "Skip vertical ducts, pipes and cable trays" tick box moved from the Fix Tag
  *                       Clash settings window to the Create Tags settings window, where a tagging rule
  *                       belongs (Ajmal's call). It only landed in the clash window because that is the
@@ -1838,8 +1849,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.2.0")]
-[assembly: AssemblyFileVersion("1.49.2.0")]
+[assembly: AssemblyVersion("1.49.3.0")]
+[assembly: AssemblyFileVersion("1.49.3.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

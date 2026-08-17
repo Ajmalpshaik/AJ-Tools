@@ -149,7 +149,7 @@ namespace AJTools.App
                 if (stackedItems[0] is PulldownButton smartMepTagPulldown)
                 {
                     AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTag", "Smart MEP\nTags", "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.", typeof(CmdSmartMepTag).FullName, "Smart MEP TAG.png");
-                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTagSettings", "Smart MEP Tagging\nSettings", "Configure category-wise enable/disable for Smart MEP Tag.", typeof(CmdSmartMepTagSettings).FullName, "settings.png");
+                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTagSettings", "Smart MEP Tagging\nSettings", "Choose which categories Smart MEP Tags will tag, set each one's priority, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Create Tags and Stack Tags.", typeof(CmdSmartMepTagSettings).FullName, "settings.png");
                 }
 
                 if (stackedItems[1] is PulldownButton arrangeTagsPulldown)
