@@ -104,14 +104,11 @@ namespace AJTools.Commands
                 // Ask before a long run. Once the transaction starts, Revit is busy and there is nothing
                 // to press - the tool has no window, so no progress bar and no Cancel. Saying what is
                 // about to happen is the honest alternative to a silent freeze.
-                if (items.Count > TagClashSettings.LongRunConfirmThreshold
-                    && !DialogHelper.ShowYesNo(
+                if (!DialogHelper.ConfirmLongRun(
                         ToolTitle,
+                        items.Count,
                         string.Format(
-                            "About to check {0} tags in this view, over up to {1} round(s).\n\n"
-                            + "Revit will be busy while it works and can't be stopped part way. It is a "
-                            + "single undo step, so you can undo the whole thing afterwards.\n\n"
-                            + "Continue?",
+                            "About to check {0} tags in this view, over up to {1} round(s).",
                             items.Count, settings.FixPasses)))
                 {
                     return Result.Cancelled;

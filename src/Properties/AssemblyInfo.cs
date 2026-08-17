@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.4
+ * Version       : 1.49.5
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,39 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.5 (2026-08-17) - The long-run warning rolled out across the WHOLE Tags panel, on Ajmal's
+ *                       standing rule: a change asked for on one tool must be checked against every
+ *                       other tool it could apply to, not just the one named. v1.49.4 added the
+ *                       count-and-confirm to Smart MEP Tags and Fix Tag Clash only; five more tools on
+ *                       the same panel could freeze Revit exactly the same way and said nothing.
+ *                       NOW ASK FIRST (over 500 elements): Stack Tags (one click creates and stacks a
+ *                       tag for EVERY selected element), Rearrange Tags (every click re-arranges the
+ *                       whole selection), L-Shape Leader (preselected path only - it reworks every tag
+ *                       in one go), Center Room Tags (one press moves every room tag in the view, each
+ *                       needing its room boundary solved), and Clear Tag Clash Marks.
+ *                       Clear Tag Clash Marks is the odd one: it ALREADY asked before running, but
+ *                       never said how big the job was. The count went into the question it already
+ *                       asks rather than adding a second dialog on top - two prompts back to back for
+ *                       one click would be worse than the problem. Needed a new
+ *                       TagClashHighlighter.CountTagsInView, deliberately using the same collector
+ *                       shape as ClearAll so the number quoted is the number acted on.
+ *                       DELIBERATELY NOT ADDED - Create Tags. It asks for one click per tag and the
+ *                       prompt already reads "Click a location for the next tag (3 of 47 remaining) -
+ *                       Esc to finish", so it is self-paced with a live count and cannot freeze. A
+ *                       warning there would be a click in the way, not a safety net. Section Mark
+ *                       Visibility also skipped: it owns real windows, so a progress bar is the right
+ *                       answer there (see ProgressReporter), not a prompt.
+ *                       DE-DUPLICATED while doing it, per the same single-source rule as 1.49.1: the
+ *                       "Revit will be busy... single undo step... Continue?" paragraph existed twice
+ *                       and was about to exist seven times. It now lives once as
+ *                       DialogHelper.ConfirmLongRun(title, count, whatWillHappen), which also owns the
+ *                       500 threshold - moved off TagClashSettings, since tools with nothing to do with
+ *                       tag clash now share it. Smart MEP Tags and Fix Tag Clash were rewired onto the
+ *                       helper; their wording and threshold are byte-for-byte what they already were.
+ *                       Checked and found already done: all four Tags panel settings windows already
+ *                       have "Reset to defaults" (added in 1.49.4). The three windows still missing one
+ *                       - MEP Opening, Revision Cloud, Flow Direction - are on OTHER panels and were
+ *                       left alone, since this pass was scoped to the Tags panel.
  * v1.49.4 (2026-08-17) - The last three findings from the Tags panel UI audit, all UI-only.
  *                       1) NO MORE SILENT FREEZE. Smart MEP Tags and Fix Tag Clash now say what they
  *                       are about to do when a run is big (over 500 elements) and let you back out
@@ -1874,8 +1907,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.4.0")]
-[assembly: AssemblyFileVersion("1.49.4.0")]
+[assembly: AssemblyVersion("1.49.5.0")]
+[assembly: AssemblyFileVersion("1.49.5.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

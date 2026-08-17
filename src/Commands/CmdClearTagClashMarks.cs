@@ -79,13 +79,25 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
+                // This tool already asked before doing anything, but it never said how BIG the job was.
+                // On a heavy view that is the difference between a click and a long freeze, so the count
+                // goes into the question that is already being asked rather than a second dialog on top.
+                int tagCount = TagClashHighlighter.CountTagsInView(doc, activeView);
+
+                string sizeLine = tagCount > DialogHelper.LongRunConfirmThreshold
+                    ? string.Format(
+                        "This resets the graphic override on all {0} tags in \"{1}\".\n\n"
+                        + "Revit will be busy while it works and can't be stopped part way.\n\n",
+                        tagCount, activeView.Name)
+                    : string.Format(
+                        "This resets the graphic override on every tag in \"{0}\".\n\n",
+                        activeView.Name);
+
                 bool proceed = DialogHelper.ShowYesNo(
                     ToolTitle,
-                    string.Format(
-                        "This resets the graphic override on every tag in \"{0}\".\n\n"
+                    sizeLine
                         + "If you have coloured a tag in this view on purpose, that colour is removed too.\n\n"
-                        + "Continue?",
-                        activeView.Name));
+                        + "Continue?");
 
                 if (!proceed)
                     return Result.Cancelled;

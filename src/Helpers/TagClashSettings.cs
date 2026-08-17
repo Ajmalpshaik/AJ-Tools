@@ -107,18 +107,11 @@ namespace AJTools.Utils
         internal const bool DefaultFullSearch = true;
         internal const TagClashMarkColour DefaultMarkColour = TagClashMarkColour.Red;
 
-        /// <summary>
-        /// Above this many elements, the long-running tagging tools ask before they start. Below it the
-        /// run is quick enough that a prompt is just a click in the way.
-        /// </summary>
-        /// <remarks>
-        /// Deliberately NOT exposed in any settings window: it is a "warn me before Revit goes busy"
-        /// threshold, not a modelling choice. Shared so Smart MEP Tags and Fix Tag Clash agree on what
-        /// counts as a big run. Neither tool can show progress or be cancelled once started - they run
-        /// outside a window, so there is nowhere to put a progress bar without rebuilding them as
-        /// modeless windows driven by an ExternalEvent. Asking up front is the honest alternative.
-        /// </remarks>
-        internal const int LongRunConfirmThreshold = 500;
+        // LongRunConfirmThreshold moved to DialogHelper in v1.49.5, alongside the ConfirmLongRun call
+        // that uses it. It started here because Fix Tag Clash needed it first, but it is a suite-wide
+        // "warn me before Revit goes busy" threshold - seven tools now share it, including Center Room
+        // Tags and L-Shape Leader, which have nothing to do with tag clash. Leaving it on this feature's
+        // settings class made it read as clash-only.
 
         internal const int MinFixPasses = 1;
         internal const int MaxFixPasses = 50;

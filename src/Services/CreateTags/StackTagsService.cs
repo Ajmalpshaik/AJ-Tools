@@ -107,6 +107,19 @@ namespace AJTools.Services.CreateTags
                 return Result.Cancelled;
             }
 
+            // Ask before a long run. Unlike Create Tags - which asks for one click per tag and shows the
+            // remaining count as it goes - a single click here creates and stacks a tag for EVERY
+            // selected element, so a big selection means one click then a silent freeze.
+            if (!DialogHelper.ConfirmLongRun(
+                    ToolTitle,
+                    candidates.Count,
+                    string.Format(
+                        "About to create and stack {0} tags from one click.",
+                        candidates.Count)))
+            {
+                return Result.Cancelled;
+            }
+
             int viewScale = Math.Max(activeView.Scale, 1);
             double spacingMm = TagArrangeSettings.GetTagSpacingMm();
             double verticalOffset = spacingMm * Constants.MM_TO_FEET * viewScale;

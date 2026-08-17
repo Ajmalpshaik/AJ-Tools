@@ -5,6 +5,25 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.5] - 2026-08-17
+
+- **Added**: the **"this is a big job, continue?" warning now covers the whole Tags panel**, not just
+  the two tools that got it in 1.49.4. Five more tools could freeze Revit the same way and said nothing
+  first. Over 500 elements, these now tell you what they are about to do and let you back out:
+  - **Stack Tags** — one click creates and stacks a tag for *every* selected element
+  - **Rearrange Tags** — every click re-arranges the *whole* selection, not one tag
+  - **L-Shape Leader** — when you preselect tags, it reworks all of them in one go
+  - **Center Room Tags** — one press moves every room tag in the view
+  - **Clear Tag Clash Marks** — now says how many tags it is about to reset
+- **Changed**: **Clear Tag Clash Marks** already asked before running but never said how big the job
+  was. The count went into the question it already asks, rather than a second pop-up on top — two
+  prompts in a row for one click would be worse than the problem.
+- **Deliberately unchanged**: **Create Tags** does *not* ask, and should not. It wants one click per
+  tag and already shows "Click a location for the next tag (3 of 47 remaining) — Esc to finish", so you
+  are in control the whole way and it cannot freeze. A warning there would just be a click in the way.
+- **Unchanged**: nothing about *what* any of these tools does to the model. Same tags, same positions,
+  same results — the only difference is being asked first on a big run.
+
 ## [1.49.4] - 2026-08-17
 
 - **Added**: **a count-and-confirm before a long run.** Smart MEP Tags and Fix Tag Clash now tell you
