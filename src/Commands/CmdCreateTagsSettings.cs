@@ -132,7 +132,11 @@ namespace AJTools.Commands
             // same value, so all three agree about a vertical run.
             TagClashSettingsState sharedSettings = TagClashSettings.Load();
 
-            var window = new CreateTagsSettingsWindow(rows, currentMinLengthMm, sharedSettings.SkipVerticalRuns);
+            var window = new CreateTagsSettingsWindow(
+                rows,
+                currentMinLengthMm,
+                sharedSettings.SkipVerticalRuns,
+                CreateTagsSettingsTracker.DefaultMinLengthMm);
 
             if (uiapp != null)
             {

@@ -107,6 +107,19 @@ namespace AJTools.Utils
         internal const bool DefaultFullSearch = true;
         internal const TagClashMarkColour DefaultMarkColour = TagClashMarkColour.Red;
 
+        /// <summary>
+        /// Above this many elements, the long-running tagging tools ask before they start. Below it the
+        /// run is quick enough that a prompt is just a click in the way.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT exposed in any settings window: it is a "warn me before Revit goes busy"
+        /// threshold, not a modelling choice. Shared so Smart MEP Tags and Fix Tag Clash agree on what
+        /// counts as a big run. Neither tool can show progress or be cancelled once started - they run
+        /// outside a window, so there is nowhere to put a progress bar without rebuilding them as
+        /// modeless windows driven by an ExternalEvent. Asking up front is the honest alternative.
+        /// </remarks>
+        internal const int LongRunConfirmThreshold = 500;
+
         internal const int MinFixPasses = 1;
         internal const int MaxFixPasses = 50;
         internal const double MinDriftMm = 1.0;

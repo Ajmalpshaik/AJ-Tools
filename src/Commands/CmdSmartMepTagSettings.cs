@@ -130,7 +130,11 @@ namespace AJTools.Commands
                     countInModel)
                 {
                     Enabled = SmartTagSettingsTracker.IsCategoryEnabled(initialState, category),
-                    PriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(initialState, category))
+                    PriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(initialState, category)),
+
+                    // Passing a null state makes ResolvePriority fall through to the per-category
+                    // default, so the window's Reset button never has to know those rules itself.
+                    DefaultPriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(null, category))
                 };
                 rows.Add(row);
             }

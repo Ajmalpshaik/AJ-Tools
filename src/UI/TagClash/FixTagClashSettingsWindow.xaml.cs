@@ -108,6 +108,31 @@ namespace AJTools.UI.TagClash
             {
                 ColourRed.IsChecked = true;
             }
+
+            // The advanced boxes stay hidden unless they are actually holding something other than the
+            // defaults - a non-default value tucked out of sight is how a setting gets forgotten and
+            // then blamed on the tool.
+            bool advancedIsNonDefault =
+                Math.Abs(state.ClashToleranceMm - TagClashSettings.DefaultClashToleranceMm) > 0.0005
+                || Math.Abs(state.MinGapMm - TagClashSettings.DefaultMinGapMm) > 0.0005;
+
+            ShowAdvancedBox.IsChecked = advancedIsNonDefault;
+            ApplyAdvancedVisibility();
+        }
+
+        private void OnAdvancedToggled(object sender, RoutedEventArgs e)
+        {
+            ApplyAdvancedVisibility();
+        }
+
+        private void ApplyAdvancedVisibility()
+        {
+            if (AdvancedPanel == null || ShowAdvancedBox == null)
+                return;
+
+            AdvancedPanel.Visibility = ShowAdvancedBox.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         private TagClashMarkColour ReadColour()

@@ -24,6 +24,31 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.4 (2026-08-17) - The last three findings from the Tags panel UI audit, all UI-only.
+ *                       1) NO MORE SILENT FREEZE. Smart MEP Tags and Fix Tag Clash now say what they
+ *                       are about to do when a run is big (over 500 elements) and let you back out
+ *                       first: "About to place tags on 3,204 elements... Revit will be busy and can't
+ *                       be stopped part way. It is a single undo step." Neither tool can show a progress
+ *                       bar or a Cancel - they run without a window, so there is nowhere to put one
+ *                       short of rebuilding them as modeless windows driven by an ExternalEvent.
+ *                       Asking up front is the honest alternative to Revit going white with no warning.
+ *                       The threshold is one shared constant so both tools agree, and is deliberately
+ *                       not in any settings window - it is a nag threshold, not a modelling choice.
+ *                       2) Fix Tag Clash Settings' clash tolerance and minimum gap are now behind a
+ *                       "Show advanced settings" tick box, since they are almost never touched. It
+ *                       opens itself automatically when either value is NOT the default, so a
+ *                       non-default setting can never sit hidden and then get blamed on the tool.
+ *                       3) All four tagging settings windows now have a "Reset to defaults" button -
+ *                       Smart MEP Tag and Create Tags had none at all, and Arrange Tags said "Reset to
+ *                       default" while Fix Tag Clash said "defaults". Reset puts categories back on,
+ *                       priorities and minimum length back to their own defaults, and the shared
+ *                       vertical-run rule back on; Smart MEP Tag's per-category default priorities come
+ *                       from SmartTagSettingsTracker rather than being copied into the window, and
+ *                       Create Tags' default length from CreateTagsSettingsTracker.
+ *                       Widths evened up as two matching pairs rather than one size for all: the two
+ *                       category-grid windows stay at 640, and the two simple windows go to 520 (from
+ *                       470 and 500). Forcing a one-number spacing window to 640 to match a four-column
+ *                       grid would have made it worse, not more consistent.
  * v1.49.3 (2026-08-17) - Same "Skip vertical ducts, pipes and cable trays" tick box added to Smart MEP
  *                       Tag Settings as well, so it can be set from either tagging tool's own settings
  *                       instead of only from Create Tags. One stored value behind both tick boxes -
@@ -1849,8 +1874,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.3.0")]
-[assembly: AssemblyFileVersion("1.49.3.0")]
+[assembly: AssemblyVersion("1.49.4.0")]
+[assembly: AssemblyFileVersion("1.49.4.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
