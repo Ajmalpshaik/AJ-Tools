@@ -126,6 +126,21 @@ namespace AJTools.Services.SmartTag
             new[] { TagDirection.Right, TagDirection.Left, TagDirection.Bottom, TagDirection.Top };
 
         /// <summary>
+        /// Gap between a no-leader tag and the element it belongs to, as a real distance in the model.
+        /// </summary>
+        /// <remarks>
+        /// 150mm, approved by Ajmal on 2026-08-18 after seeing both 300mm and 150mm on 32 live duct
+        /// accessories. A no-leader tag reads as belonging to the thing it sits next to, so it wants
+        /// to be closer than a tag on a leader - the general 300mm offset put it about 6mm off on a
+        /// 1:50 sheet before the tag's own width was even added, and he called it "very far".
+        ///
+        /// Kept separate from SmartTagSettingsTracker's general offset ON PURPOSE: that one is shared
+        /// with every leader-carrying tag, and halving it would have moved every duct tag in the
+        /// suite. He scoped this to accessories.
+        /// </remarks>
+        private static readonly double NoLeaderOffsetInternal = 150.0 * Constants.MM_TO_FEET;
+
+        /// <summary>
         /// Model elements the tag should not be dropped on top of - ducts, fittings, accessories and
         /// equipment as they appear in this view.
         /// </summary>
@@ -1064,7 +1079,17 @@ namespace AJTools.Services.SmartTag
 
                 foreach (bool tryLeader in leaderPasses)
                 {
-                    double baseOff = tryLeader ? fixedOffsetInternal * 3.0 : fixedOffsetInternal;
+                    // A tag the user asked to have NO leader sits closer than the general offset
+                    // allows. Tuned live with Ajmal on 32 duct accessories (2026-08-18): 300mm read
+                    // as too far - about 6mm of gap on a 1:50 sheet before the tag's own width is
+                    // added - and 150mm was the value he approved.
+                    //
+                    // Only the DELIBERATE leader-off case gets it. The no-leader FALLBACK pass, used
+                    // when a leader position could not be found at all, keeps the general offset, so
+                    // nothing about duct or pipe tagging changes.
+                    double baseOff = tryLeader
+                        ? fixedOffsetInternal * 3.0
+                        : (leaderDisabledForCategory ? NoLeaderOffsetInternal : fixedOffsetInternal);
 
                     foreach (double tParam in testParams)
                     {
