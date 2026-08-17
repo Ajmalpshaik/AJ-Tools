@@ -622,7 +622,13 @@ namespace AJTools.Services.TagClash
             if (item == null || item.Box == null || item.Head == null)
                 return false;
 
-            List<XYZ> offsets = BuildCandidateOffsets(item, fullSearch, minGapFeet, viewRight, viewUp);
+            // Shortest-way-out moves first, measured against what this tag is ACTUALLY hitting, then
+            // the fixed-size steps. Both go into one pool - the loop below still picks the smallest
+            // move that ends up genuinely clear, so a measured escape only wins when it really works.
+            List<XYZ> offsets = BuildOverlapEscapeOffsets(
+                item, avoidIndex, toleranceFeet, minGapFeet, viewRight, viewUp);
+
+            offsets.AddRange(BuildCandidateOffsets(item, fullSearch, minGapFeet, viewRight, viewUp));
 
             XYZ bestOffset = null;
             double bestDistance = double.MaxValue;
@@ -673,6 +679,73 @@ namespace AJTools.Services.TagClash
                 avoidIndex.Add(item.Box);
 
             return true;
+        }
+
+        /// <summary>
+        /// Builds the shortest moves that would clear this tag of whatever it is actually touching -
+        /// one horizontal and one vertical escape per offending neighbour, each sized to the real
+        /// overlap rather than to a fixed step.
+        /// </summary>
+        /// <remarks>
+        /// Why this exists (added v1.49.6): every other candidate is a fixed quantum - a whole tag
+        /// height up or down, a whole tag width sideways. So two tags overlapping by a hair were still
+        /// shoved a full tag apart, which looks wrong on a drawing and burns the drift allowance for
+        /// nothing - and a tag that runs out of drift is left clashing and marked instead of fixed.
+        /// Measuring the overlap and moving exactly that far plus the gap is the idea taken from the
+        /// AJ AI Brain's push-apart pass (knowledge/live-model/tagging.md), which is the one thing it
+        /// did better than this engine.
+        ///
+        /// Deliberately NOT the Brain's version of the rest: it splits the move 50/50 across BOTH
+        /// tags, which this engine must not do - who moves is already decided by leader length, and a
+        /// frozen winner may never move again. These are candidates for the offender only.
+        ///
+        /// The clearance added is minGap + tolerance, not just minGap, because a pair left exactly on
+        /// the gap still satisfies IsClashing's "closer than the minimum gap" test on the next pass -
+        /// landing exactly on the boundary would make the tag oscillate instead of settling.
+        /// </remarks>
+        private static List<XYZ> BuildOverlapEscapeOffsets(
+            TagClashItem item,
+            AnnotationSpatialIndex avoidIndex,
+            double toleranceFeet,
+            double minGapFeet,
+            XYZ viewRight,
+            XYZ viewUp)
+        {
+            var offsets = new List<XYZ>();
+
+            if (item == null || item.Box == null || avoidIndex == null)
+                return offsets;
+
+            double clearance = minGapFeet + toleranceFeet;
+
+            foreach (AnnotationBox other in avoidIndex.Query(item.Box.Inflated(minGapFeet)))
+            {
+                if (other == null || ReferenceEquals(other, item.Box))
+                    continue;
+
+                // Only the things genuinely in the way get a vote - same test the fixer uses, so a
+                // neighbour that is merely nearby never drags the tag around.
+                if (!IsClashing(item.Box, other, toleranceFeet, minGapFeet))
+                    continue;
+
+                // Four ways past this one neighbour - out past each of its edges. Two are positive,
+                // two negative; keeping the smaller magnitude on each axis is the shortest escape.
+                double outRight = (other.MaxX + clearance) - item.Box.MinX;
+                double outLeft = (other.MinX - clearance) - item.Box.MaxX;
+                double outUp = (other.MaxY + clearance) - item.Box.MinY;
+                double outDown = (other.MinY - clearance) - item.Box.MaxY;
+
+                double shortestX = Math.Abs(outRight) <= Math.Abs(outLeft) ? outRight : outLeft;
+                double shortestY = Math.Abs(outUp) <= Math.Abs(outDown) ? outUp : outDown;
+
+                if (Math.Abs(shortestX) > Constants.ZERO_LENGTH_TOLERANCE)
+                    offsets.Add(viewRight.Multiply(shortestX));
+
+                if (Math.Abs(shortestY) > Constants.ZERO_LENGTH_TOLERANCE)
+                    offsets.Add(viewUp.Multiply(shortestY));
+            }
+
+            return offsets;
         }
 
         /// <summary>

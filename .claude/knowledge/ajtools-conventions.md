@@ -296,6 +296,32 @@ place rather than leaving stale info sitting next to the new truth.
   collector shape as `ClearAll`** so the number quoted is the number acted on — if you ever change one,
   change both.
 
+**The AJ AI Brain's tag-clash pass is WEAKER than `TagClashEngine` — don't import it (settled 2026-08-17)**
+- Ajmal asked directly whether the Brain's clash work was better and should replace this one. It was
+  compared file-by-file. **It is not, and it was not adopted.** Recorded so nobody re-runs this
+  comparison or "upgrades" the compiled engine to the script version later.
+- The Brain's version (`knowledge/live-model/tagging.md`, § *Tag-vs-tag overlap resolution*) sees
+  **tag against tag only**; `TagClashEngine` also sees text notes, dimensions, detail components,
+  detail lines, generic annotations, keynote tags, spot elevations/coordinates and revision clouds. The
+  Brain splits every move **50/50 across both tags**, where this engine decides *who* moves by leader
+  length and then **freezes the winner**. The Brain has **no drift limit**, no pinned-tag handling, and
+  no stable re-run ordering.
+- **The decisive part is the Brain's own text**: it calls itself *"NOT full clash-free placement"* and
+  says the compiled tool *"remains the actual clash-free tool"*. It was written because
+  `SmartTagPlacementEngine` is `internal` and unreachable from a `run_csharp` script — a **workaround
+  for a missing reference, not a better algorithm.** Treat any Brain fragment that reimplements a
+  compiled AJ Tools service the same way: it is the fallback, this is the real thing.
+- **The one idea worth taking, and it was taken (v1.49.6)**: measure how far two boxes ACTUALLY overlap
+  and move by exactly that plus the gap, instead of by a fixed quantum. Every other candidate in
+  `BuildCandidateOffsets` is a whole tag height or width, so a hair-width overlap still shoved a tag a
+  full height (measured: 0.20 overlap → 2.50 move before, 0.70 after). `BuildOverlapEscapeOffsets` adds
+  the measured escapes into the **same pool** the fixed steps feed, so the existing "smallest move that
+  ends up genuinely clear" selector is untouched and a measured escape only wins when it truly clears.
+- **Two traps if this is ever reworked.** Clearance must be `minGap + tolerance`, never bare `minGap`:
+  a pair landing exactly on the boundary still satisfies `IsClashing`'s "closer than the minimum gap"
+  test next pass, so the tag oscillates instead of settling. And do **not** also copy the Brain's 50/50
+  split — moving both tags contradicts the who-moves rule and would move a frozen winner.
+
 **Credit line — every window carries it (Ajmal's rule, 2026-07-27)**
 - Exact text, no variations: **`Created & All Rights Reserved @ Ajmal P.S.`**
   (in XAML: `Created &amp; All Rights Reserved @ Ajmal P.S.`). No year, no "(c)", no "AJ Tools" suffix —
