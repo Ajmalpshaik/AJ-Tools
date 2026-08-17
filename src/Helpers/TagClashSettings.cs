@@ -201,6 +201,28 @@ namespace AJTools.Utils
             return Load().SkipVerticalRuns;
         }
 
+        /// <summary>
+        /// Stores the skip-vertical-runs rule on its own, without disturbing anything else in the file.
+        /// Returns false when the value could not be written, so the caller can say so.
+        /// </summary>
+        /// <remarks>
+        /// Lives here because THREE settings windows now touch this one file - Smart MEP Tag Settings
+        /// and Create Tags Settings both show the tick box, and Fix Tag Clash Settings carries the value
+        /// through untouched. Read-modify-write is what keeps them from overwriting each other, and it
+        /// belongs in one place rather than being copied into each command. The write is confirmed by
+        /// reading back, because a settings write that silently fails is worse than one that reports.
+        /// </remarks>
+        internal static bool TrySetSkipVerticalRuns(bool skipVerticalRuns)
+        {
+            TagClashSettingsState current = Load();
+            if (current.SkipVerticalRuns == skipVerticalRuns)
+                return true;
+
+            current.SkipVerticalRuns = skipVerticalRuns;
+
+            return Save(current) && Load().SkipVerticalRuns == skipVerticalRuns;
+        }
+
         /// <summary>Maps the stored colour name to a Revit colour.</summary>
         internal static Color ToRevitColour(TagClashMarkColour colour)
         {

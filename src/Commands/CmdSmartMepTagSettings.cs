@@ -83,10 +83,27 @@ namespace AJTools.Commands
             var tracker = new SmartTagSettingsTracker(doc);
             SmartTagSettingsState initial = SmartTagSettingsTracker.EnsureDefaults(tracker.LastState);
 
-            if (!TryPromptSettings(commandData.Application, doc, initial, out SmartTagSettingsState newState))
+            if (!TryPromptSettings(
+                    commandData.Application, doc, initial,
+                    out SmartTagSettingsState newState, out bool skipVerticalRuns))
+            {
                 return Result.Cancelled;
+            }
 
             tracker.Save(newState);
+
+            // Skip-vertical-runs is the one tagging setting shared with Create Tags and Stack Tags, and
+            // the only one here that survives closing Revit. TrySetSkipVerticalRuns does the
+            // read-modify-write so the Fix Tag Clash settings in the same file are left alone.
+            if (!TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns))
+            {
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "Your categories and priorities were saved, but the vertical-run tick box could not be.\n\n"
+                    + "Check that AJ Tools can write to your AppData folder, then set it again.");
+                return Result.Failed;
+            }
+
             return Result.Succeeded;
         }
 
@@ -94,9 +111,11 @@ namespace AJTools.Commands
             UIApplication uiapp,
             Document doc,
             SmartTagSettingsState initialState,
-            out SmartTagSettingsState newState)
+            out SmartTagSettingsState newState,
+            out bool skipVerticalRuns)
         {
             newState = null;
+            skipVerticalRuns = TagClashSettings.DefaultSkipVerticalRuns;
 
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
 
@@ -116,7 +135,7 @@ namespace AJTools.Commands
                 rows.Add(row);
             }
 
-            var window = new SmartMepTagSettingsWindow(rows);
+            var window = new SmartMepTagSettingsWindow(rows, TagClashSettings.ShouldSkipVerticalRuns());
 
             if (uiapp != null)
             {
@@ -128,6 +147,8 @@ namespace AJTools.Commands
 
             if (window.ShowDialog() != true)
                 return false;
+
+            skipVerticalRuns = window.SkipVerticalRuns;
 
             return TryBuildStateFromRows(window.Rows, initialState, out newState);
         }

@@ -85,7 +85,7 @@ namespace AJTools.Commands
 
             tracker.Save(newState);
 
-            if (!TrySaveSharedVerticalRule(skipVerticalRuns))
+            if (!TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns))
             {
                 DialogHelper.ShowError(
                     ToolTitle,
@@ -95,23 +95,6 @@ namespace AJTools.Commands
             }
 
             return Result.Succeeded;
-        }
-
-        /// <summary>
-        /// Writes the skip-vertical-runs rule to the shared file-backed store. Read-modify-write, so the
-        /// Fix Tag Clash settings sharing that file are left alone, and the result is confirmed by
-        /// reading it back rather than assumed.
-        /// </summary>
-        private static bool TrySaveSharedVerticalRule(bool skipVerticalRuns)
-        {
-            TagClashSettingsState shared = TagClashSettings.Load();
-            if (shared.SkipVerticalRuns == skipVerticalRuns)
-                return true;
-
-            shared.SkipVerticalRuns = skipVerticalRuns;
-
-            return TagClashSettings.Save(shared)
-                && TagClashSettings.Load().SkipVerticalRuns == skipVerticalRuns;
         }
 
         private static bool TryPromptSettings(
