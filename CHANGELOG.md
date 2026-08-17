@@ -5,6 +5,29 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.7] - 2026-08-17
+
+- **Added**: **Smart MEP Tag Settings now has two tabs.** "What to tag" keeps the category list you
+  know; the new **Advanced** tab holds the size rules that used to be locked away in the code.
+- **Added**: **you can now set the shortest run worth tagging** (was fixed at 1000mm), and a
+  **minimum width and height**. Untick **Also filter by size** and the size boxes grey out — then
+  length is the only test and every duct is tagged whatever its size.
+  - A run is skipped when it is under **either** figure — a 400 × 50 duct is skipped against 100 × 100.
+  - **Round pipes and round ducts** use their diameter as both width and height.
+  - Set any figure to **0** to stop it being tested.
+  - These apply to **ducts, pipes and cable trays only** — accessories and equipment are always tagged
+    whatever their size.
+- **Added**: **a Leader? tick for each category.** Untick it for Pipe Accessory and Duct Accessory and
+  those tags are placed **beside the element with no leader**, while ducts and pipes keep theirs in the
+  same run. If the spot beside it clashes, the tag tries the **other side**, and only then falls back
+  to the normal clash handling.
+- **Added**: **these settings are remembered after you close Revit.** They are kept in the same file as
+  the shared vertical-run setting. Categories and priorities are unchanged — still per project.
+- **Changed**: the one behaviour change is **pipes thinner than 100mm are now skipped**, where before
+  no pipe was ever filtered by size. It shows in the skip report. If you want them all tagged, set the
+  minimum width to 0 or untick **Also filter by size**.
+- **Unchanged**: ducts behave exactly as before out of the box — 100mm minimum width, no height test.
+
 ## [1.49.6] - 2026-08-17
 
 - **Changed**: **Fix Tag Clash now moves a tag the shortest way out**, instead of always shifting it by

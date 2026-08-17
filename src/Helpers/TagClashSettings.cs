@@ -78,6 +78,24 @@ namespace AJTools.Utils
         /// <summary>Skip vertical ducts, pipes and cable trays when tagging. Read by the tagging tools.</summary>
         public bool SkipVerticalRuns { get; set; }
 
+        /// <summary>Smart MEP Tags: shortest run worth tagging, mm. 0 = no minimum.</summary>
+        public double SmartTagMinLengthMm { get; set; }
+
+        /// <summary>Smart MEP Tags: whether the width/height minimums apply at all.</summary>
+        public bool SmartTagFilterBySize { get; set; }
+
+        /// <summary>Smart MEP Tags: minimum width, mm. 0 = no minimum. A round section uses its diameter.</summary>
+        public double SmartTagMinWidthMm { get; set; }
+
+        /// <summary>Smart MEP Tags: minimum height, mm. 0 = no minimum. A round section uses its diameter.</summary>
+        public double SmartTagMinHeightMm { get; set; }
+
+        /// <summary>
+        /// Smart MEP Tags: comma-separated BuiltInCategory names whose tags get NO leader. Empty means
+        /// every category keeps its leader, which is the default and the old behaviour.
+        /// </summary>
+        public string SmartTagNoLeaderCategories { get; set; }
+
         /// <summary>Overlap below this (mm on the sheet) is ignored - matches Smart MEP Tag's tuned 1.5mm.</summary>
         public double ClashToleranceMm { get; set; }
 
@@ -107,6 +125,15 @@ namespace AJTools.Utils
         internal const bool DefaultFullSearch = true;
         internal const TagClashMarkColour DefaultMarkColour = TagClashMarkColour.Red;
 
+        // These four mirror SmartTagSettingsTracker's own defaults and must stay in step with them.
+        // MinHeight is 0, not 100, on purpose: the hardcoded filter these replaced only ever tested
+        // WIDTH, so a default height minimum would silently stop shallow ducts being tagged the day
+        // this shipped. See the tracker for the full reasoning.
+        internal const double DefaultSmartTagMinLengthMm = 1000.0;
+        internal const bool DefaultSmartTagFilterBySize = true;
+        internal const double DefaultSmartTagMinWidthMm = 100.0;
+        internal const double DefaultSmartTagMinHeightMm = 0.0;
+
         // LongRunConfirmThreshold moved to DialogHelper in v1.49.5, alongside the ConfirmLongRun call
         // that uses it. It started here because Fix Tag Clash needed it first, but it is a suite-wide
         // "warn me before Revit goes busy" threshold - seven tools now share it, including Center Room
@@ -126,6 +153,22 @@ namespace AJTools.Utils
         private const string KeyClashTolerance = "clash_tolerance_mm";
         private const string KeyMinGap = "min_gap_mm";
         private const string KeyFullSearch = "full_search";
+
+        // Smart MEP Tag's own size rules live in this file for one reason: it is the only tagging
+        // settings store that survives closing Revit. SmartTagSettingsTracker is a static in-memory
+        // field, so anything kept there is gone next session - which for a drafting standard like
+        // "shortest run worth tagging" would read as the tool forgetting. Same reasoning that put
+        // SkipVerticalRuns here in v1.49.2. Categories and priorities stay in the tracker, because
+        // those are genuinely per-project.
+        private const string KeySmartTagMinLength = "smarttag_min_length_mm";
+        private const string KeySmartTagFilterBySize = "smarttag_filter_by_size";
+        private const string KeySmartTagMinWidth = "smarttag_min_width_mm";
+        private const string KeySmartTagMinHeight = "smarttag_min_height_mm";
+
+        // Stored as the EXCEPTIONS, not as one key per category: the default is "every category keeps
+        // its leader", so an absent or empty entry means exactly that, and a category added to the
+        // tool later inherits the right default without needing a migration.
+        private const string KeySmartTagNoLeader = "smarttag_no_leader_categories";
 
         /// <summary>
         /// Returns the stored settings, falling back to defaults for anything missing or unreadable.
@@ -153,6 +196,18 @@ namespace AJTools.Utils
                 state.MinGapMm = ClampPositive(
                     ReadDouble(values, KeyMinGap, DefaultMinGapMm), DefaultMinGapMm);
                 state.FullSearch = ReadBool(values, KeyFullSearch, DefaultFullSearch);
+
+                // 0 is a legitimate value for all three ("no minimum on this axis"), so these are
+                // clamped at zero rather than falling back to the default when they read as 0.
+                state.SmartTagMinLengthMm = Math.Max(
+                    0.0, ReadDouble(values, KeySmartTagMinLength, DefaultSmartTagMinLengthMm));
+                state.SmartTagFilterBySize = ReadBool(
+                    values, KeySmartTagFilterBySize, DefaultSmartTagFilterBySize);
+                state.SmartTagMinWidthMm = Math.Max(
+                    0.0, ReadDouble(values, KeySmartTagMinWidth, DefaultSmartTagMinWidthMm));
+                state.SmartTagMinHeightMm = Math.Max(
+                    0.0, ReadDouble(values, KeySmartTagMinHeight, DefaultSmartTagMinHeightMm));
+                state.SmartTagNoLeaderCategories = ReadString(values, KeySmartTagNoLeader, string.Empty);
             }
             catch (Exception)
             {
@@ -185,6 +240,11 @@ namespace AJTools.Utils
                 AppendLine(sb, KeyMarkColour, state.MarkColour.ToString());
                 AppendLine(sb, KeyMarkFailures, state.MarkFailures ? "1" : "0");
                 AppendLine(sb, KeySkipVertical, state.SkipVerticalRuns ? "1" : "0");
+                AppendLine(sb, KeySmartTagMinLength, FormatNumber(state.SmartTagMinLengthMm));
+                AppendLine(sb, KeySmartTagFilterBySize, state.SmartTagFilterBySize ? "1" : "0");
+                AppendLine(sb, KeySmartTagMinWidth, FormatNumber(state.SmartTagMinWidthMm));
+                AppendLine(sb, KeySmartTagMinHeight, FormatNumber(state.SmartTagMinHeightMm));
+                AppendLine(sb, KeySmartTagNoLeader, state.SmartTagNoLeaderCategories ?? string.Empty);
                 AppendLine(sb, KeyClashTolerance, FormatNumber(ClampPositive(state.ClashToleranceMm, DefaultClashToleranceMm)));
                 AppendLine(sb, KeyMinGap, FormatNumber(ClampPositive(state.MinGapMm, DefaultMinGapMm)));
                 AppendLine(sb, KeyFullSearch, state.FullSearch ? "1" : "0");
@@ -218,6 +278,46 @@ namespace AJTools.Utils
         /// belongs in one place rather than being copied into each command. The write is confirmed by
         /// reading back, because a settings write that silently fails is worse than one that reports.
         /// </remarks>
+        /// <summary>
+        /// Saves Smart MEP Tags' size rules, leaving every other value in the file untouched.
+        /// </summary>
+        /// <remarks>
+        /// Read-modify-write-and-verify, the same shape as TrySetSkipVerticalRuns: Save rewrites the
+        /// WHOLE file, so loading first is what stops this from wiping the clash settings, and reading
+        /// back is what turns a failed write into a reported failure instead of a silently lost
+        /// setting. Three windows now write this file.
+        /// </remarks>
+        /// <returns>True when the values were stored and read back unchanged.</returns>
+        internal static bool TrySetSmartTagSizeSettings(
+            double minLengthMm,
+            bool filterBySize,
+            double minWidthMm,
+            double minHeightMm,
+            string noLeaderCategories)
+        {
+            TagClashSettingsState current = Load();
+
+            current.SmartTagMinLengthMm = Math.Max(0.0, minLengthMm);
+            current.SmartTagFilterBySize = filterBySize;
+            current.SmartTagMinWidthMm = Math.Max(0.0, minWidthMm);
+            current.SmartTagMinHeightMm = Math.Max(0.0, minHeightMm);
+            current.SmartTagNoLeaderCategories = noLeaderCategories ?? string.Empty;
+
+            if (!Save(current))
+                return false;
+
+            TagClashSettingsState verify = Load();
+
+            return Math.Abs(verify.SmartTagMinLengthMm - current.SmartTagMinLengthMm) < 0.001
+                && verify.SmartTagFilterBySize == current.SmartTagFilterBySize
+                && Math.Abs(verify.SmartTagMinWidthMm - current.SmartTagMinWidthMm) < 0.001
+                && Math.Abs(verify.SmartTagMinHeightMm - current.SmartTagMinHeightMm) < 0.001
+                && string.Equals(
+                    verify.SmartTagNoLeaderCategories ?? string.Empty,
+                    current.SmartTagNoLeaderCategories ?? string.Empty,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
         internal static bool TrySetSkipVerticalRuns(bool skipVerticalRuns)
         {
             TagClashSettingsState current = Load();
@@ -259,7 +359,12 @@ namespace AJTools.Utils
                 SkipVerticalRuns = DefaultSkipVerticalRuns,
                 ClashToleranceMm = DefaultClashToleranceMm,
                 MinGapMm = DefaultMinGapMm,
-                FullSearch = DefaultFullSearch
+                FullSearch = DefaultFullSearch,
+                SmartTagMinLengthMm = DefaultSmartTagMinLengthMm,
+                SmartTagFilterBySize = DefaultSmartTagFilterBySize,
+                SmartTagMinWidthMm = DefaultSmartTagMinWidthMm,
+                SmartTagMinHeightMm = DefaultSmartTagMinHeightMm,
+                SmartTagNoLeaderCategories = string.Empty
             };
         }
 

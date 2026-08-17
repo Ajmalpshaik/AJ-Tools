@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.6
+ * Version       : 1.49.7
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,50 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.7 (2026-08-17) - Smart MEP Tag Settings gains an Advanced tab and a per-category leader tick.
+ *                       Ajmal asked for a settable minimum length and size, on their own panel, plus a
+ *                       per-category "no leader" option for accessories; he then delegated every open
+ *                       decision. Confirmed with him first: leader is per CATEGORY, a round section
+ *                       counts its diameter as BOTH width and height, and a run below EITHER minimum
+ *                       is skipped (400x50 fails a 100x100 minimum).
+ *                       WINDOW: now two tabs. "What to tag" keeps the category grid, which gains a
+ *                       Leader? column, plus the shared vertical-run tick. "Advanced" holds the
+ *                       shortest run worth tagging, an "Also filter by size" tick, and the width and
+ *                       height minimums, which grey out when the tick is off. Validation message and
+ *                       the buttons stay OUTSIDE the TabControl, so an error raised on Advanced is
+ *                       still readable from the other tab. 0 and blank both mean "no minimum" and are
+ *                       valid - only a non-number or a negative is refused. Reset covers all of it.
+ *                       FILTER: MinCurveLength (1000mm), MinDuctWidth (100mm) and MinPipeDiameter
+ *                       (0mm) are no longer hardcoded - they are the DEFAULTS and the user sets the
+ *                       rest. Still applied to duct/pipe/cable tray only; an accessory or a piece of
+ *                       equipment has no meaningful run length and is never size-filtered.
+ *                       LEADER OFF: the placement engine already ran a leader pass then a no-leader
+ *                       pass, returning early whenever the leader pass scored - so no-leader was only
+ *                       ever a fallback. With the tick off, the leader pass is skipped entirely and
+ *                       the tag lands on the close-in offset, beside the element. Direction order
+ *                       becomes Right, Left, then the usual two, so a clash on one side is answered by
+ *                       the other side and only then falls through to the normal clash handling -
+ *                       exactly the order asked for. The scoring loop itself is untouched, and the
+ *                       existing no-leader FALLBACK keeps its old order, because the new order is
+ *                       gated on the SETTING rather than on the pass.
+ *                       PERSISTENCE: these live in %APPDATA%\AJTools\TagClash.config, not in
+ *                       SmartTagSettingsTracker, which is a static in-memory field that empties on
+ *                       every Revit restart - a drafting standard that forgets itself would read as a
+ *                       bug. Leader choices are stored as the EXCEPTIONS ("categories with no
+ *                       leader"), so a category the tool gains later defaults correctly with no
+ *                       migration. Read-modify-write-and-verify, and a failed write is reported.
+ *                       BUG FOUND WHILE WRITING IT: a round PIPE answers to RBS_PIPE_DIAMETER_PARAM,
+ *                       not RBS_CURVE_DIAMETER_PARAM, which is the duct one. Reading only the curve
+ *                       parameter would have measured every duct and no pipe at all, leaving the new
+ *                       pipe size filter silently doing nothing - the same shape of dead filter that
+ *                       MinPipeDiameter = 0 already was. TryGetCrossSectionMm reads both.
+ *                       DEFAULT CHOSEN UNDER DELEGATION: size filter ON, width 100, height 0. Ducts
+ *                       then behave exactly as before (100mm width, no height test). The one change is
+ *                       that pipes under 100mm are now skipped, where no pipe was ever size-filtered
+ *                       before; it shows in the skip tally and is switched off by setting width to 0.
+ *                       Rejected 100x100 (silently drops shallow ducts too) and filter OFF (silently
+ *                       starts tagging small ducts). Design note in
+ *                       docs/superpowers/specs/2026-08-17-smart-mep-tag-size-filters-and-leader-toggle-design.md
  * v1.49.6 (2026-08-17) - Fix Tag Clash moves tags the SHORTEST way out instead of a fixed step, an
  *                       idea taken from the AJ AI Brain after Ajmal asked whether the Brain's clash
  *                       work was better than this one. Compared both: it is NOT, and it was not
@@ -1933,8 +1977,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.6.0")]
-[assembly: AssemblyFileVersion("1.49.6.0")]
+[assembly: AssemblyVersion("1.49.7.0")]
+[assembly: AssemblyFileVersion("1.49.7.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

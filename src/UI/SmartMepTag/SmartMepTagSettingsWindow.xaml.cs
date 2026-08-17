@@ -1,4 +1,4 @@
-﻿#region Metadata
+#region Metadata
 /*
  * Tool Name     : Smart MEP Tagging - Settings (Window)
  * File Name     : SmartMepTagSettingsWindow.xaml.cs
@@ -41,9 +41,13 @@
 
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using Autodesk.Revit.DB;
+using AJTools.Models.SmartTag;
+using AJTools.Services.SmartTag;
 using AJTools.Utils;
 
 namespace AJTools.UI.SmartMepTag
@@ -73,12 +77,28 @@ namespace AJTools.UI.SmartMepTag
         /// </remarks>
         public bool SkipVerticalRuns { get; private set; }
 
+        /// <summary>Shortest run worth tagging, mm. 0 = no minimum. Meaningful only when DialogResult is true.</summary>
+        public double MinLengthMm { get; private set; }
+
+        /// <summary>Whether the width/height minimums apply. Meaningful only when DialogResult is true.</summary>
+        public bool FilterBySize { get; private set; }
+
+        /// <summary>Minimum width, mm. 0 = no minimum. Meaningful only when DialogResult is true.</summary>
+        public double MinWidthMm { get; private set; }
+
+        /// <summary>Minimum height, mm. 0 = no minimum. Meaningful only when DialogResult is true.</summary>
+        public double MinHeightMm { get; private set; }
+
         /// <summary>
         /// Creates the settings window.
         /// </summary>
         /// <param name="rows">Category rows prebuilt by the command, in display order.</param>
         /// <param name="currentSkipVerticalRuns">Skip-vertical-runs value currently stored.</param>
-        public SmartMepTagSettingsWindow(IList<SmartTagCategoryRow> rows, bool currentSkipVerticalRuns)
+        /// <param name="sizeSettings">Size rules currently stored, used to fill the Advanced tab.</param>
+        public SmartMepTagSettingsWindow(
+            IList<SmartTagCategoryRow> rows,
+            bool currentSkipVerticalRuns,
+            SmartTagSettingsState sizeSettings)
         {
             InitializeComponent();
 
@@ -98,6 +118,23 @@ namespace AJTools.UI.SmartMepTag
 
             CategoryGrid.ItemsSource = _rows;
             SkipVerticalBox.IsChecked = currentSkipVerticalRuns;
+
+            SmartTagSettingsState size = sizeSettings ?? SmartTagSettingsTracker.LoadSizeSettingsFromFile();
+
+            MinLengthBox.Text = FormatMm(size.MinLengthMm);
+            MinWidthBox.Text = FormatMm(size.MinWidthMm);
+            MinHeightBox.Text = FormatMm(size.MinHeightMm);
+            FilterBySizeBox.IsChecked = size.FilterBySize;
+
+            // Wired here rather than only in XAML: FilterBySizeBox sets IsChecked above, and a XAML
+            // Checked= handler would have fired during InitializeComponent's walk, before SizePanel
+            // exists - a NullReferenceException on every open. Same trap recorded in the conventions
+            // for the Reassign Level scope toggle.
+            UpdateSizePanelEnabled();
+
+            // Every other tabbed window in the suite does this - keeps the tab change animated.
+            TabMotionHelper.AttachTabTransitions(this);
+
             Validate();
         }
 
@@ -105,6 +142,59 @@ namespace AJTools.UI.SmartMepTag
         {
             if (e.PropertyName == nameof(SmartTagCategoryRow.Enabled))
                 Validate();
+        }
+
+        private void OnValueChanged(object sender, TextChangedEventArgs e)
+        {
+            Validate();
+        }
+
+        private void OnFilterBySizeToggled(object sender, RoutedEventArgs e)
+        {
+            UpdateSizePanelEnabled();
+            Validate();
+        }
+
+        /// <summary>
+        /// Greys the width/height boxes out when size filtering is off, so it is obvious they are not
+        /// being applied rather than leaving live-looking numbers that do nothing.
+        /// </summary>
+        private void UpdateSizePanelEnabled()
+        {
+            if (SizePanel != null)
+                SizePanel.IsEnabled = FilterBySizeBox.IsChecked == true;
+        }
+
+        /// <summary>
+        /// Renders a stored mm value for a text box, without a trailing ".0" on whole numbers.
+        /// </summary>
+        private static string FormatMm(double value)
+        {
+            return value.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Reads one mm box. Blank counts as 0 ("no minimum"), which is a real setting here, not an
+        /// error - so an empty box must not block Save.
+        /// </summary>
+        private static bool TryReadMm(TextBox box, out double value)
+        {
+            value = 0.0;
+
+            if (box == null)
+                return false;
+
+            string text = (box.Text ?? string.Empty).Trim();
+            if (text.Length == 0)
+                return true;
+
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+                && !double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
+            {
+                return false;
+            }
+
+            return value >= 0.0;
         }
 
         private void OnTagAll(object sender, RoutedEventArgs e)
@@ -129,9 +219,17 @@ namespace AJTools.UI.SmartMepTag
             {
                 row.Enabled = true;
                 row.PriorityText = row.DefaultPriorityText;
+                row.UseLeader = true;
             }
 
             SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
+
+            MinLengthBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinLengthMm);
+            MinWidthBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinWidthMm);
+            MinHeightBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinHeightMm);
+            FilterBySizeBox.IsChecked = SmartTagSettingsTracker.DefaultFilterBySize;
+
+            UpdateSizePanelEnabled();
             Validate();
         }
 
@@ -144,6 +242,18 @@ namespace AJTools.UI.SmartMepTag
                 return;
 
             SkipVerticalRuns = SkipVerticalBox.IsChecked == true;
+
+            double minLength;
+            double minWidth;
+            double minHeight;
+            TryReadMm(MinLengthBox, out minLength);
+            TryReadMm(MinWidthBox, out minWidth);
+            TryReadMm(MinHeightBox, out minHeight);
+
+            MinLengthMm = minLength;
+            MinWidthMm = minWidth;
+            MinHeightMm = minHeight;
+            FilterBySize = FilterBySizeBox.IsChecked == true;
 
             DialogResult = true;
             Close();
@@ -175,6 +285,35 @@ namespace AJTools.UI.SmartMepTag
                 return false;
             }
 
+            // The three mm boxes. Blank and 0 both mean "no minimum" and are valid; only a value that
+            // is not a number, or is negative, is refused. The message names the box, since the error
+            // shows outside the tabs and may be read while the other tab is in front.
+            double parsed;
+
+            if (!TryReadMm(MinLengthBox, out parsed))
+            {
+                ErrorText.Text = "Advanced tab: the shortest run must be a number of mm, 0 or more.";
+                SaveButton.IsEnabled = false;
+                return false;
+            }
+
+            if (FilterBySizeBox.IsChecked == true)
+            {
+                if (!TryReadMm(MinWidthBox, out parsed))
+                {
+                    ErrorText.Text = "Advanced tab: the minimum width must be a number of mm, 0 or more.";
+                    SaveButton.IsEnabled = false;
+                    return false;
+                }
+
+                if (!TryReadMm(MinHeightBox, out parsed))
+                {
+                    ErrorText.Text = "Advanced tab: the minimum height must be a number of mm, 0 or more.";
+                    SaveButton.IsEnabled = false;
+                    return false;
+                }
+            }
+
             ErrorText.Text = string.Empty;
             SaveButton.IsEnabled = true;
             return true;
@@ -192,6 +331,7 @@ namespace AJTools.UI.SmartMepTag
         public const string PriorityLow = "Low";
 
         private bool _enabled;
+        private bool _useLeader = true;
         private string _priorityText = PriorityLow;
 
         public SmartTagCategoryRow(BuiltInCategory category, string categoryLabel, int countInModel)
@@ -217,6 +357,22 @@ namespace AJTools.UI.SmartMepTag
         /// <summary>Fixed priority choices shown by the ComboBox column.</summary>
         public IReadOnlyList<string> PriorityOptions { get; } =
             new[] { PriorityHigh, PriorityMedium, PriorityLow };
+
+        /// <summary>
+        /// Whether this category's tags get a leader. False places the tag beside the element.
+        /// </summary>
+        public bool UseLeader
+        {
+            get => _useLeader;
+            set
+            {
+                if (_useLeader == value)
+                    return;
+
+                _useLeader = value;
+                OnPropertyChanged(nameof(UseLeader));
+            }
+        }
 
         public bool Enabled
         {
