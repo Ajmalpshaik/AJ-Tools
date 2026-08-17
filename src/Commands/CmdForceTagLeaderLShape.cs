@@ -3,14 +3,13 @@
  * Tool Name     : L-Shape Leader
  * File Name     : CmdForceTagLeaderLShape.cs
  * Purpose       : Forces tags to use a right-angle (L-shaped) leader by computing the elbow position with
- *                 LeaderLogicService; running again on the same tag flips the elbow side. Works on
- *                 pre-selected tags or picked tags (Tab cycles) until Esc.
+ *                 LeaderLogicService. Works on pre-selected tags or picked tags (Tab cycles) until Esc.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.2.0
+ * Version       : 2.2.1
  *
  * Created Date  : 2026-02-15
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-08-16
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,12 +25,20 @@
  * - Targets Revit 2020 through latest.
  * - Elbow geometry comes from the shared LeaderLogicService (single source of L-shape leader logic).
  * - Esc during a pick is a normal cancel (handled silently).
+ * - The result is DETERMINISTIC: the same tag head and leader end always produce the same elbow, so
+ *   running the tool twice on one tag gives the same answer both times. The header and ribbon tooltip
+ *   used to claim "run again to flip the elbow side" - no such logic ever existed, and the unused
+ *   LeaderToggleState enum in LeaderLogicService was the only trace of the idea. Corrected 2026-08-16
+ *   rather than inventing the flip, because this tool works well as it is and a side-flip is a
+ *   behaviour change nobody asked for. If a flip is wanted, it belongs in its own change.
  * - Thin command wrapper: selection, the pick-loop, and transaction/sub-transaction handling live
  *   here; reflection-based tag property access, bounding-box math, and elbow-adjustment/margin
  *   geometry live in Services/ForceTagLeaderLShape/ForceTagLeaderLShapeService.cs.
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v2.2.1 (2026-08-16) - Corrected the header and ribbon tooltip, which both promised "run again on the
+ *                       same tag flips the elbow side". The code never did that. No behaviour change.
  * v2.2.0 (2026-07-17) - Extracted the non-elbow-math logic (reflection-based tag property access,
  *                       bounding-box math, elbow-adjustment/margin geometry) into
  *                       Services/ForceTagLeaderLShape/ForceTagLeaderLShapeService.cs (code review

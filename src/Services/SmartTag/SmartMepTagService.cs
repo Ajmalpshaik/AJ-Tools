@@ -13,6 +13,7 @@ using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using AJTools.Models.SmartTag;
+using AJTools.Services.CreateTags;
 using AJTools.Utils;
 
 namespace AJTools.Services.SmartTag
@@ -211,7 +212,10 @@ namespace AJTools.Services.SmartTag
 
         // Size thresholds in feet (Revit internal units).
         private static readonly double MinDuctWidth = 100.0 * Constants.MM_TO_FEET;      // 100mm
-        private static readonly double MinPipeDiameter = 0.0 * Constants.MM_TO_FEET;    // 0mm (No limit)
+        // 0mm = no minimum. Anything above 0 is enforced; see PassesSizeFilter, which skips the
+        // check entirely at 0 rather than running "diameter >= 0 && diameter < 0", a condition that
+        // can never be true and read as a working filter for anyone skimming it.
+        private static readonly double MinPipeDiameter = 0.0 * Constants.MM_TO_FEET;
         private static readonly double MinCurveLength = 1000.0 * Constants.MM_TO_FEET;    // 1000mm (1 meter) minimum curve length
         private static readonly double DensityRadius = 500.0 * Constants.MM_TO_FEET;     // 500mm
         private const int DensityThreshold = 5;
@@ -229,6 +233,9 @@ namespace AJTools.Services.SmartTag
         {
             View activeView = preflight.ActiveView;
             var candidates = new List<TagCandidate>();
+
+            // Read once per run, not per element - this is a file-backed setting.
+            bool skipVerticalRuns = TagClashSettings.ShouldSkipVerticalRuns();
 
             // ── Collect all existing tags in this view ONCE ──
             // Used by Filter 3 to skip already-tagged elements.
@@ -343,19 +350,23 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // FILTER 4.5 — VERTICAL DUCTS
-                if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct duct)
+                // FILTER 4.5 — VERTICAL RUNS
+                // One rule for every tagging tool now. This used to be hard-coded ON and duct-only,
+                // while Create Tags and Stack Tags already skipped duct, pipe AND cable tray - so the
+                // same vertical pipe was treated differently depending on which button was pressed.
+                // The check itself lives in CreateTagsEligibilityFilter so there is a single
+                // implementation; it moves to the shared eligibility block in the wider tidy-up.
+                if (skipVerticalRuns
+                    && elem is MEPCurve verticalCandidate
+                    && CreateTagsEligibilityFilter.IsVerticalMepCurve(verticalCandidate))
                 {
-                    if (IsVerticalDuct(duct))
+                    results.Add(new TagPlacementResult
                     {
-                        results.Add(new TagPlacementResult
-                        {
-                            ElementId = eid, Category = bic, Success = false,
-                            SkipReason = TagSkipReason.FilteredOutType,
-                            Note = "Vertical duct is excluded"
-                        });
-                        continue;
-                    }
+                        ElementId = eid, Category = bic, Success = false,
+                        SkipReason = TagSkipReason.FilteredOutType,
+                        Note = "Vertical run is excluded"
+                    });
+                    continue;
                 }
 
                 // ── Build the candidate ──
@@ -537,21 +548,6 @@ namespace AJTools.Services.SmartTag
             }
         }
 
-        private static bool IsVerticalDuct(Duct duct)
-        {
-            if (duct == null) return false;
-            if (duct.Location is LocationCurve locCurve && locCurve.Curve is Line line)
-            {
-                XYZ dir = line.Direction;
-                // If Z is almost 1 or -1, it's vertical
-                if (Math.Abs(dir.Z) > 0.95)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         /// <summary>
         /// Checks whether an element passes the minimum size threshold for its category.
         /// Prevents tagging of small spurs, flex connections, and short segments.
@@ -593,9 +589,10 @@ namespace AJTools.Services.SmartTag
                         break;
 
                     case BuiltInCategory.OST_PipeCurves:
-                        // Check pipe diameter — skip small branch connections.
+                        // Check pipe diameter — skip small branch connections. Skipped entirely while
+                        // MinPipeDiameter is 0 (its current value), so no pipe is filtered by size.
                         Pipe pipe = elem as Pipe;
-                        if (pipe != null)
+                        if (pipe != null && MinPipeDiameter > 0)
                         {
                             double diameter = GetPipeDiameter(pipe);
                             if (diameter >= 0 && diameter < MinPipeDiameter)
@@ -1620,6 +1617,22 @@ namespace AJTools.Services.SmartTag
                     + "Please load the required tag families and try again.");
                 RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
                 return Result.Succeeded;
+            }
+
+            // Ask before a long run. Once placement starts, Revit is busy and there is nothing to press -
+            // this tool has no window, so no progress bar and no Cancel. Saying what is about to happen
+            // is the honest alternative to a silent freeze. Threshold is shared with Fix Tag Clash.
+            if (candidates.Count > TagClashSettings.LongRunConfirmThreshold
+                && !DialogHelper.ShowYesNo(
+                    ToolTitle,
+                    string.Format(
+                        "About to place tags on {0} elements.\n\n"
+                        + "Revit will be busy while it works and can't be stopped part way. It is a "
+                        + "single undo step, so you can undo the whole thing afterwards.\n\n"
+                        + "Continue?",
+                        candidates.Count)))
+            {
+                return Result.Cancelled;
             }
 
             // ── PHASES 3–6: Score positions, detect clashes, reposition, and place tags ──

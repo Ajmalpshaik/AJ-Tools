@@ -60,6 +60,12 @@ namespace AJTools.UI.CreateTags
         private readonly List<CreateTagsCategoryRow> _rows;
 
         /// <summary>
+        /// The out-of-the-box minimum length, handed in by the command so "Reset to defaults" does not
+        /// have to hard-code a number the settings tracker already owns.
+        /// </summary>
+        private readonly double _defaultMinLengthMm;
+
+        /// <summary>
         /// The rows with the user's edits, in the same order they were passed in.
         /// Only meaningful when DialogResult is true.
         /// </summary>
@@ -71,11 +77,28 @@ namespace AJTools.UI.CreateTags
         public double MinLengthMm { get; private set; }
 
         /// <summary>
+        /// Whether vertical ducts, pipes and cable trays should be skipped when tagging.
+        /// Only meaningful when DialogResult is true.
+        /// </summary>
+        /// <remarks>
+        /// Shown here because it is a tagging rule, but stored with the Fix Tag Clash settings - that
+        /// is the one tagging store that survives closing Revit, unlike this tool's own in-memory
+        /// tracker. The command owns reading and writing it; this window only shows the tick box.
+        /// </remarks>
+        public bool SkipVerticalRuns { get; private set; }
+
+        /// <summary>
         /// Creates the settings window.
         /// </summary>
         /// <param name="rows">Category rows prebuilt by the command, in display order.</param>
         /// <param name="currentMinLengthMm">Minimum length currently stored in settings.</param>
-        public CreateTagsSettingsWindow(IList<CreateTagsCategoryRow> rows, double currentMinLengthMm)
+        /// <param name="currentSkipVerticalRuns">Skip-vertical-runs value currently stored.</param>
+        /// <param name="defaultMinLengthMm">The out-of-the-box minimum length, used by Reset.</param>
+        public CreateTagsSettingsWindow(
+            IList<CreateTagsCategoryRow> rows,
+            double currentMinLengthMm,
+            bool currentSkipVerticalRuns,
+            double defaultMinLengthMm)
         {
             InitializeComponent();
 
@@ -95,9 +118,27 @@ namespace AJTools.UI.CreateTags
 
             CategoryGrid.ItemsSource = _rows;
 
-            double start = currentMinLengthMm >= 0 ? currentMinLengthMm : 1000.0;
+            _defaultMinLengthMm = defaultMinLengthMm >= 0 ? defaultMinLengthMm : 1000.0;
+
+            double start = currentMinLengthMm >= 0 ? currentMinLengthMm : _defaultMinLengthMm;
             MinLengthBox.Text = Format(start);
 
+            SkipVerticalBox.IsChecked = currentSkipVerticalRuns;
+
+            Validate();
+        }
+
+        /// <summary>
+        /// Puts every category back on, the minimum length back to its default, and the shared
+        /// vertical-run rule back on. Nothing is written until Save.
+        /// </summary>
+        private void OnReset(object sender, RoutedEventArgs e)
+        {
+            foreach (CreateTagsCategoryRow row in _rows)
+                row.Enabled = true;
+
+            MinLengthBox.Text = Format(_defaultMinLengthMm);
+            SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
             Validate();
         }
 
@@ -130,6 +171,8 @@ namespace AJTools.UI.CreateTags
 
             if (!Validate())
                 return;
+
+            SkipVerticalRuns = SkipVerticalBox.IsChecked == true;
 
             DialogResult = true;
             Close();

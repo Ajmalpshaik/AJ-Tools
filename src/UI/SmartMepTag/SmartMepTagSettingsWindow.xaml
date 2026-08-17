@@ -1,6 +1,7 @@
 <!--
   Tool Name: Smart MEP Tagging - Settings
-  Description: Enable/disable and prioritise the MEP categories Smart MEP Tags will process.
+  Description: Enable/disable and prioritise the MEP categories Smart MEP Tags will process, plus the
+               skip-vertical-runs rule shared with Create Tags and Stack Tags.
   Author: Ajmal P.S.
   Version: 1.0.0
   Last Updated: 2026-07-28
@@ -56,6 +57,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
@@ -149,23 +151,45 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
+                    <!-- Tagging rule shared with Create Tags and Stack Tags -->
+                    <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                        <CheckBox x:Name="SkipVerticalBox"
+                                  Content="Skip vertical ducts, pipes and cable trays"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  ToolTip="A run going straight up or down is skipped instead of tagged."/>
+                        <TextBlock Text="The same setting as on Create Tags Settings - change it in either place and all three tagging tools follow it."
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,3,0,0"/>
+                    </StackPanel>
+
                     <!-- Inline validation message -->
                     <TextBlock x:Name="ErrorText"
-                               Grid.Row="3"
+                               Grid.Row="4"
                                FontSize="12"
                                Foreground="{StaticResource AccentDanger}"
                                TextWrapping="Wrap"
                                Margin="0,10,0,0"/>
 
                     <!-- Buttons -->
-                    <Grid Grid.Row="4" Margin="0,12,0,0">
+                    <Grid Grid.Row="5" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="1"
+                        <Button Grid.Column="0"
+                                x:Name="ResetButton"
+                                Content="Reset to defaults"
+                                Style="{StaticResource CompactSecondaryButton}"
+                                MinWidth="128"
+                                Click="OnReset"
+                                ToolTip="Tick every category, put each priority back to its default, and switch vertical-run skipping back on."/>
+
+                        <Button Grid.Column="2"
                                 x:Name="SaveButton"
                                 Content="Save"
                                 Style="{StaticResource ModernButton}"
@@ -174,7 +198,7 @@
                                 IsDefault="True"
                                 Click="OnSave"/>
 
-                        <Button Grid.Column="2"
+                        <Button Grid.Column="3"
                                 Content="Cancel"
                                 Style="{StaticResource SecondaryButton}"
                                 MinWidth="104"

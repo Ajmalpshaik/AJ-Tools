@@ -24,6 +24,119 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.4 (2026-08-17) - The last three findings from the Tags panel UI audit, all UI-only.
+ *                       1) NO MORE SILENT FREEZE. Smart MEP Tags and Fix Tag Clash now say what they
+ *                       are about to do when a run is big (over 500 elements) and let you back out
+ *                       first: "About to place tags on 3,204 elements... Revit will be busy and can't
+ *                       be stopped part way. It is a single undo step." Neither tool can show a progress
+ *                       bar or a Cancel - they run without a window, so there is nowhere to put one
+ *                       short of rebuilding them as modeless windows driven by an ExternalEvent.
+ *                       Asking up front is the honest alternative to Revit going white with no warning.
+ *                       The threshold is one shared constant so both tools agree, and is deliberately
+ *                       not in any settings window - it is a nag threshold, not a modelling choice.
+ *                       2) Fix Tag Clash Settings' clash tolerance and minimum gap are now behind a
+ *                       "Show advanced settings" tick box, since they are almost never touched. It
+ *                       opens itself automatically when either value is NOT the default, so a
+ *                       non-default setting can never sit hidden and then get blamed on the tool.
+ *                       3) All four tagging settings windows now have a "Reset to defaults" button -
+ *                       Smart MEP Tag and Create Tags had none at all, and Arrange Tags said "Reset to
+ *                       default" while Fix Tag Clash said "defaults". Reset puts categories back on,
+ *                       priorities and minimum length back to their own defaults, and the shared
+ *                       vertical-run rule back on; Smart MEP Tag's per-category default priorities come
+ *                       from SmartTagSettingsTracker rather than being copied into the window, and
+ *                       Create Tags' default length from CreateTagsSettingsTracker.
+ *                       Widths evened up as two matching pairs rather than one size for all: the two
+ *                       category-grid windows stay at 640, and the two simple windows go to 520 (from
+ *                       470 and 500). Forcing a one-number spacing window to 640 to match a four-column
+ *                       grid would have made it worse, not more consistent.
+ * v1.49.3 (2026-08-17) - Same "Skip vertical ducts, pipes and cable trays" tick box added to Smart MEP
+ *                       Tag Settings as well, so it can be set from either tagging tool's own settings
+ *                       instead of only from Create Tags. One stored value behind both tick boxes -
+ *                       change it in either place and Smart MEP Tags, Create Tags and Stack Tags all
+ *                       follow. Each window says so under the tick box.
+ *                       Three windows now write that one settings file (both tick boxes, plus Fix Tag
+ *                       Clash carrying the value through untouched), so the read-modify-write-and-verify
+ *                       save moved into TagClashSettings.TrySetSkipVerticalRuns rather than being
+ *                       copied into a second command - the same single-source rule the 1.49.1 clean-up
+ *                       was about. Smart MEP Tag Settings tooltip reworded off "category-wise
+ *                       enable/disable". No behaviour change to how any tool treats a vertical run.
+ * v1.49.2 (2026-08-17) - "Skip vertical ducts, pipes and cable trays" tick box moved from the Fix Tag
+ *                       Clash settings window to the Create Tags settings window, where a tagging rule
+ *                       belongs (Ajmal's call). It only landed in the clash window because that is the
+ *                       one tagging store that survives closing Revit - Smart MEP Tag's and Create
+ *                       Tags' own trackers are in-memory only. The VALUE still lives in that same file
+ *                       so it keeps persisting; only the tick box moved, and Smart MEP Tags, Create
+ *                       Tags and Stack Tags all still read the one value.
+ *                       Two consequences worth knowing: the Fix Tag Clash window now carries the value
+ *                       through untouched (saving there rewrites the whole file, so dropping it would
+ *                       reset a choice made in Create Tags), and its "Reset to defaults" deliberately
+ *                       leaves that one value alone. Create Tags Settings writes it read-modify-write
+ *                       and confirms it by reading back, so a failed write reports instead of being
+ *                       silently lost. Both settings tooltips reworded to match. No behaviour change to
+ *                       how any tool treats a vertical run.
+ * v1.49.1 (2026-08-16) - Tag tools de-duplicated onto shared blocks, and four honest bugs fixed.
+ *                       Behaviour preserved everywhere except the two reporting fixes noted below.
+ *                       SHARED BLOCKS: the L-shaped leader routine existed FOUR times over (Smart MEP
+ *                       Tags, Stack Tags, Rearrange Tags, L-Shape Leader) and the copies had drifted -
+ *                       two nudged the elbow clear of the tag text and retried when Revit refused, two
+ *                       did neither. Those differences are now OPTIONS on one routine
+ *                       (Services/LeaderLogic/TagLeaderService.cs), so each tool keeps exactly the
+ *                       behaviour it had while a leader fix lands everywhere at once. Rearrange Tags'
+ *                       deliberate refusal to touch the leader end is preserved as
+ *                       PreserveLeaderEnd - it is a real requirement, not drift. Likewise the
+ *                       nearest-first stacking loop existed twice, with a character-for-character
+ *                       identical AlignToBaseX in both; it is now
+ *                       Services/TagArrange/TagStackService.cs, with the two genuine differences
+ *                       (what is carried, what happens at each slot) passed in as callbacks. The
+ *                       bounding-box/tag-text-box measurement existed three times and now lives once
+ *                       in TagViewGeometry. Net: about 730 lines removed from the four tools.
+ *                       FIXED: L-Shape Leader's header and ribbon tooltip both promised "run again on
+ *                       the same tag flips the elbow side". The code never did that - same head plus
+ *                       same leader end always gives the same elbow. Wording corrected rather than
+ *                       inventing a side-flip nobody asked for on a tool that works; the unused
+ *                       LeaderToggleState enum that was the only trace of the idea is removed.
+ *                       FIXED: Stack Tags and Rearrange Tags rolled the WHOLE click back in silence
+ *                       when one element could not be placed, which looks exactly like the click doing
+ *                       nothing. Both now say how many attempts were undone and why. Arranging stays
+ *                       all-or-nothing - only the silence is fixed.
+ *                       FIXED: the pipe diameter filter read as a working filter but could never fire
+ *                       (MinPipeDiameter is 0, so "diameter >= 0 && diameter < 0"). Now skipped
+ *                       explicitly at 0 and documented as "no minimum".
+ *                       DOCUMENTED: scoring criterion 4 adds a flat 20 to every candidate position and
+ *                       is not a real criterion - the score is out of 80 with 20 free points, and the
+ *                       "score >= 60" early exit is calibrated against that. Left exactly as-is on
+ *                       purpose; removing it would silently retune every Smart MEP Tag placement.
+ * v1.49.0 (2026-08-16) - NEW TOOL: Fix Tag Clash, on the AJ Annotation "Tags" panel, with Clear Tag
+ *                       Clash Marks and its own settings. It works the opposite way round to the old
+ *                       Smart MEP Tag approach: instead of asking "does this clash?" before every
+ *                       placement (up to 24 scored positions per element - roughly 240,000 clash
+ *                       questions before 10,000 tags exist), the tags are placed first and only the
+ *                       few that actually collide are worked on afterwards. Point it at any view and
+ *                       it separates the clashing tags, however they were placed - Smart MEP Tags,
+ *                       Create Tags, Stack Tags, Revit's own Tag All, or by hand.
+ *                       The rule for who moves: the tag sitting closest to its own element keeps its
+ *                       place, the stretched one moves; ties break on element id so a re-run gives the
+ *                       same answer. A tag clashing with a text note or dimension always gives way,
+ *                       because the annotation cannot move for it. Two guards stop A-pushes-B-pushes-A
+ *                       looping forever: a tag that wins a contest is frozen for the rest of the run,
+ *                       and no tag may travel further than the drift limit from where it started.
+ *                       Anything still clashing when the rounds run out is coloured and left selected.
+ *                       New shared pieces this introduces, both built to be reused by the other tag
+ *                       tools rather than copied again: TagClashEngine (the one clash engine, with the
+ *                       old engine's AnnotationBox, AnnotationSpatialIndex and tuned 1.5mm/5mm
+ *                       tolerances kept deliberately) and TagViewGeometry (view projection, rotated
+ *                       bounding boxes, and the tag-text-box measurement that currently exists in three
+ *                       private copies). The clash check also now sees detail components, detail lines,
+ *                       generic annotations, keynote tags, spot elevations/coordinates and revision
+ *                       clouds, which the old engine was blind to.
+ *                       CHANGED: skipping vertical runs is now a setting rather than hard-coded, and
+ *                       one rule for every tagging tool. Smart MEP Tags previously skipped vertical
+ *                       DUCTS only while Create Tags and Stack Tags skipped duct, pipe and cable tray,
+ *                       so the same vertical pipe behaved differently depending on the button pressed.
+ *                       Both now read the same setting and use the same check. Default is on, matching
+ *                       Create Tags' existing behaviour - Smart MEP Tags is the tool whose behaviour
+ *                       changes. Settings are file-backed (%APPDATA%\AJTools\TagClash.config) so they
+ *                       survive closing Revit, unlike the in-memory Smart MEP Tag / Create Tags trackers.
  * v1.48.3 (2026-08-16) - Auto MEP Dimension Settings window split into two tabs, "What to dimension"
  *                       (services and reference targets) and "How it's drawn" (chain style and the
  *                       skip filters). All four sections previously sat in one scroll behind a nine-row
@@ -1761,8 +1874,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.48.3.0")]
-[assembly: AssemblyFileVersion("1.48.3.0")]
+[assembly: AssemblyVersion("1.49.4.0")]
+[assembly: AssemblyFileVersion("1.49.4.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
