@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.7
+ * Version       : 1.49.8
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,40 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.8 (2026-08-17) - Tag spacing can no longer be set too small to work. Ajmal asked whether the
+ *                       Rearrange Tags spacing setting is still needed now that clash detection
+ *                       exists, and whether it could be automatic. Checked the code before answering:
+ *                       he was HALF right, and the half he was right about was real.
+ *                       RIGHT: the spacing is a blind number. It steps from one tag's POSITION to the
+ *                       next and never measures how tall a tag is, so a two-line tag or a taller tag
+ *                       family silently overlaps at a spacing that looked fine before - and NEITHER
+ *                       stacking tool does any clash checking, so nothing catches it.
+ *                       NOT RIGHT: replacing it with clash detection would make the stack worse.
+ *                       Clash detection only guarantees "not touching" and moves each tag the shortest
+ *                       distance that clears, which on a column of mixed-length tags gives UNEVEN
+ *                       gaps. An even column is the entire point of Rearrange Tags. Fix Tag Clash is
+ *                       also a separate button - Rearrange does not call it - so removing the spacing
+ *                       would not have automated anything, just produced a mess until he ran the other
+ *                       tool. Told him so rather than agreeing.
+ *                       DONE INSTEAD: TagStackService.ResolveSafeVerticalOffsetFeet measures the
+ *                       TALLEST tag it can see, adds the clash engine's own minimum gap, and raises
+ *                       the step if the setting is below that. The setting stays and still means "how
+ *                       far apart I want them" - this only stops it being too small. Rearrange Tags
+ *                       measures the actual selected tags, so it is exact; Stack Tags has not created
+ *                       its tags yet, so it measures the tags already in the view as a stand-in, and
+ *                       an empty view leaves the setting untouched rather than guessing.
+ *                       Reported ONCE after the click loop, never inside it - every click restacks the
+ *                       whole batch, so a message in the loop would fire on every click. Rearrange
+ *                       shows a single note; Stack folds it into the summary it already shows.
+ *                       SWEPT ALL TAG TOOLS as instructed. The spacing is used by exactly two -
+ *                       Rearrange Tags and Stack Tags - both now covered by the one shared helper.
+ *                       Create Tags asks for a click per tag and never stacks; Smart MEP Tags already
+ *                       measures via its placement engine's tag size hints; Center Room Tags has no
+ *                       spacing at all; L-Shape Leader already measures through TagLeaderService.
+ *                       UNIT BUG CAUGHT IN THIS CHANGE before it shipped: two early-return paths in
+ *                       the new helper converted mm to feet WITHOUT the view scale, which the callers
+ *                       had always applied. At 1:100 that is a step 100x too small - every tag on one
+ *                       spot - and it reads as a perfectly sensible unit conversion.
  * v1.49.7 (2026-08-17) - Smart MEP Tag Settings gains an Advanced tab and a per-category leader tick.
  *                       Ajmal asked for a settable minimum length and size, on their own panel, plus a
  *                       per-category "no leader" option for accessories; he then delegated every open
@@ -1977,8 +2011,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.7.0")]
-[assembly: AssemblyFileVersion("1.49.7.0")]
+[assembly: AssemblyVersion("1.49.8.0")]
+[assembly: AssemblyFileVersion("1.49.8.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

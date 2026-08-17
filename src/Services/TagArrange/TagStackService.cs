@@ -51,6 +51,8 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using AJTools.Services.LeaderLogic;
+using AJTools.Services.SmartTag;
+using AJTools.Services.TagClash;
 using AJTools.Utils;
 
 namespace AJTools.Services.TagArrange
@@ -60,6 +62,101 @@ namespace AJTools.Services.TagArrange
     /// </summary>
     internal static class TagStackService
     {
+        /// <summary>
+        /// Works out a vertical step that cannot make the stacked tags overlap, and reports whether
+        /// the user's own spacing had to be raised to get there.
+        /// </summary>
+        /// <param name="view">The active view - supplies scale and the view axes.</param>
+        /// <param name="requestedSpacingMm">The spacing from Arrange Tags Settings, mm on the sheet.</param>
+        /// <param name="measurableTags">
+        /// Tags that can actually be measured. Rearrange Tags passes the tags the user selected, so the
+        /// answer is exact. Stack Tags has not created its tags yet at this point, so it passes the tags
+        /// already in the view as a stand-in.
+        /// </param>
+        /// <param name="appliedSpacingMm">The spacing actually used, mm on the sheet.</param>
+        /// <param name="wasRaised">True when the setting was too small and had to be raised.</param>
+        /// <returns>The step in feet, ready to hand to StackFromPoint.</returns>
+        /// <remarks>
+        /// Why this exists (v1.49.8, Ajmal's question): the spacing setting is a plain number that knows
+        /// nothing about the tags. It steps from one tag's POSITION to the next, never measuring how tall
+        /// a tag is - so a two-line tag, or a taller tag family, silently overlaps at a spacing that
+        /// looked fine before. Neither stacking tool does any clash checking, so nothing catches it.
+        ///
+        /// This does NOT replace the setting with clash detection, which was the other option
+        /// considered. Clash detection only guarantees "not touching", and it moves each tag by the
+        /// shortest distance that clears - which on a column of mixed-length tags produces UNEVEN gaps.
+        /// An even column is the whole point of Rearrange Tags. So the setting stays and keeps meaning
+        /// "how far apart I want them"; this only stops it being set too small to work.
+        ///
+        /// Measuring finds the TALLEST tag, not the average: one tall tag in the batch would otherwise
+        /// overlap its neighbour while every other gap looked right.
+        /// </remarks>
+        internal static double ResolveSafeVerticalOffsetFeet(
+            View view,
+            double requestedSpacingMm,
+            IEnumerable<Element> measurableTags,
+            out double appliedSpacingMm,
+            out bool wasRaised)
+        {
+            appliedSpacingMm = requestedSpacingMm;
+            wasRaised = false;
+
+            // Every return below is "mm on the sheet -> feet in the model", which MUST include the view
+            // scale. Dropping it on any one path makes the step scale-times too small - at 1:100 that
+            // stacks every tag on the same spot - and it is silent, because the code still reads as a
+            // sensible unit conversion.
+            if (view == null)
+                return requestedSpacingMm * Constants.MM_TO_FEET;
+
+            int viewScale = TagViewGeometry.GetViewScale(view);
+
+            double tallestPaperMm = 0.0;
+
+            if (measurableTags != null)
+            {
+                XYZ viewRight = TagViewGeometry.GetViewRight(view);
+                XYZ viewUp = TagViewGeometry.GetViewUp(view);
+
+                foreach (Element tag in measurableTags)
+                {
+                    if (tag == null)
+                        continue;
+
+                    try
+                    {
+                        AnnotationBox box = TagViewGeometry.GetTagTextBox(tag, view, viewRight, viewUp);
+                        if (box == null)
+                            continue;
+
+                        double heightPaperMm = TagViewGeometry.FeetToPaperMm(box.MaxY - box.MinY, viewScale);
+                        if (heightPaperMm > tallestPaperMm)
+                            tallestPaperMm = heightPaperMm;
+                    }
+                    catch (Exception)
+                    {
+                        // A tag that will not measure simply does not raise the floor.
+                    }
+                }
+            }
+
+            // Nothing measurable - there is no honest basis to override the user, so leave it alone.
+            if (tallestPaperMm <= 0.0)
+                return requestedSpacingMm * Constants.MM_TO_FEET * viewScale;
+
+            // The same minimum gap the clash engine uses, so a stack this tool calls tidy is also a
+            // stack Fix Tag Clash agrees is clear.
+            double minGapMm = TagClashSettings.Load().MinGapMm;
+            double safestSpacingMm = tallestPaperMm + minGapMm;
+
+            if (requestedSpacingMm < safestSpacingMm)
+            {
+                appliedSpacingMm = safestSpacingMm;
+                wasRaised = true;
+            }
+
+            return appliedSpacingMm * Constants.MM_TO_FEET * viewScale;
+        }
+
         /// <summary>
         /// Places every item into a vertical stack starting at the clicked point.
         /// </summary>
