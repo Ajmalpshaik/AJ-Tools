@@ -162,29 +162,35 @@ namespace AJTools.App
             PulldownButtonData createTagsData = new PulldownButtonData("cmdCreateTagsPulldown", "Create\nTags");
             RibbonPanelHelper.ApplyIcons(createTagsData, _iconLoader, "cursor.png");
 
-            if (panel.AddItem(createTagsData) is PulldownButton createTagsPulldown)
+            // Stack Tags is its own button (Ajmal, 2026-08-17), not a child of Create Tags - the two
+            // do different jobs, and burying one inside the other made it hard to find.
+            PulldownButtonData stackTagsData = new PulldownButtonData("cmdStackTagsPulldown", "Stack\nTags");
+            RibbonPanelHelper.ApplyIcons(stackTagsData, _iconLoader, "Arrange Tag.png");
+
+            PulldownButtonData fixTagClashData = new PulldownButtonData("cmdFixTagClashPulldown", "Fix Tag\nClash");
+            RibbonPanelHelper.ApplyIcons(fixTagClashData, _iconLoader, "Arrange Tag.png");
+
+            // Stacked, not large (Ajmal, 2026-08-18) - the whole panel now reads as columns of three
+            // small buttons, matching the Smart MEP Tags / Rearrange Tags / L-Shape Leader group.
+            // AddStackedItems is what makes a button small: it puts three rows in the width of one
+            // normal button, so Revit draws the 16x16 icon instead of the 32x32. ApplyIcons loads both
+            // sizes for every button, so nothing else needs changing to switch a button between the
+            // two styles.
+            var createStack = panel.AddStackedItems(createTagsData, stackTagsData, fixTagClashData);
+
+            if (createStack.Count >= 3 && createStack[0] is PulldownButton createTagsPulldown)
             {
                 AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select the elements first and every one is tagged at once. Run it with nothing selected and you click one element at a time, each tagged the moment you click it - Esc to finish. Either way the tag is placed automatically at the distance set in Create Tags Settings, with an L-shaped leader. Skips elements already tagged in the view, shorter than the minimum length, or a vertical run.", typeof(CmdCreateTags).FullName, "cursor.png");
                 AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Choose which categories Create Tags can pick from, set how far the tag sits from its element and the shortest run worth tagging, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Smart MEP Tags and Stack Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
             }
 
-            // Stack Tags is its own button now (Ajmal, 2026-08-17), not a child of Create Tags. The
-            // two do different jobs: Create Tags places each tag beside its own element, Stack Tags
-            // gathers a whole batch into one column at a point you click. Burying one inside the
-            // other made the second one hard to find.
-            PulldownButtonData stackTagsData = new PulldownButtonData("cmdStackTagsPulldown", "Stack\nTags");
-            RibbonPanelHelper.ApplyIcons(stackTagsData, _iconLoader, "Arrange Tag.png");
-
-            if (panel.AddItem(stackTagsData) is PulldownButton stackTagsPulldown)
+            if (createStack.Count >= 3 && createStack[1] is PulldownButton stackTagsPulldown)
             {
                 AddChildPushButton(stackTagsPulldown, "cmdStackTags", "Stack\nTags", "Select one or more MEP elements, then click one location - a tag is created for every eligible element and the whole batch is arranged into a vertical stack starting there, same as Rearrange Tags. Click again to relocate the whole stack. Uses the same skip rules and settings as Create Tags, plus Arrange Tags Settings' gap. Press Esc when satisfied.", typeof(CmdStackTags).FullName, "Arrange Tag.png");
                 AddChildPushButton(stackTagsPulldown, "cmdStackTagsArrangeSettings", "Stack Tags\nSettings", "Set the clear gap left between stacked tags, in mm on the printed sheet. The same setting Rearrange Tags uses - change it in either place and both follow.", typeof(CmdIntelligentTagArrangerSettings).FullName, "settings.png");
             }
 
-            PulldownButtonData fixTagClashData = new PulldownButtonData("cmdFixTagClashPulldown", "Fix Tag\nClash");
-            RibbonPanelHelper.ApplyIcons(fixTagClashData, _iconLoader, "Arrange Tag.png");
-
-            if (panel.AddItem(fixTagClashData) is PulldownButton fixTagClashPulldown)
+            if (createStack.Count >= 3 && createStack[2] is PulldownButton fixTagClashPulldown)
             {
                 AddChildPushButton(fixTagClashPulldown, "cmdFixTagClash", "Fix Tag\nClash", "Find every clashing tag in the active view and separate them. The tag closest to its own element keeps its place; the others move. Whatever cannot be separated is coloured and left selected. Works on any tags, however they were placed - run it again to have another go.", typeof(CmdFixTagClash).FullName, "Arrange Tag.png");
                 AddChildPushButton(fixTagClashPulldown, "cmdClearTagClashMarks", "Clear Tag\nClash Marks", "Remove the clash colour from the tags in the active view. Resets the graphic override on every tag in this view, so a deliberate manual override here is cleared too.", typeof(CmdClearTagClashMarks).FullName, "Reset Overrides.png");
@@ -200,15 +206,17 @@ namespace AJTools.App
             // look like another arranging tool.
             RibbonPanelHelper.ApplyIcons(centerRoomTagsData, _iconLoader, "Reset Position.png");
 
-            panel.AddItem(centerRoomTagsData);
-
             PushButtonData sectionMarkVisibilityData = new PushButtonData("cmdSectionMarkVisibility", "Section Mark\nVisibility", _assemblyPath, typeof(CmdSectionMarkVisibility).FullName)
             {
                 ToolTip = "Automatically manage section visibility based on Sheet Number filters or sheet placement status."
             };
             RibbonPanelHelper.ApplyIcons(sectionMarkVisibilityData, _iconLoader, "SectionMarkVisibility.png");
 
-            if (panel.AddItem(sectionMarkVisibilityData) is PushButton sectionMarkVisibilityButton)
+            // A stack of TWO is a valid stack - the last column simply has an empty third row rather
+            // than one large button sitting oddly beside two columns of small ones.
+            var lastStack = panel.AddStackedItems(centerRoomTagsData, sectionMarkVisibilityData);
+
+            if (lastStack.Count >= 2 && lastStack[1] is PushButton sectionMarkVisibilityButton)
             {
                 sectionMarkVisibilityButton.AvailabilityClassName = typeof(CmdPlanViewAvailability).FullName;
             }
