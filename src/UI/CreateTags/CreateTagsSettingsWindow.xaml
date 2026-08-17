@@ -157,7 +157,7 @@
                                      Style="{StaticResource ModernTextBox}"
                                      MaxLength="12"
                                      TextChanged="OnMinLengthChanged"
-                                     ToolTip="How far the tag sits from the element it belongs to, on the printed sheet. A horizontal run is tagged below it, a vertical run to its right."/>
+                                     ToolTip="How far the tag sits from the edge of the element it belongs to, as a real distance in the model. A horizontal run is tagged below it, a vertical run to its right."/>
                             <TextBlock Grid.Column="1"
                                        Text="mm"
                                        FontSize="12"
@@ -165,7 +165,7 @@
                                        VerticalAlignment="Center"
                                        Foreground="{StaticResource TextSecondary}"/>
                         </Grid>
-                        <TextBlock Text="Measured on the printed sheet, so it stays the same size whatever the view scale. Create Tags places every tag straight away at this distance - you no longer click a spot for each one."
+                        <TextBlock Text="A real distance in the model, measured from the edge of the element - the same way Smart MEP Tags has always measured its offset. Create Tags places every tag at this distance automatically, so you no longer click a spot for each one."
                                    FontSize="11"
                                    Foreground="{StaticResource TextSecondary}"
                                    TextWrapping="Wrap"

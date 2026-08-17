@@ -164,7 +164,7 @@ namespace AJTools.App
 
             if (panel.AddItem(createTagsData) is PulldownButton createTagsPulldown)
             {
-                AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select the elements to tag - already selected, or click, ctrl+click and drag a window when the tool asks - then press Finish. Every one is tagged straight away at the distance set in Create Tags Settings, with an L-shaped leader. Skips elements already tagged in the view, shorter than the minimum length, or a vertical run.", typeof(CmdCreateTags).FullName, "cursor.png");
+                AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select the elements first and every one is tagged at once. Run it with nothing selected and you click one element at a time, each tagged the moment you click it - Esc to finish. Either way the tag is placed automatically at the distance set in Create Tags Settings, with an L-shaped leader. Skips elements already tagged in the view, shorter than the minimum length, or a vertical run.", typeof(CmdCreateTags).FullName, "cursor.png");
                 AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Choose which categories Create Tags can pick from, set how far the tag sits from its element and the shortest run worth tagging, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Smart MEP Tags and Stack Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
             }
 
