@@ -268,6 +268,36 @@ place rather than leaving stale info sitting next to the new truth.
   `SmartMepTagService.cs`, not exposed in its own Settings window — the two tools' settings are
   independent of each other. Full story in `ajtools-conventions-log.md` 2026-07-28.
 
+**No-leader tag placement — the numbers, and the one thing the scorer cannot see (v1.51.0, 2026-08-18)**
+- A category with its Leader tick OFF places the tag **beside** the element, **150mm** from its edge
+  (`SmartTagPlacementEngine.NoLeaderOffsetInternal`), in the order **Right → Left → Below → Above**,
+  taking the **first direction that is genuinely clear** — not the best-scoring one.
+- **150mm is separate from the general 300mm offset on purpose.** The shared offset
+  (`SmartTagSettingsTracker`) is used by every leader-carrying tag; halving it would move every duct
+  tag in the suite. Only the deliberate leader-off case uses the smaller number — the no-leader
+  *fallback* pass (when no leader position could be found) keeps the general offset.
+- **`ScoreCandidatePosition` HAS NEVER SEEN MODEL GEOMETRY.** It weighs a position against other tags,
+  text and dimensions, plus a disqualify on the tag's own host — nothing else. A tag landing squarely
+  on a duct junction therefore scores *perfectly*. This is the single most surprising thing about the
+  engine and it wasted a whole fix cycle: v1.49.9 tried to solve a crowded-junction problem by
+  reordering directions, which could not possibly work because the engine was **blind, not badly
+  ordered**. `BuildModelObstacleIndex` is what gave it eyes; build it before assuming a placement
+  problem is a scoring problem.
+- **First-clear-wins, not best-scoring, and the distinction is load-bearing.** The scorer rates free
+  space, so on an open run it rates "below" higher than "beside" — which is exactly how accessory tags
+  ended up under their elements in v1.49.7 despite the intent being sideways. Where an ORDER is the
+  requirement, the order must decide and the checks must only answer yes/no.
+- **The left/right vs above/below split falls out of geometry, not code** — worth knowing before
+  "fixing" it: an accessory sits INSIDE a run, so for one in a **horizontal** duct both sideways
+  candidates land on the duct and it escapes above/below; in a **vertical** duct the sides are across
+  the run and clear, so it goes beside. Net effect reads as "beside a vertical run, above/below a
+  horizontal one", matching the existing duct-tag convention by accident of the maths.
+- **Tuned live, not guessed** (the method worth repeating): tags were placed on 32 real accessories
+  through the AJ AI Bridge, looked at, and corrected — three rounds before Ajmal approved it. The
+  compiled tool itself cannot be driven from a script (`internal`), so the loop is: script the *rule*,
+  let him judge it on screen, then port the agreed numbers into the tool. Verify by fresh read-back
+  (leaders, tag-on-model, tag-on-tag), never by eye.
+
 **The long-run confirm: which tools ask, and which deliberately do NOT (v1.49.5, 2026-08-17)**
 - One shared call, `DialogHelper.ConfirmLongRun(title, count, whatWillHappen)`, which also owns the
   `LongRunConfirmThreshold = 500`. **Never re-type the "Revit will be busy… single undo step…

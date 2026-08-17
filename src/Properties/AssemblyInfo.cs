@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.50.5
+ * Version       : 1.51.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,29 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.51.0 (2026-08-18) - No-leader accessory tagging FINALISED against Ajmal's live model. Minor bump
+ *                       because the placement rule is now a settled feature rather than a trial.
+ *                       TUNED LIVE, not guessed: the rule was iterated on 32 real duct accessories in
+ *                       his "1 - Mech" view at 1:50, placing tags through the AJ AI Bridge, looking,
+ *                       and correcting. Three rounds - 300mm sideways-only (tags landed on a junction
+ *                       fitting), 300mm with the four-direction escape (good, but "very far"), then
+ *                       150mm, which he approved.
+ *                       THE NUMBER: NoLeaderOffsetInternal = 150mm, deliberately SEPARATE from
+ *                       SmartTagSettingsTracker's general 300mm offset. Halving the shared one would
+ *                       have moved every duct tag in the suite; he scoped this to accessories. Only
+ *                       the deliberate leader-off case uses it - the no-leader FALLBACK pass, used
+ *                       when no leader position could be found, keeps the general offset, so duct and
+ *                       pipe tagging is untouched.
+ *                       MEASURED RESULT of the approved run, verified by a fresh read-back rather
+ *                       than by eye: 32 of 32 tagged, 0 with a leader, 0 sitting on a duct or
+ *                       fitting, 0 overlapping another tag.
+ *                       WHY THE SPLIT LOOKS THE WAY IT DOES, worth keeping: an accessory sits INSIDE
+ *                       a run, so for one in a HORIZONTAL duct "left" and "right" point along the
+ *                       duct and land on it - both sides are blocked and the tag correctly escapes
+ *                       above or below. For one in a VERTICAL duct the sides are across the run and
+ *                       clear, so it goes right. The rule therefore reads as "beside a vertical run,
+ *                       above/below a horizontal one" - which is the same convention the duct tags
+ *                       already follow, and it falls out of the geometry rather than being coded.
  * v1.50.5 (2026-08-18) - No-leader tags can now SEE the ducts, and go above or below when both sides
  *                       are blocked. Found by Ajmal looking at 32 live accessory tags: most read
  *                       perfectly beside their accessory, but the ones at a junction had the tag sat
@@ -2202,8 +2225,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.50.5.0")]
-[assembly: AssemblyFileVersion("1.50.5.0")]
+[assembly: AssemblyVersion("1.51.0.0")]
+[assembly: AssemblyFileVersion("1.51.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

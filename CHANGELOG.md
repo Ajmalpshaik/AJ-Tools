@@ -5,6 +5,21 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.51.0] - 2026-08-18
+
+- **Changed**: **accessory tags now sit 150mm from their element instead of 300mm.** Tuned on 32 real
+  duct accessories in the live model — 300mm read as too far on a 1:50 sheet.
+- **Unchanged**: **duct and pipe tagging keeps the 300mm offset.** The closer spacing applies only to
+  tags you have deliberately switched the leader off for, so nothing else on the sheet moves.
+- **Settled behaviour** for a tag with no leader: it goes **beside** the element when there is room,
+  and **below or above** when both sides are blocked — checked against the real ducts and fittings,
+  not just against other tags.
+- **How it reads on a drawing**: an accessory sits *inside* a run, so for one in a **horizontal** duct
+  both sides land on the duct and the tag drops below or above; for one in a **vertical** duct the
+  sides are clear and it goes beside. That matches how your duct tags already read.
+- **Measured on the approved run**: 32 of 32 tagged, none with a leader, none sitting on a duct or
+  fitting, none overlapping another tag.
+
 ## [1.50.5] - 2026-08-18
 
 - **Fixed**: **tags without a leader could land on top of a duct or fitting.** At a junction the tag
