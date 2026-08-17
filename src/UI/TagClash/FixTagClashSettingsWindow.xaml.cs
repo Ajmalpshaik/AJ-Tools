@@ -2,8 +2,8 @@
 /*
  * Tool Name     : Fix Tag Clash - Settings (Window)
  * File Name     : FixTagClashSettingsWindow.xaml.cs
- * Purpose       : WPF settings window for the tag clash engine - rounds, drift limit, mark colour,
- *                 matching tolerances - plus the shared "skip vertical runs" tagging rule.
+ * Purpose       : WPF settings window for the tag clash engine - rounds, drift limit, mark colour and
+ *                 matching tolerances.
  *
  * Author        : Ajmal P.S.
  * Version       : 1.0.0
@@ -24,8 +24,15 @@
  * - Pure UI. No Revit API calls, no model access, no transaction - the command owns saving.
  * - Validation is live and inline; the window never closes on a bad value and never shows a popup.
  * - Accepts both "12.5" and "12,5" so a comma-decimal Windows locale cannot silently misread a value.
+ * - The stored settings also carry "skip vertical runs", whose tick box lives on the Create Tags
+ *   settings window because it is a tagging rule, not a clash rule. This window never shows it but
+ *   MUST hand it back untouched - saving rewrites the whole file, so dropping it would reset a choice
+ *   made elsewhere. Same reason "Reset to defaults" here deliberately leaves that one value alone.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-17) - Moved the "skip vertical runs" tick box out to the Create Tags settings window
+ *                       where a tagging rule belongs; the value is still stored here and carried
+ *                       through untouched. Ajmal's call.
  * v1.0.0 (2026-08-16) - Initial release.
  *
  * License       : All Rights Reserved
@@ -53,6 +60,15 @@ namespace AJTools.UI.TagClash
         private bool _loaded;
 
         /// <summary>
+        /// Carried through untouched. "Skip vertical runs" is a TAGGING rule and its tick box lives on
+        /// the Create Tags settings window, but the value is stored in the same file as these settings
+        /// (the only tagging store that survives closing Revit). Since saving rewrites the whole file,
+        /// this window must hand the value back exactly as it found it - otherwise saving a clash
+        /// setting would quietly reset a choice made in Create Tags.
+        /// </summary>
+        private bool _skipVerticalRuns;
+
+        /// <summary>
         /// The validated settings. Only meaningful when DialogResult is true.
         /// </summary>
         public TagClashSettingsState Result { get; private set; }
@@ -73,8 +89,10 @@ namespace AJTools.UI.TagClash
             GapBox.Text = FormatNumber(state.MinGapMm);
 
             MarkFailuresBox.IsChecked = state.MarkFailures;
-            SkipVerticalBox.IsChecked = state.SkipVerticalRuns;
             FullSearchBox.IsChecked = state.FullSearch;
+
+            // Not shown here - see the field's note. Preserved so Save cannot reset it.
+            _skipVerticalRuns = state.SkipVerticalRuns;
 
             ColourRed.IsChecked = state.MarkColour == TagClashMarkColour.Red;
             ColourGreen.IsChecked = state.MarkColour == TagClashMarkColour.Green;
@@ -179,7 +197,13 @@ namespace AJTools.UI.TagClash
 
         private void OnReset(object sender, RoutedEventArgs e)
         {
+            // "Reset to defaults" resets THIS window's settings only. The skip-vertical-runs value
+            // belongs to Create Tags and is deliberately carried across the reset.
+            bool keepSkipVerticalRuns = _skipVerticalRuns;
+
             LoadFrom(TagClashSettings.CreateDefaults());
+
+            _skipVerticalRuns = keepSkipVerticalRuns;
             Validate();
         }
 
@@ -206,7 +230,7 @@ namespace AJTools.UI.TagClash
                 MinGapMm = gap,
                 MarkColour = ReadColour(),
                 MarkFailures = MarkFailuresBox.IsChecked == true,
-                SkipVerticalRuns = SkipVerticalBox.IsChecked == true,
+                SkipVerticalRuns = _skipVerticalRuns,
                 FullSearch = FullSearchBox.IsChecked == true
             };
 

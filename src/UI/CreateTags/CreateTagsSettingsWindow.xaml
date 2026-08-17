@@ -165,6 +165,17 @@
                                        VerticalAlignment="Center"
                                        Foreground="{StaticResource TextSecondary}"/>
                         </Grid>
+
+                        <CheckBox x:Name="SkipVerticalBox"
+                                  Content="Skip vertical ducts, pipes and cable trays"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  Margin="0,14,0,0"
+                                  ToolTip="A run going straight up or down is skipped instead of tagged."/>
+                        <TextBlock Text="Also used by Smart MEP Tags and Stack Tags, so all three treat a vertical run the same way."
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,3,0,0"/>
                     </StackPanel>
 
                     <!-- Inline validation message -->
