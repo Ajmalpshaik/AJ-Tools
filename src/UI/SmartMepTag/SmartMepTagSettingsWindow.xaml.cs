@@ -119,6 +119,22 @@ namespace AJTools.UI.SmartMepTag
                 row.Enabled = false;
         }
 
+        /// <summary>
+        /// Puts every category back on, every priority back to its own default, and the shared
+        /// vertical-run rule back on. Nothing is written until Save.
+        /// </summary>
+        private void OnReset(object sender, RoutedEventArgs e)
+        {
+            foreach (SmartTagCategoryRow row in _rows)
+            {
+                row.Enabled = true;
+                row.PriorityText = row.DefaultPriorityText;
+            }
+
+            SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
+            Validate();
+        }
+
         private void OnSave(object sender, RoutedEventArgs e)
         {
             // Commit any cell edit still in progress before reading the rows.
@@ -190,6 +206,13 @@ namespace AJTools.UI.SmartMepTag
         public string CategoryLabel { get; }
 
         public int CountInModel { get; }
+
+        /// <summary>
+        /// This category's out-of-the-box priority, set by the command that builds the row. Kept so
+        /// "Reset to defaults" can put the priority back without the window needing to know the
+        /// per-category rules - those belong to SmartTagSettingsTracker, not to the UI.
+        /// </summary>
+        public string DefaultPriorityText { get; set; } = PriorityLow;
 
         /// <summary>Fixed priority choices shown by the ComboBox column.</summary>
         public IReadOnlyList<string> PriorityOptions { get; } =

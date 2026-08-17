@@ -175,12 +175,21 @@
                     <!-- Buttons -->
                     <Grid Grid.Row="5" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="1"
+                        <Button Grid.Column="0"
+                                x:Name="ResetButton"
+                                Content="Reset to defaults"
+                                Style="{StaticResource CompactSecondaryButton}"
+                                MinWidth="128"
+                                Click="OnReset"
+                                ToolTip="Tick every category, put each priority back to its default, and switch vertical-run skipping back on."/>
+
+                        <Button Grid.Column="2"
                                 x:Name="SaveButton"
                                 Content="Save"
                                 Style="{StaticResource ModernButton}"
@@ -189,7 +198,7 @@
                                 IsDefault="True"
                                 Click="OnSave"/>
 
-                        <Button Grid.Column="2"
+                        <Button Grid.Column="3"
                                 Content="Cancel"
                                 Style="{StaticResource SecondaryButton}"
                                 MinWidth="104"

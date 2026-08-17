@@ -23,7 +23,11 @@ namespace AJTools.Services.CreateTags
         private static CreateTagsSettingsState _lastState;
         private static string _lastDocKey;
 
-        private const double DefaultMinLengthMm = 1000.0;
+        /// <summary>
+        /// The out-of-the-box minimum length in mm. Internal rather than private so the settings
+        /// command can hand it to the window's "Reset to defaults" instead of hard-coding a second copy.
+        /// </summary>
+        internal const double DefaultMinLengthMm = 1000.0;
 
         public CreateTagsSettingsTracker(Document doc)
         {
