@@ -110,9 +110,177 @@ namespace AJTools.Services.SmartTag
         }
 
         /// <summary>
-        /// The only two directions a no-leader tag may use: beside the element, left or right on
-        /// screen, whichever is clearer.
+        /// Where a no-leader tag is allowed to go, in the order it is tried: beside the element
+        /// first, and only above or below when both sides are blocked.
         /// </summary>
+        /// <remarks>
+        /// Right, Left, Bottom, Top (Ajmal, 2026-08-18, after seeing it live). Sideways is what he
+        /// wants normally; below-then-above is the escape when a side has no room, and below comes
+        /// first to match the rest of the suite, where a run lying horizontally is tagged below it.
+        ///
+        /// v1.49.9 restricted this to Right and Left only, which was right about the near case and
+        /// wrong about the crowded one: on a junction the tag went sideways straight onto the fitting
+        /// because there was nowhere else it was permitted to go.
+        /// </remarks>
+        private static readonly TagDirection[] NoLeaderDirectionOrder =
+            new[] { TagDirection.Right, TagDirection.Left, TagDirection.Bottom, TagDirection.Top };
+
+        /// <summary>
+        /// Model elements the tag should not be dropped on top of - ducts, fittings, accessories and
+        /// equipment as they appear in this view.
+        /// </summary>
+        /// <remarks>
+        /// The scorer has never seen model geometry: it weighs a position against other TAGS, text
+        /// and dimensions only. That is why a no-leader tag could land squarely on a duct junction
+        /// and score perfectly - as far as the engine knew, that spot was empty. Built once per run,
+        /// and only when some category actually has its leader switched off, so a normal run pays
+        /// nothing for it.
+        /// </remarks>
+        /// <summary>
+        /// Returns the first position in <paramref name="order"/> whose tag box is clear of every
+        /// other tag AND of the model geometry, or null when none of them is.
+        /// </summary>
+        /// <remarks>
+        /// First-clear-wins, not best-scoring. That distinction is the whole point: the scorer weighs
+        /// free space and would happily rate "below" higher than "beside" on an open run, which is
+        /// how accessory tags ended up under their elements instead of next to them. Here the order
+        /// decides, and the checks only say yes or no.
+        ///
+        /// The element's OWN box is expected to be in the obstacle index and is not excluded - it
+        /// cannot cause a false block, because every candidate position already sits a full offset
+        /// clear of the host by construction (GenerateCandidatePositions adds hostHalfW).
+        /// </remarks>
+        private static XYZ FindFirstClearNoLeaderPosition(
+            Dictionary<TagDirection, XYZ> positions,
+            TagDirection[] order,
+            AnnotationBox placementBoundary,
+            List<AnnotationBox> annotations,
+            AnnotationSpatialIndex annotationIndex,
+            AnnotationSpatialIndex modelIndex,
+            double tagWidth,
+            double tagHeight,
+            int viewScale,
+            XYZ viewRight,
+            XYZ viewUp)
+        {
+            if (positions == null || order == null)
+                return null;
+
+            double clearanceFeet = 1.5 * Constants.MM_TO_FEET * viewScale;
+
+            foreach (TagDirection direction in order)
+            {
+                XYZ pos;
+                if (!positions.TryGetValue(direction, out pos) || pos == null)
+                    continue;
+
+                if (!IsWithinTagPlacementBoundary(pos, placementBoundary, viewRight, viewUp))
+                    continue;
+
+                AnnotationBox proposed = CreateCandidateBoxInViewPlane(
+                    pos, tagWidth, tagHeight, viewRight, viewUp);
+
+                if (proposed == null)
+                    continue;
+
+                if (OverlapsAnything(proposed, annotationIndex, annotations, clearanceFeet))
+                    continue;
+
+                if (OverlapsAnything(proposed, modelIndex, null, clearanceFeet))
+                    continue;
+
+                return pos;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// True when the box touches anything in the index, within the given clearance.
+        /// </summary>
+        private static bool OverlapsAnything(
+            AnnotationBox proposed,
+            AnnotationSpatialIndex index,
+            List<AnnotationBox> fallbackList,
+            double clearanceFeet)
+        {
+            AnnotationBox grown = proposed.Inflated(clearanceFeet);
+
+            if (index != null)
+            {
+                foreach (AnnotationBox other in index.Query(grown))
+                {
+                    if (other != null && other.Overlaps(grown))
+                        return true;
+                }
+
+                return false;
+            }
+
+            if (fallbackList != null)
+            {
+                foreach (AnnotationBox other in fallbackList)
+                {
+                    if (other != null && other.Overlaps(grown))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static AnnotationSpatialIndex BuildModelObstacleIndex(
+            Document doc, View view, XYZ viewRight, XYZ viewUp, int viewScale)
+        {
+            var boxes = new List<AnnotationBox>();
+
+            var categories = new[]
+            {
+                BuiltInCategory.OST_DuctCurves,
+                BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_DuctAccessory,
+                BuiltInCategory.OST_PipeCurves,
+                BuiltInCategory.OST_PipeFitting,
+                BuiltInCategory.OST_PipeAccessory,
+                BuiltInCategory.OST_CableTray,
+                BuiltInCategory.OST_CableTrayFitting,
+                BuiltInCategory.OST_MechanicalEquipment
+            };
+
+            foreach (BuiltInCategory category in categories)
+            {
+                try
+                {
+                    foreach (Element element in new FilteredElementCollector(doc, view.Id)
+                        .OfCategory(category).WhereElementIsNotElementType())
+                    {
+                        if (element == null)
+                            continue;
+
+                        try
+                        {
+                            BoundingBoxXYZ box = element.get_BoundingBox(view);
+                            if (box == null)
+                                continue;
+
+                            AnnotationBox viewBox = TagViewGeometry.ToViewBox(box, viewRight, viewUp);
+                            if (viewBox != null)
+                                boxes.Add(viewBox);
+                        }
+                        catch (Exception)
+                        {
+                            // An element that will not report a box simply is not an obstacle.
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // A category that cannot be collected in this view contributes nothing.
+                }
+            }
+
+            return BuildAnnotationSpatialIndex(boxes, viewScale);
+        }
         /// <remarks>
         /// RESTRICTS rather than reorders, and that distinction is the whole fix (v1.49.9). v1.49.7
         /// merely put these two first in the priority list, which decided nothing: the scoring loop
@@ -130,8 +298,6 @@ namespace AJTools.Services.SmartTag
         /// Both positions are a pure viewRight offset from the element midpoint, so the tag comes out
         /// exactly level with the accessory centre - the alignment asked for, already free.
         /// </remarks>
-        private static readonly TagDirection[] SidewaysOnly =
-            new[] { TagDirection.Right, TagDirection.Left };
 
         private static bool IsPlanView(ViewType viewType)
         {
@@ -826,6 +992,7 @@ namespace AJTools.Services.SmartTag
             HashSet<ElementId> taggedGroupMembers,
             PreFlightResult preflight,
             AnnotationBox placementBoundary,
+            AnnotationSpatialIndex modelObstacleIndex,
             XYZ viewRight,
             XYZ viewUp,
             out TagSkipReason skipReason)
@@ -924,8 +1091,29 @@ namespace AJTools.Services.SmartTag
                         // Gated on the SETTING, not on tryLeader, so the existing no-leader FALLBACK
                         // pass (used when no leader position could be found) keeps its old order.
                         TagDirection[] priority = leaderDisabledForCategory
-                            ? SidewaysOnly
+                            ? NoLeaderDirectionOrder
                             : GetDirectionPriority(candidate, preflight);
+
+                        // A no-leader tag takes the FIRST direction that is genuinely clear - clear of
+                        // other tags AND clear of the ducts and fittings, which the scorer below cannot
+                        // see. Order is beside-first, then below, then above, so it only leaves the
+                        // side of the element when there is really no room there.
+                        if (leaderDisabledForCategory && modelObstacleIndex != null)
+                        {
+                            XYZ clearPos = FindFirstClearNoLeaderPosition(
+                                positions, priority, placementBoundary, annotations,
+                                spatialIndex, modelObstacleIndex,
+                                tagWidth, tagHeight, viewScale, viewRight, viewUp);
+
+                            if (clearPos != null)
+                            {
+                                candidate.NeedsLeader = false;
+                                return clearPos;
+                            }
+
+                            // Nothing was completely clear - fall through to the scorer, which still
+                            // picks the least-bad of the four rather than refusing to tag.
+                        }
 
                         foreach (TagDirection dir in priority)
                         {
@@ -1110,6 +1298,18 @@ namespace AJTools.Services.SmartTag
             Dictionary<AnnotationBox, TagCandidate> candidateByBox;
             AnnotationSpatialIndex candidateSpatialIndex = BuildCandidateSpatialIndex(candidates, out candidateByBox);
 
+            // Only built when a category actually has its leader switched off - it is the no-leader
+            // placement that needs to know where the ducts are, and a normal run should not pay for it.
+            AnnotationSpatialIndex modelObstacleIndex = null;
+            foreach (TagCandidate probe in candidates)
+            {
+                if (probe != null && !SmartTagSettingsTracker.ResolveUseLeader(settingsState, probe.Category))
+                {
+                    modelObstacleIndex = BuildModelObstacleIndex(doc, activeView, viewRight, viewUp, viewScale);
+                    break;
+                }
+            }
+
             // Track which elements have been successfully tagged â€” used for parallel group logic.
             var taggedGroupMembers = new HashSet<ElementId>();
 
@@ -1137,7 +1337,7 @@ namespace AJTools.Services.SmartTag
                 XYZ tagPosition = FindBestTagPosition(
                     candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
                     candidates, candidateSpatialIndex, candidateByBox, taggedGroupMembers,
-                    preflight, placementBoundary, viewRight, viewUp,
+                    preflight, placementBoundary, modelObstacleIndex, viewRight, viewUp,
                     out skipReason);
 
                 if (tagPosition == null)

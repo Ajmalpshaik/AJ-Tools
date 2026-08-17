@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.50.4
+ * Version       : 1.50.5
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,33 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.50.5 (2026-08-18) - No-leader tags can now SEE the ducts, and go above or below when both sides
+ *                       are blocked. Found by Ajmal looking at 32 live accessory tags: most read
+ *                       perfectly beside their accessory, but the ones at a junction had the tag sat
+ *                       squarely on the fitting.
+ *                       ROOT CAUSE, and it is the interesting part: ScoreCandidatePosition has never
+ *                       seen model geometry. It weighs a position against other TAGS, text and
+ *                       dimensions only, plus a disqualify on the tag's OWN host. So a tag landing on
+ *                       a duct junction scored perfectly - as far as the engine knew that spot was
+ *                       empty. No amount of reordering directions could fix that; the engine was
+ *                       blind, not badly ordered.
+ *                       BuildModelObstacleIndex now indexes duct/pipe/tray curves, fittings,
+ *                       accessories and equipment as they appear in the view. Built ONCE per run and
+ *                       only when some category actually has its leader switched off, so a normal run
+ *                       pays nothing for it.
+ *                       ORDER: Right, Left, Bottom, Top - beside first, below before above (Ajmal's
+ *                       call, matching the rest of the suite where a horizontal run tags below).
+ *                       FIRST-CLEAR-WINS, not best-scoring, and that distinction is the whole fix.
+ *                       The scorer rates free space, so on an open run it happily rates "below" above
+ *                       "beside" - which is exactly how these tags ended up under their elements in
+ *                       v1.49.7. Here the ORDER decides and the checks only answer yes or no. If
+ *                       nothing is completely clear it falls through to the scorer, which still picks
+ *                       the least-bad rather than refusing to tag.
+ *                       Supersedes v1.49.9's SidewaysOnly, which was right about the open case and
+ *                       wrong about the crowded one - restricting to two directions left the tag
+ *                       nowhere to escape to on a junction.
+ *                       Accessories only in practice, since Duct Accessory is the only category with
+ *                       its leader turned off - ducts and pipes are untouched.
  * v1.50.4 (2026-08-18) - Create Tags Settings tidied, and a DataGrid fault fixed across SIX windows.
  *                       Ajmal sent a screenshot: the category list squeezed down to two visible rows,
  *                       a stray narrow column past "In Model", and a three-line explanation under
@@ -2175,8 +2202,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.50.4.0")]
-[assembly: AssemblyFileVersion("1.50.4.0")]
+[assembly: AssemblyVersion("1.50.5.0")]
+[assembly: AssemblyFileVersion("1.50.5.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
