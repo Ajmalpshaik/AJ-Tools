@@ -90,9 +90,11 @@ namespace AJTools.Services.TagArrange
             }
 
             LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
-            int viewScale = Math.Max(activeView.Scale, 1);
             double spacingMm = TagArrangeSettings.GetTagSpacingMm();
-            double verticalOffset = spacingMm * Constants.MM_TO_FEET * viewScale;
+
+            // Exact here: these are the tags the user selected, so they can all be measured.
+            double verticalOffset = TagStackService.ResolveSafeVerticalOffsetFeet(
+                activeView, spacingMm, selectedTags, out double appliedSpacingMm, out bool spacingRaised);
 
             bool hadCommit = false;
             int undoneAttempts = 0;
@@ -160,6 +162,23 @@ namespace AJTools.Services.TagArrange
                         + "problem tag stops the whole stack.\n\n"
                         + "The usual causes are a pinned tag, or a tag whose leader end cannot be read.",
                         undoneAttempts));
+            }
+
+            // Said once, after the click loop, never inside it - every click re-arranges the whole
+            // selection, so a message in the loop would pop up on every single click. Only shown when
+            // the setting was actually overridden, which is a thing the user should fix once in
+            // Settings rather than a running commentary: a tool that quietly ignores a number the user
+            // typed is worse than one that says why.
+            if (hadCommit && spacingRaised)
+            {
+                DialogHelper.ShowInfo(
+                    ToolTitle,
+                    string.Format(
+                        "Tag spacing was increased from {0:F0}mm to {1:F0}mm for this run.\n\n"
+                        + "The tallest tag in the selection would not fit in {0:F0}mm, so that spacing "
+                        + "would have overlapped them.\n\n"
+                        + "Set it to {1:F0}mm or more in Arrange Tags Settings to stop this message.",
+                        TagArrangeSettings.GetTagSpacingMm(), appliedSpacingMm));
             }
 
             return hadCommit ? Result.Succeeded : Result.Cancelled;

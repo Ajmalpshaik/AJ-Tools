@@ -5,6 +5,28 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.8] - 2026-08-17
+
+- **Fixed**: **the tag spacing setting can no longer be set too small to work.** It was a blind number
+  — it stepped from one tag to the next without ever measuring how tall a tag actually is. A tag with
+  two lines of text, or a taller tag family, would silently overlap at a spacing that looked fine
+  before, and neither stacking tool checks for clashes, so nothing caught it.
+- **How it works now**: the tool measures the **tallest** tag, adds the same minimum gap the clash
+  engine uses, and raises the spacing if your setting is below that. It tells you once when it does,
+  so you can set it properly in Arrange Tags Settings.
+  - **Rearrange Tags** measures the tags you selected, so it is exact.
+  - **Stack Tags** hasn't created its tags yet, so it measures the tags already in the view. An empty
+    view leaves your setting exactly as you set it rather than guessing.
+- **Unchanged**: the setting stays, and still means "how far apart I want them". You can space tags
+  **wider** whenever you like — this only stops them being packed too close to fit.
+- **Why the setting wasn't just removed**: clash detection only guarantees tags are *not touching*,
+  and it moves each tag the shortest distance that clears — which on a column of mixed-length tags
+  gives **uneven gaps**. An even column is the whole point of Rearrange Tags.
+- **Checked every tag tool**: the spacing is used by exactly two — Rearrange Tags and Stack Tags —
+  and both are now covered by one shared piece of code. Create Tags asks for a click per tag and never
+  stacks, Smart MEP Tags already measures tag sizes itself, Center Room Tags has no spacing, and
+  L-Shape Leader already measures. Nothing else needed changing.
+
 ## [1.49.7] - 2026-08-17
 
 - **Added**: **Smart MEP Tag Settings now has two tabs.** "What to tag" keeps the category list you

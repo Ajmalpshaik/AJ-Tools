@@ -120,9 +120,18 @@ namespace AJTools.Services.CreateTags
                 return Result.Cancelled;
             }
 
-            int viewScale = Math.Max(activeView.Scale, 1);
             double spacingMm = TagArrangeSettings.GetTagSpacingMm();
-            double verticalOffset = spacingMm * Constants.MM_TO_FEET * viewScale;
+
+            // This tool's own tags do not exist yet - they are created as the user clicks - so the tags
+            // ALREADY in the view stand in for them. Same view, same scale, and in practice the same
+            // tag families, so the tallest one found is a fair guide to what is about to be created.
+            // An empty view measures nothing and the user's spacing is left exactly as set.
+            double verticalOffset = TagStackService.ResolveSafeVerticalOffsetFeet(
+                activeView,
+                spacingMm,
+                CollectExistingTagsInView(doc, activeView),
+                out double appliedSpacingMm,
+                out bool spacingRaised);
 
             LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
 
@@ -207,6 +216,20 @@ namespace AJTools.Services.CreateTags
                 return Result.Cancelled;
             }
 
+            // Folded into the summary this tool already shows, rather than a second dialog on top -
+            // and after the click loop, never inside it, since every click restacks the whole batch.
+            if (spacingRaised)
+            {
+                if (tagWarnings == null)
+                    tagWarnings = new List<string>();
+
+                tagWarnings.Add(string.Format(
+                    "Tag spacing was increased from {0:F0}mm to {1:F0}mm - the tags in this view are "
+                    + "too tall to sit {0:F0}mm apart without overlapping. Set it to {1:F0}mm or more "
+                    + "in Arrange Tags Settings to stop this note.",
+                    TagArrangeSettings.GetTagSpacingMm(), appliedSpacingMm));
+            }
+
             ShowSummary(createdTagIds.Count, tally, tagWarnings);
 
             return createdTagIds.Count > 0 ? Result.Succeeded : Result.Cancelled;
@@ -218,6 +241,35 @@ namespace AJTools.Services.CreateTags
         /// matching), creating or moving each one's tag in turn. All-or-nothing - if any candidate
         /// fails, the whole attempt fails and the caller rolls the transaction back.
         /// </summary>
+        /// <summary>
+        /// Every tag already in the view, used only to gauge how tall a tag is before this tool has
+        /// created any of its own. Read-only - nothing here is modified.
+        /// </summary>
+        private static List<Element> CollectExistingTagsInView(Document doc, View view)
+        {
+            var tags = new List<Element>();
+
+            if (doc == null || view == null)
+                return tags;
+
+            try
+            {
+                foreach (Element element in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .WhereElementIsNotElementType())
+                {
+                    if (element != null)
+                        tags.Add(element);
+                }
+            }
+            catch (Exception)
+            {
+                // Measuring is a nicety - an unreadable view just means the setting is used as set.
+            }
+
+            return tags;
+        }
+
         private static bool TryArrangeAtPoint(
             Document doc,
             View activeView,
