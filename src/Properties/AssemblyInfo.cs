@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.10
+ * Version       : 1.50.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,39 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.50.0 (2026-08-17) - Create Tags no longer asks where to put each tag, and Stack Tags moves out to
+ *                       its own ribbon button. Minor bump, not patch: the interaction changes.
+ *                       NEW BEHAVIOUR: pick the elements, press Finish, and every tag is placed at
+ *                       once - at the distance set in the new Create Tags Settings field, on the side
+ *                       the project's own rule already specifies (a run lying horizontally in the view
+ *                       is tagged BELOW it, a vertical run to its RIGHT), with the same L-shaped
+ *                       leader routine as before. The old flow demanded a pre-selection and then one
+ *                       PickPoint per tag - up to 47 clicks for 47 ducts.
+ *                       SELECTION MODEL, and this is the part Ajmal was specific about: selection
+ *                       FIRST, tagging afterwards, never mid-selection. Elements already selected when
+ *                       the button is pressed are tagged straight away; otherwise it hands over to
+ *                       Revit's own PickObjectS - single click, ctrl+click, crossing window, all of it
+ *                       - and NOTHING happens until Finish. Deliberately not PickObject in a loop:
+ *                       that form tags each element the instant it is clicked, which is exactly what
+ *                       he said he did not want ("I will finish the selection then tag").
+ *                       NEW SETTING: "Distance from the element", mm on the printed sheet, default
+ *                       300mm to match the offset Smart MEP Tags already uses so a view tagged by
+ *                       either tool reads the same. Stored in PAPER mm, not internal feet like the
+ *                       minimum length beside it - it is multiplied by the view scale where it is
+ *                       used, so storing feet would freeze in whichever scale was active when it was
+ *                       set. 0 is refused here (a tag cannot sit on its own element), unlike the
+ *                       minimum length where 0 legitimately means "no minimum".
+ *                       RIBBON: Stack Tags is now its own pulldown button on the Tags panel, carrying
+ *                       Stack Tags + the arrange gap settings, instead of being a child of Create
+ *                       Tags. The two do different jobs - Create Tags puts each tag beside its own
+ *                       element, Stack Tags gathers a batch into one column at a clicked point - and
+ *                       burying the second inside the first made it hard to find.
+ *                       KNOCK-ON worth knowing: the earlier note that "Create Tags deliberately has no
+ *                       long-run confirm because it is click-per-element and self-paced" no longer
+ *                       holds - it now tags a whole selection in one go. Left without a confirm for
+ *                       now because the user has just finished hand-picking the elements and knows
+ *                       exactly how many there are, which is not the blind case the threshold exists
+ *                       for. Revisit if a huge crossing-window selection turns out to freeze.
  * v1.49.10 (2026-08-17) - Tag spacing now means the GAP BETWEEN tags, not the centre-to-centre step.
  *                       Ajmal set 1-2mm, watched the tool override him to 17mm, and asked why his
  *                       setting was being ignored. He was right and the setting was wrong.
@@ -2064,8 +2097,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.10.0")]
-[assembly: AssemblyFileVersion("1.49.10.0")]
+[assembly: AssemblyVersion("1.50.0.0")]
+[assembly: AssemblyFileVersion("1.50.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
