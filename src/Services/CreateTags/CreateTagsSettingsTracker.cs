@@ -29,6 +29,16 @@ namespace AJTools.Services.CreateTags
         /// </summary>
         internal const double DefaultMinLengthMm = 1000.0;
 
+        /// <summary>
+        /// How far a tag sits from its element, mm on the printed sheet.
+        /// </summary>
+        /// <remarks>
+        /// Added 2026-08-17 with the switch to automatic placement: the tool no longer asks for a
+        /// click per tag, so this is what decides where the tag lands. Matches the offset Smart MEP
+        /// Tags has always used, so a view tagged by either tool reads the same.
+        /// </remarks>
+        internal const double DefaultTagOffsetMm = 300.0;
+
         public CreateTagsSettingsTracker(Document doc)
         {
             if (doc == null)
@@ -81,6 +91,9 @@ namespace AJTools.Services.CreateTags
             var clone = new CreateTagsSettingsState
             {
                 MinLengthInternal = ResolveMinLengthInternal(state),
+                TagOffsetMm = state != null && state.TagOffsetMm > 0.0
+                    ? state.TagOffsetMm
+                    : DefaultTagOffsetMm,
                 CategoryEnabled = new Dictionary<BuiltInCategory, bool>()
             };
 

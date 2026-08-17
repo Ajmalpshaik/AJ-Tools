@@ -26,5 +26,15 @@ namespace AJTools.Models.CreateTags
         /// never filtered by length.
         /// </summary>
         public double MinLengthInternal { get; set; }
+
+        /// <summary>
+        /// How far the tag sits from its element, in mm on the printed sheet.
+        /// </summary>
+        /// <remarks>
+        /// Stored in paper mm, not internal feet, unlike MinLengthInternal above - a distance on the
+        /// sheet has to be multiplied by the view scale at the moment it is used, so keeping it in
+        /// feet here would bake in whichever scale happened to be active when it was set.
+        /// </remarks>
+        public double TagOffsetMm { get; set; }
     }
 }

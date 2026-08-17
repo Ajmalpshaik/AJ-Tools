@@ -1,4 +1,4 @@
-﻿#region Metadata
+#region Metadata
 /*
  * Tool Name     : Create Tags - Settings (Window)
  * File Name     : CreateTagsSettingsWindow.xaml.cs
@@ -65,6 +65,9 @@ namespace AJTools.UI.CreateTags
         /// </summary>
         private readonly double _defaultMinLengthMm;
 
+        /// <summary>Out-of-the-box distance from the element, used by Reset.</summary>
+        private readonly double _defaultTagOffsetMm;
+
         /// <summary>
         /// The rows with the user's edits, in the same order they were passed in.
         /// Only meaningful when DialogResult is true.
@@ -75,6 +78,12 @@ namespace AJTools.UI.CreateTags
         /// The validated minimum length (mm). Only meaningful when DialogResult is true.
         /// </summary>
         public double MinLengthMm { get; private set; }
+
+        /// <summary>
+        /// The validated distance from the element, mm on the printed sheet. Only meaningful when
+        /// DialogResult is true.
+        /// </summary>
+        public double TagOffsetMm { get; private set; }
 
         /// <summary>
         /// Whether vertical ducts, pipes and cable trays should be skipped when tagging.
@@ -98,7 +107,9 @@ namespace AJTools.UI.CreateTags
             IList<CreateTagsCategoryRow> rows,
             double currentMinLengthMm,
             bool currentSkipVerticalRuns,
-            double defaultMinLengthMm)
+            double defaultMinLengthMm,
+            double currentTagOffsetMm,
+            double defaultTagOffsetMm)
         {
             InitializeComponent();
 
@@ -123,6 +134,9 @@ namespace AJTools.UI.CreateTags
             double start = currentMinLengthMm >= 0 ? currentMinLengthMm : _defaultMinLengthMm;
             MinLengthBox.Text = Format(start);
 
+            _defaultTagOffsetMm = defaultTagOffsetMm > 0 ? defaultTagOffsetMm : 300.0;
+            OffsetBox.Text = Format(currentTagOffsetMm > 0 ? currentTagOffsetMm : _defaultTagOffsetMm);
+
             SkipVerticalBox.IsChecked = currentSkipVerticalRuns;
 
             Validate();
@@ -138,6 +152,7 @@ namespace AJTools.UI.CreateTags
                 row.Enabled = true;
 
             MinLengthBox.Text = Format(_defaultMinLengthMm);
+            OffsetBox.Text = Format(_defaultTagOffsetMm);
             SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
             Validate();
         }
@@ -212,6 +227,21 @@ namespace AJTools.UI.CreateTags
                 return Reject("Minimum length can't be negative.");
 
             MinLengthMm = parsed;
+
+            // Distance from the element. Unlike the minimum length, 0 is NOT valid here - a tag sitting
+            // exactly on its element is unreadable, and there is no sensible reason to ask for it.
+            string offsetRaw = OffsetBox.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(offsetRaw))
+                return Reject("Enter how far the tag should sit from the element, in mm.");
+
+            if (!TryParseNumber(offsetRaw, out double offsetParsed))
+                return Reject("The distance from the element is not a number. Type a value such as 300.");
+
+            if (offsetParsed <= 0)
+                return Reject("The distance from the element must be more than 0 - a tag cannot sit on top of it.");
+
+            TagOffsetMm = offsetParsed;
+
             ErrorText.Text = string.Empty;
             SaveButton.IsEnabled = true;
             return true;

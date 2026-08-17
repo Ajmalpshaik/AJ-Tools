@@ -164,9 +164,21 @@ namespace AJTools.App
 
             if (panel.AddItem(createTagsData) is PulldownButton createTagsPulldown)
             {
-                AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select one or more MEP elements, then click a location for each to create a tag there. Skips elements already tagged in the view, shorter than the configured minimum length, or a vertical run. Press Esc to stop early.", typeof(CmdCreateTags).FullName, "cursor.png");
-                AddChildPushButton(createTagsPulldown, "cmdStackTags", "Stack\nTags", "Select one or more MEP elements, then click one location - a tag is created for every eligible element and the whole batch is arranged into a vertical stack starting there, same as Rearrange Tags. Click again to relocate the whole stack. Uses the same skip rules and settings as Create Tags, plus Arrange Tags Settings' spacing. Press Esc when satisfied.", typeof(CmdStackTags).FullName, "Arrange Tag.png");
-                AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Choose which categories Create Tags can pick from, set the shortest run worth tagging, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Smart MEP Tags and Stack Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
+                AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select the elements to tag - already selected, or click, ctrl+click and drag a window when the tool asks - then press Finish. Every one is tagged straight away at the distance set in Create Tags Settings, with an L-shaped leader. Skips elements already tagged in the view, shorter than the minimum length, or a vertical run.", typeof(CmdCreateTags).FullName, "cursor.png");
+                AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Choose which categories Create Tags can pick from, set how far the tag sits from its element and the shortest run worth tagging, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Smart MEP Tags and Stack Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
+            }
+
+            // Stack Tags is its own button now (Ajmal, 2026-08-17), not a child of Create Tags. The
+            // two do different jobs: Create Tags places each tag beside its own element, Stack Tags
+            // gathers a whole batch into one column at a point you click. Burying one inside the
+            // other made the second one hard to find.
+            PulldownButtonData stackTagsData = new PulldownButtonData("cmdStackTagsPulldown", "Stack\nTags");
+            RibbonPanelHelper.ApplyIcons(stackTagsData, _iconLoader, "Arrange Tag.png");
+
+            if (panel.AddItem(stackTagsData) is PulldownButton stackTagsPulldown)
+            {
+                AddChildPushButton(stackTagsPulldown, "cmdStackTags", "Stack\nTags", "Select one or more MEP elements, then click one location - a tag is created for every eligible element and the whole batch is arranged into a vertical stack starting there, same as Rearrange Tags. Click again to relocate the whole stack. Uses the same skip rules and settings as Create Tags, plus Arrange Tags Settings' gap. Press Esc when satisfied.", typeof(CmdStackTags).FullName, "Arrange Tag.png");
+                AddChildPushButton(stackTagsPulldown, "cmdStackTagsArrangeSettings", "Stack Tags\nSettings", "Set the clear gap left between stacked tags, in mm on the printed sheet. The same setting Rearrange Tags uses - change it in either place and both follow.", typeof(CmdIntelligentTagArrangerSettings).FullName, "settings.png");
             }
 
             PulldownButtonData fixTagClashData = new PulldownButtonData("cmdFixTagClashPulldown", "Fix Tag\nClash");

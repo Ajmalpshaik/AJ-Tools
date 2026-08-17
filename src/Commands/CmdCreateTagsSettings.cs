@@ -136,7 +136,11 @@ namespace AJTools.Commands
                 rows,
                 currentMinLengthMm,
                 sharedSettings.SkipVerticalRuns,
-                CreateTagsSettingsTracker.DefaultMinLengthMm);
+                CreateTagsSettingsTracker.DefaultMinLengthMm,
+                initialState != null && initialState.TagOffsetMm > 0
+                    ? initialState.TagOffsetMm
+                    : CreateTagsSettingsTracker.DefaultTagOffsetMm,
+                CreateTagsSettingsTracker.DefaultTagOffsetMm);
 
             if (uiapp != null)
             {
@@ -154,7 +158,12 @@ namespace AJTools.Commands
             newState = new CreateTagsSettingsState
             {
                 CategoryEnabled = new Dictionary<BuiltInCategory, bool>(),
-                MinLengthInternal = window.MinLengthMm * Constants.MM_TO_FEET
+                MinLengthInternal = window.MinLengthMm * Constants.MM_TO_FEET,
+
+                // Kept in paper mm, NOT converted to feet like the length above - it is a distance on
+                // the sheet and gets multiplied by the view scale where it is used. Converting here
+                // would freeze in whichever scale was active when it was set.
+                TagOffsetMm = window.TagOffsetMm
             };
 
             foreach (CreateTagsCategoryRow row in window.Rows)

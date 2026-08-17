@@ -5,6 +5,25 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.50.0] - 2026-08-17
+
+- **Changed**: **Create Tags no longer asks you where to put each tag.** Pick the elements, press
+  Finish, and every tag appears at once — at the distance you set, on the correct side, with the
+  L-shaped leader. Before, you had to click a spot for every single tag: 47 ducts meant 47 clicks.
+- **How you select**: elements already selected when you press the button get tagged straight away.
+  If nothing is selected, the tool asks you to pick — **single click, ctrl+click, or drag a window** —
+  and **nothing is tagged until you press Finish**. It never tags while you are still selecting.
+- **Which side the tag goes**: a run lying **horizontally** in the view is tagged **below** it; a run
+  lying **vertically** is tagged to its **right**. Same rule the other tagging tools follow, so
+  mirrored branches come out matching instead of one above and one below.
+- **Added**: **"Distance from the element"** in Create Tags Settings — how far the tag sits from what
+  it tags, in mm on the printed sheet. Default 300mm, matching what Smart MEP Tags already uses, so a
+  view tagged by either tool looks the same. It stays the same size on paper whatever the view scale.
+- **Changed**: **Stack Tags is now its own button** on the Tags panel, with its own dropdown holding
+  Stack Tags and the gap setting. It used to be hidden inside the Create Tags dropdown. The two do
+  different jobs — Create Tags puts each tag beside its own element, Stack Tags gathers a whole batch
+  into one column where you click — so they are no longer buried together.
+
 ## [1.49.10] - 2026-08-17
 
 - **Fixed**: **the tag spacing setting now means the gap you can see between tags**, not the distance

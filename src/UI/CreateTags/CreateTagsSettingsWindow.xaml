@@ -139,8 +139,38 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <!-- Minimum length input -->
+                    <!-- Distance from element, and minimum length -->
                     <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                        <TextBlock Text="Distance from the element"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   Margin="0,0,0,5"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="OffsetBox"
+                                     Grid.Column="0"
+                                     Style="{StaticResource ModernTextBox}"
+                                     MaxLength="12"
+                                     TextChanged="OnMinLengthChanged"
+                                     ToolTip="How far the tag sits from the element it belongs to, on the printed sheet. A horizontal run is tagged below it, a vertical run to its right."/>
+                            <TextBlock Grid.Column="1"
+                                       Text="mm"
+                                       FontSize="12"
+                                       Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource TextSecondary}"/>
+                        </Grid>
+                        <TextBlock Text="Measured on the printed sheet, so it stays the same size whatever the view scale. Create Tags places every tag straight away at this distance - you no longer click a spot for each one."
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,3,0,12"/>
+
                         <TextBlock Text="Minimum length to tag"
                                    FontWeight="SemiBold"
                                    FontSize="12"

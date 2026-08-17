@@ -1,6 +1,6 @@
 // Tool Name: Create Tags Service
-// Description: Select MEP elements, then click a location for each one to create a tag there.
-//              Automatically skips elements that are already tagged in the view, shorter than the
+// Description: Select MEP elements - already selected, or picked when the tool asks - and every one
+//              is tagged straight away at the distance set in Create Tags Settings. Skips elements
 //              configured minimum length, or a vertical run - same spirit as Smart MEP Tag's own
 //              filters, reused where identical and widened where Ajmal asked for it (vertical-run
 //              skip covers duct, pipe, AND cable tray here - Smart MEP Tag itself only checks ducts).
@@ -15,6 +15,9 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System.Linq;
+using Autodesk.Revit.UI.Selection;
+using AJTools.Services.TagClash;
 using AJTools.Models.CreateTags;
 using AJTools.Models.SmartTag;
 using AJTools.Services.LeaderLogic;
@@ -69,12 +72,35 @@ namespace AJTools.Services.CreateTags
                     return Result.Cancelled;
             }
 
+            // Selection first, tagging afterwards - never mid-selection (Ajmal, 2026-08-17).
+            // Already selected before pressing the button? Tag that. Nothing selected? Hand it to
+            // Revit's own picker, where he can single-click, ctrl+click, or drag a crossing window,
+            // and nothing happens until he presses Finish. PickObjectS, not PickObject in a loop:
+            // the loop form would tag each element the instant it was clicked, which is exactly what
+            // he said he does not want.
             ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
+
             if (selectedIds == null || selectedIds.Count == 0)
             {
-                DialogHelper.ShowError(ToolTitle, "Select one or more elements to tag first, then run Create Tags.");
-                return Result.Cancelled;
+                try
+                {
+                    IList<Reference> picked = uidoc.Selection.PickObjects(
+                        ObjectType.Element,
+                        "Select the elements to tag - click, ctrl+click or drag a window, then press Finish");
+
+                    selectedIds = picked == null
+                        ? new List<ElementId>()
+                        : picked.Where(r => r != null).Select(r => r.ElementId).ToList();
+                }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                {
+                    // Esc before finishing - nothing selected, nothing to report.
+                    return Result.Cancelled;
+                }
             }
+
+            if (selectedIds == null || selectedIds.Count == 0)
+                return Result.Cancelled;
 
             var tracker = new CreateTagsSettingsTracker(doc);
             CreateTagsSettingsState settings = CreateTagsSettingsTracker.EnsureDefaults(tracker.LastState);
@@ -113,23 +139,21 @@ namespace AJTools.Services.CreateTags
             {
                 tg.Start();
 
-                while (remaining.Count > 0)
-                {
-                    XYZ pickedPoint;
-                    try
-                    {
-                        pickedPoint = uidoc.Selection.PickPoint(string.Format(
-                            "Click a location for the next tag ({0} of {1} remaining) - Esc to finish",
-                            remaining.Count, totalEligible));
-                    }
-                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                    {
-                        break;
-                    }
+                // No clicking for positions any more (changed 2026-08-17). Every tag is placed
+                // straight away at the offset from its own element, using the same side rule the
+                // tagging tools already follow and the same L-shaped leader routine as before.
+                double offsetFeet = ResolveTagOffsetFeet(activeView, settings);
+                XYZ viewRight = TagViewGeometry.GetViewRight(activeView);
+                XYZ viewUp = TagViewGeometry.GetViewUp(activeView);
 
-                    TagCandidate nearest = CreateTagsEligibilityFilter.FindNearestCandidate(remaining, leaderLogic, pickedPoint);
-                    if (nearest == null)
-                        break;
+                foreach (TagCandidate candidate in remaining)
+                {
+                    XYZ tagPoint = ResolveAutomaticTagPoint(candidate, offsetFeet, viewRight, viewUp);
+                    if (tagPoint == null)
+                    {
+                        tally.Add("Could not work out where to put this tag");
+                        continue;
+                    }
 
                     using (Transaction t = new Transaction(doc, "Create Tag"))
                     {
@@ -137,7 +161,7 @@ namespace AJTools.Services.CreateTags
                         bool placed;
                         try
                         {
-                            placed = TryCreateTagAt(doc, activeView, leaderLogic, nearest, pickedPoint);
+                            placed = TryCreateTagAt(doc, activeView, leaderLogic, candidate, tagPoint);
                         }
                         catch (Exception)
                         {
@@ -156,9 +180,9 @@ namespace AJTools.Services.CreateTags
                             tally.Add("Could not place a tag for this element");
                         }
                     }
-
-                    remaining.Remove(nearest);
                 }
+
+                remaining.Clear();
 
                 if (hadCommit)
                     tg.Assimilate();
@@ -166,19 +190,56 @@ namespace AJTools.Services.CreateTags
                     tg.RollBack();
             }
 
-            if (remaining.Count > 0)
-                tally.Add("Not clicked before Esc");
-
             ShowRunSummary(placedCount, tally, tagWarnings);
 
             return placedCount > 0 ? Result.Succeeded : Result.Cancelled;
         }
 
         /// <summary>
-        /// Creates the tag at the picked point for the given candidate's element, sets its resolved
-        /// tag type, and attaches a clean L-shaped leader back to the element (reusing
-        /// SmartTagPlacementEngine's leader routine - same technique Smart MEP Tag itself uses for
-        /// freshly created tags).
+        /// How far a tag sits from its element, in feet, from the user's mm-on-paper setting.
+        /// </summary>
+        /// <remarks>
+        /// Scaled by the view, per the standing rule that every mm clearance is computed against
+        /// view.Scale rather than hardcoded - a distance tuned at one scale is wrong at every other.
+        /// </remarks>
+        private static double ResolveTagOffsetFeet(View view, CreateTagsSettingsState settings)
+        {
+            double offsetMm = settings != null && settings.TagOffsetMm > 0.0
+                ? settings.TagOffsetMm
+                : CreateTagsSettingsTracker.DefaultTagOffsetMm;
+
+            int viewScale = TagViewGeometry.GetViewScale(view);
+            return offsetMm * Constants.MM_TO_FEET * viewScale;
+        }
+
+        /// <summary>
+        /// Works out where a tag goes without asking the user to click for it.
+        /// </summary>
+        /// <remarks>
+        /// Follows the side rule already recorded for this project: a run lying horizontally in the
+        /// view is tagged BELOW it, and a run lying vertically is tagged to its RIGHT. That rule
+        /// exists so two mirrored branches of the same size end up tagged the same way instead of one
+        /// above and one below - consistency by orientation, never alternating by placement order.
+        /// Anything that is not a run (equipment, an accessory) has no direction to read, so it takes
+        /// the same treatment as a horizontal one.
+        /// </remarks>
+        private static XYZ ResolveAutomaticTagPoint(
+            TagCandidate candidate, double offsetFeet, XYZ viewRight, XYZ viewUp)
+        {
+            if (candidate == null || candidate.Midpoint == null || viewRight == null || viewUp == null)
+                return null;
+
+            XYZ direction = candidate.Orientation == ElementOrientation.Vertical
+                ? viewRight
+                : viewUp.Negate();
+
+            return candidate.Midpoint.Add(direction.Multiply(offsetFeet));
+        }
+
+        /// <summary>
+        /// Creates the tag at the given point for the candidate's element, sets its resolved tag type,
+        /// and attaches a clean L-shaped leader back to the element (reusing SmartTagPlacementEngine's
+        /// leader routine - same technique Smart MEP Tag itself uses for freshly created tags).
         /// </summary>
         private static bool TryCreateTagAt(
             Document doc,
