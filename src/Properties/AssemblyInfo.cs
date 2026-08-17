@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.48.3
+ * Version       : 1.49.4
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
