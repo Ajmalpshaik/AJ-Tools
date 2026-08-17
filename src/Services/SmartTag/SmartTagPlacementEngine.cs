@@ -109,6 +109,39 @@ namespace AJTools.Services.SmartTag
             }
         }
 
+        /// <summary>
+        /// Reorders a direction priority so the two sideways directions come first, keeping the
+        /// relative order of everything else. Used for tags placed without a leader, which read best
+        /// sitting beside the element rather than above or below it.
+        /// </summary>
+        /// <remarks>
+        /// Reorders rather than replaces on purpose: the caller's priority already encodes the
+        /// element's orientation and the pre-flight result, and throwing that away would undo
+        /// decisions made elsewhere. Every direction is still present, so a tag boxed in on both
+        /// sides can still go above or below rather than failing to place.
+        /// </remarks>
+        private static TagDirection[] SidewaysFirst(TagDirection[] priority)
+        {
+            if (priority == null || priority.Length == 0)
+                return new[] { TagDirection.Right, TagDirection.Left, TagDirection.Top, TagDirection.Bottom };
+
+            var reordered = new List<TagDirection>(priority.Length);
+
+            foreach (TagDirection direction in priority)
+            {
+                if (direction == TagDirection.Right || direction == TagDirection.Left)
+                    reordered.Add(direction);
+            }
+
+            foreach (TagDirection direction in priority)
+            {
+                if (direction != TagDirection.Right && direction != TagDirection.Left)
+                    reordered.Add(direction);
+            }
+
+            return reordered.ToArray();
+        }
+
         private static bool IsPlanView(ViewType viewType)
         {
             return viewType == ViewType.FloorPlan || viewType == ViewType.CeilingPlan;
@@ -859,7 +892,17 @@ namespace AJTools.Services.SmartTag
                     ? new double[] { 0.5, 0.25, 0.75 } 
                     : new double[] { 0.5 };
 
-                bool[] leaderPasses = new bool[] { true, false };
+                // Normally two passes: try WITH a leader first, and only fall back to a no-leader
+                // position if nothing with a leader scores at all (see the early return below).
+                // When the category has its Leader tick off, the leader pass is skipped entirely, so
+                // the tag lands on the close-in no-leader offset - beside the element, which is the
+                // point of the setting. Added v1.49.7 for accessories.
+                bool leaderDisabledForCategory =
+                    !SmartTagSettingsTracker.ResolveUseLeader(settingsState, candidate.Category);
+
+                bool[] leaderPasses = leaderDisabledForCategory
+                    ? new bool[] { false }
+                    : new bool[] { true, false };
 
                 foreach (bool tryLeader in leaderPasses)
                 {
@@ -881,8 +924,17 @@ namespace AJTools.Services.SmartTag
                         Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
                             candidate, anchorPoint, baseOff, tagWidth, tagHeight, viewRight, viewUp);
 
-                        // Score in direction priority order.
-                        TagDirection[] priority = GetDirectionPriority(candidate, preflight);
+                        // Score in direction priority order. A tag the user asked to have NO leader
+                        // goes sideways first - "just place near the accessory sideways" - so the
+                        // order becomes Right, Left, then the usual two. Everything after that is
+                        // unchanged: the scorer still rates every direction for clashes and takes the
+                        // best, so a clash on the right is answered by the left automatically, and if
+                        // both sides are blocked it carries on into Top/Bottom exactly as before.
+                        // Gated on the SETTING, not on tryLeader, so the existing no-leader FALLBACK
+                        // pass (used when no leader position could be found) keeps its old order.
+                        TagDirection[] priority = leaderDisabledForCategory
+                            ? SidewaysFirst(GetDirectionPriority(candidate, preflight))
+                            : GetDirectionPriority(candidate, preflight);
 
                         foreach (TagDirection dir in priority)
                         {

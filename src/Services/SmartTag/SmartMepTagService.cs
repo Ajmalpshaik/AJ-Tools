@@ -210,13 +210,11 @@ namespace AJTools.Services.SmartTag
         // and returns a prioritised list of tagging candidates.
         // ═══════════════════════════════════════════════════════════════
 
-        // Size thresholds in feet (Revit internal units).
-        private static readonly double MinDuctWidth = 100.0 * Constants.MM_TO_FEET;      // 100mm
-        // 0mm = no minimum. Anything above 0 is enforced; see PassesSizeFilter, which skips the
-        // check entirely at 0 rather than running "diameter >= 0 && diameter < 0", a condition that
-        // can never be true and read as a working filter for anyone skimming it.
-        private static readonly double MinPipeDiameter = 0.0 * Constants.MM_TO_FEET;
-        private static readonly double MinCurveLength = 1000.0 * Constants.MM_TO_FEET;    // 1000mm (1 meter) minimum curve length
+        // MinDuctWidth (100mm), MinPipeDiameter (0mm) and MinCurveLength (1000mm) became user
+        // settings in v1.49.7 and no longer live here. Their values are now the DEFAULTS in
+        // SmartTagSettingsTracker, and PassesSizeFilter reads whatever the user set. The old
+        // GetPipeDiameter helper went with them - it had no other caller. GetDuctWidth stayed,
+        // because the placement engine still uses it for HostWidth, which is not a filter.
         private static readonly double DensityRadius = 500.0 * Constants.MM_TO_FEET;     // 500mm
         private const int DensityThreshold = 5;
 
@@ -339,7 +337,7 @@ namespace AJTools.Services.SmartTag
                 // FILTER 4 — SIZE THRESHOLD
                 // Skip small spurs, flex connections, tiny pipes, and short curve segments.
                 string sizeSkipReason;
-                if (!PassesSizeFilter(elem, bic, out sizeSkipReason))
+                if (!PassesSizeFilter(elem, bic, settingsState, out sizeSkipReason))
                 {
                     results.Add(new TagPlacementResult
                     {
@@ -552,58 +550,76 @@ namespace AJTools.Services.SmartTag
         /// Checks whether an element passes the minimum size threshold for its category.
         /// Prevents tagging of small spurs, flex connections, and short segments.
         /// </summary>
-        private static bool PassesSizeFilter(Element elem, BuiltInCategory category, out string reason)
+        private static bool PassesSizeFilter(
+            Element elem, BuiltInCategory category, SmartTagSettingsState settings, out string reason)
         {
             reason = null;
 
             try
             {
-                // Check curve length for all curve-based elements (ducts, pipes, cable trays).
+                // Length and cross-section apply to curve-based elements only - duct, pipe and cable
+                // tray. An accessory or a piece of equipment has no meaningful run length, so it is
+                // never filtered on size; that matches what this method did before these became
+                // settings, and what Create Tags does.
                 MEPCurve mepCurve = elem as MEPCurve;
                 if (mepCurve != null)
                 {
-                    double length = GetCurveLength(mepCurve);
-                    if (length >= 0 && length < MinCurveLength)
+                    double minLengthMm = settings != null
+                        ? settings.MinLengthMm
+                        : SmartTagSettingsTracker.DefaultMinLengthMm;
+
+                    // 0 means no minimum on this axis, for all three values.
+                    if (minLengthMm > 0.0)
                     {
-                        reason = string.Format("Curve length {0:F0}mm is below {1:F0}mm minimum",
-                            length / Constants.MM_TO_FEET, MinCurveLength / Constants.MM_TO_FEET);
-                        return false;
+                        double lengthMm = GetCurveLength(mepCurve) / Constants.MM_TO_FEET;
+                        if (lengthMm >= 0 && lengthMm < minLengthMm)
+                        {
+                            reason = string.Format("Run length {0:F0}mm is below the {1:F0}mm minimum",
+                                lengthMm, minLengthMm);
+                            return false;
+                        }
+                    }
+
+                    bool filterBySize = settings == null
+                        ? SmartTagSettingsTracker.DefaultFilterBySize
+                        : settings.FilterBySize;
+
+                    if (filterBySize)
+                    {
+                        double minWidthMm = settings != null
+                            ? settings.MinWidthMm
+                            : SmartTagSettingsTracker.DefaultMinWidthMm;
+                        double minHeightMm = settings != null
+                            ? settings.MinHeightMm
+                            : SmartTagSettingsTracker.DefaultMinHeightMm;
+
+                        double widthMm;
+                        double heightMm;
+
+                        if ((minWidthMm > 0.0 || minHeightMm > 0.0)
+                            && TryGetCrossSectionMm(mepCurve, out widthMm, out heightMm))
+                        {
+                            // Below on EITHER axis skips it (Ajmal's call, 2026-08-17) - a 400x50 duct
+                            // is skipped against a 100x100 minimum, because 50 is under 100.
+                            if (minWidthMm > 0.0 && widthMm < minWidthMm)
+                            {
+                                reason = string.Format("Width {0:F0}mm is below the {1:F0}mm minimum",
+                                    widthMm, minWidthMm);
+                                return false;
+                            }
+
+                            if (minHeightMm > 0.0 && heightMm < minHeightMm)
+                            {
+                                reason = string.Format("Height {0:F0}mm is below the {1:F0}mm minimum",
+                                    heightMm, minHeightMm);
+                                return false;
+                            }
+                        }
                     }
                 }
 
                 switch (category)
                 {
-                    case BuiltInCategory.OST_DuctCurves:
-                        // Check duct width — skip small spurs and flex connections.
-                        Duct duct = elem as Duct;
-                        if (duct != null)
-                        {
-                            double width = GetDuctWidth(duct);
-                            if (width >= 0 && width < MinDuctWidth)
-                            {
-                                reason = string.Format("Duct width {0:F0}mm is below {1:F0}mm minimum",
-                                    width / Constants.MM_TO_FEET, MinDuctWidth / Constants.MM_TO_FEET);
-                                return false;
-                            }
-                        }
-                        break;
-
-                    case BuiltInCategory.OST_PipeCurves:
-                        // Check pipe diameter — skip small branch connections. Skipped entirely while
-                        // MinPipeDiameter is 0 (its current value), so no pipe is filtered by size.
-                        Pipe pipe = elem as Pipe;
-                        if (pipe != null && MinPipeDiameter > 0)
-                        {
-                            double diameter = GetPipeDiameter(pipe);
-                            if (diameter >= 0 && diameter < MinPipeDiameter)
-                            {
-                                reason = string.Format("Pipe diameter {0:F0}mm is below {1:F0}mm minimum",
-                                    diameter / Constants.MM_TO_FEET, MinPipeDiameter / Constants.MM_TO_FEET);
-                                return false;
-                            }
-                        }
-                        break;
-
                     case BuiltInCategory.OST_PipeAccessory:
                         // Only tag valves, dampers, and major fittings.
                         // We check the family name for common accessory types.
@@ -653,6 +669,70 @@ namespace AJTools.Services.SmartTag
         /// <summary>
         /// Returns the duct width (or diameter for round ducts) in feet.
         /// </summary>
+        /// <summary>
+        /// Reads a run's cross-section in mm. A round section reports its diameter as BOTH width and
+        /// height (Ajmal's call, 2026-08-17), so a 150mm pipe clears a 100x100 minimum.
+        /// </summary>
+        /// <returns>False when neither a diameter nor a width/height pair could be read - the caller
+        /// then applies no size filter at all rather than skipping an element it could not measure.</returns>
+        private static bool TryGetCrossSectionMm(MEPCurve mepCurve, out double widthMm, out double heightMm)
+        {
+            widthMm = 0.0;
+            heightMm = 0.0;
+
+            if (mepCurve == null)
+                return false;
+
+            try
+            {
+                // Round first, and it takes TWO parameters, not one: a round DUCT answers to
+                // RBS_CURVE_DIAMETER_PARAM while a PIPE answers to RBS_PIPE_DIAMETER_PARAM. Reading
+                // only the curve one measures every duct and no pipe at all - which would leave the
+                // pipe size filter silently doing nothing, the exact bug the old hardcoded
+                // MinPipeDiameter = 0 already had. Round is checked before width/height because a
+                // round duct still carries width/height parameters that do not describe it.
+                double diameterMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM);
+                if (diameterMm <= 0.0)
+                    diameterMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+
+                if (diameterMm > 0.0)
+                {
+                    widthMm = diameterMm;
+                    heightMm = diameterMm;
+                    return true;
+                }
+
+                widthMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_WIDTH_PARAM);
+                heightMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
+
+                return widthMm > 0.0 && heightMm > 0.0;
+            }
+            catch (Exception)
+            {
+                // Unmeasurable - say so, and let the caller tag it rather than drop it.
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Reads one length parameter in mm, or 0 when it is absent, empty or unreadable.
+        /// </summary>
+        private static double ReadParameterMm(Element element, BuiltInParameter parameter)
+        {
+            try
+            {
+                Parameter found = element.get_Parameter(parameter);
+                if (found == null || !found.HasValue)
+                    return 0.0;
+
+                return found.AsDouble() / Constants.MM_TO_FEET;
+            }
+            catch (Exception)
+            {
+                return 0.0;
+            }
+        }
+
         private static double GetDuctWidth(Duct duct)
         {
             try
@@ -674,17 +754,9 @@ namespace AJTools.Services.SmartTag
         /// <summary>
         /// Returns the pipe diameter in feet.
         /// </summary>
-        private static double GetPipeDiameter(Pipe pipe)
-        {
-            try
-            {
-                Parameter diamParam = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
-                if (diamParam != null && diamParam.HasValue)
-                    return diamParam.AsDouble();
-            }
-            catch (Exception) { }
-            return -1;
-        }
+        // GetPipeDiameter removed v1.49.7 - its only caller was the old hardcoded pipe size filter.
+        // Its knowledge is not lost: TryGetCrossSectionMm reads RBS_PIPE_DIAMETER_PARAM as well as
+        // RBS_CURVE_DIAMETER_PARAM, which is the whole reason pipes can now be size-filtered at all.
 
         /// <summary>
         /// Determines whether a pipe/duct accessory is a major fitting worth tagging.

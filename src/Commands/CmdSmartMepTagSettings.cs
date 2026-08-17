@@ -119,6 +119,10 @@ namespace AJTools.Commands
 
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
 
+            // The size rules and the per-category leader choices come from the settings file, which is
+            // the only tagging store that survives closing Revit.
+            SmartTagSettingsState storedSizeSettings = SmartTagSettingsTracker.LoadSizeSettingsFromFile();
+
             // Build the rows here so the window stays pure UI (no collectors, no tracker access).
             var rows = new List<SmartTagCategoryRow>();
             foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
@@ -134,12 +138,18 @@ namespace AJTools.Commands
 
                     // Passing a null state makes ResolvePriority fall through to the per-category
                     // default, so the window's Reset button never has to know those rules itself.
-                    DefaultPriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(null, category))
+                    DefaultPriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(null, category)),
+
+                    // From the settings FILE, not from initialState: the tracker is in-memory and is
+                    // empty on the first run of a session, which would show every leader ticked back
+                    // on even though the user had turned some off.
+                    UseLeader = SmartTagSettingsTracker.ResolveUseLeader(storedSizeSettings, category)
                 };
                 rows.Add(row);
             }
 
-            var window = new SmartMepTagSettingsWindow(rows, TagClashSettings.ShouldSkipVerticalRuns());
+            var window = new SmartMepTagSettingsWindow(
+                rows, TagClashSettings.ShouldSkipVerticalRuns(), storedSizeSettings);
 
             if (uiapp != null)
             {
@@ -154,7 +164,40 @@ namespace AJTools.Commands
 
             skipVerticalRuns = window.SkipVerticalRuns;
 
-            return TryBuildStateFromRows(window.Rows, initialState, out newState);
+            if (!TryBuildStateFromRows(window.Rows, initialState, out newState))
+                return false;
+
+            // Carry the window's size rules and leader choices onto the state the caller saves, so the
+            // in-memory tracker and the file agree for the rest of this session.
+            newState.MinLengthMm = window.MinLengthMm;
+            newState.FilterBySize = window.FilterBySize;
+            newState.MinWidthMm = window.MinWidthMm;
+            newState.MinHeightMm = window.MinHeightMm;
+
+            newState.CategoryUseLeader = new Dictionary<BuiltInCategory, bool>();
+            foreach (SmartTagCategoryRow row in window.Rows)
+            {
+                if (row != null)
+                    newState.CategoryUseLeader[row.Category] = row.UseLeader;
+            }
+
+            // Write to disk as well. A failed write is reported rather than silently lost - the same
+            // read-modify-write-and-verify rule the vertical-run setting follows.
+            if (!TagClashSettings.TrySetSmartTagSizeSettings(
+                    window.MinLengthMm,
+                    window.FilterBySize,
+                    window.MinWidthMm,
+                    window.MinHeightMm,
+                    SmartTagSettingsTracker.FormatNoLeaderCategories(newState)))
+            {
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "The categories and priorities were saved for this session, but the size rules and "
+                    + "leader choices could not be written to the settings file, so they will be back to "
+                    + "their previous values next time Revit starts.");
+            }
+
+            return true;
         }
 
         private static bool TryBuildStateFromRows(
