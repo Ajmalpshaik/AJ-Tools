@@ -92,8 +92,14 @@
                     </StackPanel>
 
                     <!-- Category grid -->
+                    <!-- AutoGenerateColumns MUST be false: it defaults to TRUE, which makes WPF add a
+                         column for every public property on the row object on top of the ones defined
+                         below. MinHeight stops the list collapsing to two visible rows when the
+                         content underneath grows - the star row alone does not protect it. -->
                     <DataGrid x:Name="CategoryGrid"
                               Grid.Row="2"
+                              AutoGenerateColumns="False"
+                              MinHeight="180"
                               Style="{StaticResource ModernDataGrid}"
                               CanUserAddRows="False"
                               CanUserDeleteRows="False"
@@ -165,17 +171,11 @@
                                        VerticalAlignment="Center"
                                        Foreground="{StaticResource TextSecondary}"/>
                         </Grid>
-                        <TextBlock Text="A real distance in the model, measured from the edge of the element - the same way Smart MEP Tags has always measured its offset. Create Tags places every tag at this distance automatically, so you no longer click a spot for each one."
-                                   FontSize="11"
-                                   Foreground="{StaticResource TextSecondary}"
-                                   TextWrapping="Wrap"
-                                   Margin="0,3,0,12"/>
-
                         <TextBlock Text="Minimum length to tag"
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{StaticResource TextPrimary}"
-                                   Margin="0,0,0,5"/>
+                                   Margin="0,14,0,5"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140"/>

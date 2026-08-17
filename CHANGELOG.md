@@ -5,6 +5,18 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.50.4] - 2026-08-18
+
+- **Fixed**: **the category list in Create Tags Settings was squashed to two rows.** It had no minimum
+  height, so as the settings below it grew the list gave up its space. It now keeps a proper size.
+- **Fixed**: **a stray empty column appeared after "In Model"** in the settings grids. Revit's grid
+  adds columns of its own unless told not to — it was never told. Fixed.
+- **Changed**: the long explanation under **"Distance from the element"** is gone. The heading stays,
+  and the explanation now lives in the tooltip when you hover the box. Spacing under it tidied so
+  "Minimum length to tag" no longer touches the box above.
+- **Fixed elsewhere, same fault**: the stray-column problem was checked across every list in the suite
+  and found in **four more windows** — Duct Standards Manager and the three Purge windows. All fixed.
+
 ## [1.50.3] - 2026-08-18
 
 - **Changed**: **the whole Tags panel is now small stacked buttons**, instead of a mix of small and
