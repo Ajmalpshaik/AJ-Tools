@@ -76,10 +76,24 @@ namespace AJTools.Commands
             var tracker = new CreateTagsSettingsTracker(doc);
             CreateTagsSettingsState initial = CreateTagsSettingsTracker.EnsureDefaults(tracker.LastState);
 
-            if (!TryPromptSettings(commandData.Application, doc, initial, out CreateTagsSettingsState newState))
+            if (!TryPromptSettings(
+                    commandData.Application, doc, initial,
+                    out CreateTagsSettingsState newState, out bool skipVerticalRuns))
+            {
                 return Result.Cancelled;
+            }
 
             tracker.Save(newState);
+
+            if (!TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns))
+            {
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "Your categories and minimum length were saved, but the vertical-run tick box could not be.\n\n"
+                    + "Check that AJ Tools can write to your AppData folder, then set it again.");
+                return Result.Failed;
+            }
+
             return Result.Succeeded;
         }
 
@@ -87,9 +101,11 @@ namespace AJTools.Commands
             UIApplication uiapp,
             Document doc,
             CreateTagsSettingsState initialState,
-            out CreateTagsSettingsState newState)
+            out CreateTagsSettingsState newState,
+            out bool skipVerticalRuns)
         {
             newState = null;
+            skipVerticalRuns = TagClashSettings.DefaultSkipVerticalRuns;
 
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
 
@@ -110,7 +126,17 @@ namespace AJTools.Commands
 
             double currentMinLengthMm = CreateTagsSettingsTracker.ResolveMinLengthInternal(initialState) / Constants.MM_TO_FEET;
 
-            var window = new CreateTagsSettingsWindow(rows, currentMinLengthMm);
+            // Skip-vertical-runs is shown on this window because it IS a tagging rule, but it is stored
+            // with the Fix Tag Clash settings - that is the one tagging store that survives closing
+            // Revit, unlike this tool's own in-memory tracker. Smart MEP Tags and Stack Tags read the
+            // same value, so all three agree about a vertical run.
+            TagClashSettingsState sharedSettings = TagClashSettings.Load();
+
+            var window = new CreateTagsSettingsWindow(
+                rows,
+                currentMinLengthMm,
+                sharedSettings.SkipVerticalRuns,
+                CreateTagsSettingsTracker.DefaultMinLengthMm);
 
             if (uiapp != null)
             {
@@ -122,6 +148,8 @@ namespace AJTools.Commands
 
             if (window.ShowDialog() != true)
                 return false;
+
+            skipVerticalRuns = window.SkipVerticalRuns;
 
             newState = new CreateTagsSettingsState
             {

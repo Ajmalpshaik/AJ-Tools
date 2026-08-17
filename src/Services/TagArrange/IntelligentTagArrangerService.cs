@@ -82,6 +82,7 @@ namespace AJTools.Services.TagArrange
             double verticalOffset = spacingMm * Constants.MM_TO_FEET * viewScale;
 
             bool hadCommit = false;
+            int undoneAttempts = 0;
             using (TransactionGroup tg = new TransactionGroup(doc, "Arrange Tags"))
             {
                 tg.Start();
@@ -111,7 +112,11 @@ namespace AJTools.Services.TagArrange
                             }
                             else
                             {
+                                // All-or-nothing by design: one tag that cannot be placed undoes the
+                                // whole click. Counted so the run can say so at the end - this used to
+                                // roll back in silence, which looks exactly like the click doing nothing.
                                 t.RollBack();
+                                undoneAttempts++;
                             }
                         }
                         catch (Exception)
@@ -129,6 +134,19 @@ namespace AJTools.Services.TagArrange
                     tg.Assimilate();
                 else
                     tg.RollBack();
+            }
+
+            if (!hadCommit && undoneAttempts > 0)
+            {
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    string.Format(
+                        "Nothing was moved.\n\n"
+                        + "You clicked {0} time(s), and each attempt was undone because at least one tag "
+                        + "in the selection could not be placed. Arranging is all-or-nothing, so a single "
+                        + "problem tag stops the whole stack.\n\n"
+                        + "The usual causes are a pinned tag, or a tag whose leader end cannot be read.",
+                        undoneAttempts));
             }
 
             return hadCommit ? Result.Succeeded : Result.Cancelled;
@@ -196,25 +214,12 @@ namespace AJTools.Services.TagArrange
                     if (tag == null || !tag.IsValidObject)
                         continue;
 
-                    using (SubTransaction st = new SubTransaction(doc))
-                    {
-                        st.Start();
-
-                        XYZ probed = null;
-                        try
-                        {
-                            if (LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
-                                probed = LeaderLogicService.GetL1(tag);
-                        }
-                        catch
-                        {
-                        }
-
-                        st.RollBack();
-
-                        if (probed != null)
-                            output.Add(new TagData(tag, probed));
-                    }
+                    // The probe itself is shared - this file used to carry its own copy of the
+                    // sub-transaction dance. The outer Transaction stays here because BuildTagData
+                    // runs before any transaction is open, and a SubTransaction needs one.
+                    XYZ probed = TagLeaderService.TryResolveLeaderEndByRollbackProbe(doc, tag);
+                    if (probed != null)
+                        output.Add(new TagData(tag, probed));
                 }
 
                 t.RollBack();
@@ -232,120 +237,50 @@ namespace AJTools.Services.TagArrange
             if (doc == null || activeView == null || leaderLogic == null || basePointModel == null || allTags == null)
                 return false;
 
-            List<TagData> remaining = new List<TagData>();
+            // This tool's own rules: only tags that still exist and whose leader end was readable, and
+            // at least two of them - there is nothing to arrange with one tag.
+            List<TagData> arrangeable = new List<TagData>();
             foreach (TagData data in allTags)
             {
                 if (data != null && data.Tag != null && data.Tag.IsValidObject && data.OriginalLeaderStart != null)
-                    remaining.Add(data);
+                    arrangeable.Add(data);
             }
 
-            if (remaining.Count < 2)
+            if (arrangeable.Count < 2)
                 return false;
 
-            UV basePointView = leaderLogic.ProjectToView(basePointModel);
-            double baseXView = basePointView.U;
-
-            TagData first = FindNearestTagForTarget(remaining, leaderLogic, basePointModel);
-            if (first == null)
-                return false;
-
-            XYZ firstAnchor = first.OriginalLeaderStart;
-            if (firstAnchor == null)
-                return false;
-
-            bool stackUp = IsT1AboveL1(basePointModel, firstAnchor, leaderLogic);
-            if (!TryMoveTag(first, doc, activeView, leaderLogic, basePointModel, baseXView))
-                return false;
-
-            remaining.Remove(first);
-
-            XYZ viewUp = activeView.UpDirection;
-            if (viewUp == null || viewUp.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
-                viewUp = XYZ.BasisY;
-            else
-                viewUp = viewUp.Normalize();
-
-            XYZ stepDirection = stackUp ? viewUp : -viewUp;
-            XYZ lastPosition = basePointModel;
-
-            while (remaining.Count > 0)
-            {
-                XYZ nextSlot = lastPosition.Add(stepDirection.Multiply(verticalOffset));
-                TagData next = FindNearestTagForTarget(remaining, leaderLogic, nextSlot);
-                if (next == null)
-                    return false;
-
-                if (!TryMoveTag(next, doc, activeView, leaderLogic, nextSlot, baseXView))
-                    return false;
-
-                remaining.Remove(next);
-                lastPosition = nextSlot;
-            }
-
-            return true;
+            // The stacking rule itself is shared with Stack Tags - see TagStackService. This tool
+            // anchors on each tag's EXISTING leader end, which is what keeps L1 where it was.
+            return TagStackService.StackFromPoint(
+                arrangeable,
+                activeView,
+                leaderLogic,
+                basePointModel,
+                verticalOffset,
+                data => data.OriginalLeaderStart,
+                (data, target) => TryMoveTag(data, doc, activeView, leaderLogic, target));
         }
 
-        private static TagData FindNearestTagForTarget(
-            IList<TagData> candidates,
-            LeaderLogicService leaderLogic,
-            XYZ targetT1)
-        {
-            if (candidates == null || candidates.Count == 0 || leaderLogic == null || targetT1 == null)
-                return null;
+        // Removed 2026-08-16: FindNearestTagForTarget, DistanceInView and IsT1AboveL1. Stack Tags
+        // had its own copy of all three. They are part of the stacking RULE, not of this tool, and
+        // now live once in TagStackService alongside the loop that uses them.
 
-            TagData nearest = null;
-            double minDistance = double.MaxValue;
-
-            foreach (TagData data in candidates)
-            {
-                XYZ l1 = data != null ? data.OriginalLeaderStart : null;
-                if (l1 == null)
-                    continue;
-
-                double distance = DistanceInView(targetT1, l1, leaderLogic);
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    nearest = data;
-                }
-            }
-
-            return nearest ?? candidates[0];
-        }
-
-        private static double DistanceInView(XYZ p1, XYZ p2, LeaderLogicService leaderLogic)
-        {
-            UV uv1 = leaderLogic.ProjectToView(p1);
-            UV uv2 = leaderLogic.ProjectToView(p2);
-            double dx = uv1.U - uv2.U;
-            double dy = uv1.V - uv2.V;
-            return Math.Sqrt((dx * dx) + (dy * dy));
-        }
-
-        private static bool IsT1AboveL1(XYZ t1Model, XYZ l1Model, LeaderLogicService leaderLogic)
-        {
-            UV t1 = leaderLogic.ProjectToView(t1Model);
-            UV l1 = leaderLogic.ProjectToView(l1Model);
-            return t1.V > l1.V;
-        }
-
+        /// <summary>
+        /// Moves one tag to a slot. The target arrives already aligned to the stack's column -
+        /// TagStackService does that now, so this method no longer takes a base X.
+        /// </summary>
         private static bool TryMoveTag(
             TagData data,
             Document doc,
             View activeView,
             LeaderLogicService leaderLogic,
-            XYZ targetModel,
-            double baseXView)
+            XYZ finalTarget)
         {
-            if (data == null || data.Tag == null || doc == null || leaderLogic == null || targetModel == null)
+            if (data == null || data.Tag == null || doc == null || leaderLogic == null || finalTarget == null)
                 return false;
 
             IndependentTag tag = data.Tag;
             if (tag.Pinned)
-                return false;
-
-            XYZ finalTarget = AlignToBaseX(targetModel, baseXView, leaderLogic);
-            if (finalTarget == null)
                 return false;
 
             XYZ currentHead;
@@ -385,73 +320,30 @@ namespace AJTools.Services.TagArrange
             {
             }
 
-            TryEnsureLeaderEnabled(tag);
-            if (!TryHasLeader(tag))
-                return true;
-
             XYZ leaderEnd = data.OriginalLeaderStart;
             if (leaderEnd == null)
                 return false;
 
-            return TryApplyLShapeLeader(tag, finalHead, leaderEnd, leaderLogic);
+            // PreserveLeaderEnd(useRollbackProbe: false) plus the ORIGINAL leader end captured before
+            // the move. This is the whole point of the tool: L1 stays exactly where it was, so no
+            // outside-text nudge and no toggle-the-leader-condition fallback - both of those would
+            // move where the leader meets the element.
+            return TagLeaderService.ApplyLShapedLeader(
+                doc, tag, activeView, leaderLogic,
+                TagLeaderOptions.PreserveLeaderEnd(false),
+                leaderEndOverride: leaderEnd,
+                headFallback: finalHead);
         }
 
-        private static XYZ AlignToBaseX(XYZ pointModel, double baseXView, LeaderLogicService leaderLogic)
-        {
-            if (pointModel == null || leaderLogic == null)
-                return null;
+        // Removed 2026-08-16: AlignToBaseX - Stack Tags had a character-for-character copy of it. The
+        // column alignment now happens once, inside TagStackService, before a target ever reaches
+        // TryMoveTag, so neither tool can forget to apply it.
 
-            UV uv = leaderLogic.ProjectToView(pointModel);
-            double deltaX = baseXView - uv.U;
-            return leaderLogic.OffsetInView(pointModel, deltaX, 0);
-        }
-
-        private static void TryEnsureLeaderEnabled(IndependentTag tag)
-        {
-            if (tag == null)
-                return;
-
-            try
-            {
-                if (!tag.HasLeader)
-                    tag.HasLeader = true;
-            }
-            catch
-            {
-            }
-        }
-
-        private static bool TryHasLeader(IndependentTag tag)
-        {
-            if (tag == null)
-                return false;
-
-            try
-            {
-                return tag.HasLeader;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool TryApplyLShapeLeader(
-            IndependentTag tag,
-            XYZ headModel,
-            XYZ leaderEndModel,
-            LeaderLogicService leaderLogic)
-        {
-            if (tag == null || headModel == null || leaderEndModel == null || leaderLogic == null)
-                return false;
-
-            XYZ elbow = leaderLogic.ComputeElbow(headModel, leaderEndModel);
-            if (elbow == null)
-                return true;
-
-            // Keep L1 exactly as-is: do not toggle leader end condition as fallback.
-            return LeaderLogicService.TrySetLeaderElbow(tag, elbow);
-        }
+        // Removed 2026-08-16: TryEnsureLeaderEnabled, TryHasLeader and TryApplyLShapeLeader were
+        // this file's own copy of work Smart MEP Tags, Stack Tags and L-Shape Leader each also kept
+        // privately. TryMoveTag above now calls Services/LeaderLogic/TagLeaderService.cs with
+        // PreserveLeaderEnd, which carries the exact rule this tool depends on - keep L1 as-is, no
+        // outside-text nudge and no leader-end-condition fallback. Behaviour is unchanged.
 
     }
 }

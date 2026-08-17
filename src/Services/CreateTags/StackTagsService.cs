@@ -21,6 +21,7 @@ using AJTools.Models.CreateTags;
 using AJTools.Models.SmartTag;
 using AJTools.Services.LeaderLogic;
 using AJTools.Services.SmartTag;
+using AJTools.Services.TagArrange;
 using AJTools.Utils;
 
 namespace AJTools.Services.CreateTags
@@ -116,6 +117,7 @@ namespace AJTools.Services.CreateTags
             // created - see the merge-on-commit comment below for why this can't just be updated live.
             var createdTagIds = new Dictionary<ElementId, ElementId>();
             bool hadCommit = false;
+            int undoneAttempts = 0;
 
             using (TransactionGroup tg = new TransactionGroup(doc, "Stack Tags"))
             {
@@ -163,7 +165,11 @@ namespace AJTools.Services.CreateTags
                         }
                         else
                         {
+                            // All-or-nothing by design: one element that cannot be tagged undoes the
+                            // whole click. Counted so the run can say so at the end - this used to roll
+                            // back in silence, which looks exactly like the click doing nothing.
                             t.RollBack();
+                            undoneAttempts++;
                         }
                     }
                 }
@@ -172,6 +178,20 @@ namespace AJTools.Services.CreateTags
                     tg.Assimilate();
                 else
                     tg.RollBack();
+            }
+
+            if (!hadCommit && undoneAttempts > 0)
+            {
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    string.Format(
+                        "No tags were created.\n\n"
+                        + "You clicked {0} time(s), and each attempt was undone because at least one of "
+                        + "the selected elements could not be tagged. Stacking is all-or-nothing, so a "
+                        + "single problem element stops the whole stack.\n\n"
+                        + "Try again with a smaller selection to find the element causing it.",
+                        undoneAttempts));
+                return Result.Cancelled;
             }
 
             ShowSummary(createdTagIds.Count, tally, tagWarnings);
@@ -195,67 +215,30 @@ namespace AJTools.Services.CreateTags
             XYZ basePointModel,
             double verticalOffset)
         {
-            List<TagCandidate> remaining = new List<TagCandidate>(candidates);
-            if (remaining.Count == 0)
+            if (candidates == null || candidates.Count == 0)
                 return false;
 
-            TagCandidate first = CreateTagsEligibilityFilter.FindNearestCandidate(remaining, leaderLogic, basePointModel);
-            if (first == null)
-                return false;
-
-            bool stackUp = IsAboveInView(basePointModel, first.Midpoint, leaderLogic);
-
-            UV baseUv = leaderLogic.ProjectToView(basePointModel);
-            double baseXView = baseUv.U;
-
-            if (!PlaceOrMove(doc, activeView, leaderLogic, first, createdTagIds, newlyCreatedThisAttempt, basePointModel, baseXView))
-                return false;
-
-            remaining.Remove(first);
-
-            XYZ viewUp = activeView.UpDirection;
-            if (viewUp == null || viewUp.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
-                viewUp = XYZ.BasisY;
-            else
-                viewUp = viewUp.Normalize();
-
-            XYZ stepDirection = stackUp ? viewUp : -viewUp;
-            XYZ lastPosition = basePointModel;
-
-            while (remaining.Count > 0)
-            {
-                XYZ nextSlot = lastPosition.Add(stepDirection.Multiply(verticalOffset));
-                TagCandidate next = CreateTagsEligibilityFilter.FindNearestCandidate(remaining, leaderLogic, nextSlot);
-                if (next == null)
-                    return false;
-
-                if (!PlaceOrMove(doc, activeView, leaderLogic, next, createdTagIds, newlyCreatedThisAttempt, nextSlot, baseXView))
-                    return false;
-
-                remaining.Remove(next);
-                lastPosition = nextSlot;
-            }
-
-            return true;
+            // The stacking rule itself is shared with Rearrange Tags - see TagStackService. This tool
+            // anchors on the ELEMENT's midpoint, because most of these tags do not exist yet.
+            return TagStackService.StackFromPoint(
+                candidates,
+                activeView,
+                leaderLogic,
+                basePointModel,
+                verticalOffset,
+                candidate => candidate.Midpoint,
+                (candidate, target) => PlaceOrMove(
+                    doc, activeView, leaderLogic, candidate, createdTagIds, newlyCreatedThisAttempt, target));
         }
 
-        private static bool IsAboveInView(XYZ targetModel, XYZ referenceModel, LeaderLogicService leaderLogic)
-        {
-            UV target = leaderLogic.ProjectToView(targetModel);
-            UV reference = leaderLogic.ProjectToView(referenceModel);
-            return target.V > reference.V;
-        }
-
-        private static XYZ AlignToBaseX(XYZ pointModel, double baseXView, LeaderLogicService leaderLogic)
-        {
-            UV uv = leaderLogic.ProjectToView(pointModel);
-            double deltaX = baseXView - uv.U;
-            return leaderLogic.OffsetInView(pointModel, deltaX, 0);
-        }
+        // Removed 2026-08-16: IsAboveInView and AlignToBaseX. Rearrange Tags had its own copy of both,
+        // and AlignToBaseX was character-for-character identical. They belong to the stacking rule
+        // rather than to this tool, and now live once in TagStackService.
 
         /// <summary>
         /// Creates the candidate's tag the first time it's placed in this run, or moves its
-        /// already-created tag into the new slot on a later click.
+        /// already-created tag into the new slot on a later click. The target arrives already aligned
+        /// to the stack's column - TagStackService does that now.
         /// </summary>
         private static bool PlaceOrMove(
             Document doc,
@@ -264,10 +247,8 @@ namespace AJTools.Services.CreateTags
             TagCandidate candidate,
             Dictionary<ElementId, ElementId> createdTagIds,
             Dictionary<ElementId, ElementId> newlyCreatedThisAttempt,
-            XYZ targetModel,
-            double baseXView)
+            XYZ finalTarget)
         {
-            XYZ finalTarget = AlignToBaseX(targetModel, baseXView, leaderLogic);
             if (finalTarget == null)
                 return false;
 
@@ -276,7 +257,7 @@ namespace AJTools.Services.CreateTags
             {
                 IndependentTag existingTag = doc.GetElement(existingTagId) as IndependentTag;
                 if (existingTag != null && existingTag.IsValidObject)
-                    return TryMoveExistingTag(doc, existingTag, leaderLogic, finalTarget);
+                    return TryMoveExistingTag(doc, activeView, existingTag, leaderLogic, finalTarget);
             }
 
             return TryCreateFreshTag(doc, activeView, leaderLogic, candidate, newlyCreatedThisAttempt, finalTarget);
@@ -320,7 +301,7 @@ namespace AJTools.Services.CreateTags
                 // If type change fails, the default type was used - still acceptable.
             }
 
-            if (!ApplyFreshLeader(doc, newTag, leaderLogic))
+            if (!ApplyFreshLeader(doc, activeView, newTag, leaderLogic))
                 return false;
 
             newlyCreatedThisAttempt[candidate.ElementId] = newTag.Id;
@@ -335,86 +316,15 @@ namespace AJTools.Services.CreateTags
         /// rollback-probe is kept, since that's a Revit API read quirk, not a style choice - a freshly
         /// created tag's L1 isn't always readable via GetL1 directly.
         /// </summary>
-        private static bool ApplyFreshLeader(Document doc, IndependentTag tag, LeaderLogicService leaderLogic)
+        private static bool ApplyFreshLeader(
+            Document doc, View activeView, IndependentTag tag, LeaderLogicService leaderLogic)
         {
-            try
-            {
-                if (!tag.HasLeader)
-                    tag.HasLeader = true;
-            }
-            catch (Exception)
-            {
-            }
-
-            bool hasLeader;
-            try
-            {
-                hasLeader = tag.HasLeader;
-            }
-            catch (Exception)
-            {
-                hasLeader = false;
-            }
-
-            if (!hasLeader)
-                return true;
-
-            XYZ head;
-            try
-            {
-                head = tag.TagHeadPosition;
-            }
-            catch (Exception)
-            {
-                return true;
-            }
-
-            if (head == null)
-                return true;
-
-            XYZ l1 = LeaderLogicService.GetL1(tag);
-            if (l1 == null)
-                l1 = TryResolveLeaderEndByRollbackProbe(doc, tag);
-
-            if (l1 == null)
-                return true;
-
-            XYZ elbow = leaderLogic.ComputeElbow(head, l1);
-            if (elbow == null)
-                return true;
-
-            return LeaderLogicService.TrySetLeaderElbow(tag, elbow);
-        }
-
-        private static XYZ TryResolveLeaderEndByRollbackProbe(Document doc, IndependentTag tag)
-        {
-            if (doc == null || tag == null || !tag.IsValidObject)
-                return null;
-
-            try
-            {
-                using (SubTransaction st = new SubTransaction(doc))
-                {
-                    st.Start();
-
-                    XYZ probed = null;
-                    try
-                    {
-                        if (LeaderLogicService.TrySetLeaderEndCondition(tag, LeaderEndCondition.Free))
-                            probed = LeaderLogicService.GetL1(tag);
-                    }
-                    catch (Exception)
-                    {
-                    }
-
-                    st.RollBack();
-                    return probed;
-                }
-            }
-            catch (Exception)
-            {
-                return null;
-            }
+            // PreserveLeaderEnd(useRollbackProbe: true) - no outside-text nudge and no toggle-the-
+            // leader-condition fallback, matching Rearrange Tags' deliberate choice, but the rollback
+            // probe IS kept because a freshly created tag's leader end is not always readable straight
+            // away. That is a Revit read quirk, not a style choice.
+            return TagLeaderService.ApplyLShapedLeader(
+                doc, tag, activeView, leaderLogic, TagLeaderOptions.PreserveLeaderEnd(true));
         }
 
         /// <summary>
@@ -424,6 +334,7 @@ namespace AJTools.Services.CreateTags
         /// </summary>
         private static bool TryMoveExistingTag(
             Document doc,
+            View activeView,
             IndependentTag tag,
             LeaderLogicService leaderLogic,
             XYZ finalTarget)
@@ -457,39 +368,21 @@ namespace AJTools.Services.CreateTags
                 }
             }
 
-            bool hasLeader;
-            try
-            {
-                hasLeader = tag.HasLeader;
-            }
-            catch (Exception)
-            {
-                hasLeader = false;
-            }
+            // PreserveLeaderEnd(useRollbackProbe: false) - this tag already existed and nothing else
+            // touches its leader end between our own clicks, so the probe is not needed here.
+            // EnableLeaderIfMissing is switched OFF to match exactly what this method did before: it
+            // only ever READ HasLeader and returned early when the leader was off, it never turned one
+            // on. In practice these tags are all created with a leader, but keeping it faithful means
+            // a leader somebody deliberately switched off stays off.
+            // finalTarget is the head fallback for the case where the tag will not report its own
+            // position after the move.
+            TagLeaderOptions options = TagLeaderOptions.PreserveLeaderEnd(false);
+            options.EnableLeaderIfMissing = false;
 
-            if (!hasLeader)
-                return true;
-
-            XYZ finalHead = finalTarget;
-            try
-            {
-                XYZ refreshed = tag.TagHeadPosition;
-                if (refreshed != null)
-                    finalHead = refreshed;
-            }
-            catch (Exception)
-            {
-            }
-
-            XYZ l1 = LeaderLogicService.GetL1(tag);
-            if (l1 == null)
-                return true;
-
-            XYZ elbow = leaderLogic.ComputeElbow(finalHead, l1);
-            if (elbow == null)
-                return true;
-
-            return LeaderLogicService.TrySetLeaderElbow(tag, elbow);
+            return TagLeaderService.ApplyLShapedLeader(
+                doc, tag, activeView, leaderLogic, options,
+                leaderEndOverride: null,
+                headFallback: finalTarget);
         }
 
         private static void ShowSummary(int stackedCount, SkipTally tally, List<string> tagWarnings)

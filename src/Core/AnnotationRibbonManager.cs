@@ -138,7 +138,7 @@ namespace AJTools.App
 
             PushButtonData lShapeLeaderData = new PushButtonData("cmdForceTagLeaderLShape", "L-Shape\nLeader", _assemblyPath, typeof(CmdForceTagLeaderLShape).FullName)
             {
-                ToolTip = "Force tags to use a right-angle leader. Run again on the same tag to flip the elbow side. Preselect tags or pick tags (Tab cycles) until Esc."
+                ToolTip = "Force tags to use a right-angle leader. Preselect tags or pick tags (Tab cycles) until Esc."
             };
             RibbonPanelHelper.ApplyIcons(lShapeLeaderData, _iconLoader, "L-ShapeLeader.png");
 
@@ -149,7 +149,7 @@ namespace AJTools.App
                 if (stackedItems[0] is PulldownButton smartMepTagPulldown)
                 {
                     AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTag", "Smart MEP\nTags", "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.", typeof(CmdSmartMepTag).FullName, "Smart MEP TAG.png");
-                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTagSettings", "Smart MEP Tagging\nSettings", "Configure category-wise enable/disable for Smart MEP Tag.", typeof(CmdSmartMepTagSettings).FullName, "settings.png");
+                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTagSettings", "Smart MEP Tagging\nSettings", "Choose which categories Smart MEP Tags will tag, set each one's priority, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Create Tags and Stack Tags.", typeof(CmdSmartMepTagSettings).FullName, "settings.png");
                 }
 
                 if (stackedItems[1] is PulldownButton arrangeTagsPulldown)
@@ -166,7 +166,17 @@ namespace AJTools.App
             {
                 AddChildPushButton(createTagsPulldown, "cmdCreateTags", "Create\nTags", "Select one or more MEP elements, then click a location for each to create a tag there. Skips elements already tagged in the view, shorter than the configured minimum length, or a vertical run. Press Esc to stop early.", typeof(CmdCreateTags).FullName, "cursor.png");
                 AddChildPushButton(createTagsPulldown, "cmdStackTags", "Stack\nTags", "Select one or more MEP elements, then click one location - a tag is created for every eligible element and the whole batch is arranged into a vertical stack starting there, same as Rearrange Tags. Click again to relocate the whole stack. Uses the same skip rules and settings as Create Tags, plus Arrange Tags Settings' spacing. Press Esc when satisfied.", typeof(CmdStackTags).FullName, "Arrange Tag.png");
-                AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Configure category-wise enable/disable and the minimum length to tag for Create Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
+                AddChildPushButton(createTagsPulldown, "cmdCreateTagsSettings", "Create Tags\nSettings", "Choose which categories Create Tags can pick from, set the shortest run worth tagging, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Smart MEP Tags and Stack Tags.", typeof(CmdCreateTagsSettings).FullName, "settings.png");
+            }
+
+            PulldownButtonData fixTagClashData = new PulldownButtonData("cmdFixTagClashPulldown", "Fix Tag\nClash");
+            RibbonPanelHelper.ApplyIcons(fixTagClashData, _iconLoader, "Arrange Tag.png");
+
+            if (panel.AddItem(fixTagClashData) is PulldownButton fixTagClashPulldown)
+            {
+                AddChildPushButton(fixTagClashPulldown, "cmdFixTagClash", "Fix Tag\nClash", "Find every clashing tag in the active view and separate them. The tag closest to its own element keeps its place; the others move. Whatever cannot be separated is coloured and left selected. Works on any tags, however they were placed - run it again to have another go.", typeof(CmdFixTagClash).FullName, "Arrange Tag.png");
+                AddChildPushButton(fixTagClashPulldown, "cmdClearTagClashMarks", "Clear Tag\nClash Marks", "Remove the clash colour from the tags in the active view. Resets the graphic override on every tag in this view, so a deliberate manual override here is cleared too.", typeof(CmdClearTagClashMarks).FullName, "Reset Overrides.png");
+                AddChildPushButton(fixTagClashPulldown, "cmdFixTagClashSettings", "Fix Tag Clash\nSettings", "Set how many rounds to try, how far a tag may move, the colour used for tags that could not be separated, and what counts as a clash.", typeof(CmdFixTagClashSettings).FullName, "settings.png");
             }
 
             PushButtonData centerRoomTagsData = new PushButtonData("cmdCenterRoomTags", "Center Room\nTags", _assemblyPath, typeof(CmdCenterRoomTags).FullName)

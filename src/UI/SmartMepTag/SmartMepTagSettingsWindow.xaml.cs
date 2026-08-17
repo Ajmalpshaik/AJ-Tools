@@ -3,7 +3,8 @@
  * Tool Name     : Smart MEP Tagging - Settings (Window)
  * File Name     : SmartMepTagSettingsWindow.xaml.cs
  * Purpose       : WPF settings window - enable/disable and prioritise the MEP categories that
- *                 Smart MEP Tags will process, showing each category's element count in the model.
+ *                 Smart MEP Tags will process, showing each category's element count in the model,
+ *                 plus the skip-vertical-runs rule shared with Create Tags and Stack Tags.
  *
  * Author        : Ajmal P.S.
  * Version       : 1.0.0
@@ -61,10 +62,23 @@ namespace AJTools.UI.SmartMepTag
         public IReadOnlyList<SmartTagCategoryRow> Rows => _rows;
 
         /// <summary>
+        /// Whether vertical ducts, pipes and cable trays should be skipped when tagging.
+        /// Only meaningful when DialogResult is true.
+        /// </summary>
+        /// <remarks>
+        /// The same value the Create Tags settings window shows - stored once with the Fix Tag Clash
+        /// settings, which is the one tagging store that survives closing Revit. Changing it in either
+        /// window changes it for Smart MEP Tags, Create Tags and Stack Tags alike. The command owns
+        /// reading and writing it; this window only shows the tick box.
+        /// </remarks>
+        public bool SkipVerticalRuns { get; private set; }
+
+        /// <summary>
         /// Creates the settings window.
         /// </summary>
         /// <param name="rows">Category rows prebuilt by the command, in display order.</param>
-        public SmartMepTagSettingsWindow(IList<SmartTagCategoryRow> rows)
+        /// <param name="currentSkipVerticalRuns">Skip-vertical-runs value currently stored.</param>
+        public SmartMepTagSettingsWindow(IList<SmartTagCategoryRow> rows, bool currentSkipVerticalRuns)
         {
             InitializeComponent();
 
@@ -83,6 +97,7 @@ namespace AJTools.UI.SmartMepTag
                 row.PropertyChanged += OnRowChanged;
 
             CategoryGrid.ItemsSource = _rows;
+            SkipVerticalBox.IsChecked = currentSkipVerticalRuns;
             Validate();
         }
 
@@ -104,6 +119,22 @@ namespace AJTools.UI.SmartMepTag
                 row.Enabled = false;
         }
 
+        /// <summary>
+        /// Puts every category back on, every priority back to its own default, and the shared
+        /// vertical-run rule back on. Nothing is written until Save.
+        /// </summary>
+        private void OnReset(object sender, RoutedEventArgs e)
+        {
+            foreach (SmartTagCategoryRow row in _rows)
+            {
+                row.Enabled = true;
+                row.PriorityText = row.DefaultPriorityText;
+            }
+
+            SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
+            Validate();
+        }
+
         private void OnSave(object sender, RoutedEventArgs e)
         {
             // Commit any cell edit still in progress before reading the rows.
@@ -111,6 +142,8 @@ namespace AJTools.UI.SmartMepTag
 
             if (!Validate())
                 return;
+
+            SkipVerticalRuns = SkipVerticalBox.IsChecked == true;
 
             DialogResult = true;
             Close();
@@ -173,6 +206,13 @@ namespace AJTools.UI.SmartMepTag
         public string CategoryLabel { get; }
 
         public int CountInModel { get; }
+
+        /// <summary>
+        /// This category's out-of-the-box priority, set by the command that builds the row. Kept so
+        /// "Reset to defaults" can put the priority back without the window needing to know the
+        /// per-category rules - those belong to SmartTagSettingsTracker, not to the UI.
+        /// </summary>
+        public string DefaultPriorityText { get; set; } = PriorityLow;
 
         /// <summary>Fixed priority choices shown by the ComboBox column.</summary>
         public IReadOnlyList<string> PriorityOptions { get; } =
