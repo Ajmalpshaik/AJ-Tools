@@ -103,8 +103,13 @@
                     </StackPanel>
 
                     <!-- Category grid -->
+                    <!-- Same two fixes as the Create Tags grid: AutoGenerateColumns defaults to TRUE
+                         and would add a column per public property alongside the ones defined below,
+                         and without a MinHeight the list collapses as the content under it grows. -->
                     <DataGrid x:Name="CategoryGrid"
                               Grid.Row="1"
+                              AutoGenerateColumns="False"
+                              MinHeight="180"
                               Style="{StaticResource ModernDataGrid}"
                               CanUserAddRows="False"
                               CanUserDeleteRows="False"

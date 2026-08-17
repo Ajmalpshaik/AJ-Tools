@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.50.3
+ * Version       : 1.50.4
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,27 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.50.4 (2026-08-18) - Create Tags Settings tidied, and a DataGrid fault fixed across SIX windows.
+ *                       Ajmal sent a screenshot: the category list squeezed down to two visible rows,
+ *                       a stray narrow column past "In Model", and a three-line explanation under
+ *                       "Distance from the element" he did not want.
+ *                       ROOT CAUSE of the stray column: AutoGenerateColumns was never set, and it
+ *                       DEFAULTS TO TRUE - so WPF adds a column for every public property on the row
+ *                       object ON TOP of the ones declared in XAML. Nothing in a build catches it; it
+ *                       only shows up as junk columns at runtime.
+ *                       ROOT CAUSE of the squeeze: the grid sits in a star row, which is not the same
+ *                       as having a floor. As the content under it grew (the new distance field and
+ *                       its hint), the star row gave up its space and the list shrank to two rows.
+ *                       A MinHeight is what actually protects it.
+ *                       SWEPT EVERY DataGrid IN THE SUITE per Ajmal's standing rule, and found four
+ *                       more windows with the same missing setting: Duct Standards Manager and the
+ *                       three Purge windows. Checked each defines its own columns FIRST - setting
+ *                       AutoGenerateColumns="False" on a grid that relies on auto-generation would
+ *                       have blanked it completely - all four do, so all four are fixed. Only the two
+ *                       tagging grids needed the MinHeight; the others were not being squeezed.
+ *                       The long hint under "Distance from the element" is gone, heading kept, and the
+ *                       spacing under it corrected so "Minimum length to tag" is not touching the box
+ *                       above it. The explanation now lives only in the field's tooltip.
  * v1.50.3 (2026-08-18) - The whole Tags panel is stacked small buttons, in the order Ajmal laid out:
  *                           Smart MEP Tags | Fix Tag Clash
  *                           Rearrange Tags | Stack Tags
@@ -2154,8 +2175,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.50.3.0")]
-[assembly: AssemblyFileVersion("1.50.3.0")]
+[assembly: AssemblyVersion("1.50.4.0")]
+[assembly: AssemblyFileVersion("1.50.4.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

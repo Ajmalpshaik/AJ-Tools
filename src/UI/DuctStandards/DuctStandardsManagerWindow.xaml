@@ -214,7 +214,8 @@
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Text="Define materials and their densities. These are used for weight calculations."
                                    Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
-                        <DataGrid x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DuctManagerDataGridStyle}">
+                        <DataGrid
+                              AutoGenerateColumns="False" x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DuctManagerDataGridStyle}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Material Name" Binding="{Binding Name}" Width="*" MinWidth="150"
                                                     ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>

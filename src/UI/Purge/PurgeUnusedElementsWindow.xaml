@@ -201,7 +201,8 @@
             </Grid>
 
             <Border Grid.Row="2" Style="{StaticResource PanelCard}" Padding="0">
-                <DataGrid x:Name="dgElements"
+                <DataGrid
+                              AutoGenerateColumns="False" x:Name="dgElements"
                           Style="{StaticResource ModernDataGrid}"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
