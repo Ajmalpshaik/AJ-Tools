@@ -5,6 +5,26 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.49.6] - 2026-08-17
+
+- **Changed**: **Fix Tag Clash now moves a tag the shortest way out**, instead of always shifting it by
+  a whole tag height. Before, two tags overlapping by a hair were still pushed a full tag apart, which
+  looks wrong on a drawing. Now the tool measures how much they actually overlap and moves just that
+  much plus the gap — on the worked example, **0.70 instead of 2.50**.
+- **Why it matters beyond looks**: a tag is only allowed to travel so far from where it started (the
+  drift limit). A move that overshoots wastes that allowance, and a tag that runs out of it is left
+  clashing and **coloured** rather than fixed. Shorter moves mean **more tags actually get fixed**
+  within the same 50mm.
+- **Unchanged**: which tag moves (still the one with the longer leader), the drift limit, the pinned-tag
+  rule, and the guard that stops tags shoving each other back and forth. The new shorter moves are
+  simply added to the same list of options the tool already picks from, and it still only takes a move
+  that ends up genuinely clear.
+- **Note on where this came from**: Ajmal asked whether the clash work in the AJ AI Brain was better
+  than this one. It was compared properly and it is **not** — it only sees tag against tag, moves both
+  tags rather than choosing one, and has no drift limit or pinned handling; its own notes call it "NOT
+  full clash-free placement". It was **not** adopted. This single idea — measure the real overlap — was
+  the one thing it did better, and that is all that was taken.
+
 ## [1.49.5] - 2026-08-17
 
 - **Added**: the **"this is a big job, continue?" warning now covers the whole Tags panel**, not just

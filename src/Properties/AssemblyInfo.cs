@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.49.5
+ * Version       : 1.49.6
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-16
@@ -24,6 +24,32 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.6 (2026-08-17) - Fix Tag Clash moves tags the SHORTEST way out instead of a fixed step, an
+ *                       idea taken from the AJ AI Brain after Ajmal asked whether the Brain's clash
+ *                       work was better than this one. Compared both: it is NOT, and it was not
+ *                       adopted. The Brain's pass (knowledge/live-model/tagging.md) sees tag-vs-tag
+ *                       only, splits every move 50/50 across BOTH tags, has no drift limit, no pinned
+ *                       handling and no frozen-winner guard - and its own notes say it is "NOT full
+ *                       clash-free placement" and defer to the compiled tool. It exists because the
+ *                       real engine is unreachable from a script, so it is a workaround, not an
+ *                       upgrade. Taking it wholesale would have been a downgrade.
+ *                       ONE idea in it genuinely beat this engine, and that is what was taken: measure
+ *                       how far two boxes ACTUALLY overlap and move by exactly that much plus the gap,
+ *                       rather than by a fixed quantum. Every existing candidate here is a whole tag
+ *                       height up/down or a whole tag width sideways, so two tags overlapping by a
+ *                       hair were still shoved a full tag apart. Measured on the maths: a 0.2-wide
+ *                       overlap moved 2.50 before and 0.70 now.
+ *                       Why it matters beyond looks: a move that overshoots burns the drift allowance,
+ *                       and a tag that runs out of drift is left clashing and MARKED rather than
+ *                       fixed. Shorter moves mean more tags actually get fixed within the same 50mm.
+ *                       Implemented as BuildOverlapEscapeOffsets, feeding the SAME candidate pool the
+ *                       fixed steps already feed - the existing "smallest move that ends up genuinely
+ *                       clear" selector is unchanged, so a measured escape only wins when it really
+ *                       works. Deliberately NOT copied from the Brain: the 50/50 split across both
+ *                       tags, which would break this engine's who-moves rule (decided by leader
+ *                       length) and its frozen-winner guard. Clearance is minGap + tolerance, not
+ *                       minGap, or a pair landing exactly on the boundary still counts as clashing on
+ *                       the next pass and the tag oscillates instead of settling.
  * v1.49.5 (2026-08-17) - The long-run warning rolled out across the WHOLE Tags panel, on Ajmal's
  *                       standing rule: a change asked for on one tool must be checked against every
  *                       other tool it could apply to, not just the one named. v1.49.4 added the
@@ -1907,8 +1933,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.5.0")]
-[assembly: AssemblyFileVersion("1.49.5.0")]
+[assembly: AssemblyVersion("1.49.6.0")]
+[assembly: AssemblyFileVersion("1.49.6.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
