@@ -24,6 +24,20 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.49.2 (2026-08-17) - "Skip vertical ducts, pipes and cable trays" tick box moved from the Fix Tag
+ *                       Clash settings window to the Create Tags settings window, where a tagging rule
+ *                       belongs (Ajmal's call). It only landed in the clash window because that is the
+ *                       one tagging store that survives closing Revit - Smart MEP Tag's and Create
+ *                       Tags' own trackers are in-memory only. The VALUE still lives in that same file
+ *                       so it keeps persisting; only the tick box moved, and Smart MEP Tags, Create
+ *                       Tags and Stack Tags all still read the one value.
+ *                       Two consequences worth knowing: the Fix Tag Clash window now carries the value
+ *                       through untouched (saving there rewrites the whole file, so dropping it would
+ *                       reset a choice made in Create Tags), and its "Reset to defaults" deliberately
+ *                       leaves that one value alone. Create Tags Settings writes it read-modify-write
+ *                       and confirms it by reading back, so a failed write reports instead of being
+ *                       silently lost. Both settings tooltips reworded to match. No behaviour change to
+ *                       how any tool treats a vertical run.
  * v1.49.1 (2026-08-16) - Tag tools de-duplicated onto shared blocks, and four honest bugs fixed.
  *                       Behaviour preserved everywhere except the two reporting fixes noted below.
  *                       SHARED BLOCKS: the L-shaped leader routine existed FOUR times over (Smart MEP
@@ -1824,8 +1838,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.49.1.0")]
-[assembly: AssemblyFileVersion("1.49.1.0")]
+[assembly: AssemblyVersion("1.49.2.0")]
+[assembly: AssemblyFileVersion("1.49.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

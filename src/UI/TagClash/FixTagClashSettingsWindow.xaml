@@ -197,14 +197,6 @@
                             <TextBlock Style="{StaticResource HintText}"
                                        Text="The colour is a view override and stays until you run Clear Tag Clash Marks. Unfixed tags are always left selected, whether they are coloured or not."/>
 
-                            <!-- Tagging rule -->
-                            <TextBlock Text="Tagging rule" Style="{StaticResource SectionHeading}" Margin="0,16,0,5"/>
-                            <CheckBox x:Name="SkipVerticalBox"
-                                      Content="Skip vertical ducts, pipes and cable trays when tagging"
-                                      Style="{StaticResource ModernCheckBox}"/>
-                            <TextBlock Style="{StaticResource HintText}"
-                                       Text="Shared by Smart MEP Tags, Create Tags and Stack Tags, so all three treat a vertical run the same way."/>
-
                             <!-- Matching rules -->
                             <TextBlock Text="How hard to try" Style="{StaticResource SectionHeading}" Margin="0,16,0,5"/>
                             <CheckBox x:Name="FullSearchBox"
