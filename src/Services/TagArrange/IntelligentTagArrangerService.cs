@@ -76,6 +76,19 @@ namespace AJTools.Services.TagArrange
                 return Result.Cancelled;
             }
 
+            // Ask before a long run. Every click re-arranges the WHOLE selection into a fresh stack
+            // (see the whole-batch-per-click note in ajtools-conventions.md), so one click on a large
+            // selection means a silent freeze with nothing to press.
+            if (!DialogHelper.ConfirmLongRun(
+                    ToolTitle,
+                    allTags.Count,
+                    string.Format(
+                        "About to arrange {0} tags into a stack on every click.",
+                        allTags.Count)))
+            {
+                return Result.Cancelled;
+            }
+
             LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
             int viewScale = Math.Max(activeView.Scale, 1);
             double spacingMm = TagArrangeSettings.GetTagSpacingMm();

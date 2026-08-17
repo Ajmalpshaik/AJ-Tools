@@ -80,6 +80,18 @@ namespace AJTools.Services.RoomTags
                 return Result.Cancelled;
             }
 
+            // Ask before a long run. One button press moves every room tag in the view, and each one
+            // needs its room's boundary solved - so a big view is a silent freeze with nothing to press.
+            if (!DialogHelper.ConfirmLongRun(
+                    ToolTitle,
+                    tags.Count,
+                    string.Format(
+                        "About to centre {0} room tags in this view.",
+                        tags.Count)))
+            {
+                return Result.Cancelled;
+            }
+
             CenteringSummary summary = new CenteringSummary { Total = tags.Count };
 
             using (Transaction transaction = new Transaction(doc, "Center Room Tags"))

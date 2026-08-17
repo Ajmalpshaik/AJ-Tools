@@ -104,6 +104,30 @@ namespace AJTools.Services.TagClash
         }
 
         /// <summary>
+        /// How many tags ClearAll would touch in this view. Used only to tell the user the size of the
+        /// job before starting it, so the collector shape is kept identical to ClearAll's own.
+        /// </summary>
+        /// <returns>The tag count, or 0 if the view cannot be read.</returns>
+        internal static int CountTagsInView(Document doc, View view)
+        {
+            if (doc == null || view == null)
+                return 0;
+
+            try
+            {
+                return new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .WhereElementIsNotElementType()
+                    .GetElementCount();
+            }
+            catch (Exception)
+            {
+                // Counting is only for the warning message - never let it stop the tool running.
+                return 0;
+            }
+        }
+
+        /// <summary>
         /// Removes the override from every tag in the view. Returns how many were reset.
         /// </summary>
         internal static int ClearAll(Document doc, View view)

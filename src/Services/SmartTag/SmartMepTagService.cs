@@ -1621,16 +1621,12 @@ namespace AJTools.Services.SmartTag
 
             // Ask before a long run. Once placement starts, Revit is busy and there is nothing to press -
             // this tool has no window, so no progress bar and no Cancel. Saying what is about to happen
-            // is the honest alternative to a silent freeze. Threshold is shared with Fix Tag Clash.
-            if (candidates.Count > TagClashSettings.LongRunConfirmThreshold
-                && !DialogHelper.ShowYesNo(
+            // is the honest alternative to a silent freeze. Wording and threshold are shared with every
+            // other Tags panel tool via DialogHelper.ConfirmLongRun.
+            if (!DialogHelper.ConfirmLongRun(
                     ToolTitle,
-                    string.Format(
-                        "About to place tags on {0} elements.\n\n"
-                        + "Revit will be busy while it works and can't be stopped part way. It is a "
-                        + "single undo step, so you can undo the whole thing afterwards.\n\n"
-                        + "Continue?",
-                        candidates.Count)))
+                    candidates.Count,
+                    string.Format("About to place tags on {0} elements.", candidates.Count)))
             {
                 return Result.Cancelled;
             }

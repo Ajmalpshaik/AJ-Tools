@@ -99,6 +99,19 @@ namespace AJTools.Commands
             IList<Element> preselected = CollectPreselectedTags(doc, uidoc.Selection.GetElementIds());
             if (preselected.Count > 0)
             {
+                // Ask before a long run. Only the PRESELECTED path needs this - it reworks every tag in
+                // one go with nothing to press. The pick-one-at-a-time path below is self-paced and
+                // stops on Esc, so it never freezes.
+                if (!DialogHelper.ConfirmLongRun(
+                        "L-Shape Tag Leaders",
+                        preselected.Count,
+                        string.Format(
+                            "About to force an L-shaped leader on {0} selected tags.",
+                            preselected.Count)))
+                {
+                    return Result.Cancelled;
+                }
+
                 int updated;
                 int skipped;
                 ApplyToSelection(doc, activeView, preselected, leaderLogic, out updated, out skipped);
