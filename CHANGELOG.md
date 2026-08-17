@@ -5,6 +5,20 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.50.5] - 2026-08-18
+
+- **Fixed**: **tags without a leader could land on top of a duct or fitting.** At a junction the tag
+  went sideways straight onto the fitting, because the tool **could not see model geometry at all** —
+  it only ever checked a position against other tags, text and dimensions. As far as it knew, that
+  spot was empty.
+- **Added**: it now looks at the **ducts, pipes, trays, fittings, accessories and equipment** in the
+  view before choosing a spot.
+- **Changed**: when both sides are blocked, the tag now goes **below**, and above only if below is
+  blocked too. The order it tries is **right → left → below → above** — so it only leaves the side of
+  the element when there is genuinely no room there.
+- **Speed**: the extra check is built once per run, and only when a category actually has its leader
+  switched off — a normal tagging run costs nothing.
+
 ## [1.50.4] - 2026-08-18
 
 - **Fixed**: **the category list in Create Tags Settings was squashed to two rows.** It had no minimum
