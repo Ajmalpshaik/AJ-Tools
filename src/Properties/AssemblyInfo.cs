@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.51.0
+ * Version       : 1.52.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-08-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,23 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.52.0 (2026-08-18) - NEW TOOL: AJ Quick Menu - the game-style quick tool wheel. A ring of your
+ *                       own favourite AJ Tools buttons opens around the mouse pointer; point at one
+ *                       and click (or press its number 1-9) and Revit runs it exactly as if its
+ *                       ribbon button had been clicked. Slots, slot count (4-12) and wheel size are
+ *                       all customisable and saved to %APPDATA%\AJTools\quickmenu-slots.txt.
+ *                       Minor bump: a tool was added.
+ *                       New "Quick" panel, first on the AJ Tools tab, holding one split button
+ *                       (Quick Menu / Customise). Nothing else moved except one panel to the right.
+ *                       HOW IT LAUNCHES ANOTHER TOOL: an add-in cannot call another IExternalCommand
+ *                       directly (ExternalCommandData cannot be constructed), so the wheel is shown
+ *                       modally and the chosen tool is handed to Revit with
+ *                       UIApplication.PostCommand while the Quick Menu command is still running.
+ *                       The command id that needs is READ off the live ribbon rather than guessed -
+ *                       see QuickMenuCatalog for the mechanism and QuickMenuLauncher for the
+ *                       fallbacks.
+ *                       NOT YET BUILT OR RUN IN REVIT - written in a Linux container that has no
+ *                       msbuild and no Revit API assemblies. Needs a Windows build and a live test.
  * v1.51.0 (2026-08-18) - No-leader accessory tagging FINALISED against Ajmal's live model. Minor bump
  *                       because the placement rule is now a settled feature rather than a trial.
  *                       TUNED LIVE, not guessed: the rule was iterated on 32 real duct accessories in
@@ -2225,8 +2242,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.51.0.0")]
-[assembly: AssemblyFileVersion("1.51.0.0")]
+[assembly: AssemblyVersion("1.52.0.0")]
+[assembly: AssemblyFileVersion("1.52.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

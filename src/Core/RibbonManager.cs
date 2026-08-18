@@ -2,14 +2,15 @@
 /*
  * Tool Name     : AJ Tools Ribbon Manager
  * File Name     : RibbonManager.cs
- * Purpose       : Builds the main "AJ Tools" ribbon tab - its panels (View, Graphics, Datums, Modify, MEP,
- *                 Coordination, Data, Manage, Family, AI, About) and every button, split, and pulldown.
+ * Purpose       : Builds the main "AJ Tools" ribbon tab - its panels (Quick, View, Graphics, Datums,
+ *                 Modify, MEP, Coordination, Data, Manage, Family, AI, Game, About) and every button,
+ *                 split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.6
+ * Version       : 1.14.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-29
+ * Last Updated  : 2026-08-18
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +27,11 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.14.0 (2026-08-18) - New "Quick" panel, first on the tab, with the AJ Quick Menu split button
+ *                       (Quick Menu / Customise) - the game-style tool wheel that opens around the
+ *                       mouse pointer. Self-contained: src/QuickMenu + Resources\QuickMenu.png +
+ *                       this one entry. Nothing else on the ribbon moved except one panel to the
+ *                       right.
  * v1.13.6 (2026-07-29) - Game Mode audit pass: tooltip now covers the SELECTOR weapon and
  *                       professional mode (N) - both shipped in suite 1.38.0 but never reached the
  *                       tooltip; stale folder note by AddGameModeTool corrected (the tool lives in
@@ -135,6 +141,7 @@ namespace AJTools.App
     {
         private enum PanelKey
         {
+            Quick,
             View,
             Graphics,
             Datums,
@@ -182,6 +189,7 @@ namespace AJTools.App
 
             _panelNames = new Dictionary<PanelKey, string>
             {
+                [PanelKey.Quick] = "Quick",
                 [PanelKey.View] = "View",
                 [PanelKey.Graphics] = "Graphics",
                 [PanelKey.Datums] = "Datums",
@@ -199,6 +207,7 @@ namespace AJTools.App
 
             _panelOrder = new List<PanelKey>
             {
+                PanelKey.Quick,
                 PanelKey.View,
                 PanelKey.Graphics,
                 PanelKey.Datums,
@@ -218,6 +227,7 @@ namespace AJTools.App
             // To move a tool group to another panel, change the PanelKey used here.
             _toolLayout = new List<ToolPlacement>
             {
+                new ToolPlacement(PanelKey.Quick, BuildQuickPanel),
                 new ToolPlacement(PanelKey.View, BuildViewPanel),
                 new ToolPlacement(PanelKey.Graphics, BuildGraphicsPanel),
                 new ToolPlacement(PanelKey.Datums, BuildDatumsPanel),
@@ -309,6 +319,11 @@ namespace AJTools.App
             }
         }
 
+        private void BuildQuickPanel(RibbonPanel panel)
+        {
+            AddTopLevelTool(panel, AddQuickMenuTool());
+        }
+
         private void BuildViewPanel(RibbonPanel panel)
         {
             AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
@@ -378,6 +393,38 @@ namespace AJTools.App
         private void BuildAboutPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAboutTool());
+        }
+
+        private TopLevelToolSpec AddQuickMenuTool()
+        {
+            // Self-contained like Game Mode: the whole tool is src/QuickMenu + Resources\QuickMenu.png
+            // + this one entry, so it can be removed cleanly if it is ever unwanted.
+            // "Quick Menu" is the permanent default face (added first, IsSynchronizedWithCurrentItem
+            // = false) and "Customise" only lives in the dropdown - the same pattern as the Opening
+            // and Run Pinned split buttons.
+            return CreateSplitToolSpec(
+                "Quick\nMenu",
+                "Open the quick tool wheel around the mouse pointer - your own favourite AJ Tools " +
+                "buttons in a ring, like a game weapon wheel. Point at one and click and it runs, or " +
+                "press its number (1-9). Esc closes it, S opens the customise list. " +
+                "TIP: give this button a Revit keyboard shortcut (File > Options > User Interface > " +
+                "Keyboard Shortcuts, search \"Quick Menu\") so the wheel opens right where you are " +
+                "working instead of up by the ribbon.",
+                "QuickMenu.png",
+                "QuickMenu.png",
+                splitButton => splitButton.IsSynchronizedWithCurrentItem = false,
+                CreateSplitChildTool(
+                    "Quick\nMenu",
+                    "Open the quick tool wheel around the mouse pointer. Point at a tool and click to run it.",
+                    typeof(AJTools.Commands.QuickMenu.CmdQuickMenu),
+                    "QuickMenu.png",
+                    "QuickMenu.png"),
+                CreateSplitChildTool(
+                    "Customise",
+                    "Choose which AJ Tools button sits in each slot of the wheel, how many slots there are, and how big the wheel opens.",
+                    typeof(AJTools.Commands.QuickMenu.CmdQuickMenuSettings),
+                    "settings.png",
+                    "settings.png"));
         }
 
         private TopLevelToolSpec AddGameModeTool()
