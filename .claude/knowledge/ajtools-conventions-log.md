@@ -3,6 +3,46 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-18 (Quick Menu — the game-style tool wheel, v1.52.0)
+
+Ajmal sent a screenshot of a video-game radial "quick menu" (weapon wheel, eight wedges round the mouse
+pointer) and asked for the same thing inside Revit, customisable, running the tool that is clicked.
+
+**The one real engineering question was how a wheel slot runs a tool**, and it has exactly one supported
+answer: `UIApplication.PostCommand`. Ruled out first, on the way there — `ExternalCommandData` cannot be
+constructed, so calling another command's `Execute` directly is impossible; `PushButton` has no click
+method. That single constraint shaped the design: the wheel is **modal** (`ShowDialog`) because the
+posting command must still be inside its own `Execute()` when the choice comes back.
+
+**The id string is READ, not composed.** Verified against pyRevit's production source rather than
+guessed: `RibbonItem` carries a non-public `getRibbonItem()` that returns the `Autodesk.Windows` item,
+whose `Id` is the `CustomCtrl_%...` string. Reflection, so no `AdWindows.dll` reference is added to an
+eight-configuration build. Composed strings are kept only as a fallback. Rule written up in
+`ajtools-conventions.md`.
+
+**Nothing about the tool list is hard-coded** — the catalog walks `GetRibbonPanels` / `GetItems` and
+reads each button's own `ClassName`, label, tooltip and icon, so a tool added in a later release turns
+up on the customise list by itself. Slots are saved by **class name, not label**, so renaming a ribbon
+button does not wipe Ajmal's layout.
+
+**Geometry was verified without Revit.** No WPF on Linux, so the wedge maths (angles, radii, label
+placement) was re-implemented in Python and rendered to PNG for every slot-count/size combination. That
+caught two real defects before they shipped: an empty slot list indexing `_slots[0]` that does not
+exist, and label blocks sized off the ring thickness that spilled across the wedge dividers — the tight
+spot is the block's INNER corners, because a wedge narrows towards the hub. Known residual: at **12
+slots** the empty corners of a label's bounding box graze the divider lines. Harmless (centred text puts
+no ink there) and left alone rather than over-tuned geometry that cannot be seen running.
+
+**NOT BUILT, NOT RUN IN REVIT.** Written in the Linux web container — no msbuild, no Revit API
+assemblies, no WPF. Needs a Windows build (`Release` + one newer config) and a live open before it is
+trusted. Two things a compile cannot catch and a live open must: the settings window's
+`../UI/ModernStyles.xaml` merge (a wrong resource URI only throws when the window opens), and whether
+`PostCommand` really fires from a modal dialog's caller on his Revit 2020.
+
+**Ribbon**: new "Quick" panel, placed FIRST on the AJ Tools tab, one split button (Quick Menu /
+Customise) following the established permanent-default-face pattern. Everything else shifts one panel
+right — flagged to Ajmal in case he wants it elsewhere.
+
 ### 2026-08-13 (Web Panel removed the day after it shipped — v1.44.0)
 
 Ajmal did not want it: *"web panel i dont whant i told you to remove"*. It went the same way the spoken
