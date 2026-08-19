@@ -5,6 +5,21 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.53.0] - 2026-08-19
+
+- **Changed: Quick Menu → Customise now shows the wheel itself**, instead of a numbered list standing
+  in for it. It is drawn with the same shape, colours and slot order as the real wheel, so what you
+  arrange is exactly what opens.
+- **Added: arrange it by dragging.** Drag a tool from the list **onto a slot** to fill it, drag **one
+  slot onto another** to swap them, and drag a slot **back onto the list** to empty it. The slot you
+  are about to drop on lights up green so there is no guessing where it will land.
+- **Unchanged**: the **Set**, **Clear slot** and the two Move buttons all still work, now acting on
+  whichever slot is picked on the wheel — so nothing is lost if you prefer buttons to dragging. Move
+  up/down are renamed **Move back**/**Move on**, since "up" and "down" mean nothing on a ring.
+- **Unchanged**: the tool list, the Show filter, the search box, slot count and wheel size all behave
+  exactly as before, and the saved layout file is untouched.
+- **Not yet tested in Revit** — builds clean on 2020, 2025, 2026 and 2027.
+
 ## [1.52.0] - 2026-08-19
 
 - **New tool: Quick Menu** — a game-style tool wheel that opens **around your mouse pointer**, holding

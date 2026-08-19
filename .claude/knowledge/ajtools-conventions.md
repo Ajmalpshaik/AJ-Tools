@@ -440,6 +440,19 @@ place rather than leaving stale info sitting next to the new truth.
   pure UI — no collectors, no transaction; the command keeps owning the model work.
 
 **WPF inside Revit**
+- **`DragDrop.DoDragDrop` blocks until the drop finishes, and it swallows the mouse-up.** Any
+  "what am I dragging" field must be cleared *before* the call, not after it and not in a
+  `MouseLeftButtonUp` handler — the mouse-up never arrives, so the field stays armed and the next
+  plain click starts a phantom drag. Pattern in `QuickMenuSettingsWindow` (`_dragFromSlot` is copied
+  to a local and reset to -1 immediately before `DoDragDrop`). Same trap applies to any future
+  drag-and-drop surface.
+- **A settings window that arranges something visual should show the real thing, not a list standing
+  in for it** (Ajmal, 2026-08-19, on the Quick Menu: *"same quick menu view also I need so I can drag
+  and drop the tools in there"*). The customise window now draws the actual wheel — same geometry,
+  same colours, same slot order as `QuickMenuWindow` — and tools are dragged onto it. Keep the old
+  button path working alongside the dragging rather than replacing it; the buttons are what still
+  work when a drag is awkward. When the preview duplicates geometry from the live control, say so in
+  both files' Notes so the two are kept in step.
 - **A `WindowStyle="None"` custom-chrome window that lets the user maximize (double-click header, a
   maximize button, etc.) will draw over the Windows taskbar** unless you cap its size — WPF only
   respects the taskbar automatically for the default chrome. Fix: bind `MaxWidth`/`MaxHeight` to

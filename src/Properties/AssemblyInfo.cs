@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.52.0
+ * Version       : 1.53.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-08-19
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,16 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.53.0 (2026-08-19) - QUICK MENU CUSTOMISE IS NOW THE WHEEL ITSELF. The plain numbered slot list
+ *                       was replaced by a live drawing of the wheel, using the same geometry and
+ *                       colours as QuickMenuWindow, so the window shows what will actually open
+ *                       instead of a list standing in for it. Tools are arranged by dragging: from
+ *                       the list onto a slot fills it, slot onto slot swaps the two, and a slot
+ *                       dragged back onto the list empties it. The Set / Clear / Move buttons stay
+ *                       and now act on whichever slot is picked on the wheel, so nothing is lost for
+ *                       working by button. Asked for by Ajmal after using 1.52.0 - "drag and drop
+ *                       the tools in there and easy for the working".
+ *                       Minor bump: new capability in an existing tool, no new ribbon button.
  * v1.52.0 (2026-08-19) - NEW TOOL: AJ Quick Menu - the game-style quick tool wheel. A ring of your
  *                       own favourite tools opens around the mouse pointer; point at one and click
  *                       (or press its number 1-9) and Revit runs it exactly as if its ribbon button
@@ -2254,8 +2264,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.52.0.0")]
-[assembly: AssemblyFileVersion("1.52.0.0")]
+[assembly: AssemblyVersion("1.53.0.0")]
+[assembly: AssemblyFileVersion("1.53.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

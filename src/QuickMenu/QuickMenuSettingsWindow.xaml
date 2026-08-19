@@ -1,9 +1,10 @@
 <!--
   Tool Name: AJ Quick Menu (customise)
   Description: Choose which AJ Tools button or Revit command sits in each slot of the quick wheel,
-               how many slots there are, and how big the wheel opens.
+               how many slots there are, and how big the wheel opens. The slots are shown as the
+               wheel itself and tools are dragged straight onto it.
   Author: Ajmal P.S.
-  Version: 1.1.0
+  Version: 1.2.0
   Last Updated: 2026-08-19
   Revit Version: 2020 - latest
 -->
@@ -11,10 +12,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Quick Menu - Customise"
-        Width="900"
-        Height="640"
-        MinWidth="780"
-        MinHeight="540"
+        Width="980"
+        Height="700"
+        MinWidth="880"
+        MinHeight="600"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BackgroundDark}"
@@ -66,7 +67,7 @@
             <TextBlock Text="Quick Menu" Style="{StaticResource TitleText}"/>
             <TextBlock Style="{StaticResource SubtitleText}"
                        TextWrapping="Wrap"
-                       Text="Pick a tool on the left, pick a slot on the right, then press Set. The list holds your own AJ Tools buttons and Revit's own commands - use Show to see one or the other. Slot 1 is at the top of the wheel and the rest follow clockwise."/>
+                       Text="Drag a tool from the left straight onto the wheel. Drag a slot to another slot to swap them, and drag one back onto the list to empty it. The buttons in the middle still do the same job if you prefer them. Slot 1 is at the top and the rest follow clockwise."/>
         </StackPanel>
 
         <!-- Wheel options -->
@@ -105,7 +106,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="330"/>
+                <ColumnDefinition Width="392"/>
             </Grid.ColumnDefinitions>
 
             <!-- Everything that can go in a slot: AJ Tools buttons and Revit's own commands -->
@@ -151,7 +152,12 @@
                     <ListBox x:Name="ToolList"
                              Style="{StaticResource ModernListBox}"
                              ItemContainerStyle="{StaticResource ModernListBoxItem}"
-                             MouseDoubleClick="OnToolListDoubleClick"/>
+                             AllowDrop="True"
+                             MouseDoubleClick="OnToolListDoubleClick"
+                             PreviewMouseLeftButtonDown="OnToolListMouseDown"
+                             MouseMove="OnToolListMouseMove"
+                             DragOver="OnToolListDragOver"
+                             Drop="OnToolListDrop"/>
                 </DockPanel>
             </Border>
 
@@ -170,30 +176,48 @@
                         Margin="0,0,0,20"
                         Click="OnClearClick"/>
                 <Button x:Name="MoveUpButton"
-                        Content="Move up"
+                        Content="Move back"
                         Style="{StaticResource CompactSecondaryButton}"
                         MinWidth="96"
                         Margin="0,0,0,8"
                         Click="OnMoveUpClick"/>
                 <Button x:Name="MoveDownButton"
-                        Content="Move down"
+                        Content="Move on"
                         Style="{StaticResource CompactSecondaryButton}"
                         MinWidth="96"
                         Click="OnMoveDownClick"/>
             </StackPanel>
 
-            <!-- The wheel slots -->
+            <!-- The wheel itself: this is what the quick menu will look like, and it is the drop target -->
             <Border Grid.Column="2" Style="{StaticResource PanelCard}" Padding="12">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top"
-                               Text="Wheel slots (1 = top, then clockwise)"
+                               Text="Your wheel - drop tools straight onto it"
                                FontWeight="SemiBold"
-                               Margin="0,0,0,8"
+                               Margin="0,0,0,6"
                                TextWrapping="Wrap"/>
 
-                    <ListBox x:Name="SlotList"
-                             Style="{StaticResource ModernListBox}"
-                             ItemContainerStyle="{StaticResource ModernListBoxItem}"/>
+                    <TextBlock x:Name="WheelHintText"
+                               DockPanel.Dock="Bottom"
+                               Margin="0,6,0,0"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource TextDisabled}"/>
+
+                    <!-- Drawn in code so it matches the real wheel exactly, same as QuickMenuWindow does. -->
+                    <Canvas x:Name="WheelCanvas"
+                            Width="352"
+                            Height="352"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            AllowDrop="True"
+                            PreviewMouseLeftButtonDown="OnWheelMouseDown"
+                            MouseMove="OnWheelMouseMove"
+                            MouseLeave="OnWheelMouseLeave"
+                            DragOver="OnWheelDragOver"
+                            DragLeave="OnWheelDragLeave"
+                            Drop="OnWheelDrop"/>
                 </DockPanel>
             </Border>
         </Grid>

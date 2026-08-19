@@ -37,6 +37,9 @@
  *   bounding box graze the divider lines. Centred text puts no ink there, so it is left alone.
  * - Modal on purpose (ShowDialog). CmdQuickMenu has to still be inside its own Execute() when it
  *   posts the chosen tool to Revit, and a modal wheel is what guarantees that.
+ * - QuickMenuSettingsWindow draws this same ring, at a smaller size, so the customise window shows
+ *   the real thing and can be dragged onto. The wedge maths and palette are duplicated there on
+ *   purpose rather than shared - if the geometry or colours change here, change them there too.
  * - Visibility values are fully qualified (System.Windows.Visibility.*) per the house rule about
  *   UIElement.Visibility shadowing the enum type name. No Application.Current anywhere.
  *

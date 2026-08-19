@@ -3,6 +3,34 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-19 (Quick Menu customise becomes the wheel itself, drag-and-drop — v1.53.0)
+
+Ajmal ran 1.52.0 and came straight back: *"in the settings window same quick menu view also I need so I
+can drag and drop the tools in there and easy for the working"*. The customise window had been showing a
+numbered list of slots, which is fine to read but nothing like the thing it configures.
+
+The slot list was replaced with the wheel, drawn in the settings window's own code-behind using the same
+geometry and palette as `QuickMenuWindow` — slot 1 at the top, the rest clockwise, wedges hit-tested by
+angle with the shapes themselves `IsHitTestVisible=false`. Three drags do all the arranging: list → wedge
+fills a slot, wedge → wedge swaps two, wedge → list empties one. The drop target lights green so the
+landing spot is never ambiguous.
+
+**Deliberately kept**: the Set / Clear slot / Move buttons, now driven by the slot picked on the wheel.
+Dragging is the nicer path, not the only one — removing the buttons would have made a fiddly drag the
+sole way to do anything. "Move up"/"Move down" became "Move back"/"Move on", because up and down mean
+nothing on a ring.
+
+**The one real trap** (now a rule in `ajtools-conventions.md`): `DoDragDrop` blocks until the drop
+completes and eats the mouse-up, so `_dragFromSlot` had to be reset *before* the call. Resetting it
+afterwards, or in a mouse-up handler, leaves it armed and the next ordinary click starts a phantom drag.
+
+**Duplication accepted knowingly**: the wedge geometry now exists in two files. Both metadata blocks say
+so, because the alternative — extracting a shared wheel control — is a bigger refactor of a tool that has
+not yet had its first live run, and the two must simply be kept in step until that is worth doing.
+
+Clean on Release (2020), R25, R26 and R27 (R27's only warning is the pre-existing `Space.Zone` one).
+Deployed to Revit 2020. **Not loaded in Revit by the assistant** — Ajmal tests it.
+
 ### 2026-08-19 (Quick Menu — Revit's own commands can sit on the wheel, still v1.52.0)
 
 Ajmal read the first version back and asked the obvious question: *"in the customise window can I add my
