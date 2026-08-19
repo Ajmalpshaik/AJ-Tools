@@ -916,6 +916,23 @@ place rather than leaving stale info sitting next to the new truth.
   in a project that builds eight Revit versions. This is the same route pyRevit has shipped since Revit
   2019 (`coreutils/ribbon.py`, `get_adwindows_object` / `get_control_id`). `QuickMenuCatalog` does the
   read; `QuickMenuLauncher` keeps the composed strings only as a fallback.
+- **Running one of REVIT'S OWN commands from an add-in (established 2026-08-19, the Quick Menu).**
+  Same `PostCommand` route, but the id comes free: `RevitCommandId.LookupPostableCommandId(PostableCommand.X)`
+  — no `CustomCtrl_%...` string involved at all. (Already proven live through the AJ AI Bridge for
+  `PostableCommand.Undo` — see `knowledge/live-model/undo.md`.) **The version trap, and the fix:**
+  `PostableCommand` gains and loses members every Revit release, so writing *any* member name in
+  compiled source breaks the build on the versions that never had it — fatal in a project that builds
+  2020 → 2027 from one file. Walk the enum **by name at run time** instead —
+  `Enum.GetNames(typeof(PostableCommand))` + `Enum.Parse` — so only the enum's **type** is named in
+  code and each Revit version automatically offers exactly the commands it actually has. Generalise
+  it: *any* Revit API enum that varies by version should be reached this way rather than by member.
+  Revit hands add-ins **no icon** for its own commands, so anything listing them must cope with a
+  null image. `QuickMenuCatalog.AddRevitCommands` is the worked example.
+- **Mixed-source keys in a config file get a prefix.** The Quick Menu saves a slot as either an AJ
+  Tools command **class name** (`AJTools.Commands.CmdUnhideAll`) or `revit:` + a `PostableCommand`
+  name (`revit:Undo`). A colon cannot appear in a C# class name, so the two kinds can never collide
+  and old saved files keep loading unchanged. Use the same trick for any future "this key could mean
+  two different things" file.
 - **The whole AJ Tools ribbon can be enumerated at run time** — `UIApplication.GetRibbonPanels(tabName)`
   → `RibbonPanel.GetItems()` → `PushButton`, or `PulldownButton.GetItems()` for split/pulldown children
   (`SplitButton` derives from `PulldownButton`, so one branch covers both). A `PushButton` hands over

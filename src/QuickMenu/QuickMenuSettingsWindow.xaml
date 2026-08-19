@@ -1,10 +1,10 @@
 <!--
   Tool Name: AJ Quick Menu (customise)
-  Description: Choose which AJ Tools button sits in each slot of the quick wheel, how many slots
-               there are, and how big the wheel opens.
+  Description: Choose which AJ Tools button or Revit command sits in each slot of the quick wheel,
+               how many slots there are, and how big the wheel opens.
   Author: Ajmal P.S.
-  Version: 1.0.0
-  Last Updated: 2026-08-18
+  Version: 1.1.0
+  Last Updated: 2026-08-19
   Revit Version: 2020 - latest
 -->
 <Window x:Class="AJTools.UI.QuickMenu.QuickMenuSettingsWindow"
@@ -66,7 +66,7 @@
             <TextBlock Text="Quick Menu" Style="{StaticResource TitleText}"/>
             <TextBlock Style="{StaticResource SubtitleText}"
                        TextWrapping="Wrap"
-                       Text="Pick a tool on the left, pick a slot on the right, then press Set. Slot 1 is at the top of the wheel and the rest follow clockwise."/>
+                       Text="Pick a tool on the left, pick a slot on the right, then press Set. The list holds your own AJ Tools buttons and Revit's own commands - use Show to see one or the other. Slot 1 is at the top of the wheel and the rest follow clockwise."/>
         </StackPanel>
 
         <!-- Wheel options -->
@@ -108,19 +108,39 @@
                 <ColumnDefinition Width="330"/>
             </Grid.ColumnDefinitions>
 
-            <!-- All AJ Tools buttons -->
+            <!-- Everything that can go in a slot: AJ Tools buttons and Revit's own commands -->
             <Border Grid.Column="0" Style="{StaticResource PanelCard}" Padding="12">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top"
-                               Text="AJ Tools buttons - type below to search"
+                               Text="Tools and commands - type in the box to search"
                                FontWeight="SemiBold"
                                Margin="0,0,0,8"/>
 
-                    <TextBox x:Name="SearchBox"
-                             DockPanel.Dock="Top"
-                             Style="{StaticResource ModernTextBox}"
-                             Margin="0,0,0,8"
-                             TextChanged="OnSearchTextChanged"/>
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="Show"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0"
+                                   Foreground="{StaticResource TextSecondary}"/>
+
+                        <ComboBox x:Name="SourceFilterCombo"
+                                  Grid.Column="1"
+                                  Width="180"
+                                  VerticalAlignment="Center"
+                                  SelectionChanged="OnSourceFilterChanged"/>
+
+                        <TextBox x:Name="SearchBox"
+                                 Grid.Column="2"
+                                 Style="{StaticResource ModernTextBox}"
+                                 Margin="10,0,0,0"
+                                 TextChanged="OnSearchTextChanged"/>
+                    </Grid>
 
                     <TextBlock x:Name="ToolCountText"
                                DockPanel.Dock="Bottom"

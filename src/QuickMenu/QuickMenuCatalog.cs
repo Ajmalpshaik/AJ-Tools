@@ -2,29 +2,39 @@
 /*
  * Tool Name     : AJ Quick Menu (tool catalog)
  * File Name     : QuickMenuCatalog.cs
- * Purpose       : Reads the LIVE AJ Tools / AJ Annotation ribbon and turns every push button on it
- *                 into a QuickToolEntry the wheel can show and launch. Nothing is hard-coded: add a
- *                 new button to either ribbon manager and it appears in the Quick Menu list by
- *                 itself, with its real label, tooltip and icon.
+ * Purpose       : Builds the list of everything the Quick Menu can put in a slot. Two sources:
+ *                 (1) the LIVE AJ Tools / AJ Annotation ribbon - every push button on it, and
+ *                 (2) Revit's own built-in commands. Nothing is hard-coded either side: add a new
+ *                 button to a ribbon manager and it appears by itself, with its real label, tooltip
+ *                 and icon; Revit's own list comes straight from the running Revit version.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-08-19
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : Autodesk Revit UI API (UIApplication.GetRibbonPanels, RibbonPanel.GetItems,
- *                 PulldownButton.GetItems, PushButton.ClassName/ItemText/ToolTip/LargeImage),
- *                 System.Reflection (for the control id - see Notes)
+ *                 PulldownButton.GetItems, PushButton.ClassName/ItemText/ToolTip/LargeImage,
+ *                 PostableCommand), System.Reflection (for the control id - see Notes)
  *
  * Input         : The running UIApplication.
  * Output        : A cached read-only list of QuickToolEntry. No model changes, ever.
  *
  * Notes         :
+ * - REVIT'S OWN COMMANDS ARE READ FROM THE RUNNING VERSION, NOT LISTED BY HAND. Revit publishes its
+ *   built-in commands as the PostableCommand enum, and that enum is different in every release - a
+ *   command written into the code by name would stop the whole project compiling on the versions
+ *   that never had it. So the names are walked with Enum.GetNames(typeof(PostableCommand)) at run
+ *   time: only the enum's TYPE name is written in the code, never a member. One source file then
+ *   builds correctly for Revit 2020 through 2027 and each one offers exactly the commands it has.
+ * - Revit hands add-ins no icon for its own commands, so those entries carry none and the wheel
+ *   draws the name on its own. The name is the enum member split into words ("WallArchitectural"
+ *   becomes "Wall Architectural"), which is what Ajmal searches the customise list by.
  * - HOW THE CONTROL ID IS FOUND. Revit gives every ribbon button an internal command id string
  *   ("CustomCtrl_%CustomCtrl_%AJ Tools%View%cmdCmdUnhideAll") and that string is the ONLY way to
  *   launch an add-in command programmatically (UIApplication.PostCommand). It is not exposed on the
@@ -42,6 +52,8 @@
  *   would be a loop.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-19) - Added Revit's own built-in commands as a second source, so a wheel slot can
+ *                       hold a Revit command as well as an AJ Tools button.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -52,11 +64,12 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using Autodesk.Revit.UI;
 
 namespace AJTools.Services.QuickMenu
 {
-    /// <summary>Every AJ Tools ribbon button, read from the live ribbon, ready for the wheel.</summary>
+    /// <summary>Every AJ Tools ribbon button plus every Revit built-in command, ready for the wheel.</summary>
     internal static class QuickMenuCatalog
     {
         /// <summary>The two AJ Tools ribbon tabs the Quick Menu offers tools from.</summary>
@@ -144,7 +157,94 @@ namespace AJTools.Services.QuickMenu
                 }
             }
 
+            AddRevitCommands(entries, seenKeys);
+
             return entries;
+        }
+
+        /// <summary>
+        /// Adds every built-in command the running Revit version publishes. See the Notes block:
+        /// the enum is walked by name at run time so one source file builds on 2020 through 2027.
+        /// </summary>
+        private static void AddRevitCommands(List<QuickToolEntry> entries, HashSet<string> seenKeys)
+        {
+            string[] commandNames;
+            try
+            {
+                commandNames = Enum.GetNames(typeof(PostableCommand));
+            }
+            catch (Exception)
+            {
+                // No built-in list available - the AJ Tools buttons on their own are still usable.
+                return;
+            }
+
+            if (commandNames == null)
+            {
+                return;
+            }
+
+            foreach (string commandName in commandNames)
+            {
+                if (string.IsNullOrEmpty(commandName))
+                {
+                    continue;
+                }
+
+                if (!seenKeys.Add(QuickToolEntry.RevitKeyPrefix + commandName))
+                {
+                    continue;
+                }
+
+                PostableCommand commandValue;
+                try
+                {
+                    commandValue = (PostableCommand)Enum.Parse(typeof(PostableCommand), commandName);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                entries.Add(QuickToolEntry.ForRevitCommand(
+                    commandName,
+                    SplitIntoWords(commandName),
+                    commandValue));
+            }
+        }
+
+        /// <summary>"WallArchitectural" -> "Wall Architectural", so the list reads like English.</summary>
+        private static string SplitIntoWords(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder(name.Length + 8);
+
+            for (int i = 0; i < name.Length; i++)
+            {
+                char current = name[i];
+
+                if (i > 0 && char.IsUpper(current))
+                {
+                    char previous = name[i - 1];
+                    bool afterLowerOrDigit = char.IsLower(previous) || char.IsDigit(previous);
+                    bool endOfRunOfCapitals = char.IsUpper(previous) &&
+                                              i + 1 < name.Length &&
+                                              char.IsLower(name[i + 1]);
+
+                    if (afterLowerOrDigit || endOfRunOfCapitals)
+                    {
+                        builder.Append(' ');
+                    }
+                }
+
+                builder.Append(current);
+            }
+
+            return builder.ToString();
         }
 
         private static void AddPanel(
@@ -253,7 +353,7 @@ namespace AJTools.Services.QuickMenu
                 displayName = itemName;
             }
 
-            entries.Add(new QuickToolEntry(
+            entries.Add(QuickToolEntry.ForRibbonButton(
                 key,
                 displayName,
                 SafeToolTip(pushButton),

@@ -3,6 +3,38 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-19 (Quick Menu — Revit's own commands can sit on the wheel, still v1.52.0)
+
+Ajmal read the first version back and asked the obvious question: *"in the customise window can I add my
+custom tool AND Revit's one also?"* — his own AJ Tools buttons were there, Revit's own commands were not.
+So they were added, into the same unreleased 1.52.0 rather than a second version bump, because 1.52.0 has
+never shipped and would otherwise read as a release that lacked them.
+
+**Launching Revit's own command turned out to be the easy half** — `RevitCommandId.LookupPostableCommandId`
+hands the id straight over, no `CustomCtrl_%...` string to read or rebuild, and `PostCommand` is the same
+call either way. `QuickMenuLauncher` branches once on `entry.Source` and everything downstream is shared.
+
+**The real trap was the version matrix, and it is worth remembering beyond this tool.** The tempting way to
+offer Revit's commands is to list the useful ones — `PostableCommand.ThinLines`, `PostableCommand.PurgeUnused`
+and so on. That would have compiled on Revit 2020 and then failed the build on some of the other seven
+configurations, because Autodesk adds and removes enum members every release. Walking the enum by name at
+run time (`Enum.GetNames` + `Enum.Parse`) means only the enum's *type* appears in compiled code, one source
+file serves 2020 → 2027, and each version automatically lists exactly the commands it has. The same reasoning
+applies to any version-varying Revit enum.
+
+Two smaller decisions worth keeping:
+- **Saved keys got a prefix.** A slot now holds either a command class name or `revit:Undo`. The colon is
+  illegal in a C# class name, so the two can never be confused and files saved by the earlier build still load.
+- **A "Show" filter, not one long list.** Revit publishes on the order of a thousand commands; dropped into
+  one list they would have buried Ajmal's own forty-odd tools. Show = All / AJ Tools only / Revit commands
+  only, with the search box narrowing whichever is showing (search also matches the unspaced command name,
+  so "visibilitygraphics" finds "Visibility Graphics").
+
+Revit gives add-ins **no artwork** for its own commands, so those wheel slots show the name with no icon —
+the wheel already handled a null image, so nothing needed changing there.
+
+Still not compiled and still never opened in Revit — same Linux container, same limitation as the 18th.
+
 ### 2026-08-18 (Quick Menu — the game-style tool wheel, v1.52.0)
 
 Ajmal sent a screenshot of a video-game radial "quick menu" (weapon wheel, eight wedges round the mouse

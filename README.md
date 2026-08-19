@@ -62,7 +62,7 @@ AJ Tools provides commands for:
 - Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
   identification, temporary hiding, snag marking, and selection carried back into Revit
 - Quick Menu: a customisable radial tool wheel that opens around the mouse pointer and runs any
-  AJ Tools ribbon button
+  AJ Tools ribbon button or Revit built-in command
 
 ## Repository Layout
 

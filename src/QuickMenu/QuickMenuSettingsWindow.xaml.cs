@@ -6,10 +6,10 @@
  *                 slot, how many slots there are (4 to 12) and how big the wheel opens.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-08-19
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -33,6 +33,8 @@
  *   none are needed in this file.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-19) - Tool list now also holds Revit's own commands, with a Show filter to see
+ *                       only AJ Tools buttons, only Revit commands, or everything.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -62,6 +64,21 @@ namespace AJTools.UI.QuickMenu
             "Medium (560)",
             "Large (660)",
             "Extra large (760)"
+        };
+
+        /// <summary>What the Show combo offers, in order. Null means "no filter - show everything".</summary>
+        private static readonly QuickToolSource?[] SourceFilterChoices =
+        {
+            null,
+            QuickToolSource.AjTools,
+            QuickToolSource.Revit
+        };
+
+        private static readonly string[] SourceFilterLabels =
+        {
+            "All",
+            "AJ Tools only",
+            "Revit commands only"
         };
 
         private readonly IList<QuickToolEntry> _allTools;
@@ -119,6 +136,32 @@ namespace AJTools.UI.QuickMenu
             }
 
             WheelSizeCombo.SelectedIndex = NearestIndex(WheelSizeChoices, config.Diameter);
+
+            for (int i = 0; i < SourceFilterLabels.Length; i++)
+            {
+                SourceFilterCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = SourceFilterLabels[i],
+                    Tag = i
+                });
+            }
+
+            SourceFilterCombo.SelectedIndex = 0;
+        }
+
+        /// <summary>Which source the Show combo is asking for, or null for everything.</summary>
+        private QuickToolSource? SelectedSourceFilter()
+        {
+            var item = SourceFilterCombo.SelectedItem as ComboBoxItem;
+            if (item == null || !(item.Tag is int))
+            {
+                return null;
+            }
+
+            int index = (int)item.Tag;
+            return index >= 0 && index < SourceFilterChoices.Length
+                ? SourceFilterChoices[index]
+                : null;
         }
 
         private void FillToolList(string filter)
@@ -128,12 +171,17 @@ namespace AJTools.UI.QuickMenu
             ToolList.Items.Clear();
 
             string needle = (filter ?? string.Empty).Trim();
+            QuickToolSource? wantedSource = SelectedSourceFilter();
             int shown = 0;
 
             foreach (QuickToolEntry entry in _allTools)
             {
-                if (needle.Length > 0 &&
-                    entry.ListLabel.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0)
+                if (wantedSource.HasValue && entry.Source != wantedSource.Value)
+                {
+                    continue;
+                }
+
+                if (needle.Length > 0 && !Matches(entry, needle))
                 {
                     continue;
                 }
@@ -184,6 +232,21 @@ namespace AJTools.UI.QuickMenu
             }
         }
 
+        /// <summary>
+        /// Search hit test. The label is matched first; a Revit command also matches its own
+        /// unspaced name, so typing "visibilitygraphics" finds "Visibility Graphics".
+        /// </summary>
+        private static bool Matches(QuickToolEntry entry, string needle)
+        {
+            if (entry.ListLabel.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return !string.IsNullOrEmpty(entry.ItemName) &&
+                   entry.ItemName.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private QuickToolEntry FindTool(string key)
         {
             if (string.IsNullOrEmpty(key))
@@ -232,6 +295,17 @@ namespace AJTools.UI.QuickMenu
         #region Events
 
         private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_loading)
+            {
+                return;
+            }
+
+            FillToolList(SearchBox.Text);
+            UpdateButtonStates();
+        }
+
+        private void OnSourceFilterChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_loading)
             {

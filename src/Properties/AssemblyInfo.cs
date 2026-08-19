@@ -24,12 +24,24 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
- * v1.52.0 (2026-08-18) - NEW TOOL: AJ Quick Menu - the game-style quick tool wheel. A ring of your
- *                       own favourite AJ Tools buttons opens around the mouse pointer; point at one
- *                       and click (or press its number 1-9) and Revit runs it exactly as if its
- *                       ribbon button had been clicked. Slots, slot count (4-12) and wheel size are
- *                       all customisable and saved to %APPDATA%\AJTools\quickmenu-slots.txt.
+ * v1.52.0 (2026-08-19) - NEW TOOL: AJ Quick Menu - the game-style quick tool wheel. A ring of your
+ *                       own favourite tools opens around the mouse pointer; point at one and click
+ *                       (or press its number 1-9) and Revit runs it exactly as if its ribbon button
+ *                       had been clicked. Slots, slot count (4-12) and wheel size are all
+ *                       customisable and saved to %APPDATA%\AJTools\quickmenu-slots.txt.
  *                       Minor bump: a tool was added.
+ *                       A SLOT CAN HOLD EITHER KIND OF TOOL (added 2026-08-19): one of Ajmal's own
+ *                       AJ Tools / AJ Annotation buttons, OR one of Revit's own built-in commands
+ *                       (Undo, Thin Lines, Visibility/Graphics, Purge Unused, place a wall...). The
+ *                       customise window has a Show filter - All / AJ Tools only / Revit commands
+ *                       only - so his own tools are never lost in Revit's long list.
+ *                       WHY REVIT'S LIST IS NOT WRITTEN INTO THE CODE: Revit publishes its commands
+ *                       as the PostableCommand enum and that enum changes every release, so naming a
+ *                       member would break the build on versions that never had it. The names are
+ *                       walked with Enum.GetNames(typeof(PostableCommand)) at run time - only the
+ *                       TYPE is named in code - so one file builds for 2020 to 2027 and each version
+ *                       offers exactly the commands it actually has. Saved keys are prefixed
+ *                       "revit:" so they can never collide with a command class name.
  *                       New "Quick" panel, first on the AJ Tools tab, holding one split button
  *                       (Quick Menu / Customise). Nothing else moved except one panel to the right.
  *                       HOW IT LAUNCHES ANOTHER TOOL: an add-in cannot call another IExternalCommand
