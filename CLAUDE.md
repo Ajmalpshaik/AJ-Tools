@@ -219,9 +219,10 @@ Rules:
 `mcp-server/`, `docs/`, `AJ-Tools-Installer/`, `.agents/`, root docs) and **excludes `AJ Tools\` and
 `_backup\`**. Those are the stale copies; including them makes the graph half-duplicate and wrong
 (`MepOpeningService` appeared twice, `AJTools.Utils` reported 315 edges instead of its real 162, and
-communities came out in mirrored pairs). A plain `graphify update .` re-scans the whole repo and will
-pull the stale tree back in — filter `AJ Tools` and `_backup` out of the detect file list before
-extracting. Rescoping is nearly free: the cache under `graphify-out/cache/` made the 2026-08-04 rebuild
-cost zero new tokens. There is no git hook: the root `.git` is hollow, so `graphify hook install` cannot
-run here — this CLAUDE.md section plus the `.claude/settings.json` PreToolUse guards do that job instead
-(remove with `graphify claude uninstall`).
+communities came out in mirrored pairs). **`.graphifyignore` at the root now enforces this**, so a plain
+`graphify update .` is safe and no longer needs the stale trees filtered out by hand (verified
+2026-08-19). Do not delete that file — before it existed, every update silently pulled the stale trees
+back in and the scoping had to be redone each time. Rescoping is nearly free either way: the cache under
+`graphify-out/cache/` made the 2026-08-04 rebuild cost zero new tokens. There is no git hook installed —
+this CLAUDE.md section, `.graphifyignore`, and the `.claude/settings.json` PreToolUse guards do that job
+instead (remove with `graphify claude uninstall`).
