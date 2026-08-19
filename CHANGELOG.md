@@ -27,8 +27,10 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
   shifts one panel to the right.
 - **Nothing is hard-coded**: the wheel reads the ribbon itself, so any tool added to AJ Tools in future
   shows up in the customise list on its own.
-- **Not yet built or tested in Revit** — this release was written in a Linux container with no Revit
-  and no compiler. It needs a Windows build and a live check before it is used on real work.
+- **Built on Windows, not yet tested in Revit** — the tool was written in a Linux container with no
+  Revit and no compiler. It has since been built clean on Windows for all eight Revit versions
+  (2020–2027) and deployed locally on 2026-08-19. It still needs a live check in Revit before it is
+  used on real work.
 
 ## [1.51.0] - 2026-08-18
 
