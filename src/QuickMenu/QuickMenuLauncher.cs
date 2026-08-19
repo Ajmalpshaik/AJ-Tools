@@ -6,16 +6,17 @@
  *                 button - same command, same dialogs, same undo entry.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-08-19
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit UI API (RevitCommandId.LookupCommandId, UIApplication.PostCommand)
+ * Dependencies  : Autodesk Revit UI API (RevitCommandId.LookupCommandId,
+ *                 RevitCommandId.LookupPostableCommandId, UIApplication.PostCommand)
  *
  * Input         : One QuickToolEntry chosen on the wheel.
  * Output        : That tool runs. This file itself never opens a transaction or touches the model.
@@ -36,6 +37,7 @@
  *   button that lives inside a split/pulldown.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-19) - Runs Revit's own built-in commands too, via LookupPostableCommandId.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -49,7 +51,7 @@ using Autodesk.Revit.UI;
 
 namespace AJTools.Services.QuickMenu
 {
-    /// <summary>Posts the chosen AJ Tools command so Revit runs it like a normal ribbon click.</summary>
+    /// <summary>Posts the chosen tool or Revit command so it runs like a normal ribbon click.</summary>
     internal static class QuickMenuLauncher
     {
         /// <summary>
@@ -70,9 +72,13 @@ namespace AJTools.Services.QuickMenu
             RevitCommandId commandId = ResolveCommandId(entry);
             if (commandId == null)
             {
-                error = "Revit could not find the \"" + entry.DisplayName + "\" button on the ribbon, " +
-                        "so the Quick Menu could not start it. Open the Quick Menu settings and pick " +
-                        "the tool again from the list.";
+                error = entry.Source == QuickToolSource.Revit
+                    ? "This version of Revit does not have a \"" + entry.DisplayName + "\" command, " +
+                      "so the Quick Menu could not start it. Open the Quick Menu settings and pick " +
+                      "another command for that slot."
+                    : "Revit could not find the \"" + entry.DisplayName + "\" button on the ribbon, " +
+                      "so the Quick Menu could not start it. Open the Quick Menu settings and pick " +
+                      "the tool again from the list.";
                 return false;
             }
 
@@ -93,6 +99,25 @@ namespace AJTools.Services.QuickMenu
 
         private static RevitCommandId ResolveCommandId(QuickToolEntry entry)
         {
+            // One of Revit's own commands - Revit hands over its id directly, no id string involved.
+            if (entry.Source == QuickToolSource.Revit)
+            {
+                if (!entry.PostableCommandValue.HasValue)
+                {
+                    return null;
+                }
+
+                try
+                {
+                    return RevitCommandId.LookupPostableCommandId(entry.PostableCommandValue.Value);
+                }
+                catch (Exception)
+                {
+                    // Not available in this Revit version or edition - reported as a plain message.
+                    return null;
+                }
+            }
+
             foreach (string candidate in BuildCandidateIds(entry))
             {
                 if (string.IsNullOrEmpty(candidate))

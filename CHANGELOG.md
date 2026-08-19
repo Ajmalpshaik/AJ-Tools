@@ -5,7 +5,7 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
-## [1.52.0] - 2026-08-18
+## [1.52.0] - 2026-08-19
 
 - **New tool: Quick Menu** — a game-style tool wheel that opens **around your mouse pointer**, holding
   the AJ Tools buttons you use most. Point at one and click, and it runs exactly as if you had clicked
@@ -13,6 +13,13 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 - **You choose what is on it**: **Quick Menu → Customise** lists every button on the AJ Tools and
   AJ Annotation tabs — pick a tool, pick a slot, press Set. **4 to 12 slots**, four wheel sizes, and
   it remembers your layout between sessions.
+- **Revit's own commands can sit on the wheel too** — Undo, Thin Lines, Visibility/Graphics, Purge
+  Unused, place a wall, and the rest of Revit's built-in list. A **Show** box at the top of the
+  customise window switches between *All*, *AJ Tools only* and *Revit commands only*, so your own
+  tools are never buried in Revit's long list, and typing in the search box narrows either one.
+  The list is read from the Revit you are actually running, so each version offers exactly the
+  commands it has. Revit gives add-ins no picture for its own commands, so those slots show the name
+  only.
 - **To open it at your pointer instead of at the ribbon**, give the Quick Menu button a Revit keyboard
   shortcut: **File → Options → User Interface → Keyboard Shortcuts**, search *Quick Menu*, and assign
   something easy like **QQ**. Then tap that key wherever you are working and the wheel appears there.
