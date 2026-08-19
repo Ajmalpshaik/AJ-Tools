@@ -3,6 +3,78 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-08-19 (Quick Menu — Revit's own commands can sit on the wheel, still v1.52.0)
+
+Ajmal read the first version back and asked the obvious question: *"in the customise window can I add my
+custom tool AND Revit's one also?"* — his own AJ Tools buttons were there, Revit's own commands were not.
+So they were added, into the same unreleased 1.52.0 rather than a second version bump, because 1.52.0 has
+never shipped and would otherwise read as a release that lacked them.
+
+**Launching Revit's own command turned out to be the easy half** — `RevitCommandId.LookupPostableCommandId`
+hands the id straight over, no `CustomCtrl_%...` string to read or rebuild, and `PostCommand` is the same
+call either way. `QuickMenuLauncher` branches once on `entry.Source` and everything downstream is shared.
+
+**The real trap was the version matrix, and it is worth remembering beyond this tool.** The tempting way to
+offer Revit's commands is to list the useful ones — `PostableCommand.ThinLines`, `PostableCommand.PurgeUnused`
+and so on. That would have compiled on Revit 2020 and then failed the build on some of the other seven
+configurations, because Autodesk adds and removes enum members every release. Walking the enum by name at
+run time (`Enum.GetNames` + `Enum.Parse`) means only the enum's *type* appears in compiled code, one source
+file serves 2020 → 2027, and each version automatically lists exactly the commands it has. The same reasoning
+applies to any version-varying Revit enum.
+
+Two smaller decisions worth keeping:
+- **Saved keys got a prefix.** A slot now holds either a command class name or `revit:Undo`. The colon is
+  illegal in a C# class name, so the two can never be confused and files saved by the earlier build still load.
+- **A "Show" filter, not one long list.** Revit publishes on the order of a thousand commands; dropped into
+  one list they would have buried Ajmal's own forty-odd tools. Show = All / AJ Tools only / Revit commands
+  only, with the search box narrowing whichever is showing (search also matches the unspaced command name,
+  so "visibilitygraphics" finds "Visibility Graphics").
+
+Revit gives add-ins **no artwork** for its own commands, so those wheel slots show the name with no icon —
+the wheel already handled a null image, so nothing needed changing there.
+
+Still not compiled and still never opened in Revit — same Linux container, same limitation as the 18th.
+
+### 2026-08-18 (Quick Menu — the game-style tool wheel, v1.52.0)
+
+Ajmal sent a screenshot of a video-game radial "quick menu" (weapon wheel, eight wedges round the mouse
+pointer) and asked for the same thing inside Revit, customisable, running the tool that is clicked.
+
+**The one real engineering question was how a wheel slot runs a tool**, and it has exactly one supported
+answer: `UIApplication.PostCommand`. Ruled out first, on the way there — `ExternalCommandData` cannot be
+constructed, so calling another command's `Execute` directly is impossible; `PushButton` has no click
+method. That single constraint shaped the design: the wheel is **modal** (`ShowDialog`) because the
+posting command must still be inside its own `Execute()` when the choice comes back.
+
+**The id string is READ, not composed.** Verified against pyRevit's production source rather than
+guessed: `RibbonItem` carries a non-public `getRibbonItem()` that returns the `Autodesk.Windows` item,
+whose `Id` is the `CustomCtrl_%...` string. Reflection, so no `AdWindows.dll` reference is added to an
+eight-configuration build. Composed strings are kept only as a fallback. Rule written up in
+`ajtools-conventions.md`.
+
+**Nothing about the tool list is hard-coded** — the catalog walks `GetRibbonPanels` / `GetItems` and
+reads each button's own `ClassName`, label, tooltip and icon, so a tool added in a later release turns
+up on the customise list by itself. Slots are saved by **class name, not label**, so renaming a ribbon
+button does not wipe Ajmal's layout.
+
+**Geometry was verified without Revit.** No WPF on Linux, so the wedge maths (angles, radii, label
+placement) was re-implemented in Python and rendered to PNG for every slot-count/size combination. That
+caught two real defects before they shipped: an empty slot list indexing `_slots[0]` that does not
+exist, and label blocks sized off the ring thickness that spilled across the wedge dividers — the tight
+spot is the block's INNER corners, because a wedge narrows towards the hub. Known residual: at **12
+slots** the empty corners of a label's bounding box graze the divider lines. Harmless (centred text puts
+no ink there) and left alone rather than over-tuned geometry that cannot be seen running.
+
+**NOT BUILT, NOT RUN IN REVIT.** Written in the Linux web container — no msbuild, no Revit API
+assemblies, no WPF. Needs a Windows build (`Release` + one newer config) and a live open before it is
+trusted. Two things a compile cannot catch and a live open must: the settings window's
+`../UI/ModernStyles.xaml` merge (a wrong resource URI only throws when the window opens), and whether
+`PostCommand` really fires from a modal dialog's caller on his Revit 2020.
+
+**Ribbon**: new "Quick" panel, placed FIRST on the AJ Tools tab, one split button (Quick Menu /
+Customise) following the established permanent-default-face pattern. Everything else shifts one panel
+right — flagged to Ajmal in case he wants it elsewhere.
+
 ### 2026-08-13 (Web Panel removed the day after it shipped — v1.44.0)
 
 Ajmal did not want it: *"web panel i dont whant i told you to remove"*. It went the same way the spoken

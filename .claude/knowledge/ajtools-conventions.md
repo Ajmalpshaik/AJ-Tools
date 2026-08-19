@@ -900,6 +900,46 @@ place rather than leaving stale info sitting next to the new truth.
   Run Pinned/Saved Scripts) that "always-there default + dropdown-only secondary" is the wanted pattern
   here, not last-used tracking - default to this reading if a future request sounds like "make X always
   there, put Y in the pulldown." Full story in `ajtools-conventions-log.md` 2026-07-21.
+- **Running one AJ Tools command FROM another (established 2026-08-18, the Quick Menu).** An add-in
+  cannot call another `IExternalCommand` directly: `Execute` needs an `ExternalCommandData`, which has
+  no public constructor, and there is no `PushButton.PerformClick()`. The only supported route is
+  `UIApplication.PostCommand(RevitCommandId)`, and it must be called **from inside a live command
+  context** — the posted command runs once the current one finishes. That is why `CmdQuickMenu` shows
+  its wheel with `ShowDialog()` (modal) rather than modelessly: the calling `Execute()` has to still be
+  on the stack when the choice comes back.
+- **Getting the command-id string for one of our own ribbon buttons — read it, do not compose it.**
+  Revit ids an add-in button as `CustomCtrl_%CustomCtrl_%<tab>%<panel>%<buttonInternalName>` (one extra
+  `CustomCtrl_%` level for a child of a split/pulldown). Composing that by hand works until a panel or
+  button name changes. The reliable way: every Revit API `RibbonItem` carries a **non-public instance
+  method `getRibbonItem()`** returning the underlying `Autodesk.Windows` item, whose **`Id` property is
+  exactly that string** — reached by plain reflection, so no `AdWindows.dll` package reference is needed
+  in a project that builds eight Revit versions. This is the same route pyRevit has shipped since Revit
+  2019 (`coreutils/ribbon.py`, `get_adwindows_object` / `get_control_id`). `QuickMenuCatalog` does the
+  read; `QuickMenuLauncher` keeps the composed strings only as a fallback.
+- **Running one of REVIT'S OWN commands from an add-in (established 2026-08-19, the Quick Menu).**
+  Same `PostCommand` route, but the id comes free: `RevitCommandId.LookupPostableCommandId(PostableCommand.X)`
+  — no `CustomCtrl_%...` string involved at all. (Already proven live through the AJ AI Bridge for
+  `PostableCommand.Undo` — see `knowledge/live-model/undo.md`.) **The version trap, and the fix:**
+  `PostableCommand` gains and loses members every Revit release, so writing *any* member name in
+  compiled source breaks the build on the versions that never had it — fatal in a project that builds
+  2020 → 2027 from one file. Walk the enum **by name at run time** instead —
+  `Enum.GetNames(typeof(PostableCommand))` + `Enum.Parse` — so only the enum's **type** is named in
+  code and each Revit version automatically offers exactly the commands it actually has. Generalise
+  it: *any* Revit API enum that varies by version should be reached this way rather than by member.
+  Revit hands add-ins **no icon** for its own commands, so anything listing them must cope with a
+  null image. `QuickMenuCatalog.AddRevitCommands` is the worked example.
+- **Mixed-source keys in a config file get a prefix.** The Quick Menu saves a slot as either an AJ
+  Tools command **class name** (`AJTools.Commands.CmdUnhideAll`) or `revit:` + a `PostableCommand`
+  name (`revit:Undo`). A colon cannot appear in a C# class name, so the two kinds can never collide
+  and old saved files keep loading unchanged. Use the same trick for any future "this key could mean
+  two different things" file.
+- **The whole AJ Tools ribbon can be enumerated at run time** — `UIApplication.GetRibbonPanels(tabName)`
+  → `RibbonPanel.GetItems()` → `PushButton`, or `PulldownButton.GetItems()` for split/pulldown children
+  (`SplitButton` derives from `PulldownButton`, so one branch covers both). A `PushButton` hands over
+  `ClassName` (the command class — the stable key to save in a config file, since it survives a label
+  rename), `ItemText`, `ToolTip` and its own `LargeImage`/`Image`. Any feature that needs "a list of
+  every AJ Tools tool" should read the ribbon this way rather than keeping a hand-written list that
+  silently goes stale.
 - Shared validation: `Helpers/ValidationHelper.cs`. Dialogs: `Helpers/DialogHelper.cs` (namespace `AJTools.Utils`).
 - Icons load from `src/Resources/*.png` via `Helpers/IconLoader.cs` (32px large / 16px small, filename is the
   only key — same file feeds both ribbon managers). As of 2026-07-19 there are **43 unique icon files**

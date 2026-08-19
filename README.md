@@ -61,6 +61,8 @@ AJ Tools provides commands for:
 - a built-in AI Assistant (AJ AI) with an MCP bridge for external AI agents
 - Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
   identification, temporary hiding, snag marking, and selection carried back into Revit
+- Quick Menu: a customisable radial tool wheel that opens around the mouse pointer and runs any
+  AJ Tools ribbon button or Revit built-in command
 
 ## Repository Layout
 
@@ -77,6 +79,7 @@ Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged D
 The add-in registers **two** ribbon tabs:
 
 - `AJ Tools`: main tool tab with the following panels:
+  - **Quick** — Quick Menu (radial tool wheel), Customise
   - **View** — View Crop, Unhide All, Toggle Links, Filter Pro, Colorize, Highlight Selection
   - **Graphics** — Apply Graphics, Match Graphics, Reset Graphics
   - **Datums** — Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
