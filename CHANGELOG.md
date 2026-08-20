@@ -5,6 +5,28 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.54.0] - 2026-08-20
+
+- **Fixed: Quick Menu slots that quietly did nothing.** A tool the ribbon would have greyed out looked
+  perfectly normal on the wheel, took the click, and then did nothing at all — Revit silently ignores a
+  posted command whose availability rule says no. Five of the eight slots a fresh install starts with
+  carry such a rule — Unhide All, Toggle Revit Links, Highlight Selection, Colorize and Filter Pro — so
+  this was easy to hit and impossible to explain. Those slots are now drawn greyed out, cannot be
+  picked, and the hub says why.
+- **Changed: the wheel mirrors the panel rather than copying its rules.** It asks each button's own
+  availability class the same question Revit asks before greying the button. A rule added to a ribbon
+  button is followed on the wheel by itself, with nothing to keep in step by hand.
+- **Fixed: a launch Revit refuses is now explained.** Revit is asked `CanPostCommand` before a tool is
+  posted, so "another command is still running" says so instead of failing in silence.
+- **Changed: the wheel opens and aims faster.** The blurred hover glow and the fade-in were removed.
+  The wheel is a see-through window, which Windows draws entirely on the CPU, so re-blurring a wedge on
+  every pointer movement was what made aiming feel heavy. The lit wedge now uses a brighter fill and a
+  thicker outline — same read, none of the cost.
+- **Fixed: the wheel no longer vanishes while it is opening.** Close-on-lose-focus arms only once the
+  wheel is fully up, so a stray focus change during opening can no longer swallow it.
+- **Fixed: Enter, Space and a number key higher than the slot count** no longer close the wheel without
+  running anything — they are ignored, and the wheel stays open.
+
 ## [1.53.0] - 2026-08-19
 
 - **Changed: Quick Menu → Customise now shows the wheel itself**, instead of a numbered list standing

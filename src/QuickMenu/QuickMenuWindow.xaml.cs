@@ -7,10 +7,10 @@
  *                 chosen tool back to CmdQuickMenu to run.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-08-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -18,7 +18,8 @@
  *
  * Dependencies  : QuickToolEntry (what to draw), user32 GetCursorPos (where the pointer is)
  *
- * Input         : The slot list and wheel diameter from QuickMenuConfig.
+ * Input         : The slot list, the per-slot available flags worked out by CmdQuickMenu, and
+ *                 the wheel diameter from QuickMenuConfig.
  * Output        : SelectedEntry (the tool to run) or OpenSettingsRequested. This window never
  *                 touches the Revit model - it only reports the choice back.
  *
@@ -35,6 +36,15 @@
  * - Slot layout was checked by re-implementing this file's wedge maths outside Revit and rendering it,
  *   for every slot count at every wheel size. Known limit: at 12 slots the empty corners of a label's
  *   bounding box graze the divider lines. Centred text puts no ink there, so it is left alone.
+ * - GREYED OUT MEANS GREYED OUT, EXACTLY LIKE THE PANEL. A slot whose tool the ribbon would have
+ *   greyed out is drawn dim and cannot be picked - pointing at it says so in the hub. Clicking it
+ *   does nothing and leaves the wheel open, which is what clicking a greyed ribbon button does.
+ *   The wheel does not decide this: QuickMenuAvailability asks the button's own availability class.
+ * - NOTHING BLURRED, NOTHING FADED. This window is see-through (AllowsTransparency), and WPF draws
+ *   a see-through window entirely on the CPU. A DropShadowEffect glow re-blurred on every hover
+ *   change, and an opacity fade across the whole ring, were the two things making the wheel feel
+ *   sluggish to open and to aim. The lit wedge now uses a brighter fill and a thicker outline -
+ *   the same read, none of the per-pixel cost. Do not reintroduce an Effect on this window.
  * - Modal on purpose (ShowDialog). CmdQuickMenu has to still be inside its own Execute() when it
  *   posts the chosen tool to Revit, and a modal wheel is what guarantees that.
  * - QuickMenuSettingsWindow draws this same ring, at a smaller size, so the customise window shows
@@ -44,6 +54,11 @@
  *   UIElement.Visibility shadowing the enum type name. No Application.Current anywhere.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-20) - Greys out a slot whose tool the ribbon would grey out, and says why. Dropped
+ *                       the blurred hover glow and the opacity fade (both drawn on the CPU, both
+ *                       slow). Close-on-lose-focus now arms only once the wheel is fully up, so a
+ *                       stray focus change while opening can no longer swallow the wheel. Enter,
+ *                       Space and an out-of-range number key no longer close the wheel doing nothing.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -59,7 +74,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using AJTools.Services.QuickMenu;
 
@@ -86,8 +100,10 @@ namespace AJTools.UI.QuickMenu
         private static readonly Brush WedgeFill = MakeBrush(0xE5, 0x23, 0x28, 0x30);
         private static readonly Brush WedgeFillHover = MakeBrush(0xF2, 0x0D, 0x47, 0x6B);
         private static readonly Brush WedgeFillEmpty = MakeBrush(0x99, 0x1E, 0x1E, 0x22);
+        private static readonly Brush WedgeFillUnavailable = MakeBrush(0xB2, 0x1C, 0x1F, 0x24);
         private static readonly Brush WedgeStroke = MakeBrush(0x33, 0xFF, 0xFF, 0xFF);
         private static readonly Brush WedgeStrokeHover = MakeBrush(0xFF, 0x4F, 0xC3, 0xF7);
+        private static readonly Brush WedgeStrokeHoverDisabled = MakeBrush(0x8C, 0xA8, 0xB4, 0xBE);
         private static readonly Brush HubFill = MakeBrush(0xF7, 0x1A, 0x1D, 0x23);
         private static readonly Brush HubStroke = MakeBrush(0x59, 0xFF, 0xFF, 0xFF);
         private static readonly Brush TextPrimary = MakeBrush(0xFF, 0xF2, 0xF7, 0xFA);
@@ -105,7 +121,7 @@ namespace AJTools.UI.QuickMenu
 
         private readonly List<Path> _wedges = new List<Path>();
         private readonly List<TextBlock> _labels = new List<TextBlock>();
-        private readonly DropShadowEffect _hoverGlow;
+        private readonly bool[] _available;
 
         private TextBlock _hubToolText;
         private TextBlock _hubHintText;
@@ -121,9 +137,11 @@ namespace AJTools.UI.QuickMenu
 
         /// <summary>
         /// Builds the wheel. <paramref name="slots"/> holds one entry per wedge, clockwise from the
-        /// top, with null for an empty slot.
+        /// top, with null for an empty slot. <paramref name="available"/> is the matching list of
+        /// "would the ribbon let this be clicked right now" flags; a shorter or missing list simply
+        /// means every slot is treated as available.
         /// </summary>
-        internal QuickMenuWindow(IList<QuickToolEntry> slots, int diameter)
+        internal QuickMenuWindow(IList<QuickToolEntry> slots, IList<bool> available, int diameter)
         {
             InitializeComponent();
 
@@ -135,21 +153,18 @@ namespace AJTools.UI.QuickMenu
             _slotCount = _slots.Count;
             _stepDegrees = 360.0 / _slotCount;
 
+            _available = new bool[_slotCount];
+            for (int i = 0; i < _slotCount; i++)
+            {
+                _available[i] = available == null || i >= available.Count || available[i];
+            }
+
             double size = diameter + (EdgePadding * 2.0);
             Width = size;
             Height = size;
             _centre = size / 2.0;
             _outerRadius = diameter / 2.0;
             _innerRadius = _outerRadius * HubRadiusFraction;
-
-            _hoverGlow = new DropShadowEffect
-            {
-                Color = Color.FromRgb(0x4F, 0xC3, 0xF7),
-                BlurRadius = 22,
-                ShadowDepth = 0,
-                Opacity = 0.85
-            };
-            _hoverGlow.Freeze();
 
             Cursor = Cursors.Arrow;
 
@@ -214,25 +229,29 @@ namespace AJTools.UI.QuickMenu
             Focus();
             Keyboard.Focus(this);
             PlayPopIn();
-
-            // Close-on-lose-focus is only armed once the window is genuinely up. Arming it in the
-            // constructor risks a stray activation change during opening closing the wheel instantly.
-            Dispatcher.BeginInvoke(
-                System.Windows.Threading.DispatcherPriority.ApplicationIdle,
-                new Action(() => _autoCloseArmed = true));
         }
 
+        /// <summary>
+        /// The scale-only pop. There is deliberately no opacity fade: this window is see-through, so
+        /// WPF redraws it on the CPU, and fading the whole ring was re-rasterising every element on
+        /// every frame just to open. Arming close-on-lose-focus when the pop finishes is the point
+        /// at which the wheel is genuinely up and a real focus change means the user left.
+        /// </summary>
         private void PlayPopIn()
         {
-            var duration = new Duration(TimeSpan.FromMilliseconds(130));
+            var duration = new Duration(TimeSpan.FromMilliseconds(90));
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
 
-            var grow = new DoubleAnimation(0.86, 1.0, duration) { EasingFunction = ease };
+            var grow = new DoubleAnimation(0.88, 1.0, duration) { EasingFunction = ease };
+            grow.Completed += OnPopInCompleted;
+
             PopScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
             PopScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+        }
 
-            var fade = new DoubleAnimation(0.0, 1.0, duration) { EasingFunction = ease };
-            RootGrid.BeginAnimation(UIElement.OpacityProperty, fade);
+        private void OnPopInCompleted(object sender, EventArgs e)
+        {
+            _autoCloseArmed = true;
         }
 
         #endregion
@@ -257,6 +276,7 @@ namespace AJTools.UI.QuickMenu
         {
             QuickToolEntry entry = _slots[index];
             bool filled = entry != null;
+            bool usable = IsUsable(index);
 
             double centreAngle = -90.0 + (index * _stepDegrees);
             double startAngle = centreAngle - (_stepDegrees / 2.0) + WedgeGapDegrees;
@@ -265,7 +285,7 @@ namespace AJTools.UI.QuickMenu
             var wedge = new Path
             {
                 Data = BuildWedgeGeometry(startAngle, endAngle),
-                Fill = filled ? WedgeFill : WedgeFillEmpty,
+                Fill = IdleFill(index),
                 Stroke = WedgeStroke,
                 StrokeThickness = 1.0,
                 IsHitTestVisible = false
@@ -305,14 +325,17 @@ namespace AJTools.UI.QuickMenu
                     Height = 34,
                     Margin = new Thickness(0, 0, 0, 5),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    SnapsToDevicePixels = true
+                    SnapsToDevicePixels = true,
+
+                    // Dimmed the way the ribbon dims a greyed button's icon.
+                    Opacity = usable ? 1.0 : 0.35
                 });
             }
 
             var label = new TextBlock
             {
                 Text = filled ? entry.DisplayName : "empty",
-                Foreground = filled ? TextIdle : TextDisabled,
+                Foreground = usable ? TextIdle : TextDisabled,
                 FontSize = 12.5,
                 FontWeight = filled ? FontWeights.SemiBold : FontWeights.Normal,
                 TextAlignment = TextAlignment.Center,
@@ -493,29 +516,49 @@ namespace AJTools.UI.QuickMenu
 
             if (_hoverIndex >= 0 && _hoverIndex < _wedges.Count)
             {
-                bool wasFilled = _slots[_hoverIndex] != null;
                 Path previous = _wedges[_hoverIndex];
-                previous.Fill = wasFilled ? WedgeFill : WedgeFillEmpty;
+                previous.Fill = IdleFill(_hoverIndex);
                 previous.Stroke = WedgeStroke;
                 previous.StrokeThickness = 1.0;
-                previous.Effect = null;
-                _labels[_hoverIndex].Foreground = wasFilled ? TextIdle : TextDisabled;
+                _labels[_hoverIndex].Foreground =
+                    IsUsable(_hoverIndex) ? TextIdle : TextDisabled;
             }
 
             _hoverIndex = index;
 
             if (_hoverIndex >= 0 && _hoverIndex < _wedges.Count)
             {
-                bool isFilled = _slots[_hoverIndex] != null;
+                // A slot the ribbon would grey out does not light up - it only acknowledges the
+                // pointer, the same as hovering a greyed ribbon button.
+                bool usable = IsUsable(_hoverIndex);
                 Path current = _wedges[_hoverIndex];
-                current.Fill = isFilled ? WedgeFillHover : WedgeFillEmpty;
-                current.Stroke = WedgeStrokeHover;
-                current.StrokeThickness = 2.2;
-                current.Effect = _hoverGlow;
-                _labels[_hoverIndex].Foreground = isFilled ? TextPrimary : TextDisabled;
+                current.Fill = usable ? WedgeFillHover : IdleFill(_hoverIndex);
+                current.Stroke = usable ? WedgeStrokeHover : WedgeStrokeHoverDisabled;
+                current.StrokeThickness = usable ? 2.2 : 1.4;
+                _labels[_hoverIndex].Foreground = usable ? TextPrimary : TextDisabled;
             }
 
             UpdateHubText();
+        }
+
+        /// <summary>True when this slot holds a tool that could be clicked on the ribbon right now.</summary>
+        private bool IsUsable(int index)
+        {
+            return index >= 0 &&
+                   index < _slotCount &&
+                   _slots[index] != null &&
+                   _available[index];
+        }
+
+        /// <summary>The wedge colour when the pointer is not on it: filled, greyed out, or empty.</summary>
+        private Brush IdleFill(int index)
+        {
+            if (index < 0 || index >= _slotCount || _slots[index] == null)
+            {
+                return WedgeFillEmpty;
+            }
+
+            return _available[index] ? WedgeFill : WedgeFillUnavailable;
         }
 
         private void UpdateHubText()
@@ -532,8 +575,18 @@ namespace AJTools.UI.QuickMenu
             if (entry != null)
             {
                 _hubToolText.Text = entry.DisplayName;
-                _hubToolText.Foreground = TextAccent;
-                _hubHintText.Text = "Click to run    Esc: close";
+
+                if (IsUsable(_hoverIndex))
+                {
+                    _hubToolText.Foreground = TextAccent;
+                    _hubHintText.Text = "Click to run    Esc: close";
+                }
+                else
+                {
+                    _hubToolText.Foreground = TextDisabled;
+                    _hubHintText.Text = "Not available here - greyed out on the ribbon too";
+                }
+
                 return;
             }
 
@@ -582,7 +635,13 @@ namespace AJTools.UI.QuickMenu
             if (e.Key == Key.Enter || e.Key == Key.Space)
             {
                 e.Handled = true;
-                Choose(_hoverIndex);
+
+                // Nothing aimed at yet - stay open rather than closing without running anything.
+                if (_hoverIndex >= 0)
+                {
+                    Choose(_hoverIndex);
+                }
+
                 return;
             }
 
@@ -590,7 +649,12 @@ namespace AJTools.UI.QuickMenu
             if (slot >= 0)
             {
                 e.Handled = true;
-                Choose(slot);
+
+                // A number bigger than this wheel has slots is a mistyped key, not "close".
+                if (slot < _slotCount)
+                {
+                    Choose(slot);
+                }
             }
         }
 
@@ -622,6 +686,14 @@ namespace AJTools.UI.QuickMenu
             if (entry == null)
             {
                 // An empty slot is not a mistake worth a popup - just show what to do and stay open.
+                SetHover(index);
+                return;
+            }
+
+            if (!_available[index])
+            {
+                // Clicking a greyed ribbon button does nothing and leaves the ribbon open. Same here:
+                // point the hub at the reason rather than closing or posting a command Revit refuses.
                 SetHover(index);
                 return;
             }

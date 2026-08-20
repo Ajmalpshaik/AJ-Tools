@@ -7,10 +7,10 @@
  *                 on the wheel plus everything needed to start it again.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-19
+ * Last Updated  : 2026-08-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,8 +32,16 @@
  *               key can never collide in the saved file.
  * - Revit commands carry no icon - Revit does not hand its ribbon artwork to add-ins - so the wheel
  *   simply draws the name on its own for those slots.
+ * - AVAILABILITY IS CARRIED, NOT DECIDED, HERE. AvailabilityClassName is the same class Revit itself
+ *   consults to decide whether to grey the ribbon button out. It is read off the live button by
+ *   QuickMenuCatalog and asked the question by QuickMenuAvailability - this file only carries the
+ *   name, so the wheel can grey a slot for exactly the same reason the panel greys the button.
+ *   Empty means the button is never greyed out. Revit's own commands carry none: Revit decides
+ *   those for itself when the command is posted.
  *
  * Changelog     :
+ * v1.2.0 (2026-08-20) - Carries the button's AvailabilityClassName, so the wheel can grey a slot out
+ *                       for the same reason the ribbon panel greys the button.
  * v1.1.0 (2026-08-19) - Added Source and PostableCommandValue so Revit's own commands can sit in a
  *                       slot beside AJ Tools' buttons. Construction moved to two named factories.
  * v1.0.0 (2026-08-18) - Initial release.
@@ -75,6 +83,7 @@ namespace AJTools.Services.QuickMenu
             string itemName,
             string groupItemName,
             string controlId,
+            string availabilityClassName,
             PostableCommand? postableCommandValue,
             ImageSource icon)
         {
@@ -88,6 +97,7 @@ namespace AJTools.Services.QuickMenu
             ItemName = itemName;
             GroupItemName = groupItemName;
             ControlId = controlId;
+            AvailabilityClassName = availabilityClassName;
             PostableCommandValue = postableCommandValue;
             Icon = icon;
         }
@@ -103,6 +113,7 @@ namespace AJTools.Services.QuickMenu
             string itemName,
             string groupItemName,
             string controlId,
+            string availabilityClassName,
             ImageSource icon)
         {
             return new QuickToolEntry(
@@ -116,6 +127,7 @@ namespace AJTools.Services.QuickMenu
                 itemName,
                 groupItemName,
                 controlId,
+                availabilityClassName,
                 null,
                 icon);
         }
@@ -136,6 +148,7 @@ namespace AJTools.Services.QuickMenu
                 "Revit command",
                 null,
                 commandName,
+                null,
                 null,
                 null,
                 commandValue,
@@ -171,6 +184,12 @@ namespace AJTools.Services.QuickMenu
 
         /// <summary>Revit's own command id string for an AJ Tools button. Null otherwise.</summary>
         public string ControlId { get; }
+
+        /// <summary>
+        /// The class Revit consults to decide whether this button is greyed out on the ribbon.
+        /// Empty when the button is always enabled, and always empty for a Revit command.
+        /// </summary>
+        public string AvailabilityClassName { get; }
 
         /// <summary>The built-in command to post, for a Revit entry. Null for an AJ Tools button.</summary>
         public PostableCommand? PostableCommandValue { get; }

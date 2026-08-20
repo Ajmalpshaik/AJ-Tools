@@ -1279,3 +1279,57 @@ Claude Code on the web runs Linux: no `dotnet`, no `msbuild`, no `mono`, and no 
 is written but **never compiled**. Say so plainly in the report, prefer additive new files over
 rewiring working tools, and leave anything risky for a session that can run
 `msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true`.
+
+## A see-through window is drawn by the CPU — keep effects off it (2026-08-20, v1.54.0)
+
+`AllowsTransparency="True"` makes WPF render that window **entirely in software**. There is no GPU
+path for a layered window, so every pixel of every frame is composed on the CPU and blitted. That is
+fine for a static dialog and expensive for anything that redraws while the pointer moves.
+
+The AJ Quick Menu wheel proved it. It carried two things that each force a full re-raster:
+
+- a `DropShadowEffect` glow **re-applied on every hover change** — a per-pixel Gaussian blur over the
+  hovered wedge's bounding box, recomputed each time the pointer crossed into a new wedge;
+- an **opacity fade on the whole ring** at open — animating `Opacity` on a container re-rasterises
+  every child, every frame, for the length of the animation.
+
+Both were removed in v1.54.0. The lit wedge now uses a brighter fill plus a thicker stroke, which
+reads the same and costs nothing, and the pop-in animates scale only.
+
+**The rule**: on a window with `AllowsTransparency="True"`, do not add a `BitmapEffect`/`Effect`
+(blur, drop shadow, glow), and do not animate `Opacity` on a container that holds many children.
+Colour and stroke changes are cheap; per-pixel filters and container-wide opacity are not. The
+windows this applies to today are listed by the `AllowsTransparency` grep above — the wheel and
+`GameHudWindow` are the two that redraw under the pointer, so they are the two that matter.
+
+## Mirroring a ribbon button's greyed-out state (2026-08-20, v1.54.0)
+
+`UIApplication.PostCommand` is **silently ignored** when the target button's
+`IExternalCommandAvailability` says no. Nothing runs, nothing throws, nothing is reported — so any
+feature that launches a ribbon command from somewhere other than the ribbon must show that state
+itself or it will look broken.
+
+The pattern, as implemented in `src/QuickMenu/QuickMenuAvailability.cs`:
+
+1. Read `PushButton.AvailabilityClassName` off the live ribbon item when building the catalog. The
+   property is public with a public getter and is **identical in Revit 2020 and 2027** (verified from
+   the installed `RevitAPIUI.dll` via `ildasm`, not from the shipped XML docs — those are wrong about
+   the neighbouring `IExternalCommandAvailability` overloads and about `RibbonItem.Name`'s setter).
+2. Instantiate that class from the executing assembly and call its one method,
+   `bool IsCommandAvailable(UIApplication, CategorySet)`. **Never re-implement the rule** — ask the
+   button's own class, so a rule added to a ribbon button is followed automatically.
+3. Guard the launch with `UIApplication.CanPostCommand(commandId)` before `PostCommand`. Also public
+   and identical 2020↔2027. This is the second net and catches what an availability class cannot,
+   chiefly Revit's one-posted-command-per-API-context limit.
+4. **Unknown means allowed.** If the class cannot be found, built or asked, leave the tool usable —
+   a fault in the mirror must never make a working tool unreachable.
+
+**The trap to avoid** (caught in adversarial review of v1.54.0 before it shipped): the `CategorySet`
+argument costs a full walk of the current selection to build. Building it *per item* turns a
+50,000-element selection into 50,000 × *n* `GetElement` calls before the UI opens — a brand-new
+performance bug inside a performance fix. Build it **once per pass, lazily**, and expose only a
+whole-list `Evaluate(...)` entry point so the per-item version cannot be called by mistake.
+
+**Also worth knowing about `ildasm` in Git Bash**: MSYS rewrites a `/item=...` argument into a
+Windows path, so ildasm reports `MULTIPLE INPUT FILES SPECIFIED`. Use `-item=` with a dash, and copy
+the DLL somewhere without spaces in the path first.

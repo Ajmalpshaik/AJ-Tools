@@ -6,17 +6,18 @@
  *                 button - same command, same dialogs, same undo entry.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-19
+ * Last Updated  : 2026-08-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : Autodesk Revit UI API (RevitCommandId.LookupCommandId,
- *                 RevitCommandId.LookupPostableCommandId, UIApplication.PostCommand)
+ *                 RevitCommandId.LookupPostableCommandId, UIApplication.CanPostCommand,
+ *                 UIApplication.PostCommand)
  *
  * Input         : One QuickToolEntry chosen on the wheel.
  * Output        : That tool runs. This file itself never opens a transaction or touches the model.
@@ -30,6 +31,12 @@
  * - Because the tool is POSTED rather than called, it runs in its own clean Revit command context.
  *   Ajmal's own undo entry, availability rules (greyed-out buttons) and dialogs all behave the same
  *   as clicking the ribbon.
+ * - ASK BEFORE POSTING. UIApplication.CanPostCommand answers whether Revit will actually accept
+ *   this command right now - it is public and identical in Revit 2020 and 2027 (verified from the
+ *   installed RevitAPIUI.dll metadata). Without it, a refusal is silent: PostCommand returns
+ *   normally, nothing runs, and the wheel reports success. This is the second net behind the wheel's
+ *   greyed-out slots, and it catches what an availability class cannot - chiefly Revit's own limit
+ *   of one posted command per API context.
  * - The id string is normally read straight off the live ribbon (QuickMenuCatalog). The two
  *   rebuilt-from-names candidates below are a belt-and-braces fallback for the case where that read
  *   ever comes back empty; Revit composes these ids as
@@ -37,6 +44,8 @@
  *   button that lives inside a split/pulldown.
  *
  * Changelog     :
+ * v1.2.0 (2026-08-20) - Asks CanPostCommand first, so a refused launch says so in plain words
+ *                       instead of appearing to work and doing nothing.
  * v1.1.0 (2026-08-19) - Runs Revit's own built-in commands too, via LookupPostableCommandId.
  * v1.0.0 (2026-08-18) - Initial release.
  *
@@ -84,6 +93,14 @@ namespace AJTools.Services.QuickMenu
 
             try
             {
+                if (!uiapp.CanPostCommand(commandId))
+                {
+                    error = "Revit would not start \"" + entry.DisplayName + "\" right now. That " +
+                            "usually means another command is still running, or this tool cannot be " +
+                            "used in the current view. Finish what is running and try again.";
+                    return false;
+                }
+
                 uiapp.PostCommand(commandId);
                 return true;
             }

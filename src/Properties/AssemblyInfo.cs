@@ -1,14 +1,14 @@
-﻿#region Metadata
+#region Metadata
 /*
  * Tool Name     : AJ Tools Assembly Metadata
  * File Name     : AssemblyInfo.cs
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.53.0
+ * Version       : 1.54.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-19
+ * Last Updated  : 2026-08-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,27 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.54.0 (2026-08-20) - QUICK MENU NOW BEHAVES LIKE THE RIBBON PANEL IT MIRRORS, AND OPENS FASTER.
+ *                       A slot whose tool the ribbon would grey out is now drawn greyed out on the
+ *                       wheel and cannot be picked, with the hub saying so - it used to look normal,
+ *                       accept the click, and then do nothing at all, because Revit silently ignores
+ *                       a posted command whose availability rule says no. Five of the eight default
+ *                       slots carry such a rule - Unhide All, Toggle Revit Links, Highlight Selection,
+ *                       Colorize and Filter Pro - which is why "sometimes it does not run the tool"
+ *                       was so easy to hit. The wheel does
+ *                       not copy those rules: it asks the button's own availability class, so a rule
+ *                       added to a ribbon button is followed here by itself. Behind that, Revit is
+ *                       now asked CanPostCommand before a tool is posted, so a refusal is explained
+ *                       instead of being silent. For speed, the blurred hover glow and the opacity
+ *                       fade were removed - this window is see-through, which means Windows draws it
+ *                       entirely on the CPU, and re-blurring a wedge on every pointer move was what
+ *                       made aiming feel sluggish; the lit wedge now uses a brighter fill and a
+ *                       thicker outline instead. Close-on-lose-focus arms only once the wheel is
+ *                       fully up, so a stray focus change while it opens can no longer swallow it,
+ *                       and Enter, Space or an out-of-range number key no longer close the wheel
+ *                       without running anything. Reported by Ajmal - "sometimes very slow and
+ *                       sometimes its not running the tool correctly".
+ *                       Minor bump: new behaviour in an existing tool, no new ribbon button.
  * v1.53.0 (2026-08-19) - QUICK MENU CUSTOMISE IS NOW THE WHEEL ITSELF. The plain numbered slot list
  *                       was replaced by a live drawing of the wheel, using the same geometry and
  *                       colours as QuickMenuWindow, so the window shows what will actually open
@@ -2264,8 +2285,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.53.0.0")]
-[assembly: AssemblyFileVersion("1.53.0.0")]
+[assembly: AssemblyVersion("1.54.0.0")]
+[assembly: AssemblyFileVersion("1.54.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

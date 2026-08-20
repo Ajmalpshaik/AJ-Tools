@@ -8,16 +8,17 @@
  *                 clicked.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-08-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : QuickMenuCatalog / QuickMenuConfig / QuickMenuLauncher (Services.QuickMenu),
+ * Dependencies  : QuickMenuCatalog / QuickMenuConfig / QuickMenuLauncher /
+ *                 QuickMenuAvailability (Services.QuickMenu),
  *                 QuickMenuWindow (UI.QuickMenu), AJTools.Utils (DialogHelper)
  *
  * Input         : Nothing selected. Reads the saved wheel layout and the live ribbon.
@@ -34,9 +35,17 @@
  * - The wheel is shown with ShowDialog() on purpose. Revit can only be asked to run another command
  *   from inside a live command context, so this Execute() has to still be running when the choice
  *   comes back - see QuickMenuLauncher for the full reasoning.
+ * - EVERY SLOT IS ASKED BEFORE THE WHEEL OPENS. Each tool is put the same question Revit puts to a
+ *   ribbon button - "could this be clicked right now?" - and the answer is handed to the wheel so an
+ *   unavailable tool is drawn greyed out rather than silently refusing when picked. The whole wheel
+ *   is asked in ONE pass (QuickMenuAvailability.Evaluate) rather than slot by slot, because the
+ *   selection has to be walked to answer and doing that per slot would make opening the wheel slow
+ *   on a big selection - the very thing this version set out to fix.
  * - Pressing S on the wheel opens the customise window instead of running a tool.
  *
  * Changelog     :
+ * v1.1.0 (2026-08-20) - Works out each slot's availability before opening the wheel, so a tool the
+ *                       ribbon would grey out is shown greyed out here too.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -92,7 +101,9 @@ namespace AJTools.Commands.QuickMenu
                     slots.Add(QuickMenuCatalog.Find(uiapp, key));
                 }
 
-                var wheel = new QuickMenuWindow(slots, config.Diameter);
+                IList<bool> available = QuickMenuAvailability.Evaluate(uiapp, slots);
+
+                var wheel = new QuickMenuWindow(slots, available, config.Diameter);
                 new WindowInteropHelper(wheel)
                 {
                     Owner = uiapp.MainWindowHandle

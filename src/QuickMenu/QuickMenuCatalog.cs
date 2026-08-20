@@ -9,10 +9,10 @@
  *                 and icon; Revit's own list comes straight from the running Revit version.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-19
+ * Last Updated  : 2026-08-20
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -46,12 +46,20 @@
  *   package reference is added to a project that builds eight Revit versions.
  *   Everything is wrapped: if the method or property ever disappears, ControlId comes back null and
  *   QuickMenuLauncher rebuilds the string from the tab/panel/button names instead.
+ * - AVAILABILITY IS READ OFF THE BUTTON TOO. Revit greys a ribbon button out by consulting the
+ *   class named in PushButton.AvailabilityClassName. That property is public and readable and is
+ *   identical in Revit 2020 and 2027 (verified from the installed RevitAPIUI.dll metadata, not from
+ *   the shipped XML docs - those are wrong about neighbouring members). Capturing it here is what
+ *   lets the wheel grey a slot out for exactly the same reason the panel greys the button, instead
+ *   of posting a command Revit will silently refuse.
  * - The catalog is built once per Revit session and cached. Refresh() exists for the customise
  *   window, which should always show what is on the ribbon right now.
  * - The Quick Menu's own two buttons are left out on purpose - a wheel slot that opens the wheel
  *   would be a loop.
  *
  * Changelog     :
+ * v1.2.0 (2026-08-20) - Reads each button's AvailabilityClassName, so the wheel can mirror the
+ *                       ribbon's greyed-out state. Caches the getRibbonItem lookup per button type.
  * v1.1.0 (2026-08-19) - Added Revit's own built-in commands as a second source, so a wheel slot can
  *                       hold a Revit command as well as an AJ Tools button.
  * v1.0.0 (2026-08-18) - Initial release.
@@ -83,6 +91,13 @@ namespace AJTools.Services.QuickMenu
         };
 
         private static List<QuickToolEntry> _entries;
+
+        /// <summary>
+        /// getRibbonItem() is looked up by reflection once per ribbon-item type, not once per
+        /// button - the lookup is the expensive half and every PushButton shares one type.
+        /// </summary>
+        private static readonly Dictionary<Type, MethodInfo> _getRibbonItemCache =
+            new Dictionary<Type, MethodInfo>();
 
         /// <summary>
         /// All launchable AJ Tools buttons, built once per session and cached.
@@ -363,6 +378,7 @@ namespace AJTools.Services.QuickMenu
                 itemName,
                 groupItemName,
                 TryGetControlId(pushButton),
+                SafeAvailabilityClassName(pushButton),
                 SafeIcon(pushButton)));
         }
 
@@ -374,9 +390,7 @@ namespace AJTools.Services.QuickMenu
         {
             try
             {
-                MethodInfo getRibbonItem = item.GetType().GetMethod(
-                    "getRibbonItem",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
+                MethodInfo getRibbonItem = GetRibbonItemMethod(item.GetType());
 
                 if (getRibbonItem == null)
                 {
@@ -401,6 +415,23 @@ namespace AJTools.Services.QuickMenu
             {
                 return null;
             }
+        }
+
+        /// <summary>The cached getRibbonItem() lookup for one ribbon-item type. Null when absent.</summary>
+        private static MethodInfo GetRibbonItemMethod(Type itemType)
+        {
+            MethodInfo cached;
+            if (_getRibbonItemCache.TryGetValue(itemType, out cached))
+            {
+                return cached;
+            }
+
+            MethodInfo found = itemType.GetMethod(
+                "getRibbonItem",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+
+            _getRibbonItemCache[itemType] = found;
+            return found;
         }
 
         private static string Flatten(string text)
@@ -458,6 +489,21 @@ namespace AJTools.Services.QuickMenu
             try
             {
                 return pushButton.ClassName ?? string.Empty;
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The class Revit uses to grey this button out, or empty when it is never greyed.
+        /// </summary>
+        private static string SafeAvailabilityClassName(PushButton pushButton)
+        {
+            try
+            {
+                return pushButton.AvailabilityClassName ?? string.Empty;
             }
             catch (Exception)
             {

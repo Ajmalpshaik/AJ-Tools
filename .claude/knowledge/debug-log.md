@@ -1144,3 +1144,37 @@ AutoDebugger, or code-review only) -> date.
   and all three buttons). **Fix**: the service now detects "nothing is switched on for this button" before
   it collects anything and names the setting. **Lesson**: a "found nothing" message must be able to tell
   *searched and found nothing* apart from *never searched*. -> 2026-08-15.
+
+### 2026-08-20
+
+- **Symptom (Ajmal's words)**: the AJ Quick Menu wheel is "sometimes very slow and sometimes its not
+  running the tool correctly". **Root cause — two separate faults, neither where the first guess
+  pointed.** (1) *Not running*: the wheel posted every pick with `UIApplication.PostCommand`, and
+  **Revit silently ignores a posted command whose `IExternalCommandAvailability` says no** — no
+  exception, no return value, nothing. `QuickMenuLauncher.TryRun` therefore reported success and
+  `CmdQuickMenu` returned `Result.Succeeded` while nothing whatsoever happened. **Five of the eight
+  default wheel slots carry an availability class** (Unhide All + Highlight Selection via
+  `CmdGraphicalViewAvailability`, Toggle Revit Links, Colorize, Filter Pro), so on a sheet, schedule,
+  legend or any view where `AreGraphicsOverridesAllowed()`/`CanCategoryBeHidden` is false, most of the
+  default wheel was dead and mute. (2) *Slow*: the wheel is `AllowsTransparency="True"`, which forces
+  **software rendering of the whole window**, and it carried a `DropShadowEffect` blur re-applied on
+  every hover change plus an opacity fade over the entire ring on open. **Fix**: new
+  `QuickMenuAvailability` asks each button's *own* availability class and the wheel draws unavailable
+  slots greyed out, unpickable, with the reason in the hub — the panel's behaviour, mirrored rather
+  than re-implemented; `CanPostCommand` guards the launch so a refusal is explained; blur and fade
+  removed in favour of a brighter fill and thicker stroke; close-on-lose-focus now arms on the pop-in's
+  `Completed` instead of `ApplicationIdle` (it was arming before the window was really up, so a stray
+  focus change swallowed the wheel); Enter/Space with nothing hovered and an out-of-range number key
+  no longer close the wheel doing nothing. **Verified how**: `Release` (net472/2020), `Release R25`
+  (net8.0-windows) and `Release R27` (net10.0-windows) all build 0 errors — R27 needs `dotnet build`,
+  because VS2022's MSBuild is pinned to SDK 9 and cannot target net10.0 even though SDK 10 is
+  installed. `verify-wpf-styles.ps1`, `verify-window-styles.ps1` and `verify-version-consistency.ps1`
+  all pass. API facts (`PushButton.AvailabilityClassName`, `IExternalCommandAvailability`'s single
+  method, `UIApplication.CanPostCommand`) were read from the installed Revit 2020 **and** 2027
+  `RevitAPIUI.dll` with `ildasm`. **NOT tested inside Revit** — the AJ AI Bridge was not connected, so
+  no live check of the greying or the launch was possible. **Lessons**: (a) a silent API no-op is the
+  worst failure mode there is — `PostCommand` returning normally means nothing about whether the
+  command ran; (b) the first review pass of the fix introduced a *new* slow path — the `CategorySet`
+  passed to an availability class costs a full selection walk and was being rebuilt per slot, which
+  would have made the wheel stall on a large selection, i.e. a performance bug inside a performance
+  fix, caught by adversarial review before it shipped. -> 2026-08-20.
