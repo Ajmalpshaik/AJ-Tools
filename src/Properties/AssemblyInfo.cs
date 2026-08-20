@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.55.0
+ * Version       : 1.56.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-20
@@ -24,6 +24,20 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.56.0 (2026-08-20) - A SCRIPT CAN NOW NAME WHICH OPEN PROJECT IT ACTS ON. v1.55.0 solved choosing
+ *                       between Revit SESSIONS; this is the other half, choosing between the PROJECTS
+ *                       inside one. Document has always been ActiveUIDocument.Document - the front
+ *                       window - so with two projects open in one Revit, clicking the other one
+ *                       silently moved where the next script landed, and a multi-step job could start
+ *                       in one project and finish in another. The bridge request now takes an optional
+ *                       "document" title; RevitExecutionService resolves it against the open,
+ *                       non-linked documents and hands the script THAT one. A title that is not open
+ *                       is an ERROR listing what IS open - never a quiet fall back to the front
+ *                       window, since falling back is exactly the failure being prevented. Omitting
+ *                       the field keeps the old behaviour byte-for-byte, so every existing caller and
+ *                       any older mcp-server is unaffected. Note the limit: a UIDocument for a
+ *                       background project still has THAT project's active view, so view-scoped work
+ *                       (isolate, colour, crop) follows Revit; model work is unaffected.
  * v1.55.0 (2026-08-20) - TWO REVIT SESSIONS CAN NOW BE CONNECTED AT ONCE. Until now the AJ AI bridge
  *                       assumed exactly one Revit: every session hosted the same named pipe, and the
  *                       second one to try got "All pipe instances are busy" and could not start.
@@ -2295,8 +2309,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.55.0.0")]
-[assembly: AssemblyFileVersion("1.55.0.0")]
+[assembly: AssemblyVersion("1.56.0.0")]
+[assembly: AssemblyFileVersion("1.56.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

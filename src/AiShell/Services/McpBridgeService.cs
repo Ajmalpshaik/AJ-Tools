@@ -172,6 +172,14 @@ namespace AJTools.AiShell.Services
         public string Token { get; set; }
         public string Code { get; set; }
         public bool AllowDestructive { get; set; }
+
+        /// <summary>
+        /// Which OPEN project in this Revit to run against, by title (e.g. "school"). Omitted or empty
+        /// keeps the original behaviour - the document currently in front. Supplying a title that is
+        /// not open is an error rather than a fall back, because with two projects open in one Revit
+        /// the front window changes between calls and a job could otherwise finish in the wrong one.
+        /// </summary>
+        public string Document { get; set; }
     }
 
     public class McpBridgeResponse
@@ -451,7 +459,9 @@ namespace AJTools.AiShell.Services
 
             try
             {
-                var result = await _executionService.ExecuteAsync(request.Code).ConfigureAwait(false);
+                var result = await _executionService
+                    .ExecuteAsync(request.Code, null, default(CancellationToken), request.Document)
+                    .ConfigureAwait(false);
                 if (!isHealthProbe)
                 {
                     AppendAuditLogEntry(request.Code, result.Success, result.Output, result.ErrorMessage);

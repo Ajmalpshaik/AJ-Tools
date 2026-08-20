@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : C#
  * File Name     : RevitExecutionService.cs
@@ -68,6 +68,8 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
@@ -84,6 +86,11 @@ namespace AJTools.AiShell.Services
 
         // State for execution
         private string _codeToExecute;
+        // Which OPEN project the script should act on, by title. Null = the one in front, which is the
+        // behaviour every existing caller already relies on. Named on purpose rather than defaulting to
+        // the active document: with two projects open in one Revit, the front window changes between
+        // calls, so a multi-step job can start in one project and finish in another.
+        private string _targetDocumentTitle;
         private Action<int, string> _progressCallback;
         private TaskCompletionSource<CodeExecutionResult> _tcs;
 
@@ -113,7 +120,12 @@ namespace AJTools.AiShell.Services
 
         private CancellationToken _externalCancellationToken;
 
-        public Task<CodeExecutionResult> ExecuteAsync(string code, Action<int, string> progressCallback = null, CancellationToken cancellationToken = default)
+        /// <param name="documentTitle">
+        /// Title of the open project to run against, e.g. "school". Null or empty keeps the old
+        /// behaviour: whichever document is active in this Revit. A title that is not open is an ERROR,
+        /// never a silent fall back to the active document - see Execute().
+        /// </param>
+        public Task<CodeExecutionResult> ExecuteAsync(string code, Action<int, string> progressCallback = null, CancellationToken cancellationToken = default, string documentTitle = null)
         {
             lock (_lock)
             {
@@ -130,6 +142,7 @@ namespace AJTools.AiShell.Services
                 _isRunning = true;
                 _tcs = new TaskCompletionSource<CodeExecutionResult>();
                 _codeToExecute = code;
+                _targetDocumentTitle = documentTitle;
                 _progressCallback = progressCallback;
                 _externalCancellationToken = cancellationToken;
             }
@@ -143,12 +156,14 @@ namespace AJTools.AiShell.Services
         public void Execute(UIApplication app)
         {
             string code;
+            string targetDocumentTitle;
             Action<int, string> progressCallback;
             TaskCompletionSource<CodeExecutionResult> tcs;
             CancellationToken externalToken;
             lock (_lock)
             {
                 code = _codeToExecute;
+                targetDocumentTitle = _targetDocumentTitle;
                 progressCallback = _progressCallback;
                 tcs = _tcs;
                 externalToken = _externalCancellationToken;
@@ -169,6 +184,42 @@ namespace AJTools.AiShell.Services
                     return;
                 }
 
+                // ---- WHICH PROJECT DOES THIS SCRIPT ACT ON? ----------------------------------------
+                // Default stays the active document, so every existing caller is unaffected. When a
+                // title IS given it must match an open project: a name that is not open is an error,
+                // NEVER a quiet fall back to whatever is in front. Falling back is precisely the
+                // "started in one project, finished in another" failure this exists to prevent.
+                Document targetDoc = uidoc.Document;
+                if (!string.IsNullOrWhiteSpace(targetDocumentTitle))
+                {
+                    var openDocs = new List<Document>();
+                    foreach (Document d in app.Application.Documents)
+                        if (!d.IsLinked) openDocs.Add(d);
+
+                    targetDoc = openDocs.FirstOrDefault(d =>
+                        string.Equals(d.Title, targetDocumentTitle, StringComparison.OrdinalIgnoreCase));
+
+                    if (targetDoc == null)
+                    {
+                        string open = openDocs.Count == 0
+                            ? "(none)"
+                            : string.Join(", ", openDocs.Select(d => "\"" + d.Title + "\""));
+                        tcs.TrySetResult(new CodeExecutionResult
+                        {
+                            Success = false,
+                            ErrorMessage = "No open project called \"" + targetDocumentTitle +
+                                           "\" in this Revit. Open here: " + open + ". Nothing was run."
+                        });
+                        return;
+                    }
+
+                    // A UIDocument for a background project is legal, but its ActiveView is the one
+                    // Revit has open for THAT project - so view-scoped work (isolate, colour, crop)
+                    // still lands where Revit says, not where the front window is. Model-level work
+                    // (create, rename, parameters, schedules) is unaffected either way.
+                    if (!ReferenceEquals(targetDoc, uidoc.Document)) uidoc = new UIDocument(targetDoc);
+                }
+
                 using (var timeoutCts = new CancellationTokenSource(MaxLoopRuntime))
                 using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, externalToken))
                 {
@@ -177,7 +228,7 @@ namespace AJTools.AiShell.Services
                         UIApplication = app,
                         Application = app.Application,
                         UIDocument = uidoc,
-                        Document = uidoc.Document,
+                        Document = targetDoc,
                         CancellationToken = linkedCts.Token,
                         ReportProgress = progressCallback
                     };

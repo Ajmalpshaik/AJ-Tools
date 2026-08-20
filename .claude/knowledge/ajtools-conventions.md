@@ -1375,3 +1375,32 @@ client must track which happened:
 The first draft had no such flag, so opening a second Revit mid-chat left every later command silently
 going to the first one — exactly the failure the feature exists to prevent. The test caught it, not
 review.
+
+
+## Two halves of "which model am I writing to" (2026-08-20, v1.55.0 + v1.56.0)
+
+They are separate problems and needed separate fixes. Solving one does NOT solve the other:
+
+| Question | Fix | Where |
+|---|---|---|
+| Which **Revit session**? | one named pipe per process id | `McpBridgeService` (v1.55.0) |
+| Which **project inside it**? | optional `document` title on the request | `RevitExecutionService` (v1.56.0) |
+
+`RevitExecutionService.Execute()` has always built its globals from `app.ActiveUIDocument`, so
+`Document` means *the front window* — which moves when Ajmal clicks another project, between two calls
+of the same job. The request now carries an optional `Document` title, resolved against
+`app.Application.Documents` skipping links.
+
+**The rule both halves share: a name that does not resolve is an ERROR, never a fall back.** An unknown
+Revit pid, or a project title that is not open, stops and lists the real choices. Falling back to
+"whatever is in front" is precisely the failure being prevented, so it must never be the recovery path.
+
+**Backward compatibility is by OMISSION, not by empty value.** The client leaves `document` out of the
+JSON entirely when nothing is pinned, so an older AJ Tools sees the exact payload it always saw. There
+is a test asserting the field is *absent* rather than empty, because "" and missing are different
+things to a deserialiser.
+
+**Known limit, deliberately not papered over:** `new UIDocument(backgroundDoc)` is legal, but its
+`ActiveView` is that project's own active view. So view-scoped work (isolate, colour, crop) follows what
+Revit has open in that project, not the caller. Model-level work — create, rename, parameters,
+schedules — is unaffected. Say so rather than pretending the targeting is total.

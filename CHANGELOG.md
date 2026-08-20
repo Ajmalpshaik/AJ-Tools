@@ -5,6 +5,22 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.56.0] - 2026-08-20
+
+- **Added: a command can say which open project it means.** Version 1.55.0 let two Revit sessions
+  connect at once. This is the other half of the same problem: one Revit can hold several projects open,
+  and until now a script always acted on **whichever project window was in front**. Click a different
+  project and the next command quietly went there instead — so a job could start in one project and
+  finish in another with nothing to warn you.
+- **Changed: a project name that is not open is now an error, not a guess.** If the named project is not
+  open, the reply lists the ones that are and nothing runs. It never falls back to the front window,
+  because falling back is the exact problem being fixed.
+- Leaving the project unnamed behaves exactly as before — the front window — so nothing existing
+  changes.
+- Known limit: view-only work (isolate, colour, crop) still uses that project's own active view, so it
+  follows Revit rather than the command. Model work — creating, renaming, parameters, schedules — is
+  unaffected.
+
 ## [1.55.0] - 2026-08-20
 
 - **Added: two Revit sessions can be connected at the same time.** Until now the AJ AI bridge assumed
