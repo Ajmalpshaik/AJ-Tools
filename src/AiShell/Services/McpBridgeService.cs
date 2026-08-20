@@ -139,9 +139,7 @@
  * v1.3.0 (2026-07-14) - Roslyn pre-warm on Start() (first real query no longer pays the one-time
  *                       JIT/assembly-load cost) and an append-only audit log of every non-ping request
  *                       (timestamp, success, truncated code/output) at
- *                       %AppData%/AJTools/autodebugger-audit.jsonl. Ideas adapted from reviewing several
- *                       external Revit MCP projects' published docs (see scripts/README.md "Where these
- *                       ideas came from" - Fourth pass); no code copied, this project's own architecture.
+ *                       %AppData%/AJTools/autodebugger-audit.jsonl.
  * v1.2.1 (2026-07-12) - Capture Revit's UI dispatcher for the AutoDebugger activity banner.
  * v1.2.0 (2026-07-12) - Show a temporary non-blocking activity banner while an authenticated AI task runs.
  * v1.1.0 (2026-07-11) - Keep authenticated clients connected for multiple newline-delimited requests,

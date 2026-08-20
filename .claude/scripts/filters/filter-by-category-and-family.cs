@@ -9,8 +9,7 @@
 // If the exact FamilySymbol's ElementId is already known (e.g. from a prior query in the same
 // composed script), set familySymbolId instead of familyNameContains — this uses Revit's own
 // FamilyInstanceFilter pushed into the collector, which is faster than a LINQ name match and exact
-// rather than substring-based (adapted from an external repository's
-// AIElementFilterEventHandler — only the technique was taken, not any code).
+// rather than substring-based.
 
 // ---- INPUTS (edit every time — never treat these as fixed defaults) ----
 BuiltInCategory targetCategory = BuiltInCategory.OST_DuctAccessory;

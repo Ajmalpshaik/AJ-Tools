@@ -17,10 +17,6 @@
          is mentioned in .claude/scripts/README.md, and every .cs path mentioned in that README
          actually exists on disk - catches drift between the index and the real folder contents.
 
-    Idea prompted by reviewing an external author/an external project's own QA/QC automation (2026-07-09). No code
-    was taken (that project's checks are PowerShell too, but written independently for this repo's own
-    file layout and conventions).
-
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .claude\tools\verify-knowledge-consistency.ps1
 #>

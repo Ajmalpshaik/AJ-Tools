@@ -4,9 +4,6 @@
 //          a quantities/takeoff report. Read-only, no transaction needed.
 // ASSUMES: elements (List<Element>) and sb (StringBuilder) already exist from a filter fragment above.
 // NOT STANDALONE — see .claude/scripts/README.md for how to compose.
-// SOURCE: capability confirmed as a common convergent feature across independent Revit-MCP projects
-//         (an-external-project, an external repository) — written independently for this project's own
-//         conventions, no code taken.
 // ============================================================
 
 var totals = new Dictionary<string, (double areaSqm, double volumeCum)>();

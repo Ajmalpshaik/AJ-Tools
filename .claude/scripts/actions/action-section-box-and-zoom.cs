@@ -6,9 +6,6 @@
 //          stay in whatever 2D view is active.
 // ASSUMES: elements (List<Element>) and sb (StringBuilder) already exist from a filter fragment above.
 // NOT STANDALONE — see scripts/README.md for how to compose.
-// SOURCE: technique adapted from an external repository's
-//         OperateElementEventHandler (SelectionBox case) — a different architecture, only the
-//         technique was taken, not any code.
 // ============================================================
 
 // ---- INPUTS (edit every time — never treat these as fixed defaults) ----

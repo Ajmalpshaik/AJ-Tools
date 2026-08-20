@@ -867,9 +867,8 @@ launching rather than "fixing" it.
   reports). Scoped it to just the one file that matters instead.
 
 ### 2026-07-22 (mcp-server/index.js: 14 native MCP tools added, McpBridgeService.cs untouched)
-- Goal was to make the AJ AI Bridge competitive with a third-party product (an external tool's Revit MCP connector)
-  on speed/accuracy for common daily actions, without losing the flexible run_csharp/composed-script path
-  that handles genuinely complex work theirs doesn't cover.
+- Goal was to make the AJ AI Bridge fast and accurate for common daily actions, without losing the
+  flexible run_csharp/composed-script path that handles genuinely complex work.
 - Key finding, worth remembering: the Revit-side listener (`src/AiShell/Services/McpBridgeService.cs`)
   already accepts any C# generically via `{token, code, allowDestructive}` — it has no per-tool logic at
   all. So registering new "native" MCP tools with real typed/validated schemas needed **zero add-in
@@ -1505,8 +1504,8 @@ launching rather than "fixing" it.
   `ajtools-conventions-log.md` (529 lines of dated history). Rules and history are different concerns;
   only the rules are needed per-task. Same lossless proof.
 - **Split 3:** `scripts/README.md` 478 → **173** (index) + `architecture.md` (the filter+action idea,
-  Ajmal's worked example, the AJ Adaptive AI-Local Workflow, how the library grows) + `history.md` (where
-  the ideas came from). The routing tables now sit **at the top**, not behind ~370 lines of background —
+  Ajmal's worked example, the AJ Adaptive AI-Local Workflow, how the library grows). The routing
+  tables now sit **at the top**, not behind ~370 lines of background —
   the reason the file was slow wasn't its length, it was that the useful part was last. **The integrity
   check earned its keep here**: rewriting the intro silently dropped 4 lines stating the folder's actual
   purpose ("working C# fragments, not just descriptions of them — the next session runs code that already
@@ -1870,18 +1869,13 @@ changelog.
   `.claude/scripts/recipes/` unchanged, since they don't fit the filter+action shape. `native-undo.cs`
   moved to `.claude/scripts/commands/` (no element set at all). Added `examples/` with one fully
   assembled composition matching Ajmal's own worked scenario (500mm-height duct → color → isolate →
-  select). Borrowed one idea from a quick look at an external repository (a
-  different architecture — fixed pre-built MCP tools, not raw scripting, so not directly reusable):
-  its "explorer → arguments → invoker" discipline, now documented in the scripts README as "run the
-  filter alone first for anything bulk/hard-to-reverse, confirm the count, then append the action(s)."
+  select). Adopted an "explorer → arguments → invoker" discipline, now documented in the scripts
+  README as "run the filter alone first for anything bulk/hard-to-reverse, confirm the count, then
+  append the action(s)."
   Updated every skill that referenced the old flat paths (`ajtools-live-model`, `ajtools-debug`, all
   three HVAC skills, both MEP skills, `ajtools-skill-maker`, `ajtools-knowledge-sync`) plus `CLAUDE.md`
   and `live-model-notes.md`'s cross-references.
-- **Stability/upgrade pass on `.claude/scripts/`, same day**, after Ajmal asked to check
-  an external repository for anything worth taking. Different
-  architecture (compiled MCP command set behind a JSON-RPC server, not raw per-request scripts) so
-  **no code was copied** — every change below was independently written, only the *techniques* were
-  adapted. Real, concrete upgrades made:
+- **Stability/upgrade pass on `.claude/scripts/`, same day.** Real, concrete upgrades made:
   - **Transaction safety, the main stability win**: every `actions/` fragment now wraps its
     `Transaction` in try/catch/`RollBack()` with a clear reason appended to the report instead of a bare
     unhandled exception. `recipes/draw-main-duct-with-cap.cs` (already flagged as the recipe that once
@@ -1910,25 +1904,19 @@ changelog.
     gained an optional exact-FamilySymbol-id fast path via `FamilyInstanceFilter` alongside its existing
     string-match fallback.
   - `examples/color-isolate-select-by-size.cs` re-synced to match the upgraded action fragments.
-  - README gained a "Transaction safety" standing rule and a "Where these ideas came from" section
-    naming both reviewed repos, what was taken, and — just as important — what was deliberately NOT
-    taken and why (their JSON-schema tool registration and threading model solve a problem this
-    project's per-request script model doesn't have).
-- **Second research pass, same day** — Ajmal pointed at 5 more repos (an-external-project's monorepo/
-  server/plugin, an external author/an external project, an external author/an external project) plus a GitHub search sweep. Again no code
-  copied (all architecturally different — compiled add-ins behind JSON-RPC/socket servers, not a raw
-  per-request scripting bridge). Two real, evidence-backed additions and one process upgrade:
+  - README gained a "Transaction safety" standing rule.
+- **Second review pass, same day.** Two real, evidence-backed additions and one process upgrade:
   - Created **`.claude/scripts/creators/`** — a new fragment type alongside filters/actions, for
     element-creation jobs matching Ajmal's own past request shape ("create levels up to N", "add N of X
     on level Y") that were previously always handled ad hoc: `create-levels.cs`,
     `create-point-based-element.cs`, `create-room.cs`. Creators produce `elements` exactly like filters
     do, so actions chain onto them the same way. Also added `actions/action-material-takeoff.cs`
-    (material area/volume by category, converged-on across multiple independent projects).
-    Deliberately NOT added despite appearing in reviewed tool catalogs: generic wall/floor/roof/grid/
+    (material area/volume by category).
+    Deliberately NOT added: generic wall/floor/roof/grid/
     structural-framing/sheet creation (no evidence Ajmal's ever asked for these live) and a generic
     delete action (conflicts with the existing destructive-ops-blocked + native-Undo house rule).
   - Created **[`.claude/tools/verify-knowledge-consistency.ps1`](../tools/verify-knowledge-consistency.ps1)**
-    after seeing an external author/an external project run its own QA/QC pass over its docs — checks every SKILL.md
+    — a QA/QC pass over this repo's own docs. Checks every SKILL.md
     has name+description frontmatter, every markdown relative link across skills/knowledge/scripts/
     CLAUDE.md resolves to a real file, and the scripts README table matches the actual folder contents
     in both directions. Written independently for this repo's own layout, not copied. First real run
@@ -1938,7 +1926,7 @@ changelog.
     PowerShell 5.1's encoding handling — .ps1 files in this project must stay plain ASCII in comments/
     strings, unlike the project's markdown files where em-dashes are fine.
   - Confirmed AutoDebugger's `run_csharp` already handles the Revit-main-thread/ExternalEvent
-    thread-safety concern that `an-external-project`'s `ExternalEventManager` exists to solve — reviewed
+    thread-safety concern that an ExternalEvent manager would otherwise exist to solve — reviewed
     and ruled out as "nothing to add," not silently skipped.
 - Doc refresh pass ("improve everything", same session): brought `README.md`, `INSTALL.md`,
   `docs/USAGE.md`, and `CHANGELOG.md` in line with verified reality — multi-version 2020–2027 build

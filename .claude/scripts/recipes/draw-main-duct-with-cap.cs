@@ -13,10 +13,7 @@
 //
 // The whole draw+connect+cap sequence runs inside ONE TransactionGroup: any failure at any step rolls
 // back everything (duct AND cap), so a partial run never leaves an uncapped/half-connected duct behind
-// — that exact partial-state failure mode is what caused real damage in this recipe before (technique
-// adapted from an external repository's TransactionUtils
-// ExecuteInTransactionGroup pattern — only the technique was taken, not any code; their helper can't be
-// imported here since AJ AI Bridge scripts don't support cross-file `using` references).
+// — that exact partial-state failure mode is what caused real damage in this recipe before.
 
 // ---- INPUTS (edit every time — never treat these as fixed defaults) ----
 ElementId fcuId = ElementId.InvalidElementId;

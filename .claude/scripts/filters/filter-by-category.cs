@@ -7,9 +7,7 @@
 //          To test this filter alone, add `return sb.ToString();` as your own last line.
 // ============================================================
 // Level matching tries several element-type-specific properties in order, since there is no single
-// universal "get this element's level" API — Wall/Floor/FamilyInstance each store it differently
-// (technique adapted from an external repository's GetElementLevel —
-// only the fallback-chain idea was taken, not any code).
+// universal "get this element's level" API — Wall/Floor/FamilyInstance each store it differently.
 
 // ---- INPUTS (edit every time — never treat these as fixed defaults) ----
 BuiltInCategory targetCategory = BuiltInCategory.OST_DuctCurves;

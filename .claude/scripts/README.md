@@ -14,7 +14,6 @@ beside this index, not in it:
 
 - **Why the folder is shaped this way** (the filter+action idea, Ajmal's worked example, the AJ Adaptive
   AI-Local Workflow, how the library grows) → [`architecture.md`](architecture.md)
-- **Where these ideas came from** (the sessions and decisions behind them) → [`history.md`](history.md)
 
 Everything below is what an actual script task needs: the routing table, the rules, and the checkpoints.
 

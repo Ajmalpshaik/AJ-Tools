@@ -4,9 +4,6 @@
 //          "make these see-through" requests, e.g. to see ductwork behind a wall without hiding it.
 // ASSUMES: elements (List<Element>) and sb (StringBuilder) already exist from a filter fragment above.
 // NOT STANDALONE — see scripts/README.md for how to compose.
-// SOURCE: technique adapted from an external repository's
-//         OperateElementEventHandler (SetTransparency case) — a different architecture, only the
-//         technique was taken, not any code.
 // ============================================================
 
 // ---- INPUTS (edit every time — never treat these as fixed defaults) ----

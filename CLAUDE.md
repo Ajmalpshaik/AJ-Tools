@@ -204,6 +204,15 @@ wrong answers in this repo. Follow them even when the task looks trivially simpl
 11. **Report honestly.** If something failed, wasn't live-verified, or contradicts what the naming/tags
     suggest — say exactly that. A confident wrong answer costs Ajmal real model damage; an honest "built
     but not tested in Revit" costs nothing.
+12. **Never name an outside source in anything written into this repo** — no other people's repos,
+    tools, products, websites or personal names, in code comments, knowledge files, changelogs or
+    commit messages. Ajmal's instruction, 2026-08-20: *"do not mention any thing that we took from this
+    web site or repo... the words also remove... remove his name and do not use like that."* If a
+    technique is worth having, write it in your own words as this project's own knowledge and verify it
+    here — do not record where it came from, and do not add a file whose subject is somebody else's
+    tool. Everything of that kind was stripped on 2026-08-20; putting any of it back undoes a
+    deliberate decision. AJ Tools' own command names (Smart MEP Tags, L-Shape Leader, Fix Tag Clash…)
+    are Ajmal's and are unaffected.
 
 ## graphify
 

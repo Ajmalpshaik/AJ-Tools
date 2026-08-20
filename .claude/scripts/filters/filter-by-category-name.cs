@@ -9,8 +9,6 @@
 // PRODUCES: elements (List<Element>), sb (StringBuilder, one summary line appended)
 // NOT STANDALONE — see .claude/scripts/README.md for how to compose with an action fragment.
 //          To test this filter alone, add `return sb.ToString();` as your own last line.
-// SOURCE: category-by-name resolution adapted from an external repository's
-//         ColorSplashEventHandler — only the technique was taken, not any code.
 // ============================================================
 
 // ---- INPUTS (edit every time — never treat these as fixed defaults) ----
