@@ -33,7 +33,9 @@ output (`src/bin`, `src/obj`, `dist/release`).
 hollow (hooks/ and info/ only), so nothing done in the live `src/` tree was recorded anywhere. It was
 replaced with a copy of the repository that had been sitting inside `AJ Tools\`, so the root now
 carries the full history (183 commits, 47 tags) on branch `master`, pushed to
-`https://github.com/Ajmalpshaik/AJ-Tools.git` (private). Normal git commands work at the root.
+`https://github.com/Ajmalpshaik/AJ-Tools.git` (**public** — checked 2026-08-20; this line said "private"
+until then, and it was wrong, which matters when deciding what may be written into a commit). Normal git
+commands work at the root.
 
 `AJ Tools\` still contains its own `.git` pointing at the same remote — it was copied, not moved, so
 that tree stayed untouched per the do-not-edit rule. **Ignore it: commit from the root only.**

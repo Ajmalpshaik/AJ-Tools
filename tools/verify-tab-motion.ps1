@@ -11,7 +11,7 @@
     animate while switching the tab DOES - and that neither selection is disturbed.
 
     Run after any change to TabMotionHelper:
-      powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File toolserify-tab-motion.ps1
+      powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File tools\verify-tab-motion.ps1
     Exit code 0 = pass. Build the Release configuration first - the built DLL is the input.
 
     Author  : Ajmal P.S.   |   Created 2026-08-05   |   All Rights Reserved

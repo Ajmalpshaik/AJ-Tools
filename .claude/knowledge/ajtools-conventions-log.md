@@ -866,6 +866,28 @@ launching rather than "fixing" it.
   README recursively broke on `node_modules`' own bundled README files (hundreds of false "broken link"
   reports). Scoped it to just the one file that matters instead.
 
+### 2026-08-20 (history scrub: every outside name removed from the repo AND its git history)
+
+- Ajmal's instruction: *"do not mention any thing that we took from this web site or repo... the words
+  also remove... remove his name and do not use like that."* Working files were cleaned first (11
+  fragment headers, `.claude/scripts/history.md` deleted in full, nine passages in this log, the
+  sourcing note in `verify-knowledge-consistency.ps1`, the v1.3.0 note in `McpBridgeService.cs`).
+- **Then the git history, on his explicit go-ahead.** The trigger for doing it at all: this repo is
+  **PUBLIC**, not private — `CLAUDE.md` had said "private" since 2026-08-05 and that was wrong, so the
+  old commits were readable by anyone. `git filter-repo` purged `history.md` from every tree and
+  replaced every outside name in **file contents and commit messages**, then a force-push.
+  **266 commits and all 57 tags survived**; nothing squashed. `git bundle` backups taken and verified
+  first, in `D:\Ajmal\_repo-backups-2026-08-20\`.
+- **The trap, recorded because it nearly bit:** one of the removed names is a **substring of the
+  ordinary English word "canonical"**, which appears in this repo too — a plain search-and-replace
+  would have silently mangled it. The rules were word-boundary regexes, unit-tested against
+  "canonical" before being run. Do the same if this is ever repeated: write the test first.
+- Zero forks on this repo, `AJ-AI-Brain` or `AJ-Tools-Installer`, and the installer repo never
+  contained any of it. The stale `AJ Tools\` clone was scrubbed too (182 commits) — it is a full copy
+  on disk, even though it stays gitignored and must never be pushed from.
+- Still outstanding: GitHub keeps unreferenced commits reachable by direct SHA until it
+  garbage-collects. Ask GitHub Support to purge if that matters.
+
 ### 2026-07-22 (mcp-server/index.js: 14 native MCP tools added, McpBridgeService.cs untouched)
 - Goal was to make the AJ AI Bridge fast and accurate for common daily actions, without losing the
   flexible run_csharp/composed-script path that handles genuinely complex work.

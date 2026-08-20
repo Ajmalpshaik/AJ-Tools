@@ -1347,7 +1347,7 @@ the single discovery file holds one token, so a client could connect to Revit A 
 B's token and simply be told "Unauthorized".
 
 The fix is the named-pipe equivalent of pyRevit's one-port-per-instance: **the pipe name carries the
-process id**. Alongside it, each session writes `%APPDATA%\AJToolsridges\<pid>.json` with its pipe,
+process id**. Alongside it, each session writes `%APPDATA%\AJTools\bridges\<pid>.json` with its pipe,
 token, Revit version and window title, so a client can name the sessions rather than number them. Dead
 files are swept in `Start()`, because a crash or task-kill never runs `Stop()`.
 
