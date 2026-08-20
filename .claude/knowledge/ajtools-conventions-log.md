@@ -866,6 +866,27 @@ launching rather than "fixing" it.
   README recursively broke on `node_modules`' own bundled README files (hundreds of false "broken link"
   reports). Scoped it to just the one file that matters instead.
 
+### 2026-08-20 (release v1.56.0 — first public download since 1.52.0)
+
+- Four source versions had piled up unreleased (1.53.0 Quick Menu drag-to-arrange, 1.54.0 the
+  greyed-out-slot fix, 1.55.0 two Revit sessions, 1.56.0 project targeting). Shipped as one
+  **v1.56.0** download, so the installer CHANGELOG entry covers **everything since 1.52.0**, not just
+  the last version — that is what the user actually receives when they upgrade.
+- Followed `RELEASE_PROCESS.md` end to end. The step that needs a human and has no guard rail is
+  **writing the installer `CHANGELOG.md` by hand**: `prepare-release.ps1` updates `README.md` and
+  `INSTALL.md` only, yet step 7 stages CHANGELOG anyway, so a forgotten entry publishes silently with
+  empty notes. Verified after publishing instead of assuming: **3,815 characters of notes on the
+  release page.**
+- **Revit 2027 still cannot be built by Visual Studio's MSBuild** — it resolves only the machine-wide
+  .NET 9 SDK and R27 targets `net10.0-windows`. `package.ps1` already handles this via
+  `Resolve-DotNetPath`; a manual R27 build must use `dotnet build`, not `msbuild`. Hit and re-confirmed
+  this session.
+- Verified rather than assumed, in this order: all **8 payload DLLs report 1.56.0**; the published
+  SHA256 matches the zip; the workflow run succeeded; and finally the asset was **downloaded from the
+  release page and `sha256sum -c` run against it** — the only check that proves what a user gets.
+- The 54 MB zip trips GitHub's 50 MB advisory warning on push. Expected, not an error, same as previous
+  releases; no LFS migration needed.
+
 ### 2026-08-20 (history scrub: every outside name removed from the repo AND its git history)
 
 - Ajmal's instruction: *"do not mention any thing that we took from this web site or repo... the words
