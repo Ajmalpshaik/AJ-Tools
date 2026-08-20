@@ -1333,3 +1333,45 @@ whole-list `Evaluate(...)` entry point so the per-item version cannot be called 
 **Also worth knowing about `ildasm` in Git Bash**: MSYS rewrites a `/item=...` argument into a
 Windows path, so ildasm reports `MULTIPLE INPUT FILES SPECIFIED`. Use `-item=` with a dash, and copy
 the DLL somewhere without spaces in the path first.
+
+## One Revit per pipe: the bridge was single-instance by construction (2026-08-20, v1.55.0)
+
+`McpBridgeService` hosted a **fixed** pipe name, `AJTools.AjAi`, with `maxNumberOfServerInstances: 2`.
+Those two are not spare capacity — a single Revit needs BOTH: one instance servicing the connected chat
+and one already listening, which is what makes preemption instant. So a second Revit had no slot at all.
+
+**Measured before changing anything** (a standalone test creating four servers on one name): instances 1
+and 2 created, instances 3 and 4 threw `IOException: All pipe instances are busy.` So the second Revit's
+bridge could not start, and if it ever had won a slot the outcome would have been worse than failing —
+the single discovery file holds one token, so a client could connect to Revit A while presenting Revit
+B's token and simply be told "Unauthorized".
+
+The fix is the named-pipe equivalent of pyRevit's one-port-per-instance: **the pipe name carries the
+process id**. Alongside it, each session writes `%APPDATA%\AJToolsridges\<pid>.json` with its pipe,
+token, Revit version and window title, so a client can name the sessions rather than number them. Dead
+files are swept in `Start()`, because a crash or task-kill never runs `Stop()`.
+
+**`ajai-bridge.json` is still written, unchanged in shape.** An older mcp-server reads only that file and
+keeps working against a single session exactly as before. It is deleted on `Stop()` only if it still
+points at THIS Revit — otherwise closing one session would disconnect another that is still running.
+
+**The choosing rule is Ajmal's, and he was asked:** *ask, don't guess.* One Revit open behaves exactly as
+it always did, no prompt. Two or more and nothing is sent until he names one. It mirrors his existing
+rule about pinning the document when two projects are open, where the danger is the same — a multi-step
+job quietly finishing in the wrong project.
+
+### The distinction that makes it safe, found by a failing test
+
+Auto-picking the only session and being told which session to use are **not the same thing**, and the
+client must track which happened:
+
+| What happened | Correct behaviour |
+|---|---|
+| Auto-picked, then a second Revit opens | **Ask** — he never chose this one |
+| Auto-picked, and it closes | Quietly take the remaining one |
+| He chose it, and more Revits open | Keep his choice, don't nag |
+| He chose it, and it closes | **Stop and say so** — never slide onto another project |
+
+The first draft had no such flag, so opening a second Revit mid-chat left every later command silently
+going to the first one — exactly the failure the feature exists to prevent. The test caught it, not
+review.

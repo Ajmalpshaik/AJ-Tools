@@ -1,11 +1,11 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : AJ Tools Assembly Metadata
  * File Name     : AssemblyInfo.cs
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.54.0
+ * Version       : 1.55.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-20
@@ -24,6 +24,16 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.55.0 (2026-08-20) - TWO REVIT SESSIONS CAN NOW BE CONNECTED AT ONCE. Until now the AJ AI bridge
+ *                       assumed exactly one Revit: every session hosted the same named pipe, and the
+ *                       second one to try got "All pipe instances are busy" and could not start.
+ *                       Each Revit now hosts its own pipe (named by process id - the named-pipe
+ *                       equivalent of pyRevit's one-port-per-instance) and advertises itself with its
+ *                       version and open document, so a chat can tell the sessions apart by name.
+ *                       Ajmal's rule for choosing between them: ASK, DO NOT GUESS. One Revit open
+ *                       behaves exactly as it always did, with no prompt; with two or more nothing is
+ *                       sent until he says which. Older tooling that knows only one session keeps
+ *                       working unchanged. Minor bump: new capability, no new ribbon button.
  * v1.54.0 (2026-08-20) - QUICK MENU NOW BEHAVES LIKE THE RIBBON PANEL IT MIRRORS, AND OPENS FASTER.
  *                       A slot whose tool the ribbon would grey out is now drawn greyed out on the
  *                       wheel and cannot be picked, with the hub saying so - it used to look normal,
@@ -2285,8 +2295,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.54.0.0")]
-[assembly: AssemblyFileVersion("1.54.0.0")]
+[assembly: AssemblyVersion("1.55.0.0")]
+[assembly: AssemblyFileVersion("1.55.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

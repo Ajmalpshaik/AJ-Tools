@@ -5,6 +5,23 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.55.0] - 2026-08-20
+
+- **Added: two Revit sessions can be connected at the same time.** Until now the AJ AI bridge assumed
+  exactly one Revit. Every session tried to host the same named pipe, which has room for two server
+  instances — and a single Revit already uses both (one servicing the chat, one listening so that
+  switching is instant). The second Revit therefore got “all pipe instances are busy” and its bridge
+  would not start at all. Each Revit now hosts its own pipe, keyed to its process, which is the same
+  idea as pyRevit giving each instance the next port number.
+- **Added: each session says which one it is.** A connected Revit now publishes its Revit version and
+  the document it has open, so a chat can list them as “Revit 2024 — Tower-MEP.rvt” rather than as
+  numbers. Sessions that died without closing cleanly are cleared away automatically.
+- **Changed: with two sessions open, nothing runs until you pick one.** One Revit open behaves exactly
+  as before — no prompt, no change. With two or more, commands stop and ask which session you mean.
+  Once you have chosen, that choice sticks even if you open more Revits; and if the session you chose
+  closes, the bridge stops and says so rather than quietly continuing in a different project.
+- Older tooling that only understands a single session keeps working unchanged.
+
 ## [1.54.0] - 2026-08-20
 
 - **Fixed: Quick Menu slots that quietly did nothing.** A tool the ribbon would have greyed out looked

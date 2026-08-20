@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : AJ AI (MCP Bridge)
  * File Name     : McpBridgeService.cs
@@ -8,7 +8,7 @@
  *                 the standalone "AJ AI" ribbon button (ToggleAiBridgeCommand) starts and stops.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.10.0
+ * Version       : 1.11.0
  *
  * Created Date  : 2026-07-07
  * Last Updated  : 2026-08-11
@@ -72,6 +72,22 @@
  *                       Nothing else changes. The banner, the audit log, the safety validator and
  *                       every model operation are untouched, and no request path gains or loses a
  *                       step - the call site simply no longer exists.
+ * v1.11.0 (2026-08-20) - MORE THAN ONE REVIT CAN NOW HOST A BRIDGE AT THE SAME TIME. The pipe name
+ *                       was a bare const shared by every Revit, and that could not work: CreatePipe()
+ *                       asks for maxNumberOfServerInstances 2 and a single Revit uses BOTH (one
+ *                       servicing the chat, one already listening so preemption stays instant), so a
+ *                       second Revit's pipe threw "All pipe instances are busy" and the bridge simply
+ *                       refused to start in that session. Measured, not inferred: a standalone test
+ *                       creating four servers on one name got two, then that exact error twice. The
+ *                       name now carries the process id, which is the named-pipe equivalent of
+ *                       pyRevit's one-port-per-instance. Each session also advertises itself in
+ *                       %APPDATA%\AJTools\bridges\<pid>.json with its Revit version and open
+ *                       document, so the client can show Ajmal which session is which instead of
+ *                       guessing; dead files are swept at Start(), since a crash never runs Stop().
+ *                       ajai-bridge.json is still written, unchanged in shape, so an older mcp-server
+ *                       keeps working against one session exactly as before - and it is only deleted
+ *                       on Stop() if it still points at THIS Revit, or closing one session would
+ *                       disconnect another that is still up.
  * v1.9.0 (2026-08-11) - Each completed request now also speaks its result aloud through the new
  *                       AiVoiceService, in a different voice from the assistant's own narration, so
  *                       Ajmal can follow a running job by ear instead of watching the screen. Added
@@ -138,6 +154,8 @@
 #endregion
 
 using System;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
 using System.Security.Cryptography;
@@ -166,7 +184,16 @@ namespace AJTools.AiShell.Services
 
     public class McpBridgeService
     {
-        private const string PipeName = "AJTools.AjAi";
+        // One Revit process = one pipe name. It used to be a bare const shared by every Revit, which
+        // could not work: CreatePipe() below asks for maxNumberOfServerInstances 2, and a single Revit
+        // uses BOTH (one servicing the chat, one already listening so preemption is instant). A second
+        // Revit's third instance therefore threw "All pipe instances are busy" - measured 2026-08-20,
+        // not inferred - so the bridge simply refused to start in the second session. Suffixing the
+        // process id gives each Revit its own pipe, which is the named-pipe equivalent of pyRevit's
+        // one-port-per-instance.
+        private const string PipeNameBase = "AJTools.AjAi";
+        private static readonly string PipeName =
+            PipeNameBase + "." + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
 
         private readonly RevitExecutionService _executionService;
         private readonly AiTaskWarningBarService _activityBanner;
@@ -187,8 +214,20 @@ namespace AJTools.AiShell.Services
             _activityBanner = new AiTaskWarningBarService(Dispatcher.CurrentDispatcher);
         }
 
-        private static string DiscoveryFilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AJTools", "ajai-bridge.json");
+        private static string AjToolsAppDataDir => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AJTools");
+
+        // Kept, and still written, purely so an OLDER mcp-server build keeps working unchanged: it reads
+        // this one file and knows nothing about instances. It always describes THIS Revit, so with a
+        // single session open the old and new clients behave identically.
+        private static string DiscoveryFilePath => Path.Combine(AjToolsAppDataDir, "ajai-bridge.json");
+
+        // One file per live Revit, named by process id. A directory rather than one shared file on
+        // purpose: two Revits starting at the same moment never write the same path, so there is no
+        // last-writer-wins race to lose an instance to.
+        private static string InstancesDir => Path.Combine(AjToolsAppDataDir, "bridges");
+        private static string InstanceFilePath => Path.Combine(
+            InstancesDir, Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) + ".json");
 
         /// <summary>Starts hosting the pipe. Returns false with a plain error if the pipe is already in use.</summary>
         public bool Start(out string errorMessage)
@@ -450,18 +489,93 @@ namespace AJTools.AiShell.Services
 
         private void WriteDiscoveryFile()
         {
-            string dir = Path.GetDirectoryName(DiscoveryFilePath);
-            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            if (!Directory.Exists(AjToolsAppDataDir)) Directory.CreateDirectory(AjToolsAppDataDir);
+            if (!Directory.Exists(InstancesDir)) Directory.CreateDirectory(InstancesDir);
 
-            var info = new { pipeName = PipeName, token = Token };
-            File.WriteAllText(DiscoveryFilePath, JsonConvert.SerializeObject(info));
+            PurgeDeadInstanceFiles();
+
+            var proc = Process.GetCurrentProcess();
+            var instance = new
+            {
+                pipeName = PipeName,
+                token = Token,
+                pid = proc.Id,
+                revitVersion = RevitVersionLabel(),
+                // What Ajmal actually recognises a session by. Best-effort: the window title carries the
+                // open document name, and is the only identifier available without touching the Revit API
+                // from a non-API thread. Empty is fine - the client falls back to the process id.
+                windowTitle = SafeWindowTitle(proc),
+                startedUtc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)
+            };
+            string json = JsonConvert.SerializeObject(instance);
+
+            File.WriteAllText(InstanceFilePath, json);
+            File.WriteAllText(DiscoveryFilePath, json);   // legacy single-instance clients
+        }
+
+        private static string RevitVersionLabel()
+        {
+            try
+            {
+                // The add-in is loaded by Revit.exe, so the host process file version IS the Revit year.
+                return FileVersionInfo.GetVersionInfo(Process.GetCurrentProcess().MainModule.FileName)
+                                      .FileMajorPart.ToString(CultureInfo.InvariantCulture);
+            }
+            catch { return ""; }
+        }
+
+        private static string SafeWindowTitle(Process proc)
+        {
+            try { return proc.MainWindowTitle ?? ""; } catch { return ""; }
+        }
+
+        /// <summary>
+        /// Removes instance files whose Revit is gone. A crash or a task-kill never runs Stop(), so
+        /// without this a dead session keeps advertising a pipe nobody is listening on - and the client
+        /// would offer Ajmal a session that cannot possibly answer.
+        /// </summary>
+        private static void PurgeDeadInstanceFiles()
+        {
+            try
+            {
+                if (!Directory.Exists(InstancesDir)) return;
+                int self = Process.GetCurrentProcess().Id;
+
+                foreach (string file in Directory.GetFiles(InstancesDir, "*.json"))
+                {
+                    int pid;
+                    if (!int.TryParse(Path.GetFileNameWithoutExtension(file), out pid)) continue;
+                    if (pid == self) continue;
+
+                    bool alive;
+                    try { Process.GetProcessById(pid); alive = true; }
+                    catch (ArgumentException) { alive = false; }   // no such process
+                    catch { alive = true; }                        // anything else: leave it alone
+
+                    if (!alive) { try { File.Delete(file); } catch { /* best-effort */ } }
+                }
+            }
+            catch { /* best-effort cleanup */ }
         }
 
         private static void DeleteDiscoveryFile()
         {
             try
             {
-                if (File.Exists(DiscoveryFilePath)) File.Delete(DiscoveryFilePath);
+                if (File.Exists(InstanceFilePath)) File.Delete(InstanceFilePath);
+            }
+            catch { /* best-effort cleanup */ }
+
+            // Only clear the legacy file if it still describes THIS Revit. Another session may have
+            // written it since, and stealing its pointer would disconnect a bridge that is still up.
+            try
+            {
+                if (File.Exists(DiscoveryFilePath))
+                {
+                    string raw = File.ReadAllText(DiscoveryFilePath);
+                    if (raw.IndexOf("\"" + PipeName + "\"", StringComparison.Ordinal) >= 0)
+                        File.Delete(DiscoveryFilePath);
+                }
             }
             catch { /* best-effort cleanup */ }
         }
