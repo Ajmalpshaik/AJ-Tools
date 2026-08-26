@@ -137,3 +137,28 @@ when it shows up in raw output (a warning, an export, a debug dump) — converti
 always a live one-line cast (`(BuiltInCategory)someInt`) or `Category.GetCategory(doc, id).Name`, which is
 authoritative for every category, not just these 27 common ones.
 
+
+## Saving a document from the bridge
+
+`Document.Save()` **always fails** when called through `run_csharp`:
+
+```
+InvalidOperationException: Operation is not permitted when there is any open
+transaction phase started by API client.
+```
+
+The bridge runs each snippet inside its own transaction phase, so a direct save is never allowed —
+this is not a permissions problem and no amount of retrying helps.
+
+**Use Revit's own posted command instead**, the same technique as native Undo:
+```csharp
+UIApplication.PostCommand(
+    Autodesk.Revit.UI.RevitCommandId.LookupPostableCommandId(
+        Autodesk.Revit.UI.PostableCommand.Save));
+```
+It queues and executes the moment the call returns.
+
+**It saves the ACTIVE document, not one you looked up.** Always check
+`UIApplication.ActiveUIDocument.Document.Title` first and refuse to post if the wrong file is in front —
+otherwise you silently save someone else's document. Verify afterwards from the file's modification
+timestamp on disk (`stat -c '%y'`), not by asking Revit, since the command runs asynchronously.

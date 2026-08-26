@@ -19,7 +19,10 @@ feet↔mm conversion every script needs.
 | Pushing the MEP Color Data Standard (Excel) into System Types / Materials / View Filters | [`mep-color-standard.md`](mep-color-standard.md) |
 | Placing tags by script; finding the right tag family; leader elbows/side; tag overlap; view scale and clearances | [`tagging.md`](tagging.md) |
 | Revisions and revision sequences | [`revisions.md`](revisions.md) |
-| Building a parametric family in the Family Editor (geometry, parameters, resize test) | [`families.md`](families.md) |
+| **Authoring a family** — the house standards: category/OmniClass, reference planes, subcategories, materials, naming, metadata | [`families-conventions.md`](families-conventions.md) |
+| A family **formula** is rejected, or you need the formula language's rules (operators, units, text, scope) | [`families-formulas.md`](families-formulas.md) |
+| Creating family **geometry** — extrusions, blends, work planes, alignments, duct connectors, symbolic lines | [`families-geometry.md`](families-geometry.md) |
+| Family **parameters and constraints** — adding/scoping/removing, labelled vs locked dimensions | [`families-parameters.md`](families-parameters.md) |
 | What was done on a past date | [`log.md`](log.md) |
 
 ## The two rules that override everything in these files

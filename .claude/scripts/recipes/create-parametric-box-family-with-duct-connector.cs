@@ -10,7 +10,7 @@
 //           Model template with its default reference planes intact: "Center (Left/Right)",
 //           "Center (Front/Back)", "Reference Plane" (the horizontal one), and a plan view named
 //           "Ref. Level".
-// SOURCE:  ../knowledge/live-model/families.md § Building a parametric family from scratch (Family Editor, via the
+// SOURCE:  ../knowledge/live-model/families-geometry.md § Building a parametric family from scratch (Family Editor, via the
 //          bridge) — read that section for the gotchas (ReferencePlane's 3rd arg is a direction not
 //          a point, EQ dimension chains for centered resize, ConnectorElement.CreateDuctConnector's
 //          real signature, connector Width/Height not inheriting the face size, Regenerate() outside

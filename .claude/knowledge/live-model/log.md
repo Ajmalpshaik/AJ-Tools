@@ -48,9 +48,21 @@
   Terminals); loaded 21 shared parameters from `Shared_Parameters.txt` and added 6 working formulas.
   Established the Duct Size division restriction, the unit-suffix rule for number literals, and
   `FamilyManager.MakeInstance` as the safe way to change a parameter's scope. All recorded in
-  `families.md`.
+  `families-conventions.md` / `families-formulas.md` / `families-geometry.md`.
 - 2026-08-26 — Audited `TRG_MECH_EQP_Fan Coil Unit_FCU_R0.rfa` (built 2026-08-25, never logged at the
   time). Clean: Mechanical Equipment category, OmniClass `23.75.70.17.27` Fan Coil Units, 1 type
   (FCU-01), 8 solid/void forms, **60 shared parameters and zero local user-made ones** — i.e. the
   "new parameters must be shared, and must exist in the master txt" rule was correctly followed.
   Only 2 formulas present, so it is largely a manual-entry family so far.
+- 2026-08-27 — Built `TRG_MECH_ATL_Supply Ceiling Diffuser Square_SCD_R0.rfa` end to end: 44 shared
+  parameters, auto-sizing from airflow (sqrt(flow/velocity) into a standard-size ladder with a
+  Yes/No manual override), two types, 18 named reference planes, 43 dimensions, frame + funnel blend +
+  neck all plane-locked with proper work planes, duct connector driven by `Neck_Size` and
+  `Actual_Supply_Air_Flow`. Also fixed the FCU: spigot widths linked to `Unit_Length`, clearance split
+  Left/Right, materials split per service and coloured from the MEP Color Data Standard, subcategories
+  renamed with the family prefix and assigned to all 8 solids, drain connector slope enabled.
+  **Two real bugs only caught by Ajmal**: `FAMILY_ELEM_SUBCATEGORY` needs the Category id not the
+  GraphicsStyle id (11 solids across both families were silently blank), and geometry built on a
+  free-floating sketch plane reads "<not associated>" and had to be rebuilt. Both written up.
+  Split the 954-line `families.md` into conventions / formulas / geometry / parameters, added
+  `scripts/recipes/audit-family.cs` (tested live) and the `revit-family-author` skill.

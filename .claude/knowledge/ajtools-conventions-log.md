@@ -2098,7 +2098,7 @@ changelog.
   memory and this file's own "not adopted" list). Not yet live-tested.
 - 2026-07-19 — No new skill created for the in-progress bifurcation (Y-split) duct fitting family build —
   it's the same job `ajtools-family-creation` already owns, just a harder shape than the box+neck pattern
-  built so far. Instead added a new gotcha to `knowledge/live-model/families.md` (§ "Third build —
+  built so far. Instead added a new gotcha to `knowledge/live-model/families-parameters.md` (§ "Third build —
   ReplaceParameter/RenameParameter rollback corruption"): using `FamilyManager.ReplaceParameter` +
   `RenameParameter` together to move a parameter to a different group corrupted parameter names, values,
   AND geometry (3 duplicate Extrusions from nowhere) even though the transaction that caused it never
