@@ -1178,3 +1178,80 @@ AutoDebugger, or code-review only) -> date.
   passed to an availability class costs a full selection walk and was being rebuilt per slot, which
   would have made the wheel stall on a large selection, i.e. a performance bug inside a performance
   fix, caught by adversarial review before it shipped. -> 2026-08-20.
+
+### 2026-08-26
+
+- **Symptom (Ajmal's words)**: Smart MEP Tag says "No elements to tag in this view. Already Tagged: 0,
+  Filtered Out: 507, Total Analysed: 507" on a plan full of untagged ducts - "i thing its filtering, is
+  that already tagd or some thing like that". **Root cause - the crop-region filter, rejecting on an
+  axis a crop region does not control.** Filter 2 in `SmartMepTagService.CollectAndFilterElements`
+  turned both the view's crop box and each element's bounding box into world-space `Outline`s and
+  required them to overlap on **X, Y and Z**. A crop region only bounds the view *plane*; depth is the
+  view range, which `FilteredElementCollector(doc, viewId)` has already applied. Measured live on
+  `PLAN AT EL. +100.950` (model `4355-BHVD-3D-60A10-BL003A`, Revit 2020): the crop box's **world Z**
+  band came out **324145..628914 mm** while the model sits around +100950 mm, so the Z test could never
+  pass. **1000 of the 1001 elements collected in that view were rejected, every one of them on the Z
+  axis alone** - X/Y overlapped fine for all 1000. Nothing was wrong with the model, the tags, or the
+  settings, and nothing was already tagged (the dialog said so and was right).
+  **Second, compounding fault - the dialog could not say which filter fired.** Every skip already
+  carried its own `Note`, and the summary threw all of it away, merging size + visibility + crop into
+  one "Filtered Out" number - and leaving `FilteredOutType` (vertical runs) out of the totals
+  altogether, so the three lines did not even have to add up. That merged number is what sent Ajmal
+  looking at already-tagged elements while Already Tagged read zero.
+  **Fix**: (1) new `BoundingBoxOverlapsCropInViewPlane` compares X/Y in the view's own coordinates via
+  `ViewCropGeometryProjectionHelper.GetModelToViewTransform` - the way the View Crop tools already
+  measure (`PlaneBounds` is X/Y only) - with the crop transform resolved once per run, not per element;
+  Z is gone. `BoundingBoxIntersectsCrop` and `OutlinesIntersect` deleted (that pair had no other
+  caller). A null bounding box now means "unmeasurable, keep it" instead of "outside the crop" - the
+  midpoint fallback further down can still place the tag. (2) the zero-candidate dialog now names every
+  filter separately and quotes the commonest `Note` verbatim ("Main reason: 507 x ...").
+  **Verified how**: live via AJ AI Bridge, replaying both crop tests over the real view - old test
+  rejects 1000/1001 (Z-only 1000), new test rejects 0/1001. `Release` (2020) and `Release R25` both
+  build 0 errors 0 warnings. **Not yet run from the ribbon inside Revit** - needs a deploy and a click.
+  With the crop fix in, 339 of those 1001 are still dropped by the size filter at its defaults
+  (316 shorter than 1000 mm, 23 narrower than 100 mm), which is intended behaviour - and the new dialog
+  now says so out loud if that ever leaves nothing to tag.
+  **Lessons**: (a) this is the *same* lesson as the "No grids or levels were found" fix of 2026-08-15,
+  hit again in a different tool - a found-nothing message must name which check rejected everything,
+  and Smart MEP Tag was never given that treatment. Worth checking the remaining "found nothing"
+  dialogs for the same shape rather than waiting for each to be reported. (b) Smart MEP Tag was the
+  only tag tool doing its own crop test - Create Tags has none - and a filter no sibling tool needs is
+  a good place to look first when one tool alone returns nothing. (c) when a hand-rolled geometry test
+  already exists correctly elsewhere in the project, reuse it; the bug was entirely in the second,
+  private implementation. -> 2026-08-26.
+
+- **Sweep (Ajmal: "check the other tools for the same problem")** — after the Smart MEP Tag crop fix
+  above, every other tool was checked for both halves of that bug. **Result: the crop-on-Z fault existed
+  in exactly one place and is now gone.** Worth recording so nobody re-runs this sweep:
+  - `SmartTagPlacementEngine.BuildPlacementBoundaryInViewPlane` — **correct already**. It takes the same
+    `preflight.CropOutline` and projects all 8 corners onto viewRight/viewUp, dropping depth. The name
+    says what it does. Only the *collection* filter next door had it wrong.
+  - `AutoDimensionService.ViewFrame.AbsorbBox` — **correct**. Corners go through `ViewCoords.From(view,…)`
+    and only X/Y are absorbed; `ViewFrame` has no Z fields at all.
+  - `MepDimensionGeometry.ResolveSearchHalfLength` — **not a filter**. Crop corners are dotted with the
+    dimension direction to decide how far to *search*; the result is floored by `MinimumSearchHalfLength`,
+    so the worst case is searching too wide, never rejecting something. Already crop-hardened in its own
+    header note.
+  - `CmdResetTextPosition.ResolveViewCenter` — **not a filter**, computes a centre point.
+  - `MepOpeningService` (3 × `BoundingBoxIntersectsFilter`) — **genuine 3D by design**: finding the walls
+    and floors a service actually passes through IS a depth question. Leave it alone.
+  - `OrthogonalOutlineBuilder.OutlineGrid` — unrelated type, UV grid for revision clouds.
+  - A grep for any remaining manual Z-range rejection (`Max.Z <` / `Min.Z >` against view extents) now
+    returns **nothing** — deleting `OutlinesIntersect` removed the last one.
+  **Second half of the sweep — "found nothing" messages that cannot name the filter.** `CreateTagsService`
+  and `StackTagsService` were **already right**: both carry a `SkipTally` and print
+  `tally.BuildSummary()` on the zero path. Two tools were not, and both were fixed (message only, no
+  behaviour change):
+  - **Fix Tag Clash** said "No tags were found in the active view" whenever
+    `TagClashEngine.CollectMovableTags` returned empty — but that method silently drops any tag whose
+    text box or head position cannot be read, so a view full of tags could produce it. It now counts the
+    tags in the view and separates the two cases ("Found N tag(s)… none could be measured on screen").
+  - **Clear Tag Clash Marks** said "No tags were found in this view" when `ClearAll` returned 0 — but that
+    return value is *overrides cleared*, not tags looked at. Now says "No tag in this view had a clash
+    mark to clear."
+  **Verified how**: `Release` (2020) and `Release R25` both build 0 errors 0 warnings; deployed 1.56.2 to
+  the Revit 2020 addins folder and confirmed the manifest points at it. The two message paths are **not
+  click-tested** — reaching them needs a view in that specific state.
+  **Lesson**: the useful question was not "who else touches the crop box" but "who compares an element
+  against the view on an axis the view does not bound" — three of the six crop users turned out to be
+  doing something else entirely, and the one genuine sibling was already correct. -> 2026-08-26.

@@ -2309,8 +2309,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.56.0.0")]
-[assembly: AssemblyFileVersion("1.56.0.0")]
+[assembly: AssemblyVersion("1.56.2.0")]
+[assembly: AssemblyFileVersion("1.56.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

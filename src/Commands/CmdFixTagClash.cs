@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Fix Tag Clash
  * File Name     : CmdFixTagClash.cs
@@ -97,7 +97,29 @@ namespace AJTools.Commands
                 List<TagClashItem> items = TagClashEngine.CollectMovableTags(doc, activeView, viewRight, viewUp);
                 if (items.Count == 0)
                 {
-                    DialogHelper.ShowInfo(ToolTitle, "No tags were found in the active view.");
+                    // "Searched and found nothing" and "found them, then dropped every one" are two
+                    // different answers, and the modeller has to be able to tell them apart - the same
+                    // lesson the Smart MEP Tag crop bug taught on 2026-08-26. CollectMovableTags drops
+                    // any tag whose text box or head position cannot be read, so a view full of tags
+                    // can still come back empty, and saying "no tags were found" there is simply wrong.
+                    int tagsInView;
+                    try
+                    {
+                        tagsInView = new FilteredElementCollector(doc, activeView.Id)
+                            .OfClass(typeof(IndependentTag))
+                            .WhereElementIsNotElementType()
+                            .GetElementCount();
+                    }
+                    catch (Exception)
+                    {
+                        tagsInView = 0;
+                    }
+
+                    DialogHelper.ShowInfo(ToolTitle, tagsInView == 0
+                        ? "No tags were found in the active view."
+                        : string.Format(
+                            "Found {0} tag(s) in this view, but none of them could be measured on "
+                            + "screen, so there is nothing to move.", tagsInView));
                     return Result.Cancelled;
                 }
 

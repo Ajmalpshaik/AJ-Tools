@@ -1,9 +1,11 @@
-// Tool Name: Smart MEP Tag Service
+﻿// Tool Name: Smart MEP Tag Service
 // Description: Orchestrates intelligent MEP element tagging across all phases.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.1.0
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils
+// Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils, AJTools.Services.ViewCrop
+// Changelog: 1.1.0 (2026-08-26) - Crop filter measures the view plane only (was rejecting on world Z
+//            and dropping every element in the view); zero-candidate dialog now names the filter.
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +16,7 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using AJTools.Models.SmartTag;
 using AJTools.Services.CreateTags;
+using AJTools.Services.ViewCrop;
 using AJTools.Utils;
 
 namespace AJTools.Services.SmartTag
@@ -239,6 +242,37 @@ namespace AJTools.Services.SmartTag
             // Used by Filter 3 to skip already-tagged elements.
             HashSet<ElementId> alreadyTaggedIds = CollectAlreadyTaggedElementIds(doc, activeView);
 
+            // ── Crop region, measured in the view's own plane ──
+            // A crop region bounds what you see ACROSS the view - X and Y in view coordinates. It
+            // says nothing about depth; depth is the view range, and FilteredElementCollector scoped
+            // to the view has already applied it. Filter 2 used to compare world-space X, Y AND Z
+            // against the crop box, so a view whose crop box Z range did not happen to straddle the
+            // model could reject every element in one go and report "No elements to tag". The View
+            // Crop tools already measure the correct way - ViewCropGeometryProjectionHelper.PlaneBounds
+            // is X/Y only - so this now does the same.
+            Transform cropModelToView = null;
+            double cropMinX = 0.0, cropMinY = 0.0, cropMaxX = 0.0, cropMaxY = 0.0;
+            if (preflight.CropOutline != null)
+            {
+                try
+                {
+                    BoundingBoxXYZ cropBox = activeView.CropBox;
+                    if (cropBox != null && cropBox.Min != null && cropBox.Max != null)
+                    {
+                        cropModelToView = ViewCropGeometryProjectionHelper.GetModelToViewTransform(activeView);
+                        cropMinX = Math.Min(cropBox.Min.X, cropBox.Max.X);
+                        cropMaxX = Math.Max(cropBox.Min.X, cropBox.Max.X);
+                        cropMinY = Math.Min(cropBox.Min.Y, cropBox.Max.Y);
+                        cropMaxY = Math.Max(cropBox.Min.Y, cropBox.Max.Y);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Cannot resolve the crop plane - tag everything rather than drop everything.
+                    cropModelToView = null;
+                }
+            }
+
             // ── Collect raw elements per category ──
             var allElements = new List<ElementWithCategory>();
             foreach (BuiltInCategory bic in GetEnabledCategories(settingsState))
@@ -306,11 +340,14 @@ namespace AJTools.Services.SmartTag
                 }
 
                 // FILTER 2 — INSIDE CROP REGION
-                // Element bounding box must intersect the crop region. Fully outside = exclude.
-                if (preflight.CropOutline != null)
+                // Element must overlap the crop rectangle in the view plane. Fully outside = exclude.
+                // A missing bounding box is no longer treated as "outside": it means unmeasurable,
+                // and the midpoint fallback further down can still place the tag.
+                if (cropModelToView != null)
                 {
                     BoundingBoxXYZ bbox = elem.get_BoundingBox(activeView);
-                    if (bbox == null || !BoundingBoxIntersectsCrop(bbox, preflight.CropOutline))
+                    if (!BoundingBoxOverlapsCropInViewPlane(
+                            bbox, cropModelToView, cropMinX, cropMinY, cropMaxX, cropMaxY))
                     {
                         results.Add(new TagPlacementResult
                         {
@@ -806,41 +843,65 @@ namespace AJTools.Services.SmartTag
         }
 
         /// <summary>
-        /// Checks if an element's bounding box intersects the crop region outline.
-        /// Partially inside = true (tag will be placed inside the crop even if element extends beyond).
+        /// Checks whether an element's bounding box overlaps the crop rectangle, measured in the
+        /// view's own plane. Partially inside = true (the tag is pulled inside the crop later).
+        /// Depth is deliberately ignored - a crop region does not control it, the view range does,
+        /// and the view-scoped collector has already applied that. Anything unmeasurable is kept
+        /// rather than dropped, matching the safe default used by the other filters here.
         /// </summary>
-        private static bool BoundingBoxIntersectsCrop(BoundingBoxXYZ bbox, Outline cropOutline)
+        private static bool BoundingBoxOverlapsCropInViewPlane(
+            BoundingBoxXYZ bbox,
+            Transform modelToView,
+            double cropMinX,
+            double cropMinY,
+            double cropMaxX,
+            double cropMaxY)
         {
             try
             {
-                // Use transformed world-space outlines so rotated bounding boxes are handled correctly.
-                Outline elementOutline = TryCreateOutline(bbox);
-                return OutlinesIntersect(elementOutline, cropOutline);
+                if (bbox == null || modelToView == null)
+                    return true;
+
+                XYZ[] corners = GetBoundingBoxCorners(bbox);
+                if (corners == null || corners.Length == 0)
+                    return true;
+
+                double minX = double.MaxValue;
+                double minY = double.MaxValue;
+                double maxX = double.MinValue;
+                double maxY = double.MinValue;
+
+                foreach (XYZ corner in corners)
+                {
+                    if (corner == null)
+                        continue;
+
+                    XYZ local = modelToView.OfPoint(corner);
+                    if (local == null
+                        || double.IsNaN(local.X) || double.IsInfinity(local.X)
+                        || double.IsNaN(local.Y) || double.IsInfinity(local.Y))
+                        return true;
+
+                    minX = Math.Min(minX, local.X);
+                    minY = Math.Min(minY, local.Y);
+                    maxX = Math.Max(maxX, local.X);
+                    maxY = Math.Max(maxY, local.Y);
+                }
+
+                if (minX > maxX || minY > maxY)
+                    return true;
+
+                if (maxX < cropMinX || minX > cropMaxX)
+                    return false;
+                if (maxY < cropMinY || minY > cropMaxY)
+                    return false;
+
+                return true;
             }
             catch (Exception)
             {
                 return true; // On error, include the element.
             }
-        }
-
-        private static bool OutlinesIntersect(Outline a, Outline b)
-        {
-            if (a == null || b == null)
-                return true;
-
-            XYZ aMin = a.MinimumPoint;
-            XYZ aMax = a.MaximumPoint;
-            XYZ bMin = b.MinimumPoint;
-            XYZ bMax = b.MaximumPoint;
-
-            if (aMax.X < bMin.X || aMin.X > bMax.X)
-                return false;
-            if (aMax.Y < bMin.Y || aMin.Y > bMax.Y)
-                return false;
-            if (aMax.Z < bMin.Z || aMin.Z > bMax.Z)
-                return false;
-
-            return true;
         }
 
         private static Outline TryCreateOutline(BoundingBoxXYZ bbox)
@@ -1665,16 +1726,42 @@ namespace AJTools.Services.SmartTag
 
             if (candidates.Count == 0)
             {
-                // Build a summary of why no candidates were found.
+                // Build a summary of why no candidates were found. Every skip already carries the
+                // reason that produced it, so name the filter instead of merging four of them into
+                // one "Filtered Out" number - that merged number is what sent Ajmal looking at
+                // already-tagged elements while Already Tagged read zero. Vertical-run skips used to
+                // fall outside the total altogether, so the three lines did not even add up.
+                // Same lesson as the "No grids or levels were found" fix (2026-08-15): a
+                // found-nothing message has to say WHICH check rejected everything.
                 int alreadyTagged = results.Count(r => r.SkipReason == TagSkipReason.AlreadyTagged);
-                int filtered = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutSize
-                                               || r.SkipReason == TagSkipReason.FilteredOutVisibility
-                                               || r.SkipReason == TagSkipReason.OutsideCropRegion);
+                int outsideCrop = results.Count(r => r.SkipReason == TagSkipReason.OutsideCropRegion);
+                int belowSize = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutSize);
+                int notVisible = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutVisibility);
+                int excludedType = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutType);
 
-                DialogHelper.ShowInfo(ToolTitle,
-                    string.Format("No elements to tag in this view.\n\n"
-                        + "Already Tagged: {0}\nFiltered Out: {1}\nTotal Analysed: {2}",
-                        alreadyTagged, filtered, results.Count));
+                string topReason = results
+                    .Where(r => !string.IsNullOrEmpty(r.Note))
+                    .GroupBy(r => r.Note)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => string.Format("{0} x {1}", g.Count(), g.Key))
+                    .FirstOrDefault();
+
+                var summary = new System.Text.StringBuilder();
+                summary.AppendLine("No elements to tag in this view.");
+                summary.AppendLine();
+                summary.AppendLine(string.Format("Analysed: {0}", results.Count));
+                summary.AppendLine(string.Format("Already tagged: {0}", alreadyTagged));
+                summary.AppendLine(string.Format("Outside crop region: {0}", outsideCrop));
+                summary.AppendLine(string.Format("Below size limits: {0}", belowSize));
+                summary.AppendLine(string.Format("Hidden or no position: {0}", notVisible));
+                summary.AppendLine(string.Format("Excluded type: {0}", excludedType));
+                if (!string.IsNullOrEmpty(topReason))
+                {
+                    summary.AppendLine();
+                    summary.Append(string.Format("Main reason: {0}", topReason));
+                }
+
+                DialogHelper.ShowInfo(ToolTitle, summary.ToString());
                 RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
                 return Result.Succeeded;
             }

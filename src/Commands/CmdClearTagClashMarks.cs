@@ -1,4 +1,4 @@
-#region Metadata
+﻿#region Metadata
 /*
  * Tool Name     : Clear Tag Clash Marks
  * File Name     : CmdClearTagClashMarks.cs
@@ -116,7 +116,11 @@ namespace AJTools.Commands
 
                 if (reset == 0)
                 {
-                    DialogHelper.ShowInfo(ToolTitle, "No tags were found in this view, so nothing was changed.");
+                    // ClearAll returns how many overrides were actually cleared, not how many tags
+                    // were looked at - so "no tags were found" was the wrong thing to say in a view
+                    // full of tags that simply had no clash mark on them.
+                    DialogHelper.ShowInfo(ToolTitle,
+                        "No tag in this view had a clash mark to clear, so nothing was changed.");
                     return Result.Cancelled;
                 }
 
