@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.56.0
+ * Version       : 1.56.2
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-08-20
@@ -24,6 +24,21 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.56.2 (2026-08-26) - SMART MEP TAG STOPPED TAGGING ENTIRE VIEWS. Its crop-region filter made an
+ *                       element prove it overlapped the crop box on DEPTH as well as across the view.
+ *                       A crop region only bounds the view plane; depth is the view range, and Revit
+ *                       has already applied that before the tool sees anything. On the plan this came
+ *                       from, the crop box's depth band sat hundreds of metres from the model, so 1000
+ *                       of the 1001 elements in the view were thrown out on depth alone - every one of
+ *                       them sitting perfectly inside the crop when seen from above. Measured live on
+ *                       the real model, not reasoned about. The check now works in the view plane only,
+ *                       matching how the View Crop tools already measure. The "nothing to tag" message
+ *                       also names each filter separately and quotes the commonest reason, instead of
+ *                       merging three of them into one number that could not be acted on - which is
+ *                       why the fault went unexplained for as long as it did. Same honesty fix applied
+ *                       to Fix Tag Clash and Clear Tag Clash Marks, both of which reported "no tags
+ *                       found" in views that were full of them.
+ * v1.56.1 (2026-08-26) - Superseded by 1.56.2 the same day; built and deployed, never tagged.
  * v1.56.0 (2026-08-20) - A SCRIPT CAN NOW NAME WHICH OPEN PROJECT IT ACTS ON. v1.55.0 solved choosing
  *                       between Revit SESSIONS; this is the other half, choosing between the PROJECTS
  *                       inside one. Document has always been ActiveUIDocument.Document - the front

@@ -5,6 +5,30 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.56.2] - 2026-08-26
+
+- **Fixed: Smart MEP Tag said "No elements to tag in this view" in views full of untagged ducts.** The
+  crop-region filter required an element to overlap the crop box on depth as well as across the view.
+  A crop region only bounds the view plane; depth is the view range, which Revit has already applied by
+  the time the tool sees the elements. On the plan this was reported from, the crop box's depth band sat
+  hundreds of metres away from the model, so **1000 of the 1001 elements in the view were rejected on
+  depth alone** — every one of them overlapped the crop perfectly from above. The check now measures the
+  view plane only, the same way the View Crop tools already do.
+- **Changed: the "nothing to tag" message now names the filter that stopped things.** It used to merge
+  size, visibility and crop into a single "Filtered Out" number, and left vertical-run skips out of the
+  totals altogether — so the figures did not have to add up, and there was no way to tell which check
+  had rejected everything. Each filter is now listed separately with the commonest reason quoted in
+  full. An element whose size cannot be measured is kept rather than dropped.
+- **Fixed: Fix Tag Clash claimed "No tags were found in the active view" when there were plenty.** It
+  silently discards any tag whose text box or head position cannot be read, so a view full of tags could
+  produce that message. It now counts the tags first and separates the two cases.
+- **Fixed: Clear Tag Clash Marks reported the same thing** when nothing was cleared — but that count is
+  overrides removed, not tags examined. It now says no tag had a clash mark to clear.
+
+## [1.56.1] - 2026-08-26
+
+- Superseded by 1.56.2 on the same day; built and deployed but never tagged.
+
 ## [1.56.0] - 2026-08-20
 
 - **Added: a command can say which open project it means.** Version 1.55.0 let two Revit sessions
