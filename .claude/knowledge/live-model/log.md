@@ -41,3 +41,16 @@
   View Filter folder-naming (`/`) convention, and the projection-vs-cut override gotcha (Revit never
   defaults one from the other — both must be set explicitly per filter per view).
 
+- 2026-08-26 — Family editor session. Built the Yes/No "formula or manual value" switch pattern
+  (three parameters, `if(Toggle, formula, ManualValue)`); set up a new Air Terminals family (category
+  switch + OmniClass `23.75.70.21.27.11`, verified via Revit's own `OmniClassTaxonomy.txt` rather than
+  recall — the entry literally titled "Air Terminal Units" maps to Mechanical Equipment, not Air
+  Terminals); loaded 21 shared parameters from `Shared_Parameters.txt` and added 6 working formulas.
+  Established the Duct Size division restriction, the unit-suffix rule for number literals, and
+  `FamilyManager.MakeInstance` as the safe way to change a parameter's scope. All recorded in
+  `families.md`.
+- 2026-08-26 — Audited `TRG_MECH_EQP_Fan Coil Unit_FCU_R0.rfa` (built 2026-08-25, never logged at the
+  time). Clean: Mechanical Equipment category, OmniClass `23.75.70.17.27` Fan Coil Units, 1 type
+  (FCU-01), 8 solid/void forms, **60 shared parameters and zero local user-made ones** — i.e. the
+  "new parameters must be shared, and must exist in the master txt" rule was correctly followed.
+  Only 2 formulas present, so it is largely a manual-entry family so far.
