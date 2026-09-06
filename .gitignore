@@ -84,6 +84,19 @@ graphify-out-*/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
+# The Codex working folder, for the same reason settings.local.json is ignored
+# above: it is MACHINE-LOCAL STATE, not project content. Both files in it name
+# an absolute path on one PC - a pinned node build under Documents, this repo's
+# own D: location, and a tool's exe under a user profile. Published to a public
+# repository that leaks a directory layout and works on nobody else's machine,
+# including this one after a reinstall.
+#
+# The sibling project tracks its equivalent because its config is PORTABLE -
+# `command = "python"`, a relative path, nothing about a particular PC. If this
+# one is ever rewritten that way it can be tracked too; until then it is noise
+# between machines, which is exactly what the rule above exists for.
+.codex/
+
 # A separate product used to live under this root and was moved out to its own repository.
 # Two copies of anything drift apart, which has already cost real time here once with the old
 # "AJ Tools\" tree. If one of these folders reappears under this root it is a stale copy, not work.
