@@ -7,6 +7,7 @@ The add-in registers **two** ribbon tabs (panel order as built by `Core/RibbonMa
 
 ### AJ Tools
 
+- Quick: Quick Menu (the tool wheel that opens around the pointer; Customise sets its slots)
 - View: View Crop, Unhide All, Toggle Links, Filter Pro, Colorize, Highlight Selection
 - Graphics: Apply Graphics, Match Graphics, Reset Graphics
 - Datums: Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
