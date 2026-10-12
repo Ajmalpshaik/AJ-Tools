@@ -17,8 +17,8 @@ place rather than leaving stale info sitting next to the new truth.
 - Suite version lives in `Properties/AssemblyInfo.cs`. Bump the patch digit for a fix/refactor with no new tool; bump minor when a tool is added.
 
 **Active project location**
-- The live multi-version project is `D:\Ajmal\Revit Addins\src\AJ Tools.csproj` (repo root `src/`), driven by root `Directory.Build.props`/`.targets`. It builds all Revit **2020 → 2027** from configs `Release` (2020), `Release R21..R24`, `R25`/`R26`, `R27`.
-- The old single-version tree at `D:\Ajmal\Revit Addins\AJ Tools\` and anything under `_backup\pre-multiversion-*` are stale copies — never edit those.
+- The live multi-version project is `D:\06_Development\01_AJ-Tools\Revit Addins\src\AJ Tools.csproj` (repo root `src/`), driven by root `Directory.Build.props`/`.targets`. It builds all Revit **2020 → 2027** from configs `Release` (2020), `Release R21..R24`, `R25`/`R26`, `R27`.
+- The old single-version tree `AJ Tools\` was deleted 2026-10-12 (identical to GitHub at the time). It and anything under `_backup\pre-multiversion-*` are stale copies — never edit those.
 - **Proof case this matters**: Colorize was hand-ported to C# on 2026-07-02 but landed only in the
   stale `AJ Tools\` tree, never in live `src/` — it silently could never appear on the ribbon no matter
   how many times the add-in was rebuilt, since its code wasn't part of what gets compiled. Found and

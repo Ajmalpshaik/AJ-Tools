@@ -44,8 +44,8 @@ powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Relea
    subfolder:
 
 ```powershell
-Set-Location "D:\Ajmal\Revit Addins\AJ-Tools-Installer"
-powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepoPath "D:\Ajmal\Revit Addins" -Version X.Y.Z
+Set-Location "D:\06_Development\01_AJ-Tools\Revit Addins\AJ-Tools-Installer"
+powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepoPath "D:\06_Development\01_AJ-Tools\Revit Addins" -Version X.Y.Z
 ```
 
 6. Review the installer payload:
@@ -83,7 +83,7 @@ git push origin main --tags
    repo's is `main` — they differ, do not assume one name for both):
 
 ```powershell
-Set-Location "D:\Ajmal\Revit Addins"
+Set-Location "D:\06_Development\01_AJ-Tools\Revit Addins"
 git push origin HEAD
 powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -Push
 ```

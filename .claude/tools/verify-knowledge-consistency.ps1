@@ -164,7 +164,7 @@ if (Test-Path $rootClaudeMd) {
 Write-Host "`n=== 5. Memory index vs memory folder ===" -ForegroundColor Cyan
 # Added 2026-07-28: a memory file that never gets its one-line pointer in MEMORY.md is never recalled
 # by any future session - it silently doesn't exist. Machine-specific path, so skip (not fail) when absent.
-$memoryDir = "C:\Users\AjmalAlavudheen\.claude\projects\D--Ajmal-Revit-Addins\memory"
+$memoryDir = "C:\Users\ajmal\.claude\projects\D--06-Development-01-AJ-Tools-Revit-Addins\memory"
 if (Test-Path $memoryDir) {
     $memoryIndexPath = Join-Path $memoryDir "MEMORY.md"
     if (Test-Path $memoryIndexPath) {

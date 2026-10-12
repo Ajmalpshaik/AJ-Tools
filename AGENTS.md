@@ -25,7 +25,7 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
   **different** feature and stays. What was learned building the panel is kept as lessons in
   `.Codex/knowledge/ajtools-conventions.md`; treat that section as history, not as a live design.
 
-**Hard rule — trees you must never edit:** `AJ Tools\` (old copy of the project) and `_backup\`
+**Hard rule — trees you must never edit:** `_backup\`
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated
 output (`src/bin`, `src/obj`, `dist/release`).
 
@@ -37,8 +37,9 @@ carries the full history (183 commits, 47 tags) on branch `master`, pushed to
 until then, and it was wrong, which matters when deciding what may be written into a commit). Normal git
 commands work at the root.
 
-`AJ Tools\` still contains its own `.git` pointing at the same remote — it was copied, not moved, so
-that tree stayed untouched per the do-not-edit rule. **Ignore it: commit from the root only.**
+The old `AJ Tools\` copy (with its own `.git`) was **deleted on 2026-10-12** after the move to the new PC —
+checked first: same commit as GitHub, nothing uncommitted. If a folder of that name ever reappears, it
+is stale: do not edit it, commit from the root only.
 `.gitignore` excludes both `AJ Tools/` and `AJ-Tools-Installer/` (the installer is its own separate
 repository). All GitHub/git work still goes through the `aj-tools-github` skill, and pushing still
 needs Ajmal's explicit yes.
@@ -104,7 +105,7 @@ the real helper and taking the slow route.
      `.Codex/scripts/`, following that folder's own README
    - A fact about Ajmal, an ongoing project decision, or standing feedback that should follow him across
      *all* projects/sessions (not just this repo) → the cross-session memory system
-     (`C:\Users\AjmalAlavudheen\.Codex\projects\D--Ajmal-Revit-Addins\memory\`), per its own type rules
+     (`C:\Users\ajmal\.Codex\projects\D--06-Development-01-AJ-Tools-Revit-Addins\memory\`), per its own type rules
      (user/feedback/project/reference).
 3. **If a task pattern looks recurring, bounded, and not already covered by an existing skill**, create it
    via `ajtools-Codex-maker` and report it in the same reply — "created skill X because Y; say delete if
