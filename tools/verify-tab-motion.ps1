@@ -19,7 +19,7 @@
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
-$asm = [Reflection.Assembly]::LoadFrom("D:\Ajmal\Revit Addins\src\bin\Release\AJ Tools.dll")
+$asm = [Reflection.Assembly]::LoadFrom((Join-Path $PSScriptRoot "..\src\bin\Release\AJ Tools.dll"))
 $app = New-Object System.Windows.Application
 
 # Build a tab control with a ComboBox living INSIDE the first tab - that is the trap case.

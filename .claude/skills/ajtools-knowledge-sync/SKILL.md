@@ -26,7 +26,7 @@ nothing worth keeping stays trapped in chat history.
    - Reusable live-model C# → `.claude/scripts/` per that folder's README (compose filters + actions;
      bespoke multi-stage builds go in `recipes/`), updating the README table in the same step
    - Cross-session fact about Ajmal / standing feedback / project state → the memory system at
-     `C:\Users\AjmalAlavudheen\.claude\projects\D--Ajmal-Revit-Addins\memory\` (one file per fact, then
+     `C:\Users\ajmal\.claude\projects\D--06-Development-01-AJ-Tools-Revit-Addins\memory\` (one file per fact, then
      add its one-line pointer in `MEMORY.md` — an unindexed memory is never recalled)
 4. **Recurring task pattern spotted?** Don't scaffold it inline — hand it to `ajtools-claude-maker`
    (create-then-report rule applies).
