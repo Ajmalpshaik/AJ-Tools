@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.57.0
+ * Version       : 1.57.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-10-12
@@ -24,6 +24,24 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.57.1 (2026-10-12) - FULL AUDIT OF EVERY FILE, with the mistakes it found fixed (about 100 fixes).
+ *                       Wrong results: Pipe Sizing friction loss 100x too small; Filter Pro wiped most
+ *                       of a filter's graphics when applying a colour; L-Shape Leader did nothing on
+ *                       2023+; Create Tags put tags inside wide ducts; Duct Standards missed sizes like
+ *                       16", overwrote a typed pressure class and wrote into type parameters; floor
+ *                       openings for some risers came out turned 90 degrees; Revision Clouds by Elements
+ *                       failed on an issued revision. Lost behind the user's back: Purge Unplaced Views
+ *                       took dependent/callout views with it; Purge Unused offered a view type's default
+ *                       template; Create/Rebind (Duct Standards, Location Data) dropped categories and
+ *                       could wipe values; Transfer View Templates cleared view types' defaults; Set
+ *                       Link Workset turned worksharing on by itself; the C# pane could wipe the editor
+ *                       or lose the pinned script. Messages: 29 error paths showed the same error twice;
+ *                       graphics tools went silent when nothing could change; success popups removed.
+ *                       Undo: five tools made several undo steps per run - now one. Create Tags (batch)
+ *                       asks before more than 500 elements. Held back for Ajmal: Smart MEP Tag's gap
+ *                       measured from every element's edge (local branch audit/smart-tag-edge-gap).
+ *                       Full list: CHANGELOG.md and debug-log.md. Builds clean 2020-2027 (0 warnings on
+ *                       the checked configs); NOT run in Revit.
  * v1.57.0 (2026-10-12) - AJ AI BRIDGE REMOVED at Ajmal's instruction - the outside-agent connection
  *                       now lives in a separate project. Deleted McpBridgeService, AiTaskWarningBarService,
  *                       ToggleAiBridgeCommand, BridgeStatusToast and the AJ_AI_ON/OFF icons; unhooked
@@ -69,7 +87,7 @@
  *                       assumed exactly one Revit: every session hosted the same named pipe, and the
  *                       second one to try got "All pipe instances are busy" and could not start.
  *                       Each Revit now hosts its own pipe (named by process id - the named-pipe
- *                       equivalent of pyRevit's one-port-per-instance) and advertises itself with its
+ *                       equivalent of one port per Revit instance) and advertises itself with its
  *                       version and open document, so a chat can tell the sessions apart by name.
  *                       Ajmal's rule for choosing between them: ASK, DO NOT GUESS. One Revit open
  *                       behaves exactly as it always did, with no prompt; with two or more nothing is
@@ -1619,7 +1637,7 @@
  *                       working, the beam rising from the bottom of the view like a handheld
  *                       pointer); scroll up - or a click - draws it back. Scrolling is ignored
  *                       mid-measurement so a wheel touch cannot spoil a held measure. (2) The
- *                       measure card now shows the BIM-360-style axis breakdown: Total on top,
+ *                       measure card now shows an axis breakdown: Total on top,
  *                       then X / Y / Z deltas and the plan distance, all in mm. See GameSession.cs
  *                       v1.3.0, GameMotionEngine.cs v1.2.1, GameHudWindow.xaml(.cs) v1.4.0. Built
  *                       clean; not yet click-tested in Revit.
@@ -2093,7 +2111,7 @@
  *                       and .claude/skills files that referenced the old tool name. Both ends of the
  *                       named pipe and the MCP registration were updated together since they must
  *                       agree - requires reconnecting the AJ AI Bridge toggle in Revit and restarting/
- *                       reconnecting Claude Code's MCP connection before the new tool names resolve;
+ *                       reconnecting the AI client's MCP connection before the new tool names resolve;
  *                       until then the old mcp__aj-tools-autodebugger__* tools simply won't exist for
  *                       an already-running agent session. Historical changelog entries above and in
  *                       CHANGELOG.md/debug-log.md/ProjectCleanupTracker.md left as-is (dated record of
@@ -2277,7 +2295,7 @@
  *                         and a bounded cache for compiled safe Roslyn scripts. Live Revit model data
  *                         is intentionally never cached.
  * v1.9.0 (2026-07-05) - Added the Arrange Text in Box tool on a new "Text" panel (AJ Annotation tab);
- *                       ported from the pyRevit "Text Box Arrange Loop" script. No other tool changed.
+ *                       ported from an earlier AJ Tools script. No other tool changed.
  * v1.8.0 (2026-07-01) - Full project audit pass: added Pipe Sizing tool (MEP panel) with its own metadata,
  *                       report, and CSV export; hardened the AJ AI shell with GeneratedCodeSafetyValidator
  *                       (blocks process/registry/network/reflection/file-delete calls, flags destructive
@@ -2336,8 +2354,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.57.0.0")]
-[assembly: AssemblyFileVersion("1.57.0.0")]
+[assembly: AssemblyVersion("1.57.1.0")]
+[assembly: AssemblyFileVersion("1.57.1.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

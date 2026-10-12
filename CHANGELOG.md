@@ -5,6 +5,80 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.57.1] - 2026-10-12
+
+A full check of every file, with the mistakes it found fixed. About 100 fixes. Everything builds clean
+for Revit 2020–2027, but **none of it has been run in Revit yet** — try the changed tools on a sample
+model before relying on them.
+
+**Wrong results fixed**
+- **Pipe Sizing:** friction loss was 100 times too small (10 gpm in 3/4" uPVC showed 0.08 psi/100 ft
+  instead of about 7.7). A max velocity of 0 now gives a plain message instead of developer text.
+- **Filter Pro:** applying a colour to a filter wiped most of its other graphic settings. The overwrite
+  switch is respected, ticks survive a search, and a filter's on/off state is kept (Revit 2021+).
+- **Colorize:** colours could be assigned to the wrong value.
+- **L-Shape Leader:** did nothing at all on Revit 2023 and newer. Fixed for every version.
+- **Create Tags:** tags on wide ducts landed inside the duct, and vertical runs were treated as
+  horizontal. Selecting more than 500 elements now asks first, like Stack Tags.
+- **Fix Tag Clash:** keynote and revision-cloud tags were treated as clashing with themselves; and when no
+  tag could move, the warning colours vanished even though the report said they were applied.
+- **Duct Standards:** sizes like 16" (406.4 mm) matched no rule; a pressure class you typed was replaced
+  with the default; values were written into type parameters, and mm went into Length parameters
+  unconverted. Create/Rebind no longer drops a parameter's other categories or its values. An unreadable
+  settings file is reported instead of quietly replaced by the defaults.
+- **Match Elevation:** top/bottom on a conduit was off by half its diameter.
+- **MEP Openings:** a floor opening for a riser turned with its width along Y came out turned 90°. Opening
+  sizes are written to the placed opening only, never the family type. Failure reasons are now shown.
+- **Location Data Assigner:** survey coordinates could be read from the project base point; Create/Rebind
+  kept the bug Duct Standards had; values went into type parameters.
+- **Quick Dimension:** one unsuitable element no longer fails the whole dimension string.
+- **Revision Clouds by Elements:** every cloud failed once the latest revision was issued (reported as a
+  geometry problem). Clouds now go on the newest revision not yet issued. The cloud setting survives
+  updates, and a typed "12,5" is no longer read as 125.
+- **Connect MEP Elements:** the new run's type no longer depends on which element was picked first, and
+  pipe insulation copies are no longer counted as failures.
+- **Smart MEP Tags:** cable trays now obey the size minimums; the report adds up; a duct whose size cannot
+  be read no longer pulls its tag in. Tag positions are otherwise unchanged.
+- **HVAC Schematic:** one unreadable connector could stop the whole analysis.
+- **Arrange Text in Box** works in section, elevation and detail views without a work plane. **Copy
+  Dimension Text** refuses multi-segment dimensions instead of guessing, and one refused paste no longer
+  undoes the earlier ones.
+
+**Nothing deleted or lost behind your back**
+- **Purge Unplaced Views** could delete a view's dependent and callout views (and their places on
+  sheets) along with it. It now refuses such a view and says why.
+- **Purge Unused View Templates** offered templates used as a view type's "View template applied to new
+  views". Purge Unused also refuses anything whose delete would take other elements with it.
+- **Transfer View Templates** (override) no longer clears view types' default templates. Both Transfer
+  tools stop you choosing a read-only target before you lose your picks.
+- **Set Link Workset** no longer turns worksharing on by itself; it says the model is not workshared.
+- **C# pane:** an empty AI reply no longer wipes the Code Editor; a pinned script is no longer lost when
+  settings change; an unreadable settings file is kept as a backup instead of being replaced; slow AI
+  services time out with a clear message; scripts that declare their own class now run.
+- **Game Mode:** swapping keys could leave an action with no key after a restart; the snag report is
+  written once and says where. **Quick Menu:** a failed save is reported.
+
+**Honest messages**
+- 29 error paths showed the same error twice; now once.
+- Graphics tools (Apply, Highlight, Match, Reset) say why when Revit refused every change, instead of
+  doing nothing in silence.
+- No more "done!" popups after a clean run in Duct Flow Annotations, Center Annotation, Stack Tags, Set
+  Link Workset, Location Data and the purge windows. Esc before picking anything ends quietly.
+- Unhide All only says Temporary Hide/Isolate was cleared when it was on. Linked Element Search looks in
+  every chosen model; Linked ID Viewer can pick elements in the current model too.
+
+**One undo step per run**
+- Duct Flow Annotations, L-Shape Leader (pick mode), View Crop, Quick Dimension and the grid/level
+  dimension tools now undo in one Ctrl+Z.
+
+**Held back for Ajmal's decision (not in this build)**
+- Measuring Smart MEP Tag's gap from every element's edge (today only ducts). It would move tags out by
+  half the element's size, and the 150 mm no-leader gap was tuned live while it measured from the centre.
+
+**Housekeeping**
+- About window, coding notes, testing checklist and install scripts brought up to date (the Revit 2027
+  all-users folder is under Program Files). Unused code and resources removed.
+
 ## [1.57.0] - 2026-10-12
 
 - **Removed: the AJ AI Bridge.** The "AJ AI" button on the AI Assistant panel and the local connection

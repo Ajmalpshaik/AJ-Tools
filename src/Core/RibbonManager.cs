@@ -29,7 +29,9 @@
  * Changelog     :
  * v1.15.1 (2026-10-12) - Audit pass: Elements to Ceiling Grid and Flip Bubbles tooltips updated to match
  *                       what the tools do today; comments no longer compare Run Pinned with another
- *                       product; Purpose now lists the Opening panel. No behaviour change.
+ *                       product; Purpose now lists the Opening panel. Purge Unused tooltips now say what
+ *                       the tools really check (view types' default templates; rule-based filters only).
+ *                       No behaviour change.
  * v1.15.0 (2026-10-12) - "AJ AI" bridge button removed from the AI Assistant panel (AddAiBridgeTool),
  *                       with the bridge itself, at Ajmal's instruction. The panel keeps the C# pane
  *                       and Run Pinned / Saved Scripts.
@@ -1010,14 +1012,14 @@ namespace AJTools.App
                     pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
                 CreateSplitChildTool(
                     "Purge Unused\nView Templates",
-                    "Preview and delete selected view templates that are not assigned to any view in the active project.",
+                    "Preview and delete selected view templates that no view uses and no view type applies to new views, in the active project.",
                     typeof(CmdPurgeUnusedViewTemplates),
                     "Remove.png",
                     "Remove.png",
                     pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
                 CreateSplitChildTool(
                     "Purge Unused\nFilters",
-                    "Preview and delete selected view/selection filters that are not applied on any view or view template in the active project.",
+                    "Preview and delete selected rule-based view filters that are not applied on any view or view template in the active project.",
                     typeof(CmdPurgeUnusedFilters),
                     "Remove.png",
                     "Remove.png",
