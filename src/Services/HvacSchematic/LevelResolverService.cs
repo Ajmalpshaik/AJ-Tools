@@ -31,13 +31,11 @@ namespace AJTools.Services.HvacSchematic
         {
             public LevelResolution(Level level, bool isResolved)
             {
-                Level = level;
                 IsResolved = isResolved;
                 Label = level?.Name ?? "Unresolved Level";
                 Elevation = level != null ? (double?)level.Elevation : null;
             }
 
-            public Level Level { get; }
             public bool IsResolved { get; }
             public string Label { get; }
             public double? Elevation { get; }
@@ -54,11 +52,6 @@ namespace AJTools.Services.HvacSchematic
                 .Cast<Level>()
                 .OrderBy(level => level.Elevation)
                 .ToList();
-        }
-
-        public IReadOnlyList<Level> Levels
-        {
-            get { return _levels; }
         }
 
         public LevelResolution Resolve(Element element)

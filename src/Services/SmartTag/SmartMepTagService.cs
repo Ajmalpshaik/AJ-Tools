@@ -102,7 +102,6 @@ namespace AJTools.Services.SmartTag
                 {
                     // No crop region — use a very large outline so nothing is excluded.
                     // This is valid: some views legitimately have no crop.
-                    result.CropRegionPoints = null;
                     result.CropOutline = null;
                     result.Warnings.Add("Crop region is not active. All visible elements will be considered for tagging.");
                 }
@@ -117,17 +116,6 @@ namespace AJTools.Services.SmartTag
                         return PreFlightResult.Fail("Crop region is active but its extents could not be resolved.");
 
                     result.CropOutline = cropOutline;
-                    XYZ min = cropOutline.MinimumPoint;
-                    XYZ max = cropOutline.MaximumPoint;
-
-                    // Store the 4 corner points of the crop region for polygon checks if needed.
-                    result.CropRegionPoints = new List<XYZ>
-                    {
-                        new XYZ(min.X, min.Y, min.Z),
-                        new XYZ(max.X, min.Y, min.Z),
-                        new XYZ(max.X, max.Y, min.Z),
-                        new XYZ(min.X, max.Y, min.Z)
-                    };
                 }
             }
             catch (Exception ex)
@@ -189,21 +177,15 @@ namespace AJTools.Services.SmartTag
                 ElementId templateId = activeView.ViewTemplateId;
                 if (templateId != null && templateId != ElementId.InvalidElementId)
                 {
-                    result.HasViewTemplate = true;
                     Element template = doc.GetElement(templateId);
                     string templateName = template != null ? template.Name : "Unknown";
                     result.Warnings.Add(
                         string.Format("View Template \"{0}\" is applied. If tagging categories are hidden by the template, some tags may fail to place.", templateName));
                 }
-                else
-                {
-                    result.HasViewTemplate = false;
-                }
             }
             catch (Exception)
             {
                 // Non-fatal — proceed without template info.
-                result.HasViewTemplate = false;
             }
 
             return result;
@@ -287,11 +269,10 @@ namespace AJTools.Services.SmartTag
 
                     foreach (Element elem in collector)
                     {
-                        // Hard constraint: never tag elements from linked models.
-                        // Elements in the host model have a null GetTypeId check — linked elements
-                        // would come from a RevitLinkInstance collector, which we never use.
-                        // FilteredElementCollector scoped to the view only returns host elements,
-                        // but we add an explicit guard for safety.
+                        // Hard constraint: never tag elements from linked models. Nothing here needs
+                        // to check for that - a collector scoped to the active view only ever returns
+                        // elements of this document, never the contents of a link - so the only guard
+                        // is against a null element.
                         if (elem == null)
                             continue;
 
@@ -383,6 +364,21 @@ namespace AJTools.Services.SmartTag
                         ElementId = eid, Category = bic, Success = false,
                         SkipReason = TagSkipReason.FilteredOutSize,
                         Note = sizeSkipReason
+                    });
+                    continue;
+                }
+
+                // FILTER 4.2 — MINOR PIPE ACCESSORIES
+                // A name filter, not a size one: it used to run inside the size filter and was
+                // reported as "Below size threshold", which sent the user looking at sizes.
+                string accessorySkipReason;
+                if (IsMinorPipeAccessory(elem, bic, out accessorySkipReason))
+                {
+                    results.Add(new TagPlacementResult
+                    {
+                        ElementId = eid, Category = bic, Success = false,
+                        SkipReason = TagSkipReason.FilteredOutType,
+                        Note = accessorySkipReason
                     });
                     continue;
                 }
@@ -657,21 +653,8 @@ namespace AJTools.Services.SmartTag
                     }
                 }
 
-                switch (category)
-                {
-                    case BuiltInCategory.OST_PipeAccessory:
-                        // Only tag valves, dampers, and major fittings.
-                        // We check the family name for common accessory types.
-                        if (!IsMajorAccessory(elem))
-                        {
-                            reason = "Minor accessory — not a valve, damper, or major fitting";
-                            return false;
-                        }
-                        break;
-                    case BuiltInCategory.OST_DuctAccessory:
-                        // All duct accessories are tagged, regardless of size or subtype.
-                        break;
-                }
+                // The minor-accessory name check that used to sit here is now its own filter,
+                // IsMinorPipeAccessory, so its skips are no longer reported as a size problem.
             }
             catch (Exception)
             {
@@ -679,6 +662,25 @@ namespace AJTools.Services.SmartTag
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// True for a pipe accessory that is not a valve, damper or other major fitting - those are
+        /// left untagged. All duct accessories are tagged, regardless of size or subtype.
+        /// </summary>
+        private static bool IsMinorPipeAccessory(Element elem, BuiltInCategory category, out string reason)
+        {
+            reason = null;
+
+            // Only tag valves, dampers, and major fittings.
+            // We check the family name for common accessory types.
+            if (category == BuiltInCategory.OST_PipeAccessory && !IsMajorAccessory(elem))
+            {
+                reason = "Minor accessory — not a valve, damper, or major fitting";
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -705,9 +707,6 @@ namespace AJTools.Services.SmartTag
             return -1;
         }
 
-        /// <summary>
-        /// Returns the duct width (or diameter for round ducts) in feet.
-        /// </summary>
         /// <summary>
         /// Reads a run's cross-section in mm. A round section reports its diameter as BOTH width and
         /// height (Ajmal's call, 2026-08-17), so a 150mm pipe clears a 100x100 minimum.
@@ -743,6 +742,15 @@ namespace AJTools.Services.SmartTag
 
                 widthMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_WIDTH_PARAM);
                 heightMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
+
+                // A cable tray keeps its size in its own pair of parameters, not the duct ones.
+                // Without these the width/height minimums the settings window says apply to cable
+                // trays never reached a single tray.
+                if (widthMm <= 0.0 || heightMm <= 0.0)
+                {
+                    widthMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM);
+                    heightMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CABLETRAY_HEIGHT_PARAM);
+                }
 
                 return widthMm > 0.0 && heightMm > 0.0;
             }
@@ -790,9 +798,6 @@ namespace AJTools.Services.SmartTag
             return -1;
         }
 
-        /// <summary>
-        /// Returns the pipe diameter in feet.
-        /// </summary>
         // GetPipeDiameter removed v1.49.7 - its only caller was the old hardcoded pipe size filter.
         // Its knowledge is not lost: TryGetCrossSectionMm reads RBS_PIPE_DIAMETER_PARAM as well as
         // RBS_CURVE_DIAMETER_PARAM, which is the whole reason pipes can now be size-filtered at all.
@@ -1397,8 +1402,8 @@ namespace AJTools.Services.SmartTag
         }
 
         /// <summary>
-        /// Maps a tag annotation category to the model category it tags.
-        /// E.g. OST_DuctTags → OST_DuctCurves.
+        /// The tag type Revit is already set up to use for each category: the type most used by tags
+        /// already in this view, otherwise the project's default tag type for that category.
         /// </summary>
         private static Dictionary<BuiltInCategory, ElementId> CollectConfiguredTagTypes(
             Document doc,
@@ -1576,6 +1581,10 @@ namespace AJTools.Services.SmartTag
             }
         }
 
+        /// <summary>
+        /// Maps a tag annotation category to the model category it tags.
+        /// E.g. OST_DuctTags → OST_DuctCurves.
+        /// </summary>
         private static BuiltInCategory MapTagCategoryToModelCategory(int tagCategoryId)
         {
             // Tag category integer IDs for Revit 2020.
@@ -1642,7 +1651,6 @@ namespace AJTools.Services.SmartTag
             return null;
         }
 
-        // ═══════════════════════════════════════════════════════════════
         private static string GetTagDisplayName(FamilySymbol symbol)
         {
             if (symbol == null)
@@ -1653,13 +1661,17 @@ namespace AJTools.Services.SmartTag
             return familyName + " :: " + typeName;
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // MAIN ENTRY POINT
         // Called by the command — orchestrates all phases in sequence.
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Executes the full Smart MEP Tagging pipeline on the active view.
-        /// Returns Result.Succeeded if at least one tag was placed, Result.Cancelled otherwise.
+        /// Returns Result.Succeeded when at least one tag was placed, and also when there was nothing
+        /// to tag (the user is told why); Result.Failed only when Revit gives no command context; and
+        /// Result.Cancelled otherwise - a check that did not pass, the user stopping it, or no tag
+        /// placed.
         /// </summary>
         public static Result Execute(ExternalCommandData commandData, ref string message)
         {

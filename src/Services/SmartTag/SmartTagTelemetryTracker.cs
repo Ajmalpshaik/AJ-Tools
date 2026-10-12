@@ -9,19 +9,26 @@ using AJTools.Utils;
 namespace AJTools.Services.SmartTag
 {
     /// <summary>
-    /// Lightweight session telemetry for Smart MEP Tag runs.
-    /// Stores counters in memory and appends one-line records to a temp log file.
+    /// Lightweight diagnostics for Smart MEP Tag runs: appends one line per run (and the DEBUG
+    /// build's geometry self-check result) to a log file in the user's temp folder.
     /// </summary>
+    /// <remarks>
+    /// Nothing in AJ Tools reads this file - it is there for whoever investigates a bad run - so it
+    /// is capped rather than allowed to grow for ever: past about 1 MB the current file is kept as
+    /// one ".old" copy and a fresh one is started, so at most about 2 MB sits in the temp folder.
+    /// The in-session totals that used to be printed as "SESSION TELEMETRY" at the bottom of the
+    /// user's report were developer output, and went when that block was removed from the report.
+    /// </remarks>
     internal static class SmartTagTelemetryTracker
     {
         private static readonly object Sync = new object();
-        private static readonly Dictionary<TagSkipReason, int> SessionSkipTotals = new Dictionary<TagSkipReason, int>();
         private static readonly string TelemetryLogPath =
             Path.Combine(Path.GetTempPath(), "AJTools_SmartTag_Telemetry.log");
+        private static readonly string PreviousTelemetryLogPath =
+            Path.Combine(Path.GetTempPath(), "AJTools_SmartTag_Telemetry.old.log");
 
-        private static int _sessionRuns;
-        private static int _sessionAnalysed;
-        private static int _sessionTagged;
+        // About 3,000 runs at the current line length.
+        private const long MaxLogBytes = 1024 * 1024;
 
         internal static void RecordRun(
             PreFlightResult preflight,
@@ -55,17 +62,6 @@ namespace AJTools.Services.SmartTag
 
             lock (Sync)
             {
-                _sessionRuns++;
-                _sessionAnalysed += analysed;
-                _sessionTagged += tagged;
-
-                foreach (KeyValuePair<TagSkipReason, int> kvp in skipCounts)
-                {
-                    int existing;
-                    SessionSkipTotals.TryGetValue(kvp.Key, out existing);
-                    SessionSkipTotals[kvp.Key] = existing + kvp.Value;
-                }
-
                 AppendLineSafe(line);
             }
         }
@@ -78,27 +74,6 @@ namespace AJTools.Services.SmartTag
             lock (Sync)
             {
                 AppendLineSafe(string.Format("{0:u} | diagnostic | {1}", DateTime.UtcNow, message));
-            }
-        }
-
-        internal static string GetSessionSummary()
-        {
-            lock (Sync)
-            {
-                if (_sessionRuns <= 0)
-                    return "No session telemetry available yet.";
-
-                double successRate = _sessionAnalysed > 0
-                    ? (_sessionTagged * 100.0 / _sessionAnalysed)
-                    : 0;
-
-                return string.Format(
-                    "Runs: {0}\nAnalysed: {1}\nTagged: {2} ({3:F1}%)\nSkip Totals: {4}",
-                    _sessionRuns,
-                    _sessionAnalysed,
-                    _sessionTagged,
-                    successRate,
-                    FormatSkipCounts(SessionSkipTotals));
             }
         }
 
@@ -158,12 +133,29 @@ namespace AJTools.Services.SmartTag
         {
             try
             {
+                RotateIfTooLarge();
                 File.AppendAllText(TelemetryLogPath, line + Environment.NewLine, Encoding.UTF8);
             }
             catch
             {
                 // Telemetry must never block tool execution.
             }
+        }
+
+        /// <summary>
+        /// Keeps the log bounded: once it passes MaxLogBytes it becomes the single ".old" copy
+        /// (replacing any earlier one) and the next line starts a new file.
+        /// </summary>
+        private static void RotateIfTooLarge()
+        {
+            var current = new FileInfo(TelemetryLogPath);
+            if (!current.Exists || current.Length < MaxLogBytes)
+                return;
+
+            if (File.Exists(PreviousTelemetryLogPath))
+                File.Delete(PreviousTelemetryLogPath);
+
+            File.Move(TelemetryLogPath, PreviousTelemetryLogPath);
         }
     }
 }

@@ -7,10 +7,10 @@
  *                 it creates.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,8 @@
  * Changelog     :
  * v1.0.0 (2026-08-15) - Initial release. Splits the settings out of the run command, so the ribbon
  *                       button connects straight away instead of opening a dialog every time.
+ * v1.0.1 (2026-10-12) - Tells the user when the settings file could not be saved. The save used to
+ *                       swallow every error, so a failed save looked exactly like a successful one.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -75,7 +77,14 @@ namespace AJTools.Commands
                     return Result.Cancelled;
                 }
 
-                settingsService.Save(settingsWindow.Settings);
+                // A failed save used to vanish without a word, leaving the user believing the new
+                // settings were in force. Same wording as the other AJ Tools settings commands.
+                if (!settingsService.Save(settingsWindow.Settings, out string saveError))
+                {
+                    TaskDialog.Show(ToolTitle, "The settings could not be saved:\n" + saveError);
+                    return Result.Failed;
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)
