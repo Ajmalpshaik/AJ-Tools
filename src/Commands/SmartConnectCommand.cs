@@ -6,10 +6,10 @@
  *                 settings. Connects an exact pre-selected pair directly, or picks pairs one by one.
  *
  * Author        : Ajmal P.S.
- * Version       : 3.0.0
+ * Version       : 3.0.1
  *
  * Created Date  : 2026-03-25
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -53,6 +53,7 @@
  *                       they have already been reported as they happened - listing them again was
  *                       reporting the same problem twice. The carried-message plumbing (Shorten,
  *                       MaxPromptErrorLength, the prompt prefix) went with it.
+ * v3.0.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -127,7 +128,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, "An unexpected error occurred:" + Environment.NewLine + ex.Message);
                 return Result.Failed;
             }

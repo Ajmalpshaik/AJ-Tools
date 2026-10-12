@@ -14,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace AJTools.UI
 {
@@ -192,6 +193,22 @@ namespace AJTools.UI
 
                 _isExitPlaying = true;
                 exit.Begin(this);
+
+                // Backstop: if the storyboard never reports Completed (it can happen when a WPF animation
+                // is stopped from outside), every later close would be cancelled and the window could
+                // never be closed. Force the real close shortly after the animation should have ended,
+                // the same way WindowMotionHelper does.
+                var backstop = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+                backstop.Tick += (s, args) =>
+                {
+                    backstop.Stop();
+                    if (!_isReadyToClose)
+                    {
+                        _isReadyToClose = true;
+                        Close();
+                    }
+                };
+                backstop.Start();
             }
             catch
             {
@@ -241,7 +258,10 @@ namespace AJTools.UI
             RevitVersionText.Text = "Revit " + revitVersion;
             FrameworkText.Text = GetFrameworkVersionLabel();
             DeploymentText.Text = GetDeploymentLabel();
-            LicenseKeyText.Text = "AJ-TOOLS-REVIT-" + revitVersion;
+            string suiteVersion = version != null
+                ? string.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build)
+                : "unknown";
+            LicenseKeyText.Text = "AJ-TOOLS-" + suiteVersion + "-REVIT-" + revitVersion;
             CopyrightText.Text = "Created & All Rights Reserved @ Ajmal P.S.";
         }
 

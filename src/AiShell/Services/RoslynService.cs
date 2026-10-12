@@ -107,13 +107,11 @@ namespace AJTools.AiShell.Services
             {
                 result.Success = false;
                 result.ErrorMessage = string.Join(Environment.NewLine, e.Diagnostics);
-                result.Exception = e;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.InnerException?.Message ?? ex.Message;
-                result.Exception = ex.InnerException ?? ex;
             }
 
             return result;
@@ -122,8 +120,8 @@ namespace AJTools.AiShell.Services
         /// <summary>Runs one interactive-console line. Unlike ExecuteAsync above (a whole AI-authored
         /// script, cached and run standalone every time), this continues from the caller's previous
         /// ScriptState when given one - so a variable declared on one line is still visible on the
-        /// next, the way a real interactive shell (RevitPythonShell's IronPython console, csi.exe,
-        /// RoslynPad) behaves. Raw statements/expressions only - no Execute()-wrapper convention.</summary>
+        /// next, which is what makes it an interactive shell rather than a run-the-whole-script
+        /// button. Raw statements/expressions only - no Execute()-wrapper convention.</summary>
         public async Task<ReplLineResult> ExecuteReplLineAsync(string code, ScriptState<object> previousState, RevitScriptGlobals globals, CancellationToken cancellationToken)
         {
             var result = new ReplLineResult();

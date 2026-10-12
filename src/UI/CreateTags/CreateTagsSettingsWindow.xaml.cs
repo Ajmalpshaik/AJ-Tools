@@ -6,10 +6,10 @@
  *                 and the minimum element length below which an element is skipped.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,6 +32,9 @@
  *   depending on locale (same technique as ArrangeTagsSettingsWindow).
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Comments only: the distance from the element is a real model distance, not
+ *                       "mm on the printed sheet" as TagOffsetMm's summary said; Reset's summary now
+ *                       mentions that it resets the distance too. No behaviour change.
  * v1.0.0 (2026-07-28) - Initial release.
  *
  * License       : All Rights Reserved
@@ -80,7 +83,8 @@ namespace AJTools.UI.CreateTags
         public double MinLengthMm { get; private set; }
 
         /// <summary>
-        /// The validated distance from the element, mm on the printed sheet. Only meaningful when
+        /// The validated distance from the element, in mm - a real distance in the model, not a size
+        /// on the printed sheet (it is never multiplied by the view scale). Only meaningful when
         /// DialogResult is true.
         /// </summary>
         public double TagOffsetMm { get; private set; }
@@ -143,8 +147,8 @@ namespace AJTools.UI.CreateTags
         }
 
         /// <summary>
-        /// Puts every category back on, the minimum length back to its default, and the shared
-        /// vertical-run rule back on. Nothing is written until Save.
+        /// Puts every category back on, the distance from the element and the minimum length back to
+        /// their defaults, and the shared vertical-run rule back on. Nothing is written until Save.
         /// </summary>
         private void OnReset(object sender, RoutedEventArgs e)
         {

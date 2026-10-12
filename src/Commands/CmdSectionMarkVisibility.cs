@@ -6,10 +6,10 @@
  *                 and target views, runs the visibility service, and reports the result.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-05-24
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,7 @@
  * v1.2.0 (2026-06-30) - Cleanup pass: completing without error now returns Succeeded (no longer
  *                       Failed when nothing to process); clear message when no sections exist;
  *                       summary report shown on skips as well as errors; metadata block.
+ * v1.2.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -186,7 +187,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, $"An unexpected error occurred during execution:\n\n{ex.Message}");
                 return Result.Failed;
             }

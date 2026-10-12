@@ -7,10 +7,10 @@
  *                 overriding same-named elements in the target and restoring their sheet placement(s).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-08-11
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -44,6 +44,9 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       Also: an unexpected error outside the main transaction (e.g. while the window opens) now gets a plain
+ *                       message instead of Revit's own error box.
  * v1.1.0 (2026-08-11) - Fixed: transferred legends / drafting views arrived EMPTY. Added the second,
  *                       view-to-view content pass described above, plus content warnings in the report.
  * v1.0.0 (2026-07-28) - Initial release.
@@ -70,6 +73,22 @@ namespace AJTools.Commands
     internal static class TransferViewsCommandRunner
     {
         public static Result Execute(ExternalCommandData commandData, ref string message, TransferViewKind kind)
+        {
+            try
+            {
+                return Run(commandData, ref message, kind);
+            }
+            catch (Exception ex)
+            {
+                // Revit undoes a command that does not succeed, so nothing from this run is kept.
+                DialogHelper.ShowError(
+                    kind.GetToolTitle(),
+                    "The transfer could not be completed, so nothing was changed.\n\nWhat went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message, TransferViewKind kind)
         {
             string toolTitle = kind.GetToolTitle();
 
@@ -208,7 +227,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(toolTitle, "Transfer failed:\n\n" + ex.Message);
                 return Result.Failed;
             }

@@ -9,10 +9,10 @@
  *                 and icon; Revit's own list comes straight from the running Revit version.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-20
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -40,10 +40,10 @@
  *   launch an add-in command programmatically (UIApplication.PostCommand). It is not exposed on the
  *   Revit API RibbonItem, but every RibbonItem carries a non-public instance method getRibbonItem()
  *   that hands back the underlying Autodesk.Windows ribbon item, whose Id property IS that string.
- *   This is the same route pyRevit has used in production since Revit 2019, and it means the id is
- *   READ from the live ribbon rather than guessed - so a renamed panel or button can never silently
- *   break the Quick Menu. Reflection is used (rather than referencing AdWindows.dll) so no new
- *   package reference is added to a project that builds eight Revit versions.
+ *   This means the id is READ from the live ribbon rather than guessed - so a renamed panel or
+ *   button can never silently break the Quick Menu. Reflection is used (rather than referencing
+ *   AdWindows.dll) so no new package reference is added to a project that builds eight Revit
+ *   versions.
  *   Everything is wrapped: if the method or property ever disappears, ControlId comes back null and
  *   QuickMenuLauncher rebuilds the string from the tab/panel/button names instead.
  * - AVAILABILITY IS READ OFF THE BUTTON TOO. Revit greys a ribbon button out by consulting the
@@ -58,6 +58,8 @@
  *   would be a loop.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - Notes reworded: the control-id technique is described in this project's
+ *                       own words, without naming an outside tool (project rule). No code change.
  * v1.2.0 (2026-08-20) - Reads each button's AvailabilityClassName, so the wheel can mirror the
  *                       ribbon's greyed-out state. Caches the getRibbonItem lookup per button type.
  * v1.1.0 (2026-08-19) - Added Revit's own built-in commands as a second source, so a wheel slot can

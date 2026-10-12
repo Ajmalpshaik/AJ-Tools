@@ -3,9 +3,9 @@
 // Purpose      : Resolves the most reliable level context for HVAC elements.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.0.1
 // Created      : 2026-05-07
-// Last Updated : 2026-05-07
+// Last Updated : 2026-10-12
 // Target       : Revit 2020
 // Framework    : .NET Framework 4.7.2
 // Platform     : C# Revit Add-in
@@ -13,7 +13,8 @@
 // Input        : Revit HVAC elements and project level data.
 // Output       : Resolved level labels and elevations for schematic nodes.
 // Notes        : Falls back through direct parameters, hosts, owner views, connectors, and nearest elevation.
-// Changelog    : v1.0.0 - Initial production-ready HVAC schematic level resolver with standardized metadata.
+// Changelog    : v1.0.1 (2026-10-12) - Removed values that were set but never read. No behaviour change.
+//                v1.0.0 - Initial production-ready HVAC schematic level resolver with standardized metadata.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -31,13 +32,11 @@ namespace AJTools.Services.HvacSchematic
         {
             public LevelResolution(Level level, bool isResolved)
             {
-                Level = level;
                 IsResolved = isResolved;
                 Label = level?.Name ?? "Unresolved Level";
                 Elevation = level != null ? (double?)level.Elevation : null;
             }
 
-            public Level Level { get; }
             public bool IsResolved { get; }
             public string Label { get; }
             public double? Elevation { get; }
@@ -54,11 +53,6 @@ namespace AJTools.Services.HvacSchematic
                 .Cast<Level>()
                 .OrderBy(level => level.Elevation)
                 .ToList();
-        }
-
-        public IReadOnlyList<Level> Levels
-        {
-            get { return _levels; }
         }
 
         public LevelResolution Resolve(Element element)

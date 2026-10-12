@@ -6,10 +6,10 @@
  *                 overriding same-named templates in the target and re-pointing the views that used them.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.1
+ * Version       : 1.1.2
  *
  * Created Date  : 2026-04-14
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -18,12 +18,13 @@
  * Dependencies  : Autodesk Revit API, AJTools.UI (TransferViewTemplatesWindow), AJTools.Utils
  *
  * Input         : Two or more open projects - source, target, templates, and override flag chosen in the window.
- * Output        : Selected templates copied into the target; views re-pointed when overriding; final
- *                 report of transferred / updated / added.
+ * Output        : Selected templates copied into the target; views and view types' "View template applied
+ *                 to new views" re-pointed when overriding; final report of transferred / updated / added.
  *
  * Notes         :
  * - Targets Revit 2020 through latest.
- * - Needs at least two open, non-linked project documents; refuses a read-only target.
+ * - Needs at least two open, non-linked project documents; refuses a read-only target (the window already
+ *   blocks Transfer for one; the check here stays as a second guard).
  * - The whole transfer (remove + copy + reassign) runs in one TransactionGroup, so it reverses in one Ctrl+Z.
  * - Override mode is chosen explicitly in the window before anything is removed.
  * - Production-ready implementation.
@@ -32,6 +33,15 @@
  * v1.0.0 (2026-04-14) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Transfer behaviour unchanged.
  * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
+ * v1.1.2 (2026-10-12) - Fixed: Override mode re-pointed only views, so a view type whose "View template
+ *                       applied to new views" was a replaced template silently lost that setting when the
+ *                       old template was deleted. Those links are now recorded first and re-pointed to the
+ *                       new same-named template; any Revit will not accept is left empty and counted in
+ *                       the report instead of failing the transfer.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
+ *                       Also: an unexpected error outside the main transaction (e.g. while the window opens) now gets a plain
+ *                       message instead of Revit's own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -59,6 +69,22 @@ namespace AJTools.Commands
         private const string ToolTitle = "Transfer View Templates";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                return Run(commandData, ref message);
+            }
+            catch (Exception ex)
+            {
+                // Revit undoes a command that does not succeed, so nothing from this run is kept.
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "The view templates could not be transferred, so nothing was changed.\n\nWhat went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message)
         {
             UIApplication uiApp = commandData?.Application;
             UIDocument uiDoc = uiApp?.ActiveUIDocument;
@@ -126,6 +152,8 @@ namespace AJTools.Commands
 
             var selectedNamesSet = new HashSet<string>(selectedTemplateNames, StringComparer.OrdinalIgnoreCase);
             var replacedAssignments = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
+            var replacedTypeDefaults = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
+            int typeDefaultsNotRestored = 0;
 
             try
             {
@@ -138,6 +166,8 @@ namespace AJTools.Commands
                         using (var tx = new Transaction(targetDoc, "Remove Existing View Templates"))
                         {
                             tx.Start();
+                            // Must be read BEFORE the old templates are deleted - see RecordViewTypeDefaults.
+                            replacedTypeDefaults = RecordViewTypeDefaults(targetDoc, selectedNamesSet);
                             replacedAssignments = RemoveViewTemplatesWithSameName(targetDoc, selectedNamesSet);
                             tx.Commit();
                         }
@@ -166,6 +196,7 @@ namespace AJTools.Commands
                         {
                             tx.Start();
                             ReassignViewTemplates(targetDoc, replacedAssignments);
+                            typeDefaultsNotRestored = ReassignViewTypeDefaults(targetDoc, replacedTypeDefaults);
                             tx.Commit();
                         }
                     }
@@ -179,7 +210,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, "Transfer failed:\n\n" + ex.Message);
                 return Result.Failed;
             }
@@ -198,6 +228,14 @@ namespace AJTools.Commands
             if (overrideExisting)
             {
                 summary += "\n\nOverride mode: ON";
+            }
+
+            if (typeDefaultsNotRestored > 0)
+            {
+                summary += string.Format(
+                    "\n\n{0} view type(s) lost their \"View template applied to new views\" - the new template " +
+                    "of that name could not be set on them. Set it again in the view type's Type Properties.",
+                    typeDefaultsNotRestored);
             }
 
             DialogHelper.ShowInfo(ToolTitle, summary);
@@ -293,6 +331,118 @@ namespace AJTools.Commands
 
                     view.ViewTemplateId = newTemplate.Id;
                 }
+            }
+        }
+
+        /// <summary>
+        /// View types whose "View template applied to new views" (ViewFamilyType.DefaultTemplateId) points at
+        /// a target template about to be replaced, keyed by that template's name.
+        /// </summary>
+        /// <remarks>
+        /// The view type is not deleted with the old template, so without this record its setting would
+        /// simply be lost when the old template goes. Read it before the delete; it is re-pointed to the new
+        /// same-named template afterwards, the same way views are (ReassignViewTypeDefaults).
+        /// </remarks>
+        private static Dictionary<string, List<ElementId>> RecordViewTypeDefaults(
+            Document targetDoc,
+            ISet<string> selectedTemplateNames)
+        {
+            var typeDefaults = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
+
+            Dictionary<ElementId, string> selectedTemplatesById = CollectViewTemplates(targetDoc)
+                .Where(vt => selectedTemplateNames.Contains(vt.Name))
+                .ToDictionary(vt => vt.Id, vt => vt.Name);
+
+            if (selectedTemplatesById.Count == 0)
+            {
+                return typeDefaults;
+            }
+
+            IEnumerable<ViewFamilyType> viewTypes = new FilteredElementCollector(targetDoc)
+                .OfClass(typeof(ViewFamilyType))
+                .Cast<ViewFamilyType>();
+
+            foreach (ViewFamilyType viewType in viewTypes)
+            {
+                ElementId templateId = SafeGetDefaultTemplateId(viewType);
+                if (templateId == null || templateId == ElementId.InvalidElementId)
+                {
+                    continue;
+                }
+
+                if (!selectedTemplatesById.TryGetValue(templateId, out string templateName))
+                {
+                    continue;
+                }
+
+                if (!typeDefaults.TryGetValue(templateName, out List<ElementId> viewTypeIds))
+                {
+                    viewTypeIds = new List<ElementId>();
+                    typeDefaults[templateName] = viewTypeIds;
+                }
+
+                viewTypeIds.Add(viewType.Id);
+            }
+
+            return typeDefaults;
+        }
+
+        /// <summary>
+        /// Points each recorded view type's "View template applied to new views" at the new same-named
+        /// template. Returns how many could not be restored.
+        /// </summary>
+        /// <remarks>
+        /// A same-named template from the source can be for a different kind of view than the one it
+        /// replaces, and Revit refuses it as that view type's default (IsValidDefaultTemplate). That one is
+        /// left empty and counted - the old link is gone either way - rather than failing the whole transfer.
+        /// </remarks>
+        private static int ReassignViewTypeDefaults(Document targetDoc, IDictionary<string, List<ElementId>> typeDefaults)
+        {
+            int notRestored = 0;
+            if (typeDefaults == null || typeDefaults.Count == 0)
+            {
+                return notRestored;
+            }
+
+            var templatesByName = CollectViewTemplates(targetDoc)
+                .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (KeyValuePair<string, List<ElementId>> entry in typeDefaults)
+            {
+                templatesByName.TryGetValue(entry.Key, out View newTemplate);
+
+                foreach (ElementId viewTypeId in entry.Value)
+                {
+                    var viewType = targetDoc.GetElement(viewTypeId) as ViewFamilyType;
+                    if (viewType == null)
+                    {
+                        continue;
+                    }
+
+                    if (newTemplate == null || !viewType.IsValidDefaultTemplate(newTemplate.Id))
+                    {
+                        notRestored++;
+                        continue;
+                    }
+
+                    viewType.DefaultTemplateId = newTemplate.Id;
+                }
+            }
+
+            return notRestored;
+        }
+
+        private static ElementId SafeGetDefaultTemplateId(ViewFamilyType viewType)
+        {
+            try
+            {
+                return viewType != null ? viewType.DefaultTemplateId : ElementId.InvalidElementId;
+            }
+            catch
+            {
+                // A view type that cannot report one simply has nothing to restore - never fail the transfer.
+                return ElementId.InvalidElementId;
             }
         }
 

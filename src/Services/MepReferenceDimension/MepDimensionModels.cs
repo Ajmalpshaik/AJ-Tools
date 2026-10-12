@@ -7,10 +7,10 @@
  *                 already exists.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -31,6 +31,8 @@
  * - All coordinates in these objects are HOST coordinates.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - DimensionReferenceCandidate.SourceName removed - it was set on every
+ *                       candidate and read nowhere.
  * v1.1.0 (2026-08-16) - DimensionLineRecord now carries ElementKeys, so a chain left by an earlier
  *                       command run is recognised by the elements it touches rather than by face
  *                       reference strings that do not survive the Dimension.References round trip.
@@ -112,9 +114,6 @@ namespace AJTools.Services.MepReferenceDimension
 
         /// <summary>True when this candidate belongs to the run the user picked.</summary>
         public bool IsSeedRun { get; set; }
-
-        /// <summary>"Current model" or the link's name, for the report.</summary>
-        public string SourceName { get; set; }
     }
 
     /// <summary>

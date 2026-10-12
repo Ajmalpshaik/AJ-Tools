@@ -1,21 +1,26 @@
 // Tool Name: Create Tags - Eligibility Filter
 // Description: Shared "which of my selected elements can actually be tagged" logic, used by both
-//              Create Tags (one click per element) and Stack Tags (one click, whole batch stacked).
+//              Create Tags (each element tagged automatically at the set distance) and Stack Tags
+//              (one click, whole batch stacked).
 //              Kept in one place so the two tools can never quietly drift apart on what counts as
 //              already tagged / too short / vertical.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
-// Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Models.CreateTags,
-//               AJTools.Services.SmartTag, AJTools.Services.LeaderLogic, AJTools.Utils
+// Dependencies: Autodesk.Revit.DB, Autodesk.Revit.DB.Mechanical, AJTools.Models.SmartTag,
+//               AJTools.Models.CreateTags, AJTools.Services.SmartTag, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - Each candidate now gets its orientation (horizontal/vertical run) and
+//            duct width, using Smart MEP Tags' own rules. Both were left unset, so every run read as
+//            horizontal and the distance was measured from the centreline - tags landed inside wide
+//            ducts. Removed FindNearestCandidate/DistanceInView, unused since placement went automatic.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Mechanical;
 using AJTools.Models.CreateTags;
 using AJTools.Models.SmartTag;
-using AJTools.Services.LeaderLogic;
 using AJTools.Services.SmartTag;
 using AJTools.Utils;
 
@@ -34,8 +39,6 @@ namespace AJTools.Services.CreateTags
             _counts[reason] = count + 1;
         }
 
-        public int Total => _counts.Values.Sum();
-
         public string BuildSummary()
         {
             if (_counts.Count == 0)
@@ -53,7 +56,7 @@ namespace AJTools.Services.CreateTags
         /// Filters a selection down to elements that can actually be tagged: a supported category,
         /// enabled in Create Tags Settings, not already tagged in this view, not shorter than the
         /// configured minimum (curve-based categories only), and not a vertical run (duct, pipe, or
-        /// cable tray) - deliberately wider than Smart MEP Tag's own duct-only vertical check.
+        /// cable tray) when the shared skip-vertical-runs setting is on.
         /// </summary>
         public static List<TagCandidate> BuildEligibleCandidates(
             Document doc,
@@ -132,11 +135,24 @@ namespace AJTools.Services.CreateTags
                     continue;
                 }
 
+                // Orientation and host width decide where Create Tags' automatic placement puts the
+                // tag - below a horizontal run, right of a vertical one, measured from the duct's
+                // edge. Left unset, every run read as horizontal and the distance was measured from
+                // the centreline, so tags landed inside wide ducts. Set exactly the way Smart MEP
+                // Tags sets them, so both tools read a run the same way.
+                double hostWidth = 0;
+                if (category == BuiltInCategory.OST_DuctCurves && elem is Duct duct)
+                {
+                    hostWidth = SmartMepTagService.GetDuctWidth(duct);
+                }
+
                 candidates.Add(new TagCandidate
                 {
                     ElementId = id,
                     Category = category,
-                    Midpoint = midpoint
+                    Midpoint = midpoint,
+                    Orientation = SmartMepTagService.GetElementOrientation(elem, activeView),
+                    HostWidth = hostWidth
                 });
             }
 
@@ -145,8 +161,8 @@ namespace AJTools.Services.CreateTags
 
         /// <summary>
         /// A linear MEP element counts as vertical when its location curve runs mostly along world Z -
-        /// same 0.95 threshold and technique as Smart MEP Tag's own duct-only check, generalized here to
-        /// duct, pipe, and cable tray per Ajmal's confirmed answer (broader than Smart MEP Tag today).
+        /// the 0.95 threshold Smart MEP Tag's old duct-only check used, generalized to duct, pipe, and
+        /// cable tray per Ajmal's confirmed answer. Smart MEP Tags now calls this same check.
         /// </summary>
         public static bool IsVerticalMepCurve(MEPCurve mepCurve)
         {
@@ -163,45 +179,9 @@ namespace AJTools.Services.CreateTags
             return false;
         }
 
-        /// <summary>
-        /// Finds the candidate whose element midpoint is nearest (in view-plane distance) to the
-        /// given target point. Same nearest-first idea Rearrange Tags uses for its own tags, applied
-        /// here to raw element positions instead of existing leader anchors.
-        /// </summary>
-        public static TagCandidate FindNearestCandidate(
-            IList<TagCandidate> candidates,
-            LeaderLogicService leaderLogic,
-            XYZ targetModel)
-        {
-            if (candidates == null || candidates.Count == 0 || leaderLogic == null || targetModel == null)
-                return null;
-
-            TagCandidate nearest = null;
-            double minDistance = double.MaxValue;
-
-            foreach (TagCandidate candidate in candidates)
-            {
-                if (candidate?.Midpoint == null)
-                    continue;
-
-                double distance = DistanceInView(targetModel, candidate.Midpoint, leaderLogic);
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    nearest = candidate;
-                }
-            }
-
-            return nearest ?? candidates[0];
-        }
-
-        public static double DistanceInView(XYZ p1, XYZ p2, LeaderLogicService leaderLogic)
-        {
-            UV uv1 = leaderLogic.ProjectToView(p1);
-            UV uv2 = leaderLogic.ProjectToView(p2);
-            double dx = uv1.U - uv2.U;
-            double dy = uv1.V - uv2.V;
-            return Math.Sqrt((dx * dx) + (dy * dy));
-        }
+        // Removed 2026-10-12: FindNearestCandidate and DistanceInView, left over from when Create
+        // Tags asked for a click per tag and matched it to the nearest element. Placement has been
+        // automatic since 2026-08-17 and nothing called either one. Stack Tags' nearest-first search
+        // lives in TagStackService.
     }
 }

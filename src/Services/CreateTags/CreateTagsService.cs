@@ -1,15 +1,17 @@
 // Tool Name: Create Tags Service
 // Description: Select MEP elements - already selected, or picked when the tool asks - and every one
 //              is tagged straight away at the distance set in Create Tags Settings. Skips elements
-//              configured minimum length, or a vertical run - same spirit as Smart MEP Tag's own
-//              filters, reused where identical and widened where Ajmal asked for it (vertical-run
-//              skip covers duct, pipe, AND cable tray here - Smart MEP Tag itself only checks ducts).
+//              already tagged in the view, shorter than the configured minimum length, or a vertical
+//              run (duct, pipe or cable tray - the same switchable rule Smart MEP Tags uses).
 //              Eligibility/matching logic lives in CreateTagsEligibilityFilter, shared with StackTagsService.
 // Author: Ajmal P.S.
-// Version: 1.1.0
+// Version: 1.1.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Models.SmartTag, AJTools.Models.CreateTags,
 //               AJTools.Services.SmartTag, AJTools.Services.LeaderLogic, AJTools.Utils
+// Changelog: 1.1.1 (2026-10-12) - Batch mode (elements already selected) now asks first when more than
+//            500 are selected, the same shared question Stack Tags asks; one-by-one mode never asks.
+//            Header text brought up to date; unused ShowNothingToTag removed.
 
 using System;
 using System.Collections.Generic;
@@ -27,10 +29,10 @@ using AJTools.Utils;
 namespace AJTools.Services.CreateTags
 {
     /// <summary>
-    /// Orchestrates the Create Tags pipeline: validate view -> filter the current selection down to
-    /// eligible elements -> resolve a tag family for each -> let the user click a location per
-    /// element (nearest untagged-in-this-run element wins each click) -> place the tag with a clean
-    /// L-shaped leader back to the element.
+    /// Orchestrates the Create Tags pipeline: validate view -> take the current selection, or with
+    /// nothing selected each element as it is clicked -> filter down to eligible elements -> resolve
+    /// a tag family for each -> place every tag automatically at the set distance from its element
+    /// (below a horizontal run, right of a vertical one) with a clean L-shaped leader back to it.
     /// </summary>
     internal static class CreateTagsService
     {
@@ -81,6 +83,19 @@ namespace AJTools.Services.CreateTags
             //                the click, not for a multi-selection to gather first.
             ICollection<ElementId> preSelectedIds = uidoc.Selection.GetElementIds();
             bool oneByOne = preSelectedIds == null || preSelectedIds.Count == 0;
+
+            // Ask before a long run - batch mode only. One button press tags every selected element with
+            // nothing to press afterwards, which is the house test for when a tool must ask. One-by-one
+            // mode is self-paced (one tag per click, Esc to finish), cannot freeze, and never asks.
+            if (!oneByOne && !DialogHelper.ConfirmLongRun(
+                    ToolTitle,
+                    preSelectedIds.Count,
+                    string.Format(
+                        "About to tag up to {0} selected elements in one go (any already tagged, too short or vertical are skipped).",
+                        preSelectedIds.Count)))
+            {
+                return Result.Cancelled;
+            }
 
             var tracker = new CreateTagsSettingsTracker(doc);
             CreateTagsSettingsState settings = CreateTagsSettingsTracker.EnsureDefaults(tracker.LastState);
@@ -355,15 +370,6 @@ namespace AJTools.Services.CreateTags
             }
 
             return SmartTagPlacementEngine.ApplyLeaderBehavior(doc, newTag, activeView, leaderLogic);
-        }
-
-        private static void ShowNothingToTag(SkipTally tally)
-        {
-            string summary = tally.BuildSummary();
-            string body = summary != null
-                ? "Nothing to tag from your selection.\n\n" + summary
-                : "Nothing to tag from your selection.";
-            DialogHelper.ShowInfo(ToolTitle, body);
         }
 
         /// <summary>

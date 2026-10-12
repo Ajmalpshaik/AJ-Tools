@@ -9,10 +9,10 @@
  *                 that works whether or not the C# pane is open.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.1
+ * Version       : 1.2.2
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -44,6 +44,10 @@
  *                       v1.11.0) instead of being its own top-level button.
  * v1.0.0 (2026-07-21) - Initial release.
  * v1.2.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
+ * v1.2.2 (2026-10-12) - Opens the window on the session's shared settings (AiShellConfig.Shared)
+ *                       instead of a fresh copy: the C# pane saves its whole settings object, so a
+ *                       pin or folder chosen here was put back to its old value the next time the
+ *                       pane saved anything.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -69,7 +73,7 @@ namespace AJTools.AiShell.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var config = AiShellConfig.Load();
+            var config = AiShellConfig.Shared;
             var window = new SavedScriptsWindow(config, commandData);
             new WindowInteropHelper(window)
             {

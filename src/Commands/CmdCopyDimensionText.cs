@@ -6,10 +6,10 @@
  *                 source dimension onto one or more picked target dimensions.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,12 +25,20 @@
  * - The whole pick session is wrapped in one TransactionGroup and assimilated, so a single Ctrl+Z
  *   reverses every pasted dimension.
  * - Esc during a pick is a normal cancel (handled silently); normal success is silent.
+ * - Single-segment dimensions only: the Dimension text properties are documented for one segment,
+ *   and a multi-segment string keeps its text per segment. A multi-segment source is refused; a
+ *   multi-segment target is skipped (session kept) and reported at the end.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.1.0 (2025-12-10) - Source/target pick loop with value-override copy.
  * v1.2.0 (2026-07-01) - Refactor/audit: full metadata block; whole pick session now assimilated into a
  *                       single undo step. Copy behaviour unchanged.
+ * v1.2.1 (2026-10-12) - Multi-segment dimensions are refused plainly: a multi-segment source was read
+ *                       through the single-segment properties (reported as "no text to copy"), and a
+ *                       target Revit refused ended the session as Failed, undoing every earlier paste.
+ *                       Each target now runs on its own (a refused one is rolled back alone), and
+ *                       skipped/refused picks are reported at the end.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -80,6 +88,19 @@ namespace AJTools.Commands
                 if (sourceDim == null)
                     return Result.Cancelled;
 
+                // Above/Below/Prefix/Suffix/ValueOverride on Dimension are documented for
+                // single-segment dimensions only; a multi-segment string keeps its text per segment.
+                // Which segment to copy from - or which target segments should receive it - is a
+                // choice the tool cannot make for you (one "CLR" note is rarely meant for every
+                // segment of a chain), so multi-segment dimensions are refused plainly instead.
+                if (IsMultiSegment(sourceDim))
+                {
+                    DialogHelper.ShowError(
+                        "Copy Dim Text",
+                        "The picked dimension has more than one segment. This tool copies text between single-segment dimensions only - pick a single-segment dimension as the source.");
+                    return Result.Cancelled;
+                }
+
                 string textAbove = sourceDim.Above;
                 string textBelow = sourceDim.Below;
                 string textPrefix = sourceDim.Prefix;
@@ -101,7 +122,11 @@ namespace AJTools.Commands
                 }
 
                 const string targetPrompt = "Select TARGET dimension (ESC to finish)";
+                string prompt = targetPrompt;
                 int pastedCount = 0;
+                int multiSegmentSkipped = 0;
+                int failedCount = 0;
+                string lastFailure = null;
 
                 // 2) Loop: pick TARGET dimensions until ESC. The whole session is grouped so a single
                 //    Ctrl+Z reverses every pasted dimension.
@@ -117,7 +142,7 @@ namespace AJTools.Commands
                             targetRef = uidoc.Selection.PickObject(
                                 ObjectType.Element,
                                 new DimensionSelectionFilter(),
-                                targetPrompt);
+                                prompt);
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
@@ -129,21 +154,44 @@ namespace AJTools.Commands
                         if (targetDim == null)
                             continue;
 
-                        using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
+                        // Same single-segment rule as the source. Skipping (not failing) keeps the
+                        // session and every paste made so far; the status bar says why at once.
+                        if (IsMultiSegment(targetDim))
                         {
-                            t.Start();
-                            ApplyDimensionText(
-                                targetDim,
-                                textAbove,
-                                textBelow,
-                                textPrefix,
-                                textSuffix,
-                                copyValueOverride,
-                                valueOverride);
-                            t.Commit();
+                            multiSegmentSkipped++;
+                            prompt = targetPrompt + " - last pick skipped: it has more than one segment";
+                            continue;
                         }
 
-                        pastedCount++;
+                        // One target that Revit refuses is rolled back on its own. Before, the error
+                        // escaped the loop and the whole session - earlier pastes included - was undone.
+                        using (Transaction t = new Transaction(doc, "Paste Dimension Text"))
+                        {
+                            try
+                            {
+                                t.Start();
+                                ApplyDimensionText(
+                                    targetDim,
+                                    textAbove,
+                                    textBelow,
+                                    textPrefix,
+                                    textSuffix,
+                                    copyValueOverride,
+                                    valueOverride);
+                                t.Commit();
+                                pastedCount++;
+                                prompt = targetPrompt;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (t.HasStarted() && !t.HasEnded())
+                                    t.RollBack();
+
+                                failedCount++;
+                                lastFailure = ex.Message;
+                                prompt = targetPrompt + " - last pick could not be changed";
+                            }
+                        }
                     }
 
                     if (pastedCount > 0)
@@ -152,14 +200,27 @@ namespace AJTools.Commands
                         group.RollBack();
                 }
 
+                string leftOut = DescribeLeftOut(multiSegmentSkipped, failedCount, lastFailure);
+
                 // 3) Behaviour after ESC
                 if (pastedCount == 0)
                 {
-                    DialogHelper.ShowError("Copy Dim Text", "Source captured, but no target dimensions were selected.");
+                    DialogHelper.ShowError(
+                        "Copy Dim Text",
+                        leftOut.Length > 0
+                            ? "No dimensions were changed." + leftOut
+                            : "Source captured, but no target dimensions were selected.");
                     return Result.Cancelled;
                 }
 
-                // No final success popup (as per your style) – just silent success
+                // Silent success - unless some picks were left out, which must be said.
+                if (leftOut.Length > 0)
+                {
+                    DialogHelper.ShowInfo(
+                        "Copy Dim Text",
+                        $"Text copied to {pastedCount} dimension(s)." + leftOut);
+                }
+
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -172,6 +233,35 @@ namespace AJTools.Commands
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// A dimension string with more than one segment. Single-segment dimensions report 0 or 1.
+        /// </summary>
+        private static bool IsMultiSegment(Dimension dimension)
+        {
+            return dimension != null && dimension.NumberOfSegments > 1;
+        }
+
+        /// <summary>
+        /// Plain lines for the picks that were not changed; empty when every pick was pasted.
+        /// </summary>
+        private static string DescribeLeftOut(int multiSegmentSkipped, int failedCount, string lastFailure)
+        {
+            string text = string.Empty;
+
+            if (multiSegmentSkipped > 0)
+            {
+                text += $"\n\nSkipped {multiSegmentSkipped} dimension(s) with more than one segment - this tool works on single-segment dimensions only.";
+            }
+
+            if (failedCount > 0)
+            {
+                text += $"\n\n{failedCount} dimension(s) could not be changed"
+                    + (string.IsNullOrWhiteSpace(lastFailure) ? "." : ": " + lastFailure);
+            }
+
+            return text;
         }
 
         private static void ApplyDimensionText(

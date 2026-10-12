@@ -5,10 +5,10 @@
  * Purpose       : Version-safe access to the Revit "ForgeTypeId transition" API across Revit 2020 -> 2027.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-07
- * Last Updated  : 2026-07-07
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / .NET Fx 4.8 (2021-2024) | .NET 8 (2025-2026) | .NET 10 (2027 - verify SDK)
@@ -22,8 +22,8 @@
  * Notes         :
  * - Revit 2020-2021 use the legacy enums: ParameterType, BuiltInParameterGroup, DisplayUnitType, UnitType.
  * - Revit 2022+ removed those enums in favour of ForgeTypeId: SpecTypeId, GroupTypeId, UnitTypeId.
- *   (BuiltInParameterGroup lingered until it was removed in 2025; 2022 is the safe single switch point
- *    because GroupTypeId/GetGroupTypeId already exist from 2021.)
+ *   (BuiltInParameterGroup lingered until it was removed in 2025. 2022 is the switch point because
+ *    Definition.GetGroupTypeId first appears in the 2022 API - the 2021 API has neither it nor GroupTypeId.)
  * - Every version-specific branch lives ONLY in this file so call sites never branch on Revit version.
  * - Companion file: ElementIdHelper.cs handles the separate 2024 ElementId 32->64-bit change.
  * - Companion type aliases (AjSpec / AjGroup / AjUnit) are declared per-file where members are TYPED
@@ -32,6 +32,8 @@
  * Changelog     :
  * v1.0.0 (2026-07-07) - Initial release: units, parameter spec type, parameter group, shared-parameter
  *                       creation, and parameter binding made version-safe for Revit 2020 -> 2027.
+ * v1.0.1 (2026-10-12) - Removed the unused SpecYesNo token (nothing referenced it) and corrected the
+ *                       note on when GroupTypeId arrived (2022, not 2021). No behaviour change.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -55,13 +57,11 @@ namespace AJTools.Utils
         internal static ForgeTypeId SpecText => SpecTypeId.String.Text;
         internal static ForgeTypeId SpecLength => SpecTypeId.Length;
         internal static ForgeTypeId SpecNumber => SpecTypeId.Number;
-        internal static ForgeTypeId SpecYesNo => SpecTypeId.Boolean.YesNo;
         internal static ForgeTypeId GroupData => GroupTypeId.Data;
 #else
         internal static ParameterType SpecText => ParameterType.Text;
         internal static ParameterType SpecLength => ParameterType.Length;
         internal static ParameterType SpecNumber => ParameterType.Number;
-        internal static ParameterType SpecYesNo => ParameterType.YesNo;
         internal static BuiltInParameterGroup GroupData => BuiltInParameterGroup.PG_DATA;
 #endif
 

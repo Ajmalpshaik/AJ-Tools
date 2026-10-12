@@ -6,10 +6,10 @@
  *                 parameters, keeping their values, via the Shared-to-Family window and service.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.1
+ * Version       : 1.1.2
  *
  * Created Date  : 2026-03-26
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,7 @@
  * v1.0.0 (2026-03-26) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Conversion behaviour unchanged.
  * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
+ * v1.1.2 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -108,7 +109,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show(ToolTitle, $"An unexpected error occurred:\n\n{ex.Message}");
                 return Result.Failed;
             }

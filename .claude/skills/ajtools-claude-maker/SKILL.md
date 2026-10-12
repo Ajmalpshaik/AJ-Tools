@@ -15,8 +15,8 @@ create-then-report rule Ajmal set on 2026-07-16.
    universal habit must apply always, so it belongs in CLAUDE.md or the matching knowledge file instead.
    Getting this wrong produces a skill that never triggers.
 2. **Overlap check.** Read the descriptions of every existing skill in `.claude/skills/` and the
-   plugin-provided ones visible in the session (ajtools-build, ajtools-debug, ajtools-panel-audit,
-   ajtools-port-pyrevit, aj-tools-github, revit-csharp-plugin, revit-ui, ...). If an existing skill
+   ones the session also offers (github-aj-tools, revit-plugin-csharp, revit-tool-pyrevit,
+   revit-ui-design, ...). If an existing skill
    already covers the pattern, improve that one instead of creating a rival — two skills claiming the
    same request poisons routing for every future session.
 3. **Code goes elsewhere.** Reusable C# belongs in the plugin source (`src/`), with the skill merely

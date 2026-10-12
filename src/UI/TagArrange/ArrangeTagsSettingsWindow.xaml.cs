@@ -5,10 +5,10 @@
  * Purpose       : WPF settings window for the default vertical spacing (mm on paper) used by Rearrange Tags.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-27
- * Last Updated  : 2026-07-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,7 @@
  * - Accepts both "12.5" and "12,5" so a comma-decimal Windows locale cannot silently misread the value.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - "12,5" is now read on a dot-decimal Windows locale too, as the notes always claimed.
  * v1.0.0 (2026-07-27) - Initial release. Replaces the old WinForms spacing prompt.
  *
  * License       : All Rights Reserved
@@ -198,7 +199,13 @@ namespace AJTools.UI.TagArrange
             if (double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
                 return true;
 
-            return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+                return true;
+
+            // A dot-decimal Windows locale rejects "12,5" under both parses above; read the comma as the
+            // decimal mark, the same fallback Fix Tag Clash Settings uses.
+            return !string.IsNullOrWhiteSpace(raw)
+                && double.TryParse(raw.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
         private static string Format(double value) => value.ToString("0.###", CultureInfo.CurrentCulture);

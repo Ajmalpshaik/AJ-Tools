@@ -5,10 +5,10 @@
  * Purpose       : Stores last-used View Crop settings for the active document and persists them on disk.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-04-08
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,9 +21,11 @@
  *
  * Notes         :
  * - Inherits the shared per-document caching logic from SettingsTrackerBase{T}.
- * - Disk persistence delegated to ViewCropConfigStore.
+ * - Disk persistence delegated to ViewCropConfigStore; its success flag and error text are passed on.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - SaveToStore passes on ViewCropConfigStore's success flag and error text, so a
+ *                       failed disk save is reported instead of silently swallowed.
  * v1.1.0 (2026-06-27) - Refactored onto shared SettingsTrackerBase. Behaviour unchanged.
  * v1.0.2 (2026-05-24) - Premium disk-based settings persistence.
  *
@@ -53,6 +55,7 @@ namespace AJTools.Services.ViewCrop
 
         protected override ViewCropSettings LoadFromStore() => ViewCropConfigStore.Load();
 
-        protected override void SaveToStore(ViewCropSettings settings) => ViewCropConfigStore.Save(settings);
+        protected override bool SaveToStore(ViewCropSettings settings, out string errorMessage) =>
+            ViewCropConfigStore.Save(settings, out errorMessage);
     }
 }

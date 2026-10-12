@@ -126,10 +126,8 @@ namespace AJTools.UI.SmartMepTag
             MinHeightBox.Text = FormatMm(size.MinHeightMm);
             FilterBySizeBox.IsChecked = size.FilterBySize;
 
-            // Wired here rather than only in XAML: FilterBySizeBox sets IsChecked above, and a XAML
-            // Checked= handler would have fired during InitializeComponent's walk, before SizePanel
-            // exists - a NullReferenceException on every open. Same trap recorded in the conventions
-            // for the Reassign Level scope toggle.
+            // Sync the size panel once, now that IsChecked has been set above; the Checked/Unchecked
+            // handlers wired in the XAML keep it in step after that.
             UpdateSizePanelEnabled();
 
             // Every other tabbed window in the suite does this - keeps the tab change animated.
@@ -322,7 +320,7 @@ namespace AJTools.UI.SmartMepTag
 
     /// <summary>
     /// One category row in the Smart MEP Tag settings grid. Built by the command, edited by the
-    /// window (Enabled and PriorityText only), read back by the command after Save.
+    /// window (Enabled, PriorityText and UseLeader), read back by the command after Save.
     /// </summary>
     public sealed class SmartTagCategoryRow : INotifyPropertyChanged
     {

@@ -1,9 +1,12 @@
 // Tool Name: Smart Tag Placement Engine
-// Description: Phases 3â€“6 â€” scoring, clash detection, repositioning, and tag placement.
+// Description: Phases 3–6 — scoring, clash detection, repositioning, and tag placement.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - A duct whose size cannot be read no longer pulls its tag closer than
+//            the set offset (the -1 "unknown" width was halved and used as a distance). Report: a tag
+//            Revit refuses to create is reported as refused, not "No Clean Space". Comments repaired.
 
 using System;
 using System.Collections.Generic;
@@ -18,16 +21,16 @@ namespace AJTools.Services.SmartTag
 {
     /// <summary>
     /// Handles tag position scoring, clash detection, repositioning, and placement.
-    /// Processes candidates in priority order â€” HIGH first, then MEDIUM, then LOW.
+    /// Processes candidates in priority order — HIGH first, then MEDIUM, then LOW.
     /// Each placed tag updates the annotation registry so subsequent tags avoid clashing.
     /// </summary>
     internal static class SmartTagPlacementEngine
     {
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        // PHASE 3 â€” SMART TAG PLACEMENT SCORING
+        // ═══════════════════════════════════════════════════════════════
+        // PHASE 3 — SMART TAG PLACEMENT SCORING
         // Generates 4 candidate positions around each element and scores
         // them based on free space, distance, alignment, and leader length.
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// The four cardinal directions for candidate tag positions.
@@ -73,7 +76,9 @@ namespace AJTools.Services.SmartTag
 
             double halfW = estimatedTagWidth * 0.5;
             double halfH = estimatedTagHeight * 0.5;
-            double hostHalfW = hostWidth * 0.5;
+            // GetDuctWidth returns -1 when a duct's size cannot be read; never let that pull the tag
+            // closer than the offset (Create Tags clamps the same way).
+            double hostHalfW = Math.Max(0.0, hostWidth) * 0.5;
 
             double topHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfH;
             double bottomHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfH;
@@ -121,6 +126,12 @@ namespace AJTools.Services.SmartTag
         /// v1.49.9 restricted this to Right and Left only, which was right about the near case and
         /// wrong about the crowded one: on a junction the tag went sideways straight onto the fitting
         /// because there was nowhere else it was permitted to go.
+        ///
+        /// Right and Left are in VIEW space regardless of which way the duct runs - Ajmal's explicit
+        /// choice (2026-08-17) after being shown that on a duct running left-right this puts the tag at
+        /// the accessory's connector ends. He wants the tags in one straight column down the sheet more
+        /// than he wants them off the connectors. Both are a pure viewRight offset from the element
+        /// midpoint, so the tag comes out exactly level with the accessory centre.
         /// </remarks>
         private static readonly TagDirection[] NoLeaderDirectionOrder =
             new[] { TagDirection.Right, TagDirection.Left, TagDirection.Bottom, TagDirection.Top };
@@ -141,17 +152,6 @@ namespace AJTools.Services.SmartTag
         private static readonly double NoLeaderOffsetInternal = 150.0 * Constants.MM_TO_FEET;
 
         /// <summary>
-        /// Model elements the tag should not be dropped on top of - ducts, fittings, accessories and
-        /// equipment as they appear in this view.
-        /// </summary>
-        /// <remarks>
-        /// The scorer has never seen model geometry: it weighs a position against other TAGS, text
-        /// and dimensions only. That is why a no-leader tag could land squarely on a duct junction
-        /// and score perfectly - as far as the engine knew, that spot was empty. Built once per run,
-        /// and only when some category actually has its leader switched off, so a normal run pays
-        /// nothing for it.
-        /// </remarks>
-        /// <summary>
         /// Returns the first position in <paramref name="order"/> whose tag box is clear of every
         /// other tag AND of the model geometry, or null when none of them is.
         /// </summary>
@@ -161,9 +161,11 @@ namespace AJTools.Services.SmartTag
         /// how accessory tags ended up under their elements instead of next to them. Here the order
         /// decides, and the checks only say yes or no.
         ///
-        /// The element's OWN box is expected to be in the obstacle index and is not excluded - it
-        /// cannot cause a false block, because every candidate position already sits a full offset
-        /// clear of the host by construction (GenerateCandidatePositions adds hostHalfW).
+        /// The element's OWN box is in the obstacle index and is not excluded. For a duct that does
+        /// no harm: its HostWidth puts every position a full offset clear of the duct's own edge.
+        /// Every other category has no HostWidth (0), so its positions are measured from the
+        /// element's centre, and the element's own box - with the paper clearance added - can block
+        /// some or all of its sides.
         /// </remarks>
         private static XYZ FindFirstClearNoLeaderPosition(
             Dictionary<TagDirection, XYZ> positions,
@@ -244,6 +246,17 @@ namespace AJTools.Services.SmartTag
             return false;
         }
 
+        /// <summary>
+        /// Model elements the tag should not be dropped on top of - ducts, fittings, accessories and
+        /// equipment as they appear in this view.
+        /// </summary>
+        /// <remarks>
+        /// The scorer has never seen model geometry: it weighs a position against other TAGS, text
+        /// and dimensions only. That is why a no-leader tag could land squarely on a duct junction
+        /// and score perfectly - as far as the engine knew, that spot was empty. Built once per run,
+        /// and only when some category actually has its leader switched off, so a normal run pays
+        /// nothing for it.
+        /// </remarks>
         private static AnnotationSpatialIndex BuildModelObstacleIndex(
             Document doc, View view, XYZ viewRight, XYZ viewUp, int viewScale)
         {
@@ -296,23 +309,6 @@ namespace AJTools.Services.SmartTag
 
             return BuildAnnotationSpatialIndex(boxes, viewScale);
         }
-        /// <remarks>
-        /// RESTRICTS rather than reorders, and that distinction is the whole fix (v1.49.9). v1.49.7
-        /// merely put these two first in the priority list, which decided nothing: the scoring loop
-        /// keeps the HIGHEST-scoring direction, not the first one it tries, so "below" - usually the
-        /// emptiest space around a duct - still won and accessory tags kept landing underneath. Order
-        /// only ever mattered for an exact tie or the score >= 60 early exit. Handing the loop just
-        /// these two is what actually forces the choice; the scorer then picks whichever side is
-        /// clearer, which is also what makes "if one side clashes, use the other" work.
-        ///
-        /// Left/right in VIEW space regardless of which way the duct runs - Ajmal's explicit choice
-        /// (2026-08-17) after being shown that on a duct running left-right this puts the tag at the
-        /// accessory's connector ends. He wants the tags in one straight column down the sheet more
-        /// than he wants them off the connectors.
-        ///
-        /// Both positions are a pure viewRight offset from the element midpoint, so the tag comes out
-        /// exactly level with the accessory centre - the alignment asked for, already free.
-        /// </remarks>
 
         private static bool IsPlanView(ViewType viewType)
         {
@@ -640,13 +636,13 @@ namespace AJTools.Services.SmartTag
             return result;
         }
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════
         // SCORING ENGINE
-        // Each candidate position scored 0â€“100 across 4 criteria.
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // Each candidate position scored 0–100 across 4 criteria.
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Scores a candidate tag position on a 0â€“100 scale.
+        /// Scores a candidate tag position on a 0–100 scale.
         /// Returns -1 if the position is disqualified (hard clash or leader too long).
         /// </summary>
         private static int ScoreCandidatePosition(
@@ -667,7 +663,7 @@ namespace AJTools.Services.SmartTag
 
             int totalScore = 0;
 
-            // â”€â”€ CRITERION 1: FREE SPACE (0â€“40 pts) â”€â”€
+            // ── CRITERION 1: FREE SPACE (0–40 pts) ──
             // No clash = 40 pts. Any overlap = disqualified.
             double tolerance = 1.5 * Constants.MM_TO_FEET * viewScale; // 1.5mm at view scale
             double nearMiss = 2.0 * Constants.MM_TO_FEET * viewScale;  // 2mm at view scale
@@ -700,11 +696,11 @@ namespace AJTools.Services.SmartTag
             }
 
             if (hasClash)
-                return -1; // Disqualified â€” hard clash.
+                return -1; // Disqualified — hard clash.
 
             totalScore += hasNearMiss ? 10 : 40;
 
-            // â”€â”€ CRITERION 2: DISTANCE FROM OTHER TAGS (0â€“20 pts) â”€â”€
+            // ── CRITERION 2: DISTANCE FROM OTHER TAGS (0–20 pts) ──
             double minDist = double.MaxValue;
             double threshold5mm = 5.0 * Constants.MM_TO_FEET * viewScale;
 
@@ -720,34 +716,35 @@ namespace AJTools.Services.SmartTag
             else if (minDist >= threshold5mm)
                 totalScore += 10;
             else
-                return -1; // Too close â€” disqualified.
+                return -1; // Too close — disqualified.
 
-            // â”€â”€ CRITERION 3: ALIGNMENT PREFERENCE (0â€“20 pts) â”€â”€
+            // ── CRITERION 3: ALIGNMENT PREFERENCE (0–20 pts) ──
             // Horizontal placement is always preferred for readability.
             if (direction == TagDirection.Top || direction == TagDirection.Bottom)
-                totalScore += 20; // Horizontal â€” best readability.
+                totalScore += 20; // Horizontal — best readability.
             else
-                totalScore += 10; // Left/Right â€” acceptable but not ideal.
+                totalScore += 10; // Left/Right — acceptable but not ideal.
 
-            // â”€â”€ CRITERION 4: LEADER CONSISTENCY (0â€“20 pts) â”€â”€
+            // ── CRITERION 4: LEADER CONSISTENCY (0–20 pts) ──
             // Max-leader filtering is intentionally disabled. Offset value should control placement.
             // So this is a FLAT 20 on every position, not a real criterion - the score is effectively
-            // out of 80 with 20 free points, and the "score >= 60" early exit above is calibrated
-            // against that. Left exactly as-is on purpose: removing the 20 would silently retune every
-            // placement decision Smart MEP Tag makes. Only change it together with that threshold.
+            // out of 80 with 20 free points, and the "score >= 60" early exit in FindBestTagPosition
+            // is calibrated against that. Left exactly as-is on purpose: removing the 20 would
+            // silently retune every placement decision Smart MEP Tag makes. Only change it together
+            // with that threshold.
             totalScore += 20;
 
             return totalScore;
         }
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        // PHASE 4 â€” CLASH DETECTION
+        // ═══════════════════════════════════════════════════════════════
+        // PHASE 4 — CLASH DETECTION
         // Bounding-box-based overlap detection for annotations.
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Collects all existing annotation bounding boxes in the view.
-        /// Done ONCE at script start â€” includes tags, text notes, and dimensions.
+        /// Done ONCE per run, before the placement loop — includes tags, text notes, and dimensions.
         /// </summary>
         public static List<AnnotationBox> CollectExistingAnnotations(Document doc, View view)
         {
@@ -979,14 +976,13 @@ namespace AJTools.Services.SmartTag
                 && height > Constants.ZERO_LENGTH_TOLERANCE;
         }
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        // PHASE 5 â€” REPOSITION & FAILURE LOGIC
+        // ═══════════════════════════════════════════════════════════════
+        // PHASE 5 — REPOSITION & FAILURE LOGIC
         // If all 4 positions fail at the configured offset, apply group/dense fallbacks.
         // Handle parallel groups and dense zones.
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════
 
         private static readonly double ParallelGroupDistance = 200.0 * Constants.MM_TO_FEET; // 200mm
-        private const double ElbowOutsideTextMarginMm = 3.0;
 
         /// <summary>
         /// Attempts to find the best tag position for a candidate.
@@ -1027,7 +1023,7 @@ namespace AJTools.Services.SmartTag
             ResolveTagSizeForCandidate(candidate, sizeHints, viewScale, out tagWidth, out tagHeight);
             bool hadBoundaryCandidate = false;
 
-            // â”€â”€ STEP 1: Try multiple candidate positions along the curve â”€â”€
+            // ── STEP 1: Try multiple candidate positions along the curve ──
             {
                 AnnotationBox hostBox = null;
                 if (candidate.BoundingBox != null)
@@ -1189,7 +1185,7 @@ namespace AJTools.Services.SmartTag
                 return null;
             }
 
-            // â”€â”€ STEP 2: Parallel group handling â”€â”€
+            // ── STEP 2: Parallel group handling ──
             // If this element is part of a parallel group (3+ elements within 200mm),
             // and another group member is already tagged, skip this one.
             int parallelCount = 0;
@@ -1221,12 +1217,12 @@ namespace AJTools.Services.SmartTag
                 return null;
             }
 
-            // â”€â”€ STEP 3: Dense zone override â”€â”€
+            // ── STEP 3: Dense zone override ──
             if (candidate.IsDenseZone)
             {
                 if (candidate.Priority == TagPriority.High)
                 {
-                    // Force tag at base offset â€” best available even if imperfect.
+                    // Force tag at base offset — best available even if imperfect.
                     Dictionary<TagDirection, XYZ> positions = BuildCandidatePositions(
                         candidate, candidate.Midpoint, fixedOffsetInternal, tagWidth, tagHeight, viewRight, viewUp);
                     TagDirection[] priority = GetDirectionPriority(candidate, preflight);
@@ -1283,15 +1279,15 @@ namespace AJTools.Services.SmartTag
                 }
             }
 
-            // â”€â”€ FINAL FAILURE â”€â”€
+            // ── FINAL FAILURE ──
             skipReason = TagSkipReason.NoCleanSpaceAvailable;
             return null;
         }
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        // PHASE 6 â€” TAG PLACEMENT EXECUTION
+        // ═══════════════════════════════════════════════════════════════
+        // PHASE 6 — TAG PLACEMENT EXECUTION
         // Places each tag in its own transaction using IndependentTag.Create().
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Processes all candidates through the scoring/clash/reposition pipeline
@@ -1335,10 +1331,10 @@ namespace AJTools.Services.SmartTag
                 }
             }
 
-            // Track which elements have been successfully tagged â€” used for parallel group logic.
+            // Track which elements have been successfully tagged — used for parallel group logic.
             var taggedGroupMembers = new HashSet<ElementId>();
 
-            // Process in priority order (candidates are already sorted HIGH â†’ MEDIUM â†’ LOW).
+            // Process in priority order (candidates are already sorted HIGH → MEDIUM → LOW).
             foreach (TagCandidate candidate in candidates)
             {
                 if (candidate == null)
@@ -1357,7 +1353,7 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // â”€â”€ Find best position (Phases 3â€“5) â”€â”€
+                // ── Find best position (Phases 3–5) ──
                 TagSkipReason skipReason;
                 XYZ tagPosition = FindBestTagPosition(
                     candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
@@ -1377,7 +1373,7 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // â”€â”€ Place the tag in its own transaction â”€â”€
+                // ── Place the tag in its own transaction ──
                 bool placed = PlaceSingleTag(
                     doc, activeView, candidate, tagPosition, annotations, annotationSpatialIndex, viewScale, viewRight, viewUp, leaderLogic);
 
@@ -1394,22 +1390,24 @@ namespace AJTools.Services.SmartTag
                 }
                 else
                 {
+                    // A clean spot WAS found - Revit then refused to create or finish the tag there.
+                    // That is not "no clean space", so it carries no skip reason (TagSkipReason has no
+                    // value for it): failed with None is how the report recognises it.
                     results.Add(new TagPlacementResult
                     {
                         ElementId = candidate.ElementId,
                         Category = candidate.Category,
                         Success = false,
-                        SkipReason = TagSkipReason.NoCleanSpaceAvailable,
-                        Note = "Tag placement transaction failed"
+                        SkipReason = TagSkipReason.None,
+                        Note = "Revit could not create the tag at the chosen spot"
                     });
                 }
             }
         }
 
         /// <summary>
-        /// Places a single tag inside its own transaction.
-        /// After placement, registers the new tag's bounding box in the annotation list
-        /// so subsequent tags avoid clashing with it.
+        /// Gives a tag that was just created its L-shaped leader, through the shared TagLeaderService
+        /// routine. False only when Revit refused the leader elbow.
         /// </summary>
         internal static bool ApplyLeaderBehavior(
             Document doc,
@@ -1429,6 +1427,11 @@ namespace AJTools.Services.SmartTag
                 doc, tag, view, leaderLogic, TagLeaderOptions.Tidy());
         }
 
+        /// <summary>
+        /// Places a single tag inside its own transaction.
+        /// After placement, registers the new tag's bounding box in the annotation list
+        /// so subsequent tags avoid clashing with it.
+        /// </summary>
         private static bool PlaceSingleTag(
             Document doc,
             View view,

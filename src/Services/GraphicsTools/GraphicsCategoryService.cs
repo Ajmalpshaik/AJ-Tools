@@ -5,10 +5,10 @@
  * Purpose       : Collects overridable categories and applies category-level graphics overrides for the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-03-30
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,7 @@
  * - Only categories that the view reports as overridable are written; others are skipped with a count.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - A skipped category now records why (Revit's own message), for the "nothing changed" report.
  * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
  * v1.4.4 (2026-05-09) - Reviewed category collection and override application for release.
  *
@@ -153,7 +154,7 @@ namespace AJTools.Services.GraphicsTools
 
                 if (!IsCategoryValidForOverride(category, view, includeAnnotationCategories))
                 {
-                    summary.Skipped++;
+                    summary.NoteSkip("Revit does not allow the graphics of the " + category.Name + " category to be overridden in this view.");
                     continue;
                 }
 
@@ -162,9 +163,9 @@ namespace AJTools.Services.GraphicsTools
                     view.SetCategoryOverrides(category.Id, settings);
                     summary.Applied++;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    summary.Skipped++;
+                    summary.NoteSkip(ex.Message);
                 }
             }
 

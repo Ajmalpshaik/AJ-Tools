@@ -6,10 +6,10 @@
  *                 colour by ElementId and thread-safe random colour selection.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-13
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,10 +24,12 @@
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
  * - ThreadLocal<Random> is used to avoid seed-collision on concurrent threads.
- * - GetColorFor uses unchecked Math.Abs to handle int.MinValue without OverflowException.
+ * - GetColorFor / GetColorAt map int.MinValue to 0 explicitly: Math.Abs(int.MinValue) throws even inside unchecked().
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - The int.MinValue guard never worked (Math.Abs throws for it even inside unchecked);
+ *                       that one value now maps to 0 explicitly. All other colours unchanged.
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.1.0 (2025-12-11) - Replaced shared Random with ThreadLocal<Random> for thread safety;
  *                        added unchecked Math.Abs guard for int.MinValue ElementIds.
@@ -91,8 +93,10 @@ namespace AJTools.Models
             if (id == null || id == ElementId.InvalidElementId || id.IntValue() == 0)
                 return Palette[0];
 
-            // Use unchecked to prevent OverflowException when IntegerValue is int.MinValue.
-            int index = unchecked(Math.Abs(id.IntValue())) & 0x7FFFFFFF;
+            // Math.Abs(int.MinValue) throws OverflowException even inside unchecked(), so that one value
+            // is mapped to 0 explicitly; every other id keeps exactly the colour it had before.
+            int idValue = id.IntValue();
+            int index = (idValue == int.MinValue ? 0 : Math.Abs(idValue)) & 0x7FFFFFFF;
             return Palette[index % Palette.Length];
         }
 
@@ -111,7 +115,7 @@ namespace AJTools.Models
         /// </summary>
         public static Color GetColorAt(int index)
         {
-            int safeIndex = unchecked(Math.Abs(index)) & 0x7FFFFFFF;
+            int safeIndex = (index == int.MinValue ? 0 : Math.Abs(index)) & 0x7FFFFFFF;
             return Palette[safeIndex % Palette.Length];
         }
     }

@@ -52,7 +52,7 @@ namespace AJTools.UI.GameMode
             CompassText.Text = hud.CompassText;
 
             SnagText.Text = hud.SnagCount > 0
-                ? string.Format("Snags marked: {0}   (J clears, report on exit)", hud.SnagCount)
+                ? string.Format("Snags marked: {0}   ({1} clears, report on exit)", hud.SnagCount, _keys.Label(GameKeyBindings.ResetGraphics))
                 : "";
             SnagText.Visibility = hud.SnagCount > 0
                 ? System.Windows.Visibility.Visible
@@ -139,7 +139,7 @@ namespace AJTools.UI.GameMode
                 TeleportRingDot.Opacity = hud.TeleportAimValid ? 0.95 : 0;
 
                 TeleportText.Text = hud.TeleportAimValid
-                    ? string.Format("Release T  -  jump {0:N0} mm", hud.TeleportAimDistanceMm)
+                    ? string.Format("Release {0}  -  jump {1:N0} mm", _keys.Label(GameKeyBindings.Teleport), hud.TeleportAimDistanceMm)
                     : "Aim at a floor or any surface...";
                 TeleportText.Visibility = System.Windows.Visibility.Visible;
             }
@@ -179,12 +179,12 @@ namespace AJTools.UI.GameMode
             // Door / window hints
             if (hud.DoorHint)
             {
-                HintText.Text = "[ E ]   Go through the door";
+                HintText.Text = "[ " + _keys.Label(GameKeyBindings.Door) + " ]   Go through the door";
                 HintCard.Visibility = System.Windows.Visibility.Visible;
             }
             else if (hud.WindowHint)
             {
-                HintText.Text = "[ Space ]   Jump, then move forward to climb through the window";
+                HintText.Text = "[ " + _keys.Label(GameKeyBindings.JumpUp) + " ]   Jump, then move forward to climb through the window";
                 HintCard.Visibility = System.Windows.Visibility.Visible;
             }
             else
@@ -195,6 +195,43 @@ namespace AJTools.UI.GameMode
             HelpCard.Visibility = _helpVisible
                 ? System.Windows.Visibility.Visible
                 : System.Windows.Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// The help card text, naming the keys actually bound (it used to be fixed XAML text with
+        /// the default keys, wrong as soon as a key was remapped). With the default layout it reads
+        /// exactly as before. Fixed keys - mouse, scroll, 1..9, Esc and S while paused - are
+        /// written as they are.
+        /// </summary>
+        private string BuildHelpText()
+        {
+            Func<string, string> key = _keys.Label;
+            return string.Join("\n", new[]
+            {
+                "MOVE\t" + key(GameKeyBindings.MoveForward) + " " + key(GameKeyBindings.StrafeLeft) + " " +
+                    key(GameKeyBindings.MoveBack) + " " + key(GameKeyBindings.StrafeRight) +
+                    "  |  LOOK mouse  |  RUN hold " + key(GameKeyBindings.Sprint),
+                "JUMP\t" + key(GameKeyBindings.JumpUp) + " (at a window = climb through)  |  CROUCH hold " + key(GameKeyBindings.CrouchDown),
+                "DOOR\t" + key(GameKeyBindings.Door) + " when the hint shows  |  FLY " + key(GameKeyBindings.Fly) +
+                    "  |  GHOST " + key(GameKeyBindings.Ghost),
+                "WEAPON\tright-click cycles GUN / LASER / CLEANER / SNAG / SELECT",
+                "GUN\thold left click - automatic fire  |  sounds " + key(GameKeyBindings.SoundToggle) + " on/off",
+                "LASER\tlive distance (mm) + element name",
+                "CLEANER\tshot hides that element  |  " + key(GameKeyBindings.UnhideAll) + " brings all back",
+                "SNAG\tshot paints it red + report on exit",
+                "SELECT\tshot selects in Revit (again = unselect), stays after exit",
+                "RESET\t" + key(GameKeyBindings.ResetGraphics) + " = reset ALL element colors in the game view",
+                "NO GUN\t" + key(GameKeyBindings.Professional) + " = professional mode for meetings (remembered)",
+                "TELEPORT\thold " + key(GameKeyBindings.Teleport) + " - see the jump arc, release = go",
+                "POSITIONS\t" + key(GameKeyBindings.SavePosition) + " saves a spot (list left)  |  1..9 = go  |  " +
+                    key(GameKeyBindings.Tour) + " = tour",
+                "PHOTO\t" + key(GameKeyBindings.Photo) + " to Pictures\\AJ Game Photos  |  LIGHT " + key(GameKeyBindings.Flashlight) +
+                    "  |  SPEED " + key(GameKeyBindings.SpeedUp) + " / " + key(GameKeyBindings.SpeedDown),
+                "SCROLL\tdown = gun away (laser still works), up = draw",
+                "KEYS\tchange any key: pause (Esc), then press S",
+                "RESPAWN\t" + key(GameKeyBindings.Respawn) + "  |  PAUSE Esc or " + key(GameKeyBindings.Pause) +
+                    "  |  EXIT Esc while paused  |  HELP " + key(GameKeyBindings.Help)
+            });
         }
     }
 }

@@ -6,11 +6,6 @@ namespace AJTools.Services.RevisionCloud
 {
     internal static class GeometryProjectionService
     {
-        public static UVRect GetProjectedBoundingBox(Element element, View view)
-        {
-            return GetProjectedBoundingBox(element, view, 0.0);
-        }
-
         public static UVRect GetProjectedBoundingBox(Element element, View view, double axisAngle)
         {
             if (element == null || view == null)
@@ -108,10 +103,12 @@ namespace AJTools.Services.RevisionCloud
             XYZ up = view.UpDirection;
             XYZ normal = view.ViewDirection;
 
+            // The view direction is only checked, not stored - nothing reads it - but a view
+            // without one is still treated as having no usable plane, exactly as before.
             if (origin == null || right == null || up == null || normal == null)
                 return null;
 
-            return new ViewPlaneData(origin, right, up, normal);
+            return new ViewPlaneData(origin, right, up);
         }
 
         public static UV ProjectToViewPlane(XYZ point, ViewPlaneData plane)
@@ -248,14 +245,12 @@ namespace AJTools.Services.RevisionCloud
         public XYZ Origin { get; }
         public XYZ Right { get; }
         public XYZ Up { get; }
-        public XYZ Normal { get; }
 
-        public ViewPlaneData(XYZ origin, XYZ right, XYZ up, XYZ normal)
+        public ViewPlaneData(XYZ origin, XYZ right, XYZ up)
         {
             Origin = origin;
             Right = right;
             Up = up;
-            Normal = normal;
         }
     }
 }

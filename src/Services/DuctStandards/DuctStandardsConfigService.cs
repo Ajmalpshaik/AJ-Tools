@@ -19,19 +19,38 @@ namespace AJTools.Services.DuctStandards
             return ConfigPath;
         }
 
-        public static DuctStandardsConfig Load()
+        /// <summary>
+        /// Loads the saved settings. Always returns a usable config, but when the saved file EXISTS and
+        /// cannot be read (corrupt, locked, empty) the built-in defaults come back with loadError saying
+        /// why - so the caller can tell the user the rules on screen are not the ones they saved, instead
+        /// of calculating with them silently. The unreadable file is never written over from here; it
+        /// changes only when the user saves on purpose.
+        /// </summary>
+        public static DuctStandardsConfig Load(out string loadError)
         {
+            loadError = null;
             EnsureDefault();
+
+            // Still no file (the folder could not be written): a first run, where the defaults are what
+            // the user gets anyway. Nothing was lost, so nothing to warn about - Save reports its own failure.
+            if (!File.Exists(ConfigPath))
+                return CreateDefault();
+
             try
             {
                 string json = File.ReadAllText(ConfigPath);
                 var config = JsonConvert.DeserializeObject<DuctStandardsConfig>(json);
-                return config ?? CreateDefault();
+                if (config != null)
+                    return config;
+
+                loadError = "The file is empty.";
             }
-            catch
+            catch (Exception ex)
             {
-                return CreateDefault();
+                loadError = ex.Message;
             }
+
+            return CreateDefault();
         }
 
         public static bool Save(DuctStandardsConfig config)
@@ -94,11 +113,8 @@ namespace AJTools.Services.DuctStandards
             return config;
         }
 
-        public static void ResetToDefault()
-        {
-            Save(CreateDefault());
-        }
-
+        // Writes the defaults only when there is no file at all - never over one that exists but
+        // could not be read (see Load).
         private static void EnsureDefault()
         {
             if (!File.Exists(ConfigPath))

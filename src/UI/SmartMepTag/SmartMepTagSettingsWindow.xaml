@@ -3,8 +3,8 @@
   Description: Enable/disable and prioritise the MEP categories Smart MEP Tags will process, plus the
                skip-vertical-runs rule shared with Create Tags and Stack Tags.
   Author: Ajmal P.S.
-  Version: 1.0.0
-  Last Updated: 2026-07-28
+  Version: 1.0.1
+  Last Updated: 2026-10-12
   Revit Version: 2020 - latest
   Dependencies: AJTools.UI.ModernStyles
 -->
@@ -319,7 +319,7 @@
                                 Style="{StaticResource CompactSecondaryButton}"
                                 MinWidth="128"
                                 Click="OnReset"
-                                ToolTip="Tick every category, put each priority back to its default, and switch vertical-run skipping back on."/>
+                                ToolTip="Tick every category, put each priority and leader setting back to its default, reset the size limits, and switch vertical-run skipping back on."/>
 
                         <Button Grid.Column="2"
                                 x:Name="SaveButton"

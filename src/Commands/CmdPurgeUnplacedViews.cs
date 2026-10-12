@@ -2,14 +2,15 @@
 /*
  * Tool Name     : Purge Unplaced Views (shared runner)
  * File Name     : CmdPurgeUnplacedViews.cs
- * Purpose       : Shared runner used by the Purge Unplaced 3D Views and Purge Unplaced Sections commands;
- *                 validates the project, opens the preview window for the chosen mode, and reports the result.
+ * Purpose       : Shared runner (UnplacedViewPurgeCommandRunner) used by the five Purge Unplaced commands -
+ *                 3D Views, Sections, Schedules, Legends and Drafting Views; validates the project, opens
+ *                 the preview window for the chosen mode, and reports the result.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.1
+ * Version       : 1.1.2
  *
  * Created Date  : 2026-05-11
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -17,18 +18,22 @@
  *
  * Dependencies  : Autodesk Revit API, AJTools.Models.Purge, AJTools.UI.Purge (PurgeUnplacedViewsWindow)
  *
- * Input         : Full Project - the purge mode (3D views or sections) passed by the calling command.
+ * Input         : Full Project - the purge mode (3D views, sections, schedules, legends or drafting views)
+ *                 passed by the calling command.
  * Output        : Selected unplaced views deleted (transaction owned by the window); Succeeded/Cancelled.
  *
  * Notes         :
  * - Targets Revit 2020 through latest. Project-only; exits cleanly in the Family Editor.
- * - Not exposed as its own ribbon button - it is the shared engine behind the two purge commands.
+ * - Not exposed as its own ribbon button - it is the shared engine behind the five Purge Unplaced commands.
  * - Production-ready implementation.
  *
  * Changelog     :
- * v1.0.0 (2026-05-11) - Converted from interactive Python shell script.
+ * v1.0.0 (2026-05-11) - Ported from an earlier AJ Tools script.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block. Purge behaviour unchanged.
  * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
+ * v1.1.2 (2026-10-12) - Header corrected: the runner serves five commands, not two.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -85,7 +90,6 @@ namespace AJTools.Commands
             }
             catch (System.Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show(toolTitle, "Tool failed:\n" + ex.Message);
                 return Result.Failed;
             }

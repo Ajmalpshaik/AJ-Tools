@@ -5,10 +5,10 @@
  * Purpose       : Code-behind for the View Crop settings and run-scope dialog.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-04-08
- * Last Updated  : 2026-06-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -22,8 +22,17 @@
  * Notes         :
  * - Modal dialog - no Revit API calls in code-behind (skill rule).
  * - Annotation offset controls enable/disable based on the ApplyAnnotationCrop checkbox.
+ * - The offset box is read even while annotation crop is off, so turning it off never overwrites a
+ *   custom offset. Only while off (box disabled, so it cannot be corrected) does an unreadable or
+ *   negative value fall back to the offset the window opened with, instead of blocking the run.
+ * - The diagnostics button runs the same crop as Run and then shows the boundary report - its label
+ *   and tooltip say so, since it changes the model.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - With "Enable annotation crop" unticked the annotation offset was forced to 100 mm
+ *                       and saved, losing a custom value - the box's value is now kept. "Boundary
+ *                       Diagnostics" relabelled "Crop and Show Diagnostics" with a tooltip: it always
+ *                       ran the full crop, but read like a check that changes nothing.
  * v1.2.0 (2026-06-28) - Added Crop Mode radio buttons (visible/all-model); wired to ViewCropSettings.ExtentSource.
  * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
  * v1.0.2 (2026-05-24) - Integrated presets logic and toggle annotation offsets.
@@ -48,6 +57,9 @@ namespace AJTools.UI.ViewCrop
     public partial class ViewCropOptionsWindow : Window
     {
         private bool _isCustomPresetSelection = false;
+
+        /// <summary>The annotation offset the window opened with - kept if annotation crop is off and the box is unreadable.</summary>
+        private readonly double _openingAnnotationOffsetMm;
 
         internal ViewCropOptionsWindow(string toolTitle, ViewCropSettings initialSettings)
         {
@@ -87,6 +99,7 @@ namespace AJTools.UI.ViewCrop
 
             // Annotation Integration
             ApplyAnnotationCheckBox.IsChecked = settings.ApplyAnnotationCrop;
+            _openingAnnotationOffsetMm = settings.AnnotationOffsetMm;
             AnnotationOffsetTextBox.Text = settings.AnnotationOffsetMm.ToString("0.###", CultureInfo.CurrentCulture);
             UpdateAnnotationControlsState();
 
@@ -197,11 +210,13 @@ namespace AJTools.UI.ViewCrop
                 return false;
             }
 
-            double annotationOffset = 100.0;
+            // Always read the box: forcing a fixed value while annotation crop is off saved it over the
+            // user's own offset, so the next time they ticked the box their value was gone.
+            string offsetText = (AnnotationOffsetTextBox.Text ?? string.Empty).Trim();
+            bool offsetParsed = double.TryParse(offsetText, NumberStyles.Float, CultureInfo.CurrentCulture, out double annotationOffset);
             if (ApplyAnnotationCheckBox.IsChecked == true)
             {
-                string offsetText = (AnnotationOffsetTextBox.Text ?? string.Empty).Trim();
-                if (!double.TryParse(offsetText, NumberStyles.Float, CultureInfo.CurrentCulture, out annotationOffset))
+                if (!offsetParsed)
                 {
                     ErrorText.Text = "Annotation offset must be a valid number.";
                     ErrorText.Visibility = Visibility.Visible;
@@ -214,6 +229,12 @@ namespace AJTools.UI.ViewCrop
                     ErrorText.Visibility = Visibility.Visible;
                     return false;
                 }
+            }
+            else if (!offsetParsed || annotationOffset < 0)
+            {
+                // The box is disabled while annotation crop is off, so the user cannot correct it here.
+                // Keep the offset the window opened with rather than refuse to run over an unused field.
+                annotationOffset = _openingAnnotationOffsetMm;
             }
 
             SelectedSettings = new ViewCropSettings

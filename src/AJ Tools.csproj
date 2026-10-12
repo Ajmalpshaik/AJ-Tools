@@ -6,8 +6,7 @@
        Directory.Build.props at the repo root.
 
        Build "Release" for Revit 2020, "Release R21".."Release R27" for
-       2021-2027, or run build-all.ps1 at the repo root to build every
-       version in one go.
+       2021-2027. dist\package.ps1 builds and packages all eight in one go.
 
        All .cs files and .xaml pages under src/ are auto-included by the SDK
        (last count 2026-07-17: 300 .cs files, 27 .xaml pages — counts grow
@@ -51,7 +50,6 @@
   <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Security" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Drawing" />
   </ItemGroup>
@@ -64,38 +62,9 @@
     </Content>
   </ItemGroup>
 
-  <!-- ================================================================
-       Auto-deploy destinations (targets in Directory.Build.targets).
-
-       The ProgramData (all-users) deploy is DISABLED, on purpose.
-
-       DeployAjToolsAddin copied only $(TargetPath), the PDB and @(Content) -
-       the DLL and the icons. It never copied the NuGet dependencies
-       (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit). So it produced a
-       7.7 MB install missing everything the AI shell needs, while
-       registering it under the SAME AddInId as the complete AppData one. Two
-       registrations for one add-in, and the incomplete one could win.
-
-       Found 2026-08-12 during a clean-up: ProgramData held a 7.7 MB "1.43.0"
-       with no dependencies, AppData a complete 1.42.1, and it was not obvious
-       which Revit was actually loading. Nearly deleted the working one.
-
-       AutoDeployRevitAddin (AppData) copies $(OutputPath)**\*.* - everything -
-       and is the deploy that has always actually worked. That is now the only
-       one. Genuine all-users installs still go through dist\install-all-users.cmd,
-       which ships a complete payload.
-
-       To re-enable, restore both entries below AND fix the target in
-       Directory.Build.targets to copy the dependencies, or the same broken
-       half-install comes back.
-       ================================================================ -->
-  <!--
-  <PropertyGroup>
-    <RevitAddinDeployName>AJ Tools</RevitAddinDeployName>
-  </PropertyGroup>
-  <ItemGroup>
-    <DeployRoots Include="$(ProgramData)\Autodesk\Revit\Addins\$(RevitVersion)\" />
-  </ItemGroup>
-  -->
+  <!-- Build-time auto-deploy goes to the current user's AppData only (target in
+       Directory.Build.targets). All-users installs go through dist\install-all-users.cmd,
+       which ships the complete payload. The old ProgramData deploy target was removed
+       2026-10-12 - it installed without the NuGet dependencies under the same AddInId. -->
 
 </Project>

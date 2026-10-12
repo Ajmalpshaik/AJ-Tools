@@ -28,10 +28,10 @@
    - `CHANGELOG.md`
    - any affected README or install documentation
 2. Commit the source-repo release changes.
-3. Build the package:
+3. Build the package (builds all eight Revit configurations, 2020-2027, into one zip):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release
+powershell -ExecutionPolicy Bypass -File .\dist\package.ps1
 ```
 
 4. Confirm the output file exists and matches the intended version:
@@ -40,8 +40,8 @@ powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Relea
 
 5. Prepare the installer repository. `AJ-Tools-Installer` is a sibling checkout *inside* this
    repository's folder (it is gitignored here and is its own repo), so `-SourceRepoPath` points back at
-   this repository root — since 2026-08-05 that root IS the git working copy, not the old `AJ Tools\`
-   subfolder:
+   this repository root. Always pass it explicitly: the installer script's own default still points at
+   the old `AJ Tools\` copy, which was deleted on 2026-10-12, so leaving it out fails.
 
 ```powershell
 Set-Location "D:\06_Development\01_AJ-Tools\Revit Addins\AJ-Tools-Installer"
@@ -62,12 +62,16 @@ powershell -ExecutionPolicy Bypass -File .\tools\prepare-release.ps1 -SourceRepo
    Worth verifying before publishing, since users trust both:
 
 ```powershell
+# Full paths on purpose: step 5 leaves the shell inside AJ-Tools-Installer.
+$root = "D:\06_Development\01_AJ-Tools\Revit Addins"
+
 # every payload carries the intended version
-Get-ChildItem "dist\release\AJ-Tools-vX.Y.Z" -Recurse -Filter "AJ Tools.dll" |
+Get-ChildItem "$root\dist\release\AJ-Tools-vX.Y.Z" -Recurse -Filter "AJ Tools.dll" |
     ForEach-Object { "{0,-8} {1}" -f $_.Directory.Name, $_.VersionInfo.FileVersion }
 
 # the listed checksum actually matches the zip
-(Get-FileHash "AJ-Tools-Installer\releases\AJ-Tools-vX.Y.Z.zip" -Algorithm SHA256).Hash.ToLower()
+(Get-FileHash "$root\AJ-Tools-Installer\releases\AJ-Tools-vX.Y.Z.zip" -Algorithm SHA256).Hash.ToLower()
+Get-Content "$root\AJ-Tools-Installer\releases\SHA256SUMS.txt"
 ```
 
 7. Publish the installer repository release:
@@ -94,13 +98,17 @@ powershell -ExecutionPolicy Bypass -File .\dist\create-tag.ps1 -Version X.Y.Z -P
    check is the one that matters, since a release can exist with a truncated or missing asset:
 
 ```powershell
-gh run watch (gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status
-gh release view vX.Y.Z --repo Ajmalpshaik/AJ-Tools-Installer
+# The publish workflow lives in the installer repository, so name it on both calls.
+$repo = "Ajmalpshaik/AJ-Tools-Installer"
+gh run watch (gh run list --repo $repo --limit 1 --json databaseId --jq '.[0].databaseId') --repo $repo --exit-status
+gh release view vX.Y.Z --repo $repo
 
 # Download the published asset and check it against the published checksum.
 # Run from a scratch folder - this writes the zip into the current directory.
-gh release download vX.Y.Z --repo Ajmalpshaik/AJ-Tools-Installer
-sha256sum -c SHA256SUMS.txt
+gh release download vX.Y.Z --repo $repo
+$expected = ((Get-Content SHA256SUMS.txt | Where-Object { $_ -like "*AJ-Tools-vX.Y.Z.zip" }) -split '\s+')[0]
+$actual = (Get-FileHash "AJ-Tools-vX.Y.Z.zip" -Algorithm SHA256).Hash.ToLower()
+if ($expected -eq $actual) { "Checksum OK" } else { "CHECKSUM MISMATCH - do not announce this release" }
 ```
 
    If `gh` is ever unavailable, the API fallback still works:

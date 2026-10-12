@@ -1,19 +1,19 @@
 // ==================================================
 // Tool Name    : Purge Unplaced Views
-// Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
+// Purpose      : Outcome of a Purge Unplaced delete run - counts plus per-view skip/failure reasons.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
 // Version      : 1.0.0
 // Created      : 2026-05-11
 // Last Updated : 2026-05-11
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Target       : Revit 2020 - 2027
+// Framework    : .NET Framework 4.7.2 (2020) / 4.8 (2021-2024) / .NET 8 (2025-2026) / .NET 10 (2027)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Active Revit document and user purge options.
 // Output       : Safe purge result with final report.
 // Notes        : Added under AJ Tools Purge panel.
-// Changelog    : v1.0.0 - Converted from Interactive Python Shell script.
+// Changelog    : v1.0.0 - Ported from an earlier AJ Tools script.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================

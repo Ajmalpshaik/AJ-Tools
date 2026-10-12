@@ -4,14 +4,13 @@
  * File Name     : ElementSnoopService.cs
  * Purpose       : Reads every parameter (instance + type) of the currently selected element(s) and
  *                 formats them into a plain-text dump for the Output panel - a no-code way to see
- *                 "what parameters does this thing have", the same job RevitPythonShell's
- *                 lookup()/RevitLookup integration does for a modeler exploring the API.
+ *                 "what parameters does this thing have" while exploring the model and the API.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -31,6 +30,8 @@
  *   the rest of the dump.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Purpose reworded in this project's own words - it no longer names outside
+ *                       tools (project rule). No code change.
  * v1.1.0 (2026-07-23) - Added the same re-entrancy guard RevitExecutionService/ReplSessionService
  *                       already use: a second SnoopSelectionAsync() call while one is still running
  *                       now returns immediately instead of overwriting the shared _tcs field, which

@@ -7,14 +7,15 @@ AJ Tools is Ajmal's own Revit add-in: a C# / WPF plugin that adds two ribbon tab
 tools, plus a built-in AI shell (AJ AI). Facts a session should not have to rediscover:
 
 - Solution: `AJ Tools.sln` at the repo root. **Live source tree: root `src/`** (`src/AJ Tools.csproj`) —
-  Commands, Core (ribbon managers), Helpers, Models, Services, UI, AiShell, Resources.
+  Commands, Core (ribbon managers), Helpers, Models, Services, UI, AiShell, GameMode, QuickMenu, Resources.
 - One codebase builds **Revit 2020 → 2027** via root `Directory.Build.props`/`.targets`
   (configs: `Release` = 2020 baseline, `Release R21` … `R27`; frameworks net472 / net48 /
   net8.0-windows / net10.0-windows). **2020 is the tested baseline and the version Ajmal runs live.**
-- **A normal build auto-deploys the DLL into the local Revit Addins folders** (ProgramData + AppData).
+- **A normal build auto-deploys the DLL into your own Revit Addins folder** (AppData, a fresh
+  `AJ Tools.<stamp>` folder per build; all-users installs only ever go through `dist\install-all-users.cmd`).
   For a compile-only check, always pass `-p:SkipAjToolsAutoDeploy=true`.
 - Packaging scripts live in `dist/`; releases ship through the separate `AJ-Tools-Installer` GitHub
-  repo (see `RELEASE_PROCESS.md`). GitHub/git work goes through the `aj-tools-github` skill.
+  repo (see `RELEASE_PROCESS.md`). GitHub/git work goes through the `github-aj-tools` skill.
 - **Never add a `connector/` or `connector-tools/` folder under this root.** Both are gitignored:
   a separate product once lived here and was moved out for exactly the reason the old `AJ Tools\`
   tree demonstrated — two copies drift.
@@ -37,7 +38,7 @@ output (`src/bin`, `src/obj`, `dist/release`).
 **Git — the root IS the working repository now (changed 2026-08-05).** The root `.git` used to be
 hollow (hooks/ and info/ only), so nothing done in the live `src/` tree was recorded anywhere. It was
 replaced with a copy of the repository that had been sitting inside `AJ Tools\`, so the root now
-carries the full history (183 commits, 47 tags) on branch `master`, pushed to
+carries the full history on branch `master`, pushed to
 `https://github.com/Ajmalpshaik/AJ-Tools.git` (**public** — checked 2026-08-20; this line said "private"
 until then, and it was wrong, which matters when deciding what may be written into a commit). Normal git
 commands work at the root.
@@ -46,7 +47,7 @@ The old `AJ Tools\` copy (with its own `.git`) was **deleted on 2026-10-12** aft
 checked first: same commit as GitHub, nothing uncommitted. If a folder of that name ever reappears, it
 is stale: do not edit it, commit from the root only.
 `.gitignore` excludes both `AJ Tools/` and `AJ-Tools-Installer/` (the installer is its own separate
-repository). All GitHub/git work still goes through the `aj-tools-github` skill, and pushing still
+repository). All GitHub/git work still goes through the `github-aj-tools` skill, and pushing still
 needs Ajmal's explicit yes.
 
 ## Who you're working with, and how
@@ -97,10 +98,14 @@ Revit's API output and the model's own naming/tagging conventions describe *inte
 reality*. Don't report either as fact without checking — think like an experienced modeller who'd walk the
 run themselves rather than just reading the tag.
 
-- **Proof case**: the CRAC refrigerant trace. Tag names implied `CAC001A` pairs with `ACU001A*`, and
-  `Connector.IsConnected` was `false` end to end — both looked like they should be trustworthy, both were
-  wrong. The real pairing (A↔B cross-connected) only came out by geometrically tracing actual connector
-  positions, ignoring both the naming and the `IsConnected` flag.
+- **Proof case (model data)**: a refrigerant trace where tag names implied one pairing and
+  `Connector.IsConnected` was `false` end to end — both looked trustworthy, both were wrong. The real
+  pairing only came out by geometrically tracing actual connector positions.
+- **Proof case (plugin code, found 2026-10-12)**: L-Shape Leader read and wrote tag leaders by
+  reflection on property names. Revit 2023 removed those properties from `IndependentTag`, the build
+  still compiled clean on all eight versions, and the tool silently did nothing on MEP tags on Revit
+  2023 and later. Only reading the installed `RevitAPI.dll`/`RevitAPI.xml` per version showed it. A
+  clean build proves the code compiles, not that it still does the job.
 - **The general habit, for every AJ Tools task** (not just MEP tracing): when the direct/obvious Revit API
   answer doesn't hold up — a flag that should be true isn't, a name that should predict behavior doesn't —
   don't paper over it or guess. Find the technique that gets the *real* answer (geometry, cross-referencing
@@ -120,7 +125,8 @@ before starting the next (Ajmal confirmed this way of working) — never one opa
 **Plugin source work** (`ajtools-build` / `ajtools-debug`):
 1. House conventions followed — metadata block, version-safe helpers, `LeaderLogicService` for tag
    leaders, ribbon wiring in the ribbon managers. The checklist with detail is `ajtools-conventions.md`.
-2. Clean build, deploy skipped (this PC has the .NET SDK, not Visual Studio/MSBuild):
+2. Clean build, deploy skipped (this PC has the .NET 10 SDK and Visual Studio 2026; VS's `msbuild` is not
+   on PATH, so use `dotnet build`):
    `dotnet build "AJ Tools.sln" -c Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true --no-incremental`
    → zero errors, zero warnings (the project currently builds warning-free — keep it that way).
    `Release` (2020) is the minimum; if the change touches version-sensitive API, also build at least

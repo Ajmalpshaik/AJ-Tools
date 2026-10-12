@@ -1,8 +1,8 @@
 // Tool Name: Pin Elements Service
 // Description: Collects target groups and applies pin/unpin state in bulk.
 // Author: Ajmal P.S.
-// Version: 1.3.0
-// Last Updated: 2026-07-13
+// Version: 1.3.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 
 using System;
@@ -157,14 +157,6 @@ namespace AJTools.Services.PinTools
         public static int CountCandidates(Document doc, View activeView, PinTargetGroup group, bool includeAllSheets = false)
         {
             return CollectCandidateIds(doc, activeView, new[] { group }, includeAllSheets).Count;
-        }
-
-        /// <summary>
-        /// Counts distinct candidate elements across multiple groups.
-        /// </summary>
-        public static int CountCandidates(Document doc, View activeView, IEnumerable<PinTargetGroup> groups, bool includeAllSheets = false)
-        {
-            return CollectCandidateIds(doc, activeView, groups, includeAllSheets).Count;
         }
 
         /// <summary>

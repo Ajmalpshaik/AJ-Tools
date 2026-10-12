@@ -1,8 +1,8 @@
 ﻿// Tool Name: Shared Parameter to Family Parameter - UI
 // Description: Window logic for selecting shared parameters to convert.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-26
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: System.Windows
 
@@ -83,6 +83,12 @@ namespace AJTools.UI
 
         private void OnOkClick(object sender, RoutedEventArgs e)
         {
+            // OK is disabled until something is selected; re-checked here as a guard.
+            if (_selectedParameters.Count == 0)
+            {
+                return;
+            }
+
             DialogResult = true;
             Close();
         }
@@ -151,6 +157,13 @@ namespace AJTools.UI
         {
             AddButton.IsEnabled = AvailableListBox.SelectedItem != null;
             RemoveButton.IsEnabled = SelectedListBox.SelectedItem != null;
+
+            // Nothing to convert yet: OK would only close the window and then report that nothing
+            // was selected, losing the window for a relaunch from the ribbon.
+            if (OkButton != null)
+            {
+                OkButton.IsEnabled = _selectedParameters.Count > 0;
+            }
 
             StatusText.Text =
                 $"Shared parameters: {_availableParameters.Count}   |   Selected for conversion: {_selectedParameters.Count}";

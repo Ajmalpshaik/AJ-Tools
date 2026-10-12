@@ -5,10 +5,10 @@
  * Purpose       : Persists View Crop and integrated annotation settings on disk.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-05-24
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -17,13 +17,17 @@
  * Dependencies  : System.IO, System.Globalization
  *
  * Input         : ViewCropSettings (Save) or none (Load).
- * Output        : Loaded ViewCropSettings or persisted text file.
+ * Output        : Loaded ViewCropSettings, or persisted text file plus a success flag and error text (Save).
  *
  * Notes         :
  * - File location: %APPDATA%\AJTools\ViewCrop.config (key=value lines, InvariantCulture).
- * - Read and write failures are swallowed - settings revert to defaults rather than crashing the tool.
+ * - Read failures are swallowed - settings revert to defaults rather than crashing the tool.
+ * - Write failures are NOT swallowed: Save returns false with the reason, so the command can tell the
+ *   user the settings were not remembered. It still never throws.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Save returns success plus the error text. A write failure used to be swallowed,
+ *                       so the user was never told their settings had not been remembered.
  * v1.1.0 (2026-06-27) - Metadata refresh to skill standard.
  *
  * License       : All Rights Reserved
@@ -114,10 +118,19 @@ namespace AJTools.Utils
             return settings;
         }
 
-        internal static void Save(ViewCropSettings settings)
+        /// <summary>
+        /// Writes the settings file. Never throws.
+        /// </summary>
+        /// <returns>False when the file could not be written; <paramref name="errorMessage"/> says why.</returns>
+        internal static bool Save(ViewCropSettings settings, out string errorMessage)
         {
+            errorMessage = string.Empty;
+
             if (settings == null)
-                return;
+            {
+                errorMessage = "No settings to save.";
+                return false;
+            }
 
             try
             {
@@ -138,10 +151,13 @@ namespace AJTools.Utils
                     writer.WriteLine($"ShowDiagnostics={settings.ShowDiagnostics}");
                     writer.WriteLine($"IncludeCoordinationModels={settings.IncludeCoordinationModels}");
                 }
+
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore settings write failures.
+                errorMessage = ex.Message;
+                return false;
             }
         }
 

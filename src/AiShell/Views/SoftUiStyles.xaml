@@ -4,9 +4,13 @@ Purpose   : Soft Revit UI resource dictionary (Neumorphism + Claymorphism, Neon 
             theme) shared by AiShellView.xaml (the docked pane), SettingsWindow.xaml and
             SavedScriptsWindow.xaml, so all three surfaces stay visually consistent from one source.
 Author    : Ajmal P.S.
-Version   : 1.1.0
-Last Updated : 2026-08-05
-Changelog : v1.1.0 - Interaction motion, matched to the suite theme (UI/ModernStyles.xaml v1.3.0) so the
+Version   : 1.1.1
+Last Updated : 2026-10-12
+Changelog : v1.1.1 - Removed five brushes nothing used (PrimaryHoverBrush, PrimaryPressedBrush,
+            SoftCardHoverBrush, DangerBrush, SuccessBrush - checked across src/ and tools/, none
+            of the three windows that merge this file reference them) and the comment that claimed
+            the first three were still used by dropdown rows (they were not).
+            v1.1.0 - Interaction motion, matched to the suite theme (UI/ModernStyles.xaml v1.3.0) so the
             AI shell feels like the same product as the tool windows: hover wash, press dip, focus ring
             and enable/disable fade on buttons; hover + focus rings on text and password fields; the
             dropdown arrow rotates while the list is open. Same two house rules as ModernStyles - never
@@ -23,21 +27,16 @@ Changelog : v1.1.0 - Interaction motion, matched to the suite theme (UI/ModernSt
 
     <!-- Soft Revit UI — Neon Blue, dark theme -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="#00C8FF"/>
-    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#37D7FF"/>
-    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#009FCC"/>
     <SolidColorBrush x:Key="PrimaryTextBrush" Color="#062028"/>
 
     <SolidColorBrush x:Key="SurfaceBrush" Color="#1F2428"/>
     <SolidColorBrush x:Key="CardBrush" Color="#2A3035"/>
     <SolidColorBrush x:Key="SoftCardBrush" Color="#303840"/>
-    <SolidColorBrush x:Key="SoftCardHoverBrush" Color="#39424B"/>
 
     <SolidColorBrush x:Key="TextBrush" Color="#F2F7FA"/>
     <SolidColorBrush x:Key="MutedBrush" Color="#A8B4BE"/>
     <SolidColorBrush x:Key="BorderBrush" Color="#46515A"/>
 
-    <SolidColorBrush x:Key="DangerBrush" Color="#E57373"/>
-    <SolidColorBrush x:Key="SuccessBrush" Color="#81C784"/>
     <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24"/>
     <SolidColorBrush x:Key="WarningTextBrush" Color="#2B2205"/>
 
@@ -206,9 +205,7 @@ Changelog : v1.1.0 - Interaction motion, matched to the suite theme (UI/ModernSt
 
     <!-- The three button colours below carry no hover/press triggers of their own any more: hover and
          press come from the animated overlays in SoftButtonBase, so all three behave identically and
-         a fourth colour can be added by setting Background alone.
-         PrimaryHoverBrush / PrimaryPressedBrush / SoftCardHoverBrush stay defined above - they are part
-         of the palette and are still used elsewhere (dropdown rows). -->
+         a fourth colour can be added by setting Background alone. -->
     <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonBase}">
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>

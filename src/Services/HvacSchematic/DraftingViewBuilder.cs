@@ -442,9 +442,9 @@ namespace AJTools.Services.HvacSchematic
                 return string.Empty;
             }
 
-            // Terminal annotation carries only the flow value (rule 9). The mark/label
-            // remains on the duct side if the user needs it; keeping the terminal clean
-            // prevents overcrowding at the end of each branch.
+            // Terminal annotation carries only the flow value. The terminal's own mark/label is
+            // not drawn anywhere on the schematic (duct text is size and flow only); keeping the
+            // terminal clean prevents overcrowding at the end of each branch.
             return node.FlowLabel ?? string.Empty;
         }
 

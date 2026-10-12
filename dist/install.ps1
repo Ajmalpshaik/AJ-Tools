@@ -130,6 +130,17 @@ function Get-PayloadFilesForVersion {
     return @()
 }
 
+function Get-AllUsersAddinRoot {
+    param([Parameter(Mandatory = $true)][int]$Version)
+
+    # Revit 2027 moved the all-users add-in folder from ProgramData to Program Files (it needs
+    # Administrator rights, which -AllUsers already requires). 2020-2026 still read ProgramData.
+    if ($Version -ge 2027) {
+        return Join-Path $env:ProgramFiles "Autodesk\Revit\Addins\$Version"
+    }
+    return Join-Path $env:ProgramData "Autodesk\Revit\Addins\$Version"
+}
+
 function Get-InstallTargets {
     param(
         [Parameter(Mandatory = $true)]
@@ -149,7 +160,7 @@ function Get-InstallTargets {
             $targets += @{
                 Scope = "All Users"
                 Version = $version
-                AddinRoot = Join-Path $env:ProgramData "Autodesk\Revit\Addins\$version"
+                AddinRoot = Get-AllUsersAddinRoot -Version $version
             }
         }
     }

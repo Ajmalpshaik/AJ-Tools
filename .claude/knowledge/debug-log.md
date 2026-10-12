@@ -488,7 +488,7 @@ Revit, or code-review only) -> date.
   duct/pipe/tray runs can tilt the cloud away from 0/90 degrees — but not applied without his sign-off.
   -> 2026-07-28 (open).
 
-### 2026-07-28 (HVAC Schematic: "The given key was not present in the dictionary" — OPEN, diagnostic build deployed)
+### 2026-07-28 (HVAC Schematic: "The given key was not present in the dictionary" — FIXED in 1.25.7, entry closed 2026-10-12)
 - **Symptom (Ajmal's words: "IN THE HVAC SCHEMATIC ITS CAME WHY")**: Create HVAC Schematic From Model
   shows "An unexpected error occurred. / The given key was not present in the dictionary." Popup text is
   the OUTER catch of `HvacSchematicCommand.Execute` — so the crash is in analysis/layout, BEFORE the
@@ -521,6 +521,15 @@ Revit, or code-review only) -> date.
 - **Process note**: reproduced the click via desktop automation once — a stray second Revit (viewer
   mode) got launched and Ajmal stopped it; desktop automation is now off-limits (see cross-session
   memory `no-desktop-automation`). Ask him to click instead. -> 2026-07-28.
+- **Resolution (recorded 2026-10-12, full audit)**: the root cause was found and fixed the same night in
+  commit 29d6112 (`SchematicLayoutEngine.cs` v1.1.1, suite 1.25.7), but this entry was never closed.
+  `AssignTreePositions` pre-set `continuationChildId` to "none" (-1) and then passed it as the `out`
+  argument of `TryGetValue`, which overwrites it with 0 when the key is missing - so every leaf node
+  looked up `nodeById[0]` and threw on almost every run. The hand-written replay passed because it
+  checked `TryGetValue`'s return value, which the shipped code did not. The fix checks it. The audit
+  also confirmed every remaining `[ ]` lookup in the schematic code only receives guaranteed keys.
+  **Lesson**: an `out` parameter is always written, even when the lookup fails - never pre-set a
+  default and then pass the same variable as `out`.
 
 ### 2026-07-28 (v1.25.6 shipped as a public release, same day as the audit)
 - Ajmal asked to finish the remaining work (public installer release) right after the audit landed on
@@ -1123,3 +1132,73 @@ Revit, or code-review only) -> date.
   **Not run in Revit.** Open questions for the first live 2027 test: does an upgraded zone still carry a
   "Number" parameter, and does the old "Default" zone (which `Space.Zone` returned for unzoned spaces)
   survive the upgrade? If not, 2027 reports "No HVAC zone" where 2020 wrote "Default".
+
+### 2026-10-12 (Full audit of every file — about 100 fixes across the suite, suite 1.57.1)
+- **How found**: Ajmal asked for every file to be checked and real mistakes fixed. Read-only reviewers
+  swept `src/` and the docs; each finding was re-checked against the code and the installed RevitAPI.xml
+  before nine fix teams (one per tool area, each in its own worktree) fixed them. Reviewed and merged one
+  by one. **Verified how, for every item below: code review + clean builds (Revit 2020 / 2024 / 2027
+  configs, 0 warnings). Nothing was run in Revit.** Revit API facts behind these bugs are recorded once,
+  in ajtools-conventions.md ("Revit API facts confirmed in the 2026-10-12 audit").
+- **Wrong numbers / wrong model results** (symptom -> cause -> fix):
+  - Pipe Sizing friction loss 100x too small -> the US Hazen-Williams result is psi per FOOT, shown as
+    per 100 ft -> x100 (10 gpm in 3/4" uPVC: 0.08 -> 7.7 psi/100 ft).
+  - Duct Standards: 16" (406.4 mm) and other non-whole-mm sizes matched no rule -> they fell in the 1 mm
+    gap between bands -> retry at the nearest whole mm. A typed pressure class was overwritten with the
+    default -> only an empty one is filled. Per-duct values went into TYPE parameters and mm went raw
+    into Length parameters -> instance only, Length converted, other units skipped and reported.
+  - Filter Pro: applying a colour lost 14 of the filter's 21 override settings -> built a new
+    OverrideGraphicSettings instead of copying -> copy constructor. Colorize used the wrong colour index.
+  - Create Tags: tags landed inside wide ducts and vertical runs were treated as horizontal ->
+    Orientation/HostWidth never set -> set with Smart MEP Tags' rules.
+  - L-Shape Leader silently did nothing on Revit 2023+ -> read LeaderElbow/LeaderEnd by reflection; both
+    properties were removed in 2023 -> TagCompat via LeaderLogicService.
+  - Fix Tag Clash: keynote/revision-cloud tags clashed with themselves -> every IndependentTag was also
+    an obstacle -> skipped. Colours vanished when no tag could move -> returned Cancelled after
+    committing, and Revit undoes a command that does not succeed -> Succeeded when anything committed.
+  - Match Elevation: conduit top/bottom off by half the diameter -> conduit size never read.
+  - MEP Openings: floor openings for risers with width along Y were turned 90 degrees -> width always
+    went on X -> read from the run's geometry. Opening sizes were written to the family TYPE -> instance
+    only, type-only families refused with a message.
+  - Location Data: survey coordinates could come from the project base point -> first BasePoint taken
+    -> IsShared one.
+  - Quick Dimension: one non-datum element failed the whole string -> whole-element reference used for
+    any element -> datums only, others skipped and counted.
+  - Revision Clouds by Elements: every cloud failed once the latest revision was issued, reported as a
+    geometry problem -> newest NOT-issued revision, Revit's reason shown.
+  - Connect MEP Elements: the new run's type depended on pick order; pipe insulation copies counted as
+    failures (GetLiningIds throws for pipes) -> both fixed.
+  - Smart MEP Tag: cable trays ignored the size minimums -> tray size never read. A duct whose size
+    could not be read pulled its tag closer than the offset (-1 used as a width) -> clamped.
+- **Things deleted or lost without a word**:
+  - Purge Unplaced Views deleted dependent and callout views (and their sheet placements) with the
+    target -> the probe now checks Revit's deleted-id set. Purge Unused offered templates used as a view
+    type's "applied to new views" default -> DefaultTemplateId counted as a use. Purge Unused refused
+    nothing that went along with the target -> same deleted-id check per kind.
+  - Transfer View Templates (Override) silently cleared view types' default templates -> recorded and
+    re-pointed.
+  - Duct Standards and Location Data "Create/Rebind": rebinding dropped every other category and could
+    Remove + re-insert (wiping values) -> merge categories, keep kind, never remove.
+  - Set Link Workset turned worksharing ON by itself on a non-workshared model -> refused instead.
+  - C# pane: an empty AI reply wiped the Code Editor; the Saved Scripts window and Run Pinned held their
+    own copies of the settings, so a pin was written back over; an unreadable settings file was replaced
+    by defaults (no keys) -> AiEmptyReplyException, one shared settings copy, unreadable file kept as .bak.
+  - Revision Cloud setting was lost on every update (saved beside the DLL) -> AppData, migrated once.
+  - Game Mode: a swapped key layout lost the "back" key after a restart; the snag report could be
+    written twice or not at all.
+- **Silent failures / wrong reports**: 29 error paths showed the same error twice (own box + `message`);
+  Graphics tools and the Match tools ended in silence when Revit refused every change; Create Openings
+  never showed its failure reasons; Unhide All always said Temporary Hide/Isolate was cleared; Linked
+  Element Search only searched the first model with that id; Linked ID Viewer could not pick host
+  elements; Section Mark Visibility did not save typed sheet numbers; the Smart MEP Tag report did not add
+  up; Duct Flow Annotations / Center Annotation / Stack Tags / the purge windows showed success popups.
+- **Undo**: Duct Flow Annotations, L-Shape Leader (pick mode), View Crop, Quick Dimension and Dimension by
+  Line made several undo steps per run -> one TransactionGroup each. (The TransactionGroup in the two
+  dimension services had been lost in the v1.13.5 catch-up sync.)
+- **Held back, not shipped**: measuring Smart MEP Tag's gap from every element's EDGE (today only ducts)
+  would move tags out by half the element's size — the 150 mm no-leader gap was tuned live with Ajmal
+  while it measured from the centre. Kept on local branch `audit/smart-tag-edge-gap` for his decision.
+- **Lesson**: most of these were one of five shapes — a value that should be checked was assumed (a
+  commit, a parameter's kind or unit, an issued revision), a reference cleared on delete was invisible
+  to the safety check, a failure path returned silently, a second copy of shared state, or a fix lost in
+  a later sync. Check those five first when a tool "does nothing" or "does the wrong thing". -> 2026-10-12.

@@ -5,10 +5,10 @@
  * Purpose       : Code-behind for the target-view picker (filter, group by sheet, validate selection).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-04-08
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,9 +21,13 @@
  *
  * Notes         :
  * - Modal dialog - no Revit API calls beyond reading ElementIds (skill rule).
- * - Search filter is culture-aware and case-insensitive.
+ * - Search filter is culture-aware and case-insensitive. It matches view name, view type, sheet number,
+ *   sheet name and group - the columns the user can actually see.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Dropped the always-true CanSelect checks and the search on the hidden status word
+ *                       "Supported" (typing any part of it, e.g. "sup", matched every view). Only supported
+ *                       views are listed, so every row was already selectable.
  * v1.1.0 (2026-06-27) - Refactor/audit pass: ElementIdHelper for de-dup, metadata, version coverage notes.
  *
  * License       : All Rights Reserved
@@ -93,7 +97,7 @@ namespace AJTools.UI.ViewCrop
             SelectionErrorText.Text = string.Empty;
             foreach (ViewCropTargetViewItem item in _items)
             {
-                if (item.CanSelect && FilterItem(item))
+                if (FilterItem(item))
                     item.IsSelected = true;
             }
 
@@ -116,7 +120,7 @@ namespace AJTools.UI.ViewCrop
             SelectionErrorText.Text = string.Empty;
 
             List<ElementId> selected = _items
-                .Where(i => i.CanSelect && i.IsSelected && i.ViewId != null)
+                .Where(i => i.IsSelected && i.ViewId != null)
                 .GroupBy(i => ElementIdHelper.GetIntegerValue(i.ViewId))
                 .Select(g => g.First().ViewId)
                 .ToList();
@@ -183,8 +187,7 @@ namespace AJTools.UI.ViewCrop
                 || Contains(item.ViewTypeName, search)
                 || Contains(item.SheetNumber, search)
                 || Contains(item.SheetName, search)
-                || Contains(item.GroupName, search)
-                || Contains(item.StatusText, search);
+                || Contains(item.GroupName, search);
         }
 
         private static bool Contains(string source, string term)

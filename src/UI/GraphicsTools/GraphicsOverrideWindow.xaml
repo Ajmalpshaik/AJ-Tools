@@ -5,10 +5,10 @@ File Name     : GraphicsOverrideWindow.xaml
 Purpose       : Defines the WPF Apply Graphics settings window layout.
 
 Author        : Ajmal P.S.
-Version       : 1.5.0
+Version       : 1.5.1
 
 Created Date  : 2026-03-30
-Last Updated  : 2026-06-30
+Last Updated  : 2026-10-12
 
 Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
 Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -19,6 +19,7 @@ Output        : Structured settings window for the combined Apply Graphics workf
 Notes         : Targets Revit 2020 through latest; normal success is silent; errors are reported to the user.
 
 Changelog     :
+v1.5.1 (2026-10-12) - The window edges can be dragged to resize it again (the resize border was 0 wide).
 v1.5.0 (2026-06-30) - Header aligned to the suite metadata standard; code-behind hardened (single-undo Match, version-safe ids).
 v1.4.6 (2026-05-10) - Compact tabbed layout with a visible custom close button and smaller startup size.
 
@@ -49,7 +50,7 @@ Repo          : AJ-Tools
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome ResizeBorderThickness="0"
+        <shell:WindowChrome ResizeBorderThickness="6"
                             CaptionHeight="0"
                             CornerRadius="0"
                             GlassFrameThickness="0"/>

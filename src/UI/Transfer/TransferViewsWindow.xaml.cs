@@ -3,8 +3,8 @@
 //              to transfer. Generalizes the same shape as TransferViewTemplatesWindow for the three kinds
 //              handled by TransferViewsCommandRunner.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-07-28
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020 - latest
 // Dependencies: Autodesk.Revit.DB, System.Windows
 
@@ -225,6 +225,12 @@ namespace AJTools.UI.Transfer
                 return;
             }
 
+            if (TargetDocument.IsReadOnly)
+            {
+                StatusText.Text = DescribeReadOnlyTarget(TargetDocument);
+                return;
+            }
+
             List<TransferElementItem> selected = _allItems.Where(item => item.IsChecked).ToList();
             if (selected.Count == 0)
             {
@@ -246,15 +252,19 @@ namespace AJTools.UI.Transfer
         {
             bool hasDocs = SourceDocument != null && TargetDocument != null;
             bool sameDoc = hasDocs && SourceDocument.Equals(TargetDocument);
+            bool targetReadOnly = hasDocs && TargetDocument.IsReadOnly;
             int selectedCount = _allItems.Count(item => item.IsChecked);
             int totalCount = _allItems.Count;
 
             CountText.Text = $"{selectedCount}/{totalCount}";
 
+            // A read-only target blocks only Transfer, and the status line says why while the window is still
+            // open - including straight after opening, before anything is ticked. It used to let Transfer
+            // close the window, and only then did the command refuse the target, throwing the picks away.
             bool canSelect = hasDocs && !sameDoc && _filteredItems.Count > 0;
             SelectAllButton.IsEnabled = canSelect;
             SelectNoneButton.IsEnabled = canSelect;
-            TransferButton.IsEnabled = hasDocs && !sameDoc && selectedCount > 0;
+            TransferButton.IsEnabled = hasDocs && !sameDoc && !targetReadOnly && selectedCount > 0;
 
             if (!hasDocs)
             {
@@ -268,6 +278,12 @@ namespace AJTools.UI.Transfer
                 return;
             }
 
+            if (targetReadOnly)
+            {
+                StatusText.Text = DescribeReadOnlyTarget(TargetDocument);
+                return;
+            }
+
             if (totalCount == 0)
             {
                 StatusText.Text = "No " + _kind.GetNounPlural() + " found in source project.";
@@ -275,6 +291,11 @@ namespace AJTools.UI.Transfer
             }
 
             StatusText.Text = $"{selectedCount} {(selectedCount == 1 ? _kind.GetNounSingular() : _kind.GetNounPlural())} selected.";
+        }
+
+        private static string DescribeReadOnlyTarget(Document target)
+        {
+            return $"Target project \"{target.Title}\" is read-only - choose another project to copy to.";
         }
 
         private static IEnumerable<DocumentOption> BuildDocumentOptions(IEnumerable<Document> documents)

@@ -1,14 +1,17 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Settings Service
 // Description: Persists Connect MEP Elements settings to local JSON storage.
 // Author: Ajmal P.S.
-// Version: 2.0.0
-// Last Updated: 2026-08-15
+// Version: 2.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Newtonsoft.Json, AJTools.Models
 //
 // Note: the maximum bend angle is 90 degrees. Earlier builds let the window save angles up to 175,
 // which the route builder then rejected on every pick. Anything above 90 found in an older settings
 // file is clamped back to 90 on load.
+//
+// Changelog: 2.0.1 (2026-10-12) - Save returns whether it worked, with the reason, so a failed save is
+//            reported instead of looking like a successful one.
 
 using System;
 using System.Collections.Generic;
@@ -60,11 +63,18 @@ namespace AJTools.Services.SmartConnect
             }
         }
 
-        public void Save(SmartConnectSettings settings)
+        /// <summary>
+        /// Writes the settings file. False, with the reason in <paramref name="errorMessage"/>, when
+        /// it could not be written - the caller tells the user, because a save that fails silently
+        /// leaves them believing settings are in force that never reached the file.
+        /// </summary>
+        public bool Save(SmartConnectSettings settings, out string errorMessage)
         {
+            errorMessage = string.Empty;
             if (settings == null)
             {
-                return;
+                errorMessage = "No settings to save.";
+                return false;
             }
 
             try
@@ -79,10 +89,12 @@ namespace AJTools.Services.SmartConnect
                 SmartConnectSettings sanitized = Sanitize(settings);
                 string json = JsonConvert.SerializeObject(sanitized, Formatting.Indented);
                 File.WriteAllText(settingsPath, json);
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Settings persistence failure should never block tool execution.
+                errorMessage = ex.Message;
+                return false;
             }
         }
 

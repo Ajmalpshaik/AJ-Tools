@@ -8,10 +8,10 @@
  *                 clicked.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-20
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -44,6 +44,12 @@
  * - Pressing S on the wheel opens the customise window instead of running a tool.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - The "No AJ Tools buttons could be read" check counts only AJ Tools entries
+ *                       (CountAjToolsEntries). Revit's own commands are always added to the catalog
+ *                       since v1.1.0 of QuickMenuCatalog, so the old whole-list check could never
+ *                       fire and an unreadable ribbon went unreported.
+ *                       An unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.1.0 (2026-08-20) - Works out each slot's availability before opening the wheel, so a tool the
  *                       ribbon would grey out is shown greyed out here too.
  * v1.0.0 (2026-08-18) - Initial release.
@@ -86,7 +92,9 @@ namespace AJTools.Commands.QuickMenu
                 QuickMenuConfig config = QuickMenuConfig.Load();
                 IList<QuickToolEntry> tools = QuickMenuCatalog.GetEntries(uiapp);
 
-                if (tools.Count == 0)
+                // Count only AJ Tools buttons: Revit's own commands are always appended to the
+                // catalog, so the whole list is never empty and a plain Count check could not fire.
+                if (CountAjToolsEntries(tools) == 0)
                 {
                     DialogHelper.ShowError(
                         ToolTitle,
@@ -133,10 +141,30 @@ namespace AJTools.Commands.QuickMenu
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, "The Quick Menu could not open:\n\n" + ex.Message);
                 return Result.Failed;
             }
+        }
+
+        /// <summary>How many catalog entries are AJ Tools ribbon buttons (not Revit commands).
+        /// Shared with CmdQuickMenuSettings.</summary>
+        internal static int CountAjToolsEntries(IList<QuickToolEntry> tools)
+        {
+            int count = 0;
+            if (tools == null)
+            {
+                return count;
+            }
+
+            foreach (QuickToolEntry entry in tools)
+            {
+                if (entry != null && entry.Source == QuickToolSource.AjTools)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
     }
 }

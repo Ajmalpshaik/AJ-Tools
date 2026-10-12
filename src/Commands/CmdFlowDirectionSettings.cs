@@ -5,10 +5,10 @@
  * Purpose       : Settings dialog that stores the annotation family and spacing used by Duct Flow Annotations.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2025-12-21
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Removed the success popup after saving (house rule: silent success). The window's
+ *                       main button now says Save, which is all this command does.
  * v1.0.0 (2025-12-21) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Settings behaviour unchanged.
  *
@@ -94,7 +96,6 @@ namespace AJTools.Commands
                     SpacingInternal = settingsWindow.SpacingInternal
                 });
 
-                DialogHelper.ShowInfo("Duct Flow", "Settings saved. Use 'Duct Flow' -> 'Place' to apply.");
                 return Result.Succeeded;
             }
             catch (System.Exception ex)

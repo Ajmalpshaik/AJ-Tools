@@ -47,6 +47,7 @@ namespace AJTools.Services.DuctStandards
                         report.Skipped++;
                     else
                         report.Failed++;
+                    report.AddWarnings(result);
                     continue;
                 }
 
@@ -68,6 +69,8 @@ namespace AJTools.Services.DuctStandards
                     }
                 }
 
+                // After the write, so the writer's own notes (parameters it had to skip) are included.
+                report.AddWarnings(result);
                 report.Processed++;
             }
 
@@ -94,7 +97,20 @@ namespace AJTools.Services.DuctStandards
             result.Shape = shape;
 
             // Pressure class and material
-            result.PressureClass = DuctRuleEngine.GetPressureClass(duct, config);
+            string pressureInput;
+            result.PressureClass = DuctRuleEngine.GetPressureClass(duct, config, out pressureInput);
+
+            // Empty parameter: the config default was used, and the writer may fill it in. A value the
+            // user typed is their input and is never overwritten - when it is not low/medium/high, the
+            // default is used for the calculation and the report says so instead of hiding it.
+            result.PressureClassDefaulted = string.IsNullOrWhiteSpace(pressureInput);
+            if (!result.PressureClassDefaulted && !DuctRuleEngine.IsKnownPressureClass(pressureInput))
+            {
+                result.Warnings.Add(string.Format(
+                    "Pressure class '{0}' not recognised - calculated as {1}",
+                    pressureInput.Trim(), result.PressureClass));
+            }
+
             result.MaterialName = DuctRuleEngine.GetMaterialName(duct, config);
             double density = DuctRuleEngine.GetMaterialDensity(config, result.MaterialName);
 

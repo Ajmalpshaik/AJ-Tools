@@ -6,10 +6,10 @@
  *                 geometry tolerances, and scan limits.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.0.2
  *
  * Created Date  : 2025-12-11
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -28,6 +28,7 @@
  * Changelog     :
  * v1.0.0 (2025-12-11) - Initial release.
  * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ * v1.0.2 (2026-10-12) - Removed DIRECTION_PRECISION, which nothing used.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -67,10 +68,6 @@ namespace AJTools.Utils
         /// </summary>
         public const int ELEMENT_SCAN_LIMIT = 10000;
 
-        /// <summary>
-        /// Precision for rounding grid direction keys (decimal places).
-        /// </summary>
-        public const int DIRECTION_PRECISION = 3;
 
         /// <summary>
         /// Very small value used for near-zero length checks.

@@ -32,7 +32,7 @@ nothing worth keeping stays trapped in chat history.
 
 ## Rules that keep the sweep honest
 
-- One fact, one home — duplication is what makes the indexes untrustworthy.
+- One fact, one home — duplication is what makes the notes untrustworthy.
 - A knowledge file past ~300 lines is a split *candidate*, not a mandate — measure first, and if it
   reads as one coherent job, say so and leave it alone.
 - When anything is added, split, or retired, update whatever points at it in the same step.

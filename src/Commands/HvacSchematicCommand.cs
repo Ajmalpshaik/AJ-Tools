@@ -6,10 +6,10 @@
  *                 air terminals, and mechanical equipment, using their connector network and levels.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-05-07
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -33,6 +33,7 @@
  * v1.1.0 (2026-07-28) - Error dialogs now include the exception type and the failing AJ Tools
  *                       method/line (trimmed stack trace), so a live crash pinpoints its source
  *                       instead of showing only a bare message ("key not present" debugging).
+ * v1.1.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -112,7 +113,6 @@ namespace AJTools.Commands
                             transaction.RollBack();
                         }
 
-                        message = ex.Message;
                         DialogHelper.ShowError(ToolTitle, "Failed to create the drafting view.\n\n" + BuildExceptionReport(ex));
                         return Result.Failed;
                     }
@@ -123,7 +123,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, "An unexpected error occurred.\n\n" + BuildExceptionReport(ex));
                 return Result.Failed;
             }

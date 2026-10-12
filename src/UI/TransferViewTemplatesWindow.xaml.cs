@@ -1,9 +1,9 @@
 ﻿// Tool Name: Transfer View Templates UI
 // Description: Code-behind for selecting source/target projects and view templates to transfer.
 // Author: Ajmal P.S.
-// Version: 1.1.0
-// Last Updated: 2026-07-13
-// Revit Version: 2020
+// Version: 1.1.1
+// Last Updated: 2026-10-12
+// Revit Version: 2020 - 2027
 // Dependencies: Autodesk.Revit.DB, System.Windows
 
 using System;
@@ -221,6 +221,12 @@ namespace AJTools.UI
                 return;
             }
 
+            if (TargetDocument.IsReadOnly)
+            {
+                StatusText.Text = DescribeReadOnlyTarget(TargetDocument);
+                return;
+            }
+
             List<ViewTemplateItem> selected = _allTemplates.Where(item => item.IsChecked).ToList();
             if (selected.Count == 0)
             {
@@ -242,15 +248,19 @@ namespace AJTools.UI
         {
             bool hasDocs = SourceDocument != null && TargetDocument != null;
             bool sameDoc = hasDocs && SourceDocument.Equals(TargetDocument);
+            bool targetReadOnly = hasDocs && TargetDocument.IsReadOnly;
             int selectedCount = _allTemplates.Count(item => item.IsChecked);
             int totalCount = _allTemplates.Count;
 
             CountText.Text = $"{selectedCount}/{totalCount}";
 
+            // A read-only target blocks only Transfer, and the status line says why while the window is still
+            // open - including straight after opening, before anything is ticked. It used to let Transfer
+            // close the window, and only then did the command refuse the target, throwing the picks away.
             bool canSelect = hasDocs && !sameDoc && _filteredTemplates.Count > 0;
             SelectAllButton.IsEnabled = canSelect;
             SelectNoneButton.IsEnabled = canSelect;
-            TransferButton.IsEnabled = hasDocs && !sameDoc && selectedCount > 0;
+            TransferButton.IsEnabled = hasDocs && !sameDoc && !targetReadOnly && selectedCount > 0;
 
             if (!hasDocs)
             {
@@ -264,6 +274,12 @@ namespace AJTools.UI
                 return;
             }
 
+            if (targetReadOnly)
+            {
+                StatusText.Text = DescribeReadOnlyTarget(TargetDocument);
+                return;
+            }
+
             if (totalCount == 0)
             {
                 StatusText.Text = "No view templates found in source project.";
@@ -271,6 +287,11 @@ namespace AJTools.UI
             }
 
             StatusText.Text = $"{selectedCount} template(s) selected.";
+        }
+
+        private static string DescribeReadOnlyTarget(Document target)
+        {
+            return $"Target project \"{target.Title}\" is read-only - choose another project to copy to.";
         }
 
         private static IEnumerable<DocumentOption> BuildDocumentOptions(IEnumerable<Document> documents)

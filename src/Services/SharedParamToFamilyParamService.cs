@@ -1,8 +1,8 @@
 // Tool Name: Shared Parameter to Family Parameter - Service
 // Description: Converts selected shared family parameters to normal family parameters.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-03-26
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
 
@@ -254,7 +254,9 @@ namespace AJTools.Services
             string tempName = BuildUniqueTemporaryName(targetName);
             try
             {
-                convertedParameter = _familyManager.ReplaceParameter(
+                // Same version-safe route as the first attempt above (group token type differs by version).
+                convertedParameter = RevitCompat.ReplaceParameter(
+                    _familyManager,
                     sourceParameter,
                     tempName,
                     parameterGroup,
@@ -811,12 +813,6 @@ namespace AJTools.Services
         public int WarningCount => _warnings.Count;
 
         public int FailureCount => _failures.Count;
-
-        public IList<string> Successes => _successes;
-
-        public IList<string> Warnings => _warnings;
-
-        public IList<string> Failures => _failures;
 
         public void AddSuccess(string parameterName)
         {

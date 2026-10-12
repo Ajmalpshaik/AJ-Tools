@@ -2,14 +2,14 @@
 /*
  * Tool Name     : AJ Annotation Ribbon Manager
  * File Name     : AnnotationRibbonManager.cs
- * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Auto Dimension, Dimensions,
- *                 Annotation, Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
+ * Purpose       : Builds the separate "AJ Annotation" ribbon tab - its panels (Dimensions, Annotation,
+ *                 Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-05-10
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - Purpose text corrected: the Auto Dimension panel was merged into Dimensions
+ *                       earlier; the panel list now matches what CreateRibbon builds. No behaviour change.
  * v1.5.0 (2026-08-15) - Auto Dimension panel: the "Auto Duct Dimension" pulldown becomes "Auto MEP
  *                       Dimension" (AddAutoDuctDimensionTool renamed AddAutoMepDimensionTool) with four
  *                       children - pick runs, dimension the selection, dimension the whole view, and

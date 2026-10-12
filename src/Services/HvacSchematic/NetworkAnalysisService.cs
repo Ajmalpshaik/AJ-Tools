@@ -3,9 +3,9 @@
 // Purpose      : Builds HVAC schematic nodes, edges, and network metadata from model selections.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.1.1
 // Created      : 2026-05-07
-// Last Updated : 2026-07-24
+// Last Updated : 2026-10-12
 // Target       : Revit 2020 - latest
 // Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
@@ -13,7 +13,10 @@
 // Input        : Selected HVAC element ids, connector data, and resolved levels.
 // Output       : Analyzed HVAC networks for schematic layout and drafting-view generation.
 // Notes        : Collects supported elements, connector relationships, and unresolved-analysis reports.
-// Changelog    : v1.1.0 - Network traversal restricted to duct-domain connectors so hydronic piping
+// Changelog    : v1.1.1 (2026-10-12) - The primary-equipment check reads only HVAC connectors and survives a
+//                         connector whose system cannot be read (that read throws), instead of
+//                         aborting the whole analysis.
+//                v1.1.0 - Network traversal restricted to duct-domain connectors so hydronic piping
 //                         no longer falsely links separate air systems or feeds water flow into labels.
 //                v1.0.0 - Initial production-ready HVAC schematic network analysis with standardized metadata.
 // License      : All Rights Reserved
@@ -687,11 +690,28 @@ namespace AJTools.Services.HvacSchematic
                     continue;
                 }
 
-                MEPSystem system = connector.MEPSystem;
-                FamilyInstance baseEquipment = system?.BaseEquipment;
-                if (baseEquipment != null && baseEquipment.Id.IntValue() == familyInstance.Id.IntValue())
+                // Air-side connectors only, the same rule the network traversal follows - being the
+                // base equipment of a pipe or electrical system does not make it the head of an air
+                // system. And each read is guarded: Connector.MEPSystem throws
+                // InvalidOperationException when a connector cannot report its system, which used
+                // to abort the whole analysis over one odd connector.
+                try
                 {
-                    return true;
+                    if (connector.Domain != Domain.DomainHvac)
+                    {
+                        continue;
+                    }
+
+                    MEPSystem system = connector.MEPSystem;
+                    FamilyInstance baseEquipment = system?.BaseEquipment;
+                    if (baseEquipment != null && baseEquipment.Id.IntValue() == familyInstance.Id.IntValue())
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // This connector says nothing about being primary; check the next one.
                 }
             }
 

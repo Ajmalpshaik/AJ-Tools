@@ -1,8 +1,10 @@
 // Tool Name: Geometry Extensions
 // Description: Extension methods for Revit geometry types (XYZ, Curve, etc.).
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-11
+// Version: 1.0.1
+// Last Updated: 2026-10-12
+// Changes: 1.0.1 - removed the XYZ.IsZeroLength() extension; Revit's own XYZ.IsZeroLength() instance
+//          method always wins over an extension of the same name, so it was never called.
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB
 
@@ -15,15 +17,6 @@ namespace AJTools.Utils
     /// </summary>
     internal static class GeometryExtensions
     {
-        /// <summary>
-        /// Checks if an XYZ vector has near-zero length.
-        /// </summary>
-        /// <param name="vector">The vector to check.</param>
-        /// <returns>True if the vector length is less than the zero tolerance.</returns>
-        public static bool IsZeroLength(this XYZ vector)
-        {
-            return vector.GetLength() < Constants.ZERO_LENGTH_TOLERANCE;
-        }
 
         /// <summary>
         /// Gets the normalized direction of a curve.

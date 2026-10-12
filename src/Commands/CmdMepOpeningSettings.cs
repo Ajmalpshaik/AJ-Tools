@@ -5,10 +5,10 @@
  * Purpose       : Revit external command entry point for opening settings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,7 @@
  * - Window is owned by the Revit main window.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  * v1.2.0 (2026-07-21) - Reverted v1.1.0 below - Opening Settings now only ever runs from the Opening
  *                       split button's dropdown and never becomes its default face
  *                       (RibbonManager.cs v1.12.0, IsSynchronizedWithCurrentItem = false), so Execute()
@@ -68,7 +69,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show("Opening Settings", "Opening settings could not start:\n\n" + ex.Message);
                 return Result.Failed;
             }

@@ -5,10 +5,10 @@
  * Purpose       : Loads and saves last-used Pipe Sizing settings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,10 +20,14 @@
  * Output        : JSON state file in user AppData.
  *
  * Notes         :
- * - Replaces pyRevit bundle-local state.json with a per-user AppData file.
- * - JSON field names remain compatible with the original Python state shape.
+ * - Replaces the bundle-local state.json of Ajmal's earlier pipe sizing script with a per-user AppData file.
+ * - JSON field names remain compatible with the state shape of Ajmal's earlier script.
+ * - Save reports whether it worked (and why not), so the window can tell the user instead of
+ *   silently losing their rows; it still never throws into the sizing workflow.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Save now returns a success flag plus the reason on failure (it used to swallow
+ *                       every error silently, so a failed save lost the user's rows with no word).
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  *
  * License       : All Rights Reserved
@@ -61,11 +65,17 @@ namespace AJTools.Services.PipeSizing
             }
         }
 
-        public static void Save(PipeSizingState state)
+        /// <summary>
+        /// Saves the last-used settings. Returns false (with the reason in errorMessage) when the file
+        /// could not be written. Never throws: state persistence must not interrupt the sizing workflow.
+        /// </summary>
+        public static bool Save(PipeSizingState state, out string errorMessage)
         {
+            errorMessage = null;
+
             if (state == null)
             {
-                return;
+                return true;
             }
 
             try
@@ -79,10 +89,12 @@ namespace AJTools.Services.PipeSizing
 
                 string json = JsonConvert.SerializeObject(state, Formatting.Indented);
                 File.WriteAllText(path, json);
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // State persistence must not interrupt the sizing workflow.
+                errorMessage = ex.Message;
+                return false;
             }
         }
 

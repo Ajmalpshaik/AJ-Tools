@@ -5,10 +5,10 @@
  * Purpose       : Calculates probable water demand, required internal diameter, selected pipe size, velocity, and friction loss.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,10 +20,14 @@
  * Output        : Flow rate, selected pipe size, velocity, and friction loss.
  *
  * Notes         :
- * - Direct port of the original pyRevit pipe sizing calculation logic.
- * - The flow table is clamped at the original table maximum, matching the Python tool.
+ * - Direct port of the calculation logic of Ajmal's earlier pipe sizing script.
+ * - The flow table is clamped at the original table maximum, matching Ajmal's earlier script.
+ * - Friction loss uses the US-unit Hazen-Williams form, which gives psi per FOOT of pipe; it is
+ *   multiplied by 100 so the stored value really is psi per 100 ft, the unit it is labelled with.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Friction loss was 100x too small: the per-foot Hazen-Williams result was stored and
+ *                       shown as psi/100ft (10 gpm in 3/4" uPVC showed 0.08 instead of about 7.7). Now x100.
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  *
  * License       : All Rights Reserved
@@ -145,9 +149,13 @@ namespace AJTools.Services.PipeSizing
             double actualDiameterM = selected.InternalDiameterMm / 1000.0;
             double actualVelocityMs = cubicMeterPerSecond / (Math.PI * Math.Pow(actualDiameterM / 2.0, 2));
             double velocityFts = Round2(actualVelocityMs * MeterPerSecondToFootPerSecond);
-            double frictionLoss = 4.52 * Math.Pow(gpm, 1.852) /
-                                  (Math.Pow(cFactor, 1.852) *
-                                   Math.Pow(selected.InternalDiameterMm / 25.4, 4.87));
+
+            // Hazen-Williams, US units: 4.52 * Q^1.852 / (C^1.852 * d^4.87) is the friction loss in psi
+            // per FOOT of pipe, with Q = flow in gpm and d = internal diameter in inches. x100 gives psi
+            // per 100 ft, the unit this result is stored and shown in.
+            double frictionLossPsiPerFoot = 4.52 * Math.Pow(gpm, 1.852) /
+                                            (Math.Pow(cFactor, 1.852) *
+                                             Math.Pow(selected.InternalDiameterMm / 25.4, 4.87));
 
             return new PipeSizingResult
             {
@@ -156,7 +164,7 @@ namespace AJTools.Services.PipeSizing
                 SelectedSizeLabel = selected.NominalLabel,
                 RequiredInternalDiameterMm = exactId,
                 VelocityFeetPerSecond = velocityFts,
-                FrictionLossPsiPer100Ft = Round2(frictionLoss)
+                FrictionLossPsiPer100Ft = Round2(frictionLossPsiPerFoot * 100.0)
             };
         }
 

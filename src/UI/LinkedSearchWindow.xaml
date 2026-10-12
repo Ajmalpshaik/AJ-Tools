@@ -2,8 +2,8 @@
   Tool Name: Linked Element Search
   Description: Dialog to search by Element ID across host and linked models and zoom to the result.
   Author: Ajmal P.S.
-  Version: 1.0.0
-  Last Updated: 2025-12-10
+  Version: 1.0.1
+  Last Updated: 2026-10-12
   Revit Version: 2020
   Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 -->
@@ -188,11 +188,23 @@
                             BorderBrush="{StaticResource BorderSoft}"
                             BorderThickness="1"
                             Margin="0,0,0,6">
-                        <TextBlock x:Name="InfoText"
-                                   Text="Use the dropdown to pick one or more models, or use Search all to include host and loaded links."
-                                   TextWrapping="Wrap"
-                                   FontSize="12"
-                                   Foreground="{StaticResource TextSecondary}"/>
+                        <StackPanel>
+                            <TextBlock x:Name="InfoText"
+                                       Text="Use the dropdown to pick one or more models, or use Search all to include host and loaded links."
+                                       TextWrapping="Wrap"
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextSecondary}"/>
+
+                            <!-- Shown only when the same Element ID exists in more than one model:
+                                 the user picks which one to go to. -->
+                            <ListBox x:Name="MatchList"
+                                     Margin="0,6,0,0"
+                                     MaxHeight="140"
+                                     Visibility="Collapsed"
+                                     Style="{StaticResource ModernListBox}"
+                                     ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                                     SelectionChanged="OnMatchSelected"/>
+                        </StackPanel>
                     </Border>
 
                     <Grid Grid.Row="6" Margin="0,8,0,0">

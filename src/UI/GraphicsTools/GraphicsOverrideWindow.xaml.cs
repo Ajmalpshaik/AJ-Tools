@@ -5,10 +5,10 @@
  * Purpose       : Drives the Apply Graphics settings window and converts UI selections into Revit OverrideGraphicSettings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-03-30
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * - Last-used settings are loaded on open and saved on apply.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - Window can be resized by dragging its edges again, and its minimum size now
+ *                       shrinks to fit small or high-scaling screens so the footer buttons stay on screen.
  * v1.5.0 (2026-06-30) - Removed unused constructor/initial-settings path; version-safe ElementId access; full metadata block.
  * v1.4.6 (2026-05-10) - Added compact tabbed UI sizing and custom title-bar close handling.
  *
@@ -237,6 +239,14 @@ namespace AJTools.UI.GraphicsTools
         private void ApplyInitialWindowBounds()
         {
             Rect workArea = SystemParameters.WorkArea;
+
+            // The designed minimum (900 x 720) is taller than the usable screen on a 1080p laptop at 150%
+            // scaling or a 1366x768 screen, which pushed the footer buttons off-screen. Let the minimum
+            // shrink to fit the work area; the body scrolls and the footer row stays visible.
+            if (workArea.Height > WorkAreaMargin)
+                MinHeight = Math.Min(MinHeight, Math.Max(480.0, workArea.Height - WorkAreaMargin));
+            if (workArea.Width > WorkAreaMargin)
+                MinWidth = Math.Min(MinWidth, Math.Max(640.0, workArea.Width - WorkAreaMargin));
             if (workArea.Width > WorkAreaMargin)
             {
                 MaxWidth = Math.Max(MinWidth, workArea.Width);

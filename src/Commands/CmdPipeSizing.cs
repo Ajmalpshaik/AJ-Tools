@@ -5,10 +5,10 @@
  * Purpose       : Revit external command entry point for the Pipe Sizing calculator.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.0.2
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,13 +20,16 @@
  * Output        : Opens the Pipe Sizing calculator; no Revit model changes.
  *
  * Notes         :
- * - Ported from the original pyRevit pipe sizing entry point.
+ * - Ported from the entry point of Ajmal's earlier pipe sizing script.
  * - No Transaction is started because this tool does not write to the Revit model.
  * - No PickObject/PickPoint calls are used.
  *
  * Changelog     :
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  * v1.0.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
+ * v1.0.2 (2026-10-12) - Notes reworded (port source described as Ajmal's earlier script).
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -66,7 +69,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show("Pipe Sizing", "Pipe Sizing could not start:\n\n" + ex.Message);
                 return Result.Failed;
             }

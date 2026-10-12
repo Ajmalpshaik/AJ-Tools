@@ -5,10 +5,10 @@
  * Purpose       : Applies the same graphics overrides to selected elements or to their categories from one combined settings window.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.1
+ * Version       : 1.5.2
  *
  * Created Date  : 2026-05-07
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * - A single settings window instance is enforced to prevent duplicate dialogs.
  *
  * Changelog     :
+ * v1.5.2 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       When nothing could be changed, the message now gives Revit's own reason.
  * v1.5.1 (2026-07-28) - Audit: settings window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
  * v1.4.4 (2026-05-09) - Uses the reference-style split apply buttons and prevents duplicate settings windows.
@@ -163,7 +165,7 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (!summary.HasChanges)
                 {
-                    DialogHelper.ShowError(DialogTitle, "No graphics overrides were applied.");
+                    GraphicsCommandService.ReportNothingChanged(DialogTitle, summary, "item(s)");
                     return Result.Cancelled;
                 }
 
@@ -171,7 +173,6 @@ namespace AJTools.Commands.GraphicsTools
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(DialogTitle, ex.Message);
                 return Result.Failed;
             }

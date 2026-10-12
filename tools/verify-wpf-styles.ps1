@@ -15,7 +15,7 @@
 
     USE IT
       1. Build first (the DLL is the input):
-         msbuild "src\AJ Tools.csproj" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true
+         dotnet build "src\AJ Tools.csproj" -c Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true
       2. powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File tools\verify-wpf-styles.ps1
          (-STA is required: WPF will not create controls on an MTA thread.)
       Exit code 0 = all good, otherwise the number of failures.

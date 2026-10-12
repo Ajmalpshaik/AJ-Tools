@@ -7,10 +7,10 @@
  *                 Filter Pro), so this command only reports whether any click made changes.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-13
- * Last Updated  : 2026-07-13
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -34,6 +34,7 @@
  *                       project so the Colorize tool actually gets built and deployed (it previously
  *                       existed only in the stale pre-multiversion copy and could never appear on the
  *                       ribbon no matter how many times the add-in was rebuilt). Behaviour unchanged.
+ * v1.0.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -99,7 +100,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show(DialogTitle, $"An unexpected error occurred:\n\n{ex.Message}");
                 return Result.Failed;
             }

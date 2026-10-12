@@ -1,6 +1,6 @@
 ---
 name: ajtools-build
-description: Build a new tool, command, feature, ribbon button, or automation for the AJ Tools Revit C# add-in (D:\06_Development\01_AJ-Tools\Revit Addins). Use this whenever Ajmal describes a new piece of work he wants added to AJ Tools specifically — a new command, report, export, or automation — even in plain modeller language and even if he never says "build" ("I need something that renumbers...", "make a tool for...", "add a button that..."). This skill remembers AJ Tools' house conventions and past decisions between sessions via a shared local log file, so new work automatically follows established patterns instead of reinventing them from scratch each time. Do NOT use this for fixing or checking something that already exists and is broken — use ajtools-debug for that instead. Do NOT use this for Revit C# work outside the AJ Tools project — use the general revit-csharp-plugin skill for that.
+description: Build a new tool, command, feature, ribbon button, or automation for the AJ Tools Revit C# add-in (D:\06_Development\01_AJ-Tools\Revit Addins). Use this whenever Ajmal describes a new piece of work he wants added to AJ Tools specifically — a new command, report, export, or automation — even in plain modeller language and even if he never says "build" ("I need something that renumbers...", "make a tool for...", "add a button that..."). This skill remembers AJ Tools' house conventions and past decisions between sessions via a shared local log file, so new work automatically follows established patterns instead of reinventing them from scratch each time. Do NOT use this for fixing or checking something that already exists and is broken — use ajtools-debug for that instead. Do NOT use this for Revit C# work outside the AJ Tools project — use the general revit-plugin-csharp skill for that.
 ---
 
 # AJ Tools — Build New Work
@@ -78,15 +78,15 @@ deliberate calls, not because someone likes rules for their own sake. In particu
 ## After you finish
 
 Update the knowledge log — this is the step that makes the skill better day by day, so don't skip it.
-Append a short dated entry under **Log** in
-[`.claude/knowledge/ajtools-conventions.md`](../../knowledge/ajtools-conventions.md) describing:
+Append a short dated entry to
+[`.claude/knowledge/ajtools-conventions-log.md`](../../knowledge/ajtools-conventions-log.md) describing:
 
 - What was built (one line).
 - Any *new* convention or decision that came up during this task — a naming choice Ajmal confirmed, a
   pattern you had to invent because nothing existing covered it, a Revit-version quirk you discovered.
   Skip this if nothing new came up; don't pad the log with restatements of what's already there.
 
-If the "Established Conventions" section itself turns out to be wrong or stale while you're working
+If the "Established Conventions" section of `ajtools-conventions.md` turns out to be wrong or stale while you're working
 (e.g. a file moved, a helper got renamed), fix it in place rather than leaving the log to drift from
 reality.
 

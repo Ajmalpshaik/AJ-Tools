@@ -602,7 +602,9 @@ launching rather than "fixing" it.
     (either can carry its own filter list); View Templates mode's "used" check is deliberately only a
     first pass — the real safety net is the same rolled-back-Delete probe `UnplacedViewPurgeService`
     already used, since a template silently set as Revit's own default-for-new-views isn't visible
-    through the public API the same way a direct `ViewTemplateId` reference is.
+    through the public API the same way a direct `ViewTemplateId` reference is. *(Corrected 2026-10-12:
+    it IS visible — `ViewFamilyType.DefaultTemplateId` — and the probe cannot catch it, because nothing
+    else is deleted. See "Shared mode-enum tool families" in ajtools-conventions.md.)*
   - **Purge Unplaced family extended in place**: added Schedules/Legends/DraftingViews to the existing
     `UnplacedViewPurgeMode` enum. Schedules are placed via `ScheduleSheetInstance` (not `Viewport`), so
     they got their own placed-id set (`GetPlacedScheduleIds`) and candidate check

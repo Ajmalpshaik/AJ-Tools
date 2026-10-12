@@ -34,10 +34,21 @@ namespace AJTools.AiShell.Models
     public class GeminiResponse
     {
         public List<Candidate> candidates { get; set; }
+
+        /// <summary>Present when Gemini refused the request itself (blockReason, e.g. "SAFETY").</summary>
+        public PromptFeedback promptFeedback { get; set; }
     }
 
     public class Candidate
     {
         public Content content { get; set; }
+
+        /// <summary>Why Gemini stopped writing ("STOP" normally; "SAFETY", "MAX_TOKENS", ... otherwise).</summary>
+        public string finishReason { get; set; }
+    }
+
+    public class PromptFeedback
+    {
+        public string blockReason { get; set; }
     }
 }

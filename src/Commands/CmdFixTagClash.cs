@@ -12,10 +12,10 @@
  *                 passes can simply be run twice.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-16
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -35,6 +35,13 @@
  *   Fix Tag Clash Settings.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Returns Succeeded whenever the run committed something. When no tag could
+ *                       move but the stuck ones were coloured it returned Cancelled, and Revit undoes
+ *                       a command that does not succeed - so the colours vanished while the report
+ *                       said they were applied. The drift-limit line now counts tags, and "NOTHING
+ *                       COULD MOVE" only appears when every stuck tag was stopped by the limit.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.0.0 (2026-08-16) - Initial release.
  *
  * License       : All Rights Reserved
@@ -141,6 +148,7 @@ namespace AJTools.Commands
 
                 TagClashRunResult run;
                 int marked = 0;
+                bool hasChanges;
 
                 using (Transaction transaction = new Transaction(doc, "Fix Tag Clash"))
                 {
@@ -161,12 +169,12 @@ namespace AJTools.Commands
                         if (transaction.HasStarted() && !transaction.HasEnded())
                             transaction.RollBack();
 
-                        message = ex.Message;
                         DialogHelper.ShowError(ToolTitle, "The run failed and nothing was changed.\n\n" + ex.Message);
                         return Result.Failed;
                     }
 
-                    if (run.MovesApplied > 0 || marked > 0)
+                    hasChanges = run.MovesApplied > 0 || marked > 0;
+                    if (hasChanges)
                         transaction.Commit();
                     else
                         transaction.RollBack();
@@ -175,7 +183,10 @@ namespace AJTools.Commands
                 TrySelectUnfixed(uidoc, run.UnfixedTagIds);
                 ShowReport(activeView, settings, run, marked);
 
-                return run.MovesApplied > 0 || run.ClashingAtStart == 0
+                // Succeeded whenever the transaction committed something. Revit undoes every change
+                // of a command that does not report success, so returning Cancelled when no tag could
+                // move but the stuck ones were coloured wiped the colours the report had just described.
+                return hasChanges || run.ClashingAtStart == 0
                     ? Result.Succeeded
                     : Result.Cancelled;
             }
@@ -226,7 +237,7 @@ namespace AJTools.Commands
             if (run.BlockedByDriftLimit > 0)
             {
                 sb.AppendLine(string.Format(
-                    "Moves refused for going past the {0:F0}mm drift limit: {1}",
+                    "Stopped by the {0:F0}mm drift limit: {1}",
                     settings.MaxDriftMm, run.BlockedByDriftLimit));
             }
 
@@ -235,8 +246,14 @@ namespace AJTools.Commands
             // list reads as detail, not as "this one setting is the reason nothing happened" - which
             // is exactly how it looked to Ajmal on a 1mm limit, where no tag can move at all because
             // a tag is taller than that on the sheet.
+            // Only when it is genuinely the whole story: EVERY tag that was tried and could not move
+            // had every position refused by the limit. One far position refused while the near ones
+            // were simply occupied is not the limit's fault, and must not produce this wording.
             bool driftBlockedEverything =
-                run.BlockedByDriftLimit > 0 && run.Fixed == 0 && run.StillClashing > 0;
+                run.BlockedByDriftLimit > 0
+                && run.BlockedByDriftLimit == run.CouldNotMove
+                && run.Fixed == 0
+                && run.StillClashing > 0;
 
             if (driftBlockedEverything)
             {

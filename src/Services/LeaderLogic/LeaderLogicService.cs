@@ -1,11 +1,14 @@
 // Tool Name: Leader Logic Service
 // Description: Reusable L-shaped leader calculation logic for tag placement tools.
 // Author: Ajmal P.S.
-// Version: 1.2.0
-// Last Updated: 2026-07-18
+// Version: 1.2.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, System.Reflection
 //
+// v1.2.1 (2026-10-12) - Removed code nothing called: ApplyLeaderLogic, GetT1, and GetL1's last
+//   fallback (reading a "LeaderEnd" property by reflection - it repeated what TagCompat had just
+//   read on 2020-2022 and finds no such property from 2023). Elbow results are unchanged.
 // v1.2.0 (2026-07-18) - GetL1 now includes the same tagged-reference/reflection fallback chain
 //   that SmartTagPlacementEngine.cs and IntelligentTagArrangerService.cs each independently
 //   reimplemented (~150 lines duplicated near-verbatim between the two); also added
@@ -91,10 +94,14 @@ namespace AJTools.Services.LeaderLogic
 
         /// <summary>
         /// Returns the leader end point (L1) of a tag, or null if unavailable. Tries
-        /// TagCompat.GetLeaderEnd first, then falls back through the tag's tagged reference(s) and
-        /// finally raw reflection on a "LeaderEnd" property, since not every tag type resolves its
-        /// leader end the same way.
+        /// TagCompat.GetLeaderEnd first, then falls back through the tag's tagged reference(s),
+        /// since not every tag resolves its leader end the same way.
         /// </summary>
+        /// <remarks>
+        /// There used to be a last step reading a "LeaderEnd" property by reflection. It could never
+        /// add anything: on Revit 2020-2022 it read the very property TagCompat had just read, and
+        /// from 2023 IndependentTag has no such property. Removed 2026-10-12.
+        /// </remarks>
         public static XYZ GetL1(IndependentTag tag)
         {
             if (tag == null)
@@ -124,11 +131,7 @@ namespace AJTools.Services.LeaderLogic
             if (byTaggedReference != null)
                 return byTaggedReference;
 
-            XYZ byTaggedReferences = TryGetLeaderEndFromTaggedReferences(tag);
-            if (byTaggedReferences != null)
-                return byTaggedReferences;
-
-            return TryGetXYZProperty(tag, "LeaderEnd");
+            return TryGetLeaderEndFromTaggedReferences(tag);
         }
 
         private static XYZ TryGetLeaderEndFromTaggedReference(IndependentTag tag)
@@ -214,30 +217,10 @@ namespace AJTools.Services.LeaderLogic
             return null;
         }
 
-        private static XYZ TryGetXYZProperty(object instance, string propertyName)
-        {
-            if (instance == null || string.IsNullOrWhiteSpace(propertyName))
-                return null;
-
-            try
-            {
-                PropertyInfo prop = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
-                if (prop == null)
-                    return null;
-
-                object raw = prop.GetValue(instance, null);
-                return raw as XYZ;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
         /// <summary>
         /// Sets a tag's leader elbow point via TagCompat. Returns false (rather than throwing) if
         /// the tag's current LeaderEndCondition rejects the elbow - see
-        /// SmartTagPlacementEngine.TrySetLeaderElbowPreserveCondition for the Free/restore fallback
+        /// TagLeaderService.TrySetElbowPreservingCondition for the Free/restore fallback
         /// some callers layer on top of this.
         /// </summary>
         public static bool TrySetLeaderElbow(IndependentTag tag, XYZ elbow)
@@ -302,23 +285,10 @@ namespace AJTools.Services.LeaderLogic
             return false;
         }
 
-        // ─────────────────────────────────────────
-        // T1 — Tag Head snapped to stack column X
-        // ─────────────────────────────────────────
-
-        /// <summary>
-        /// Returns the tag head position (T1) with its view-X snapped to a stack
-        /// column. Use this when aligning multiple tags to a common vertical axis.
-        /// </summary>
-        /// <param name="targetHeadPointModel">Desired tag head position in model coordinates.</param>
-        /// <param name="stackXView">X coordinate in view space to snap to.</param>
-        /// <returns>Snapped tag head position in model coordinates.</returns>
-        public XYZ GetT1(XYZ targetHeadPointModel, double stackXView)
-        {
-            double currentX = ProjectX(targetHeadPointModel);
-            double deltaX   = stackXView - currentX;
-            return targetHeadPointModel.Add(_viewRight.Multiply(deltaX));
-        }
+        // Removed 2026-10-12: GetT1 (snap a head to a stack column) and ApplyLeaderLogic (snap the
+        // head, then set the elbow, in one call). Only ApplyLeaderLogic called GetT1, and nothing
+        // called ApplyLeaderLogic. Stacking tools snap to the column in TagStackService and set the
+        // elbow through TagLeaderService.ApplyLShapedLeader.
 
         // ─────────────────────────────────────────
         // E1 — Elbow Point
@@ -377,35 +347,6 @@ namespace AJTools.Services.LeaderLogic
             // In view space: E1.X = L1.X, E1.Y = T1.Y.
             // In model space: start from L1, add the vertical component of (T1 - L1).
             return l1Model.Add(_viewUp.Multiply(dyView));
-        }
-
-        // ─────────────────────────────────────────
-        // Apply — Full logic in one call
-        // ─────────────────────────────────────────
-
-        /// <summary>
-        /// Applies the full L-shaped leader logic to a tag: snaps the head to
-        /// a stack column and sets the elbow for an L-shaped leader path.
-        /// </summary>
-        /// <param name="tag">The tag to modify.</param>
-        /// <param name="targetHeadPointModel">Desired tag head position in model coordinates.</param>
-        /// <param name="stackXView">Stack column X in view coordinates.</param>
-        public void ApplyLeaderLogic(IndependentTag tag, XYZ targetHeadPointModel, double stackXView)
-        {
-            if (tag == null || !tag.HasLeader)
-                return;
-
-            XYZ l1 = GetL1(tag);
-            if (l1 == null)
-                return;
-
-            XYZ t1 = GetT1(targetHeadPointModel, stackXView);
-            XYZ e1 = GetE1(l1, t1);
-
-            tag.TagHeadPosition = t1;
-
-            if (e1 != null)
-                TagCompat.SetLeaderElbow(tag, e1);
         }
 
         /// <summary>

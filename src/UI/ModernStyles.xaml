@@ -1,18 +1,20 @@
 ﻿<!--
 ==================================================
 Tool Name    : AJ Tools - Shared UI Theme
-Purpose      : Suite-wide WPF resource dictionary (soft dark UI, Neon Blue primary). Used by every AJ Tools window.
+Purpose      : Suite-wide WPF resource dictionary (soft dark UI, accent blue #0078D4 primary). Used by every AJ Tools window.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.5.0
+Version      : 1.5.1
 Created      : 2025-12-10
-Last Updated : 2026-08-05
+Last Updated : 2026-10-12
 Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
 Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in (WPF)
 Notes        : Brush KEY names are kept stable - every window binds to them. Only values are tuned to the AJ skill.
-               Style = Neumorphism + Claymorphism soft UI; Neon Blue primary; orange = warning; red = danger; green = success.
-Changelog    : v1.5.0 - Adds ModernListCheckBox: the same box with an INSTANT tick, for checkboxes
+               Style = soft rounded dark UI; accent blue primary; orange = warning; red = danger; green = success.
+Changelog    : v1.5.1 (2026-10-12) - Removed five resources nothing used (AccentMagenta, TextOnLight,
+               BorderGlow, MonoText, ModernWindow); comments describe colours in own words. No visual change.
+               v1.5.0 - Adds ModernListCheckBox: the same box with an INSTANT tick, for checkboxes
                inside scrolling lists, where an animated tick would replay on every scroll.
                v1.4.0 - Tick boxes, radio buttons and the toggle switch are properly templated at last.
                They were setter-only, so they drew raw Windows chrome inside an otherwise soft rounded
@@ -30,7 +32,7 @@ Changelog    : v1.5.0 - Adds ModernListCheckBox: the same box with an INSTANT ti
                ControlTemplate - so a window that sets those from code-behind is never fought.
                v1.2.0 - Readability fix: accent-filled buttons (Primary/Modern/Success/Danger) and
                selected states (list items, combo items, tab headers) now use TextOnAccent (white)
-               instead of the near-black TextOnLight, which was unreadable on the WinUI accent fills
+               instead of the near-black TextOnLight, which was unreadable on the accent fills
                (#0078D4/#0F7B0F/#E81123). TextOnLight kept for genuinely bright fills only.
                v1.1.0 - Skill alignment: Segoe UI font, Neon Blue #00C8FF, softer card radius, button shadow trimmed, Consolas mono style.
 License      : All Rights Reserved
@@ -47,7 +49,7 @@ Repo         : AJ-Tools
          ============================================================ -->
 
     <!-- Surfaces -->
-    <!-- Surface / page background (Mica Dark Fallback) -->
+    <!-- Surface / page background (dark) -->
     <SolidColorBrush x:Key="BackgroundDark" Color="#FF202020"/>
     <!-- SoftCard (slightly raised) -->
     <SolidColorBrush x:Key="BackgroundMedium" Color="#FF2D2D2D"/>
@@ -56,23 +58,18 @@ Repo         : AJ-Tools
     <!-- Card / panel surface -->
     <SolidColorBrush x:Key="CardBackground" Color="#FF2B2B2B"/>
 
-    <!-- Accents: Primary = WinUI Accent. -->
+    <!-- Accents: primary = standard accent blue. -->
     <SolidColorBrush x:Key="AccentBlue" Color="#FF0078D4"/>
     <SolidColorBrush x:Key="AccentGreen" Color="#FF0F7B0F"/>
     <SolidColorBrush x:Key="AccentOrange" Color="#FFF7630C"/>
     <!-- Secondary button / hover fill -->
     <SolidColorBrush x:Key="AccentGray" Color="#FF333333"/>
-    <SolidColorBrush x:Key="AccentMagenta" Color="#FFB146C2"/>
     <SolidColorBrush x:Key="AccentDanger" Color="#FFE81123"/>
 
     <!-- Text -->
     <SolidColorBrush x:Key="TextPrimary" Color="#FFF2F7FA"/>
     <SolidColorBrush x:Key="TextSecondary" Color="#FFA8B4BE"/>
     <SolidColorBrush x:Key="TextDisabled" Color="#FF6E7882"/>
-    <!-- Dark text for use ONLY on genuinely BRIGHT fills (neon cyan, amber, white badges).
-         NOT readable on the WinUI accents below (#0078D4 blue / #0F7B0F green / #E81123 red) -
-         those medium-dark fills take TextOnAccent (white) instead. -->
-    <SolidColorBrush x:Key="TextOnLight" Color="#FF0B1418"/>
     <!-- Light text for the accent button/selection fills (blue/green/red) - readability fix 2026-07-23 -->
     <SolidColorBrush x:Key="TextOnAccent" Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="TextSuccess" Color="#FF81C784"/>
@@ -80,7 +77,6 @@ Repo         : AJ-Tools
     <!-- Borders / overlay -->
     <SolidColorBrush x:Key="BorderSoft" Color="#1AFFFFFF"/>
     <SolidColorBrush x:Key="BorderStrong" Color="#33FFFFFF"/>
-    <SolidColorBrush x:Key="BorderGlow" Color="#660078D4"/>
     <SolidColorBrush x:Key="OverlayBackground" Color="#CC202020"/>
 
     <!-- Skill brush-name aliases (same colors, skill's standard vocabulary) -->
@@ -139,29 +135,6 @@ Repo         : AJ-Tools
     <Style x:Key="DisabledText" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource TextDisabled}"/>
         <Setter Property="FontSize" Value="11"/>
-    </Style>
-
-    <!-- Monospace for element IDs, GUIDs, file paths, parameter codes (skill: Consolas). -->
-    <Style x:Key="MonoText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="12"/>
-    </Style>
-
-    <!-- Global -->
-    <Style x:Key="ModernWindow" TargetType="Window">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="TextElement.Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="ResizeMode" Value="NoResize"/>
-        <Setter Property="SizeToContent" Value="WidthAndHeight"/>
-        <Setter Property="WindowStyle" Value="None"/>
-        <Setter Property="AllowsTransparency" Value="True"/>
-        <Setter Property="MinWidth" Value="380"/>
-        <Setter Property="UseLayoutRounding" Value="True"/>
-        <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
     <!-- No implicit Foreground to keep button text contrast correct -->

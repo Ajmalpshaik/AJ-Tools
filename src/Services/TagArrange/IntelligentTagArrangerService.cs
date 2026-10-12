@@ -1,10 +1,13 @@
 // Tool Name: Intelligent Tag Arranger Service
-// Description: Converts the pyRevit intelligent tag arranger workflow into native C#.
+// Description: Rearranges the selected tags into a stack at each clicked point, nearest tag first, with
+//              L-shaped leaders (ported from the tag arranger in Ajmal's earlier pyRevit extension).
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-07
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.LeaderLogic, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - An unexpected error during a click used to end the run in silence;
+//            that click is still undone, and the user is now told what went wrong.
 
 using System;
 using System.Collections.Generic;
@@ -100,6 +103,7 @@ namespace AJTools.Services.TagArrange
 
             bool hadCommit = false;
             int undoneAttempts = 0;
+            Exception clickError = null;
             using (TransactionGroup tg = new TransactionGroup(doc, "Arrange Tags"))
             {
                 tg.Start();
@@ -136,12 +140,15 @@ namespace AJTools.Services.TagArrange
                                 undoneAttempts++;
                             }
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
                             if (t.GetStatus() != TransactionStatus.RolledBack && t.GetStatus() != TransactionStatus.Committed)
                             {
                                 t.RollBack();
                             }
+
+                            // Kept so the user is told below - this used to end the run in silence.
+                            clickError = ex;
                             break;
                         }
                     }
@@ -153,7 +160,23 @@ namespace AJTools.Services.TagArrange
                     tg.RollBack();
             }
 
-            if (!hadCommit && undoneAttempts > 0)
+            if (clickError != null)
+            {
+                // An unexpected error during a click: that click is undone and the tool stops. Same
+                // reason as the message below - a click that is quietly undone looks exactly like
+                // the click doing nothing - and one message, not two back to back.
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    string.Format(
+                        "Your last click could not be completed, so it was undone and the tool stopped.\n\n"
+                        + "{0}\n\n"
+                        + "What went wrong: {1}",
+                        hadCommit
+                            ? "The tags stay where your last successful click put them."
+                            : "Nothing was moved.",
+                        clickError.Message));
+            }
+            else if (!hadCommit && undoneAttempts > 0)
             {
                 DialogHelper.ShowError(
                     ToolTitle,

@@ -9,10 +9,10 @@
  *                 ribbon button while a game is running stops it (the button is a toggle).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-29
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -35,6 +35,9 @@
  * - Family documents are refused (needs a project model).
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Hands the motion engine to the HUD as well, so ending the game from the
+ *                       ribbon, with Esc or by closing the overlay writes the snag report (only an
+ *                       engine-side stop used to write it).
  * v1.1.0 (2026-07-28) - New game views are now created with Crop View OFF and the crop region
  *                       boundary OFF (Ajmal was turning both off manually on every fresh model).
  *                       Existing "AJ Game View" views are reused untouched, keeping whatever
@@ -153,7 +156,9 @@ namespace AJTools.Commands.GameMode
                 var engine = new GameMotionEngine(session);
                 ExternalEvent frameEvent = ExternalEvent.Create(engine);
 
-                var hud = new GameHudWindow(session, frameEvent);
+                // The HUD also gets the engine itself, so that every way the game ends can have the
+                // snag report written (GameMotionEngine.FinishSnagReport).
+                var hud = new GameHudWindow(session, frameEvent, engine);
                 var interop = new System.Windows.Interop.WindowInteropHelper(hud);
                 interop.Owner = uiapp.MainWindowHandle;
 

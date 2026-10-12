@@ -5,10 +5,10 @@
  * Purpose       : Clears element-level graphics overrides for the elements shown in the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * - Read/reset of view graphics only; the model is never changed. Normal success is silent.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       When nothing could be changed it now says so, with Revit's own reason (it ended in silence).
  * v1.5.0 (2026-06-30) - Scoped the collector to the active view (performance); full metadata block.
  * v1.4.4 (2026-05-09) - Aligned Reset Element Graphics in View with shared Graphics command validation and transactions.
  *
@@ -89,11 +91,17 @@ namespace AJTools.Commands
                         context.ActiveView,
                         elementIds));
 
-                return summary.HasChanges ? Result.Succeeded : Result.Cancelled;
+                if (!summary.HasChanges)
+                {
+                    // House rule: a tool that did nothing says why - this used to end in silence.
+                    GraphicsCommandService.ReportNothingChanged(dialogTitle, summary, "element(s)");
+                    return Result.Cancelled;
+                }
+
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }

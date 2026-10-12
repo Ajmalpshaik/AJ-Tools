@@ -158,14 +158,14 @@
                 <TextBlock x:Name="ToastText" Foreground="#F0F4FA" FontSize="12.5" TextWrapping="Wrap"/>
             </Border>
 
-            <!-- Controls help card (H to toggle) -->
+            <!-- Controls help card (H to toggle). The text is built in code (BuildHelpText) so it
+                 names the keys actually bound, not the defaults. -->
             <Border x:Name="HelpCard" CornerRadius="12" Background="#E0101722" BorderBrush="#3300C8FF"
                     BorderThickness="1" HorizontalAlignment="Left" VerticalAlignment="Center"
                     Margin="14,0,0,0" Padding="16,12" IsHitTestVisible="False">
                 <StackPanel>
                     <TextBlock Text="AJ GAME MODE" Foreground="#00C8FF" FontSize="14" FontWeight="Bold"/>
-                    <TextBlock Foreground="#C9D4E0" FontSize="12" Margin="0,8,0,0" LineHeight="20"
-                               Text="MOVE&#9;W A S D  |  LOOK mouse  |  RUN hold Shift&#10;JUMP&#9;Space (at a window = climb through)  |  CROUCH hold C&#10;DOOR&#9;E when the hint shows  |  FLY F  |  GHOST G&#10;WEAPON&#9;right-click cycles GUN / LASER / CLEANER / SNAG / SELECT&#10;GUN&#9;hold left click - automatic fire  |  sounds M on/off&#10;LASER&#9;live distance (mm) + element name&#10;CLEANER&#9;shot hides that element  |  U brings all back&#10;SNAG&#9;shot paints it red + report on exit&#10;SELECT&#9;shot selects in Revit (again = unselect), stays after exit&#10;RESET&#9;J = reset ALL element colors in the game view&#10;NO GUN&#9;N = professional mode for meetings (remembered)&#10;TELEPORT&#9;hold T - see the jump arc, release = go&#10;POSITIONS&#9;B saves a spot (list left)  |  1..9 = go  |  O = tour&#10;PHOTO&#9;K to Pictures\AJ Game Photos  |  LIGHT V  |  SPEED + / -&#10;SCROLL&#9;down = gun away (laser still works), up = draw&#10;KEYS&#9;change any key: pause (Esc), then press S&#10;RESPAWN&#9;R  |  PAUSE Esc or P  |  EXIT Esc while paused  |  HELP H"/>
+                    <TextBlock x:Name="HelpText" Foreground="#C9D4E0" FontSize="12" Margin="0,8,0,0" LineHeight="20"/>
                 </StackPanel>
             </Border>
 
@@ -285,7 +285,8 @@
                 <TextBlock x:Name="PauseTitle" Text="PAUSED" Foreground="#00C8FF" FontSize="15"
                            FontWeight="Bold" HorizontalAlignment="Center"/>
                 <TextBlock x:Name="PauseLine1" Text="Click here to continue playing" Foreground="#F0F4FA"
-                           FontSize="13" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                           FontSize="13" HorizontalAlignment="Center" Margin="0,6,0,0"
+                           TextWrapping="Wrap" MaxWidth="360" TextAlignment="Center"/>
                 <TextBlock x:Name="PauseLine2" Text="Revit is free to use now - change VG, filters, anything. Esc here = exit game."
                            Foreground="#8FA0B3" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0"
                            TextWrapping="Wrap" MaxWidth="330" TextAlignment="Center"/>

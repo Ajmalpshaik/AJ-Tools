@@ -6,10 +6,10 @@
  *                 using the family and spacing set in Duct Flow Annotation Settings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.2
  *
  * Created Date  : 2025-12-21
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,11 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.2 (2026-10-12) - One pick session is now one undo step (it was one per duct, plus one for the
+ *                       family activation). A clean run ends silently - the summary only appears when a
+ *                       duct was skipped - and Esc before any pick no longer says "No elements were
+ *                       selected". An unexpected error now gets a plain message instead of Revit's own box.
+ * v1.1.1 (2026-10-12) - The 'no settings yet' message now names the real ribbon button.
  * v1.0.0 (2025-12-21) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Annotation behaviour unchanged.
  *
@@ -34,6 +39,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -81,7 +87,7 @@ namespace AJTools.Commands
             FlowDirectionSettingsState state = settingsTracker.LastState;
             if (state == null)
             {
-                DialogHelper.ShowInfo("Duct Flow", "Run 'Duct Flow Settings' to choose the annotation family and spacing.");
+                DialogHelper.ShowInfo("Duct Flow", "Open Duct Flow Annotations > 'Duct Flow Annotation Settings' first to choose the annotation family and spacing.");
                 return Result.Cancelled;
             }
 
@@ -99,82 +105,106 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            if (!symbol.IsActive)
-            {
-                using (Transaction t = new Transaction(doc, "Activate Duct Flow Annotation Family"))
-                {
-                    t.Start();
-                    symbol.Activate();
-                    t.Commit();
-                }
-            }
-
             var filter = new DuctCurveOnlySelectionFilter();
             int processedCount = 0;
             int placedTotal = 0;
             int skippedCount = 0;
             HashSet<string> skipReasons = new HashSet<string>();
 
-            while (true)
+            try
             {
-                Reference pickedRef;
-                try
+                // The whole pick session - activating the family included - is ONE undo step, the same
+                // as the other pick-until-Esc tools. It used to be one undo step per duct, plus one more
+                // for the activation.
+                using (TransactionGroup group = new TransactionGroup(doc, "Duct Flow Annotations"))
                 {
-                    pickedRef = uidoc.Selection.PickObject(
-                        ObjectType.Element,
-                        filter,
-                        "Select duct to place duct flow annotations (ESC to finish)");
-                }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                {
-                    break;
-                }
+                    group.Start();
 
-                Element element = doc.GetElement(pickedRef);
-                if (element == null)
-                    continue;
-
-                processedCount++;
-
-                using (Transaction t = new Transaction(doc, "Place Duct Flow Annotations"))
-                {
-                    t.Start();
-                    bool placed = FlowDirectionAnnotationService.TryPlaceFlowAnnotations(
-                        doc,
-                        view,
-                        symbol,
-                        spacingInternal,
-                        element,
-                        out int placedCount,
-                        out string skipReason);
-
-                    if (placed)
+                    if (!symbol.IsActive)
                     {
-                        t.Commit();
-                        placedTotal += placedCount;
-                    }
-                    else
-                    {
-                        t.RollBack();
-                        skippedCount++;
-                        if (!string.IsNullOrWhiteSpace(skipReason))
+                        using (Transaction t = new Transaction(doc, "Activate Duct Flow Annotation Family"))
                         {
-                            skipReasons.Add(skipReason);
+                            t.Start();
+                            symbol.Activate();
+                            t.Commit();
                         }
                     }
+
+                    while (true)
+                    {
+                        Reference pickedRef;
+                        try
+                        {
+                            pickedRef = uidoc.Selection.PickObject(
+                                ObjectType.Element,
+                                filter,
+                                "Select duct to place duct flow annotations (ESC to finish)");
+                        }
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                        {
+                            break;
+                        }
+
+                        Element element = doc.GetElement(pickedRef);
+                        if (element == null)
+                            continue;
+
+                        processedCount++;
+
+                        using (Transaction t = new Transaction(doc, "Place Duct Flow Annotations"))
+                        {
+                            t.Start();
+                            bool placed = FlowDirectionAnnotationService.TryPlaceFlowAnnotations(
+                                doc,
+                                view,
+                                symbol,
+                                spacingInternal,
+                                element,
+                                out int placedCount,
+                                out string skipReason);
+
+                            if (placed)
+                            {
+                                t.Commit();
+                                placedTotal += placedCount;
+                            }
+                            else
+                            {
+                                t.RollBack();
+                                skippedCount++;
+                                if (!string.IsNullOrWhiteSpace(skipReason))
+                                {
+                                    skipReasons.Add(skipReason);
+                                }
+                            }
+                        }
+                    }
+
+                    if (placedTotal > 0)
+                        group.Assimilate();
+                    else
+                        group.RollBack();
                 }
             }
-
-            if (processedCount == 0)
+            catch (Exception ex)
             {
-                DialogHelper.ShowInfo("Duct Flow", "No elements were selected.");
-                return Result.Cancelled;
+                // Anything placed before the error is undone with the group - say so plainly.
+                DialogHelper.ShowError(
+                    "Duct Flow",
+                    "Duct flow annotations could not be placed, so nothing from this run was kept.\n\n"
+                    + "What went wrong: " + ex.Message);
+                return Result.Failed;
             }
 
-            int succeededCount = processedCount - skippedCount;
-            string summary = $"Placed {placedTotal} annotation(s) on {succeededCount} element(s).";
+            // Esc before picking anything is a deliberate cancel - nothing to report.
+            if (processedCount == 0)
+                return Result.Cancelled;
+
+            // House rule: a run that did everything ends silently; only a run that skipped a duct says so.
             if (skippedCount > 0)
             {
+                int succeededCount = processedCount - skippedCount;
+                string summary = $"Placed {placedTotal} annotation(s) on {succeededCount} element(s).";
                 summary += $"\nSkipped {skippedCount} element(s).";
                 if (skipReasons.Count > 0)
                 {
@@ -184,9 +214,10 @@ namespace AJTools.Commands
                         summary += $"\n- {reason}";
                     }
                 }
+
+                DialogHelper.ShowInfo("Duct Flow", summary);
             }
 
-            DialogHelper.ShowInfo("Duct Flow", summary);
             return placedTotal > 0 ? Result.Succeeded : Result.Cancelled;
         }
 

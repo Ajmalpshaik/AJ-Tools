@@ -3,11 +3,11 @@
  * Tool Name     : AJ Tools Ribbon Manager
  * File Name     : RibbonManager.cs
  * Purpose       : Builds the main "AJ Tools" ribbon tab - its panels (Quick, View, Graphics, Datums,
- *                 Modify, MEP, Coordination, Data, Manage, Family, AI, Game, About) and every button,
+ *                 Modify, MEP, Opening, Coordination, Data, Manage, Family, AI, Game, About) and every button,
  *                 split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.15.0
+ * Version       : 1.15.1
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-10-12
@@ -27,6 +27,11 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.15.1 (2026-10-12) - Audit pass: Elements to Ceiling Grid and Flip Bubbles tooltips updated to match
+ *                       what the tools do today; comments no longer compare Run Pinned with another
+ *                       product; Purpose now lists the Opening panel. Purge Unused tooltips now say what
+ *                       the tools really check (view types' default templates; rule-based filters only).
+ *                       No behaviour change.
  * v1.15.0 (2026-10-12) - "AJ AI" bridge button removed from the AI Assistant panel (AddAiBridgeTool),
  *                       with the bridge itself, at Ajmal's instruction. The panel keeps the C# pane
  *                       and Run Pinned / Saved Scripts.
@@ -88,8 +93,8 @@
  * v1.8.0 (2026-07-21) - Added "Run Pinned" to the AI Assistant panel (RunPinnedScriptCommand) - runs
  *                       whichever saved script is pinned from the C# pane's Saved Scripts History.
  *                       Statically-compiled, no runtime code generation - see that command's own
- *                       notes for why this is the safe alternative to RevitPythonShell's IL-emission
- *                       based "deploy script as ribbon button" feature.
+ *                       notes for why a fixed, compiled button is the safe way to run a saved script
+ *                       from the ribbon.
  * v1.7.1 (2026-07-20) - Smart Selection tooltip/description text updated for the v1.1.0 single-shot
  *                       box-select behavior (see CmdSmartSelection.cs) - no more "Finish" step.
  * v1.7.0 (2026-07-20) - Added the Smart Selection tool (Modify panel): pick one reference element,
@@ -465,9 +470,9 @@ namespace AJTools.App
 
         private TopLevelToolSpec AddRunPinnedTool()
         {
-            // "Run Pinned" is the permanent default face - a single click always runs it directly, same
-            // one-click statically-compiled equivalent of RevitPythonShell's "deploy script as ribbon
-            // button" it always was (see RunPinnedScriptCommand for why). "Saved Scripts" (browse/pin
+            // "Run Pinned" is the permanent default face - a single click always runs the pinned saved
+            // script directly through one fixed, compiled command (see RunPinnedScriptCommand for why
+            // no code is generated at run time). "Saved Scripts" (browse/pin
             // from the configured Scripts Folder) only lives in the dropdown - it never takes over the
             // main face. IsSynchronizedWithCurrentItem = false is what keeps the top face fixed on
             // "Run Pinned" (the first-added child) no matter which child was actually run last.
@@ -807,7 +812,7 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "Flip Grid /\nLevel Bubbles",
-                "Toggle which datum end shows the bubble for grids or levels, one item at a time.",
+                "Toggle which datum end shows the bubble for grids or levels - pick them one at a time (each flips instantly), or window-select a batch to flip in one undo step.",
                 typeof(CmdFlipGridBubble),
                 "GridbubbleFlip.png",
                 "GridbubbleFlip.png");
@@ -901,7 +906,7 @@ namespace AJTools.App
         {
             return CreatePushToolSpec(
                 "Elements to\nCeiling Grid",
-                "Pick ceiling, pick grid intersection, then snap point-based elements to nearest tile centers.",
+                "Snap point-based elements (lights, diffusers, sprinklers...) to the nearest ceiling grid tile centres. Asks first which way to work: one ceiling then pick elements, or select elements first then do one ceiling per room. On Revit 2025.3 and later the real grid lines are read, so no grid-intersection click is needed.",
                 typeof(CmdCeilingMagnet),
                 "cursor.png",
                 "cursor.png");
@@ -1007,14 +1012,14 @@ namespace AJTools.App
                     pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
                 CreateSplitChildTool(
                     "Purge Unused\nView Templates",
-                    "Preview and delete selected view templates that are not assigned to any view in the active project.",
+                    "Preview and delete selected view templates that no view uses and no view type applies to new views, in the active project.",
                     typeof(CmdPurgeUnusedViewTemplates),
                     "Remove.png",
                     "Remove.png",
                     pushButton => pushButton.AvailabilityClassName = typeof(CmdPurgeUnplacedViewsAvailability).FullName),
                 CreateSplitChildTool(
                     "Purge Unused\nFilters",
-                    "Preview and delete selected view/selection filters that are not applied on any view or view template in the active project.",
+                    "Preview and delete selected rule-based view filters that are not applied on any view or view template in the active project.",
                     typeof(CmdPurgeUnusedFilters),
                     "Remove.png",
                     "Remove.png",

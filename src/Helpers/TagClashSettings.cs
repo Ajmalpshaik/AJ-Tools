@@ -9,10 +9,10 @@
  *                 multi-key key=value file so one store can carry every clash/tagging value.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-16
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,8 @@
  *   Create Tags both read it so the two tools can never disagree about a vertical pipe again.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Moved TrySetSkipVerticalRuns' doc comment back onto it - it had ended up on
+ *                       TrySetSmartTagSizeSettings, which then carried two summaries. Comments only.
  * v1.0.0 (2026-08-16) - Initial release.
  *
  * License       : All Rights Reserved
@@ -268,17 +270,6 @@ namespace AJTools.Utils
         }
 
         /// <summary>
-        /// Stores the skip-vertical-runs rule on its own, without disturbing anything else in the file.
-        /// Returns false when the value could not be written, so the caller can say so.
-        /// </summary>
-        /// <remarks>
-        /// Lives here because THREE settings windows now touch this one file - Smart MEP Tag Settings
-        /// and Create Tags Settings both show the tick box, and Fix Tag Clash Settings carries the value
-        /// through untouched. Read-modify-write is what keeps them from overwriting each other, and it
-        /// belongs in one place rather than being copied into each command. The write is confirmed by
-        /// reading back, because a settings write that silently fails is worse than one that reports.
-        /// </remarks>
-        /// <summary>
         /// Saves Smart MEP Tags' size rules, leaving every other value in the file untouched.
         /// </summary>
         /// <remarks>
@@ -318,6 +309,17 @@ namespace AJTools.Utils
                     StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Stores the skip-vertical-runs rule on its own, without disturbing anything else in the file.
+        /// Returns false when the value could not be written, so the caller can say so.
+        /// </summary>
+        /// <remarks>
+        /// Lives here because THREE settings windows now touch this one file - Smart MEP Tag Settings
+        /// and Create Tags Settings both show the tick box, and Fix Tag Clash Settings carries the value
+        /// through untouched. Read-modify-write is what keeps them from overwriting each other, and it
+        /// belongs in one place rather than being copied into each command. The write is confirmed by
+        /// reading back, because a settings write that silently fails is worse than one that reports.
+        /// </remarks>
         internal static bool TrySetSkipVerticalRuns(bool skipVerticalRuns)
         {
             TagClashSettingsState current = Load();

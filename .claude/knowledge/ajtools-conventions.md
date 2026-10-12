@@ -106,7 +106,7 @@ place rather than leaving stale info sitting next to the new truth.
     reads like one. When a generated path must match a copy destination, derive both from the same custom
     metadata value instead of re-concatenating.
 
-**The ProgramData auto-deploy was BROKEN and is now disabled (found 2026-08-12)**
+**The ProgramData auto-deploy was BROKEN — disabled 2026-08-12, removed 2026-10-12**
 - `DeployAjToolsAddin` copied only `$(TargetPath)`, the PDB and `@(Content)` — the DLL and the icons.
   It **never copied the NuGet dependencies** (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit),
   so it produced a **7.7 MB install missing everything the AI shell needs** — and
@@ -116,11 +116,11 @@ place rather than leaving stale info sitting next to the new truth.
   complete 1.42.1. The obvious move — keep the newer-looking one — would have **deleted the working
   install and kept the broken one**. Always check a deploy is COMPLETE (dependencies present), not
   just newer.
-- Disabled by commenting out `RevitAddinDeployName` + `DeployRoots` in `src/AJ Tools.csproj`.
-  `AutoDeployRevitAddin` (AppData) copies `$(OutputPath)**\*.*` — everything — and is the deploy that
-  always actually worked. All-users installs still go through `dist\install-all-users.cmd`, which
-  ships a complete payload. To re-enable, restore both entries AND fix the target to copy
-  dependencies, or the same half-install returns.
+- The dead target and its properties were deleted on 2026-10-12, together with a leftover build step
+  that renamed the DLL inside `%APPDATA%\...\<year>\AJ Tools\` (the installer's folder, not the build's)
+  on every build. `AutoDeployRevitAddin` (AppData) copies `$(OutputPath)**\*.*` — everything — and is
+  the only build-time deploy. All-users installs go through `dist\install-all-users.cmd`, which ships a
+  complete payload. Never bring back a deploy that skips the dependencies.
 
 **Every build left a payload folder behind — now swept automatically (2026-08-12)**
 - `AutoDeployRevitAddin` must create a fresh `AJ Tools.<timestamp>\` each build (a running Revit locks
@@ -209,7 +209,7 @@ place rather than leaving stale info sitting next to the new truth.
   direction. Take the position from the tessellated edge point nearest the measuring line instead.
 
 **Tag & leader logic**
-- All tag placement / L-shaped leader tools must use `LeaderLogicService` (`src/Services/LeaderLogic/LeaderLogicService.cs`) for elbow computation — a specific 3-case elbow logic (Normal L-shape, Guard 1 same-X push, Guard 2 same-Y no-elbow) in view-space coordinates that must stay consistent across every tool. Instantiate `LeaderLogicService(view)`, use `ComputeElbow(headModel, leaderEndModel)` or `ApplyLeaderLogic(...)`. For stacking tools use `GetT1()` / `GetE1()`.
+- All tag placement / L-shaped leader tools must use `LeaderLogicService` (`src/Services/LeaderLogic/LeaderLogicService.cs`) for elbow computation — a specific 3-case elbow logic (Normal L-shape, Guard 1 same-X push, Guard 2 same-Y no-elbow) in view-space coordinates that must stay consistent across every tool. Instantiate `LeaderLogicService(view)` and use `ComputeElbow(headModel, leaderEndModel)` (or `GetE1(l1, t1)`). Read a tag's leader end with the static `GetL1(tag)` and set an elbow with `TrySetLeaderElbow(tag, elbow)` — both go through `TagCompat`, so they work on 2023+ where `IndependentTag` no longer has the `LeaderElbow`/`LeaderEnd` properties (L-Shape Leader read those by reflection and silently did nothing on 2023+ until 2026-10-12). Stacking tools snap heads to the column in `TagStackService` and set elbows through `TagLeaderService.ApplyLShapedLeader`. (`ApplyLeaderLogic` and `GetT1` were never called and were removed 2026-10-12.)
 - Tag tools (Smart MEP Tag, tag arranger) still place one tag per element — Revit 2022+ supports multi-leader tags (`MultiLeader`), but switching to that is a workflow decision that changes how many tags get created. Flag it to Ajmal before touching; don't switch unprompted.
 - **Rearrange Tags' click behaviour is whole-batch-per-click, not per-click-per-tag (verified by reading
   `IntelligentTagArrangerService.TryArrangeAtPoint`, 2026-07-28)**: every single `PickPoint` click
@@ -299,13 +299,15 @@ place rather than leaving stale info sitting next to the new truth.
 - **The test for whether a tool needs it is not "is it slow" — it is "does ONE action commit the user
   to ALL the work, with nothing to press afterwards".** Tags panel tools that ask: Smart MEP Tags,
   Fix Tag Clash, Stack Tags (one click builds the whole stack), Rearrange Tags (every click re-arranges
-  the whole selection), L-Shape Leader (**preselected path only**), Center Room Tags, Clear Tag Clash
-  Marks.
-- **Create Tags deliberately has NO confirm, and adding one would be a regression.** It asks for one
-  click *per tag* and its own prompt already reads *"Click a location for the next tag (3 of 47
-  remaining) - Esc to finish"* — self-paced, live count, cannot freeze. Same reasoning for L-Shape
-  Leader's pick-one-at-a-time path, which is why only its preselected branch got the confirm. If a
-  future audit reports these as "missing the guard", that is the audit being wrong.
+  the whole selection), L-Shape Leader (**preselected path only**), Create Tags (**batch path only**),
+  Center Room Tags, Clear Tag Clash Marks.
+- **Create Tags asks in its batch path only (2026-10-12).** Since 2026-08-17 it no longer asks for a
+  click per tag: with elements already selected it tags every one of them in one go, which passes the
+  test above, so that path now calls `ConfirmLongRun` with the selection count. With nothing selected
+  it works one element per click, Esc to finish — self-paced, cannot freeze — and does NOT ask. Same
+  reasoning for L-Shape Leader: only its preselected branch asks, never its pick-one-at-a-time path.
+  If a future audit reports the one-at-a-time paths as "missing the guard", that is the audit being
+  wrong.
 - **A tool that owns a real window should get a progress bar, not a prompt** (`ProgressReporter`,
   `PurgeUnusedElementsWindow`). The confirm exists precisely because these tools run *without* a
   window, so there is nowhere to put progress or a Cancel short of rebuilding them as modeless windows
@@ -367,6 +369,13 @@ place rather than leaving stale info sitting next to the new truth.
   the fix is a report that speaks only when it has something to add.
 - Keep per-item lists out of a routine report. The same v1.45.0 report printed one "Read linked model: X"
   line per link; six links meant six lines of noise on a run that had gone perfectly.
+- **One error, one box.** Revit shows the command's `message` text in its own error box whenever the
+  command returns `Result.Failed` (RevitAPIUI.xml, `IExternalCommand.Execute`). So a catch that already
+  shows an AJ Tools error box (`DialogHelper.ShowError`, `TaskDialog.Show`) must NOT also set `message` —
+  29 such paths showed the same error twice until 2026-10-12. Pick one: our own box (the house default,
+  and it must include `ex.Message` so the real reason is not lost), or `message` alone with no box of our
+  own. Not live-checked: that `Failed` with an empty `message` shows nothing extra — the 12 commands that
+  already worked that way had no complaint against them.
 
 **Settings windows are resizable AND scroll — never fixed-size on an estimated content height (2026-08-16)**
 - The house shape, used by all eight settings windows: `Width`/`Height` for the default size,
@@ -890,6 +899,45 @@ place rather than leaving stale info sitting next to the new truth.
 - A revision attached to no sheet and no cloud can be auto-purged by Revit the next time the revision
   sequence recomputes (e.g. while other revisions are being attached to sheets). Read revisions back
   after any revision change, and match them by date/description, never by sequence number.
+- `RevisionCloud.Create` refuses an ISSUED revision (throws). Put clouds on the newest revision that is
+  not issued, and say so plainly when every revision is issued (Revision Clouds by Elements, 2026-10-12).
+
+**Revit API facts confirmed in the 2026-10-12 audit** (read from the installed RevitAPI.xml/.dll for
+2020/2024/2026/2027 — not live-tested; each one was behind a real bug)
+- **Commands**: Revit shows `message` in its own error box whenever a command returns `Failed`, and
+  undoes the changes of any command that does not return `Succeeded` (`IExternalCommand.Execute` docs).
+  So a run that committed something must return `Succeeded` (Fix Tag Clash's colours vanished), and a
+  catch that already shows our own box must not also set `message` (see "One error, one box").
+- **Parameter bindings**: `BindingMap.ReInsert` REPLACES the whole category set. To add a category,
+  merge the existing categories, keep the binding kind (instance/type) and group, then ReInsert. Never
+  `Remove` + `Insert` as a fallback — removing a binding deletes every value the parameter holds
+  (Duct Standards and Location Data both did this).
+- **Per-element results go in INSTANCE parameters only.** A same-named type parameter is shared by every
+  element of that type, so the last element processed wins for all of them — skip it and report it
+  (Duct Standards, Location Data, MEP Openings opening sizes).
+- **Units**: a raw number is only right in a plain Number parameter; a Length parameter needs
+  `RevitCompat.MmToInternal`. On 2022+, `==` between two spec `ForgeTypeId`s ignores the version suffix.
+- **Survey point**: `OfClass(typeof(BasePoint))` returns BOTH base points, in no fixed order — take the
+  one with `IsShared == true`.
+- **Temporary Hide/Isolate**: `DisableTemporaryViewMode` does nothing (no error) when the mode is off —
+  check `IsTemporaryHideIsolateActive()` first if you report what happened.
+- **Never call `EnableWorksharing` from a tool** — it is a whole-model decision and clears Undo.
+- **Picking**: `ObjectType.Element` never returns an element inside a link (a click on a link returns the
+  `RevitLinkInstance`); `ObjectType.LinkedElement` can never return a host element. For "host or linked",
+  pick `ObjectType.PointOnElement` and branch on `Reference.LinkedElementId`. Element ids are unique only
+  within one model, so an id search across links can match several elements.
+- **Dimensions**: `new Reference(element)` is a valid dimension reference only for a `DatumPlane` (level,
+  grid, reference plane); for anything else `NewDimension` throws and fails the whole string.
+  `PickPoint` needs a work plane: set it in a committed transaction inside the run's `TransactionGroup`
+  before picking. A multi-segment dimension keeps its text per `DimensionSegment`.
+- **Sizes**: conduit — `RBS_CONDUIT_OUTER_DIAM_PARAM`, then `RBS_CONDUIT_DIAMETER_PARAM`; cable tray —
+  `RBS_CABLETRAY_WIDTH_PARAM` / `HEIGHT_PARAM`. `Connector.CoordinateSystem` does not say which axis
+  carries a rectangle's width — read it from the geometry.
+- **Insulation / lining**: `GetLiningIds` throws for pipes, and Revit's `ArgumentException` does not
+  derive from `System.ArgumentException` — catch the Revit one when it means "nothing to copy".
+- **.NET 8/10 (Revit 2025+)**: `Process.Start(folderPath)` needs `UseShellExecute = true`.
+- **A save that only happens while a window closes** cannot report in its status line (the window is
+  going, and `Closing` runs 2-3 times with the exit animation) — report a failure once, guarded by a flag.
 
 **Ribbon & shared helpers**
 - Ribbon is built in `Core/RibbonManager.cs` (+ `Core/AnnotationRibbonManager.cs`), not in `App.cs`.
@@ -974,11 +1022,16 @@ place rather than leaving stale info sitting next to the new truth.
   Easy to miss because the extensions class two lines below it in the same file correctly stays
   `internal` — don't copy that modifier onto the enum by habit.
 - When one variant's "is this safe to delete" question can't be answered with 100% certainty by static
-  analysis alone (e.g. Purge Unused View Templates can't see whether a template is silently set as
-  Revit's own default-for-new-views), don't try to special-case every edge case in the scan — lean on the
-  existing "probe the delete inside a rolled-back transaction, let Revit's own dependency graph decide"
-  pattern instead. It's already proven (`UnplacedViewPurgeService`) and generalizes to any `Element`, not
-  just `View`.
+  analysis alone, back the scan with the "probe the delete inside a rolled-back transaction" pattern
+  (`UnplacedViewPurgeService`, `UnusedElementPurgeService`) — but know its two limits (found 2026-10-12):
+  1. `Document.Delete` also deletes everything "totally dependent" on the target and reports it only in
+     the id set it returns. "The target is in that set" is NOT "nothing else goes": the probe must check
+     the set for other in-use elements (dependent and callout views, viewports, filters, groups, model
+     elements). Purge Unplaced Views deleted dependent views this way until 2026-10-12.
+  2. A reference Revit simply clears on delete (nothing else is deleted) is invisible to the probe — e.g.
+     a view type's "View template applied to new views", `ViewFamilyType.DefaultTemplateId`, readable
+     since 2013. The scan must check such links itself. This note used to claim that link was invisible
+     to the API and that the probe would catch it; both were wrong.
 - Sheet-placement bookkeeping differs by what's being placed: a normal view/legend/drafting view uses
   `Viewport` (`ViewId`/`SheetId`/`GetBoxCenter()`); a schedule uses `ScheduleSheetInstance`
   (`ScheduleId`/`OwnerViewId`/`Point`) — note the sheet-id property is named **`OwnerViewId`** on
@@ -1115,6 +1168,21 @@ provider is additive and touches exactly five files. In order:
 `ErrorCorrectionService` needs **no** change — it takes whichever `IAiProviderService` it is constructed
 with, so it follows `GetActiveService()` automatically. `SelectedProvider` is a plain string compared in
 `GetActiveService()`; the string in the XAML `ComboBoxItem` must match it exactly.
+
+Two things every provider service must do (all four do since 2026-10-12):
+- **An empty reply is an error, never "the reply".** Throw `AiEmptyReplyException` (defined in
+  `IAiProviderService.cs`) with the provider's own reason (block reason, refusal, finish/stop reason).
+  Returning `""` used to wipe the Code Editor and still read as a success.
+- **Tell a timeout from Stop.** `catch (TaskCanceledException) when (!token.IsCancellationRequested)` →
+  "The AI service did not answer in time". See the timeout point under the reasoning-models note below.
+
+Settings: always use the one shared copy, `AiShellConfig.Shared` — never `AiShellConfig.Load()` from a
+new place. `Save()` writes the whole object, so a second copy silently writes its stale pin/folder back
+over the first (Run Pinned lost its pin that way until 2026-10-12). An unreadable settings file is kept
+aside as `AiShellConfig.json.<stamp>.bak` and the pane says so once, instead of the defaults (no keys)
+being saved over it. The system prompt's API rule is built per Revit version from the RevitAPI assembly
+major version; scripts that declare their own class/struct/record/interface are not loop-instrumented
+(the injected checks cannot reach the script-level token from inside a declared type - CS0120).
 
 **TRAP: `SoftComboBoxStyle` cannot be made editable (found 2026-08-05, v1.41.0)**
 `AiShell/Views/SoftUiStyles.xaml` replaces the `ComboBox` `ControlTemplate` and that template contains

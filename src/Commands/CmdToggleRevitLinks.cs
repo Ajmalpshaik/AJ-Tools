@@ -5,10 +5,10 @@
  * Purpose       : Toggles Revit Link category visibility in the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-29
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -34,6 +34,7 @@
  * v1.2.0 (2026-06-29) - Added Regeneration attribute; corrected transaction name to "AJ-Tools: Toggle Link";
  *                        corrected dialog title to "AJ-Tools"; replaced ex.Message in user-facing
  *                        error dialogs with plain-language guidance.
+ * v1.2.1 (2026-10-12) - An unexpected error now shows one message, with Revit's own reason added to it (it used to show a general hint, then the reason again in a second, Revit-made box).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -100,11 +101,11 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(
                     ToolTitle,
                     "Could not toggle Revit Link visibility in the active view.\n\n"
-                    + "If a view template controls Revit Links visibility, unlock that setting and try again.");
+                    + "If a view template controls Revit Links visibility, unlock that setting and try again."
+                    + "\n\nWhat went wrong: " + ex.Message);
                 return Result.Failed;
             }
         }

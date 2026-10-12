@@ -16,6 +16,12 @@ namespace AJTools.AiShell.Configuration
 
         private static readonly object _fileLock = new object();
 
+        // The one copy of the settings this Revit session works with. The C# pane, the Saved Scripts
+        // window and Run Pinned all use it, because Save() writes the WHOLE object: with separate
+        // copies, a pin or folder set in Saved Scripts was written back to its old value the next
+        // time the pane saved anything (provider, key, folder) from the copy it loaded at startup.
+        private static AiShellConfig _shared;
+
         public string SelectedProvider { get; set; } = "Gemini"; // "Gemini", "OpenAI", "Claude", or "NVIDIA"
 
         public string EncryptedGeminiApiKey { get; set; }
@@ -27,8 +33,9 @@ namespace AJTools.AiShell.Configuration
         public string AnthropicModel { get; set; } = "claude-sonnet-5";
 
         /// <summary>NVIDIA NIM model id, exactly as shown on the build.nvidia.com model card
-        /// (e.g. "z-ai/glm-5.2"). Free-text rather than a fixed list - the catalog runs to ~130
-        /// models, so the Settings dropdown is editable and anything can be pasted in.</summary>
+        /// (e.g. "z-ai/glm-5.2"). Free text rather than one fixed list - the catalog runs to ~130
+        /// models, so Settings offers a fixed shortlist dropdown PLUS a plain text box (both bound to
+        /// this value) where any other id can be pasted in.</summary>
         public string NvidiaModel { get; set; } = "z-ai/glm-5.2";
 
         public string ScriptsFolderPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AJTools_Scripts");
@@ -37,24 +44,72 @@ namespace AJTools.AiShell.Configuration
         /// ribbon button (RunPinnedScriptCommand). Null/empty means nothing is pinned.</summary>
         public string PinnedScriptPath { get; set; }
 
+        /// <summary>Set when the settings file existed but could not be read, so the defaults are in
+        /// use - a plain-language note for the C# pane to show once. Never written to the file.</summary>
+        [JsonIgnore]
+        public string LoadWarning { get; private set; }
+
+        /// <summary>The settings instance shared by every part of the C# tools in this Revit session
+        /// (loaded from disk on first use). Use this rather than Load() so two parts never hold
+        /// different copies of the same file.</summary>
+        public static AiShellConfig Shared
+        {
+            get
+            {
+                lock (_fileLock)
+                {
+                    return _shared ?? (_shared = Load());
+                }
+            }
+        }
+
         public static AiShellConfig Load()
         {
             lock (_fileLock)
             {
-                if (File.Exists(ConfigPath))
+                if (!File.Exists(ConfigPath))
                 {
-                    try
-                    {
-                        var json = File.ReadAllText(ConfigPath);
-                        return JsonConvert.DeserializeObject<AiShellConfig>(json) ?? new AiShellConfig();
-                    }
-                    catch (Exception ex)
-                    {
-                        LogError("Failed to load config", ex);
-                        return new AiShellConfig();
-                    }
+                    return new AiShellConfig();
                 }
-                return new AiShellConfig();
+
+                try
+                {
+                    var json = File.ReadAllText(ConfigPath);
+                    var loaded = JsonConvert.DeserializeObject<AiShellConfig>(json);
+                    if (loaded != null)
+                    {
+                        return loaded;
+                    }
+
+                    // An empty file (e.g. one cut short while being written) parses to null.
+                    throw new InvalidDataException("The settings file is empty.");
+                }
+                catch (Exception ex)
+                {
+                    // Never fail silently here: the defaults have no API keys, pin or folder, and the
+                    // next save would write them over the file. Keep a copy of the unreadable file
+                    // first, and tell the user once (AiShellViewModel shows LoadWarning).
+                    LogError("Failed to load config", ex);
+                    return new AiShellConfig { LoadWarning = BackUpUnreadableFile() };
+                }
+            }
+        }
+
+        /// <summary>Copies the unreadable settings file aside (AiShellConfig.json.yyyyMMdd-HHmmss.bak,
+        /// same folder) and returns the note the pane shows. Caller holds _fileLock.</summary>
+        private static string BackUpUnreadableFile()
+        {
+            try
+            {
+                string backupPath = ConfigPath + "." + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".bak";
+                File.Copy(ConfigPath, backupPath, true);
+                return "AI settings file could not be read - defaults in use. Old file kept as " +
+                       Path.GetFileName(backupPath) + " (in %AppData%\\AJTools).";
+            }
+            catch (Exception ex)
+            {
+                LogError("Failed to back up the unreadable config", ex);
+                return "AI settings file could not be read - defaults in use (the old file could not be copied aside).";
             }
         }
 

@@ -8,10 +8,12 @@
 //              same category + minimum-length settings, and the same stack spacing Rearrange Tags
 //              itself uses - nothing new to configure for this tool specifically.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Models.SmartTag, AJTools.Models.CreateTags,
 //               AJTools.Services.SmartTag, AJTools.Services.LeaderLogic, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - The end-of-run summary only appears when something was skipped or
+//            there is a warning; a clean run, or Esc before any click, ends silently (house rule).
 
 using System;
 using System.Collections.Generic;
@@ -107,9 +109,8 @@ namespace AJTools.Services.CreateTags
                 return Result.Cancelled;
             }
 
-            // Ask before a long run. Unlike Create Tags - which asks for one click per tag and shows the
-            // remaining count as it goes - a single click here creates and stacks a tag for EVERY
-            // selected element, so a big selection means one click then a silent freeze.
+            // Ask before a long run. A single click here creates and stacks a tag for EVERY selected
+            // element, so a big selection means one click then a silent freeze.
             if (!DialogHelper.ConfirmLongRun(
                     ToolTitle,
                     candidates.Count,
@@ -215,17 +216,17 @@ namespace AJTools.Services.CreateTags
 
             // No "spacing was increased" note any more (it existed in v1.49.8/9). The setting is now
             // the GAP between tags, so any positive value works and nothing gets overridden.
-            ShowSummary(createdTagIds.Count, tally, tagWarnings);
+            // House rule, the same one Create Tags' ShowRunSummary follows: a clean run - or Esc
+            // before any click - ends silently, and only a run that skipped something or has a
+            // warning says so. "0 tag(s) in the stack." after Esc was the confirming-the-obvious popup.
+            bool hasSkips = tally.BuildSummary() != null;
+            bool hasWarnings = tagWarnings != null && tagWarnings.Count > 0;
+            if (hasSkips || hasWarnings)
+                ShowSummary(createdTagIds.Count, tally, tagWarnings);
 
             return createdTagIds.Count > 0 ? Result.Succeeded : Result.Cancelled;
         }
 
-        /// <summary>
-        /// One click's worth of work: assigns every eligible candidate to a slot in a vertical stack
-        /// starting at basePointModel (nearest element first, same as Rearrange Tags' T1-to-L1
-        /// matching), creating or moving each one's tag in turn. All-or-nothing - if any candidate
-        /// fails, the whole attempt fails and the caller rolls the transaction back.
-        /// </summary>
         /// <summary>
         /// Every tag already in the view, used only to gauge how tall a tag is before this tool has
         /// created any of its own. Read-only - nothing here is modified.
@@ -255,6 +256,12 @@ namespace AJTools.Services.CreateTags
             return tags;
         }
 
+        /// <summary>
+        /// One click's worth of work: assigns every eligible candidate to a slot in a vertical stack
+        /// starting at basePointModel (nearest element first, same as Rearrange Tags' T1-to-L1
+        /// matching), creating or moving each one's tag in turn. All-or-nothing - if any candidate
+        /// fails, the whole attempt fails and the caller rolls the transaction back.
+        /// </summary>
         private static bool TryArrangeAtPoint(
             Document doc,
             View activeView,

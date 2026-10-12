@@ -4,15 +4,17 @@
   Purpose       : WPF layout for the Filter Pro window — category, parameter, value selection;
                   filter rule configuration; apply scope and colour override options.
   Author        : Ajmal P.S.
-  Version       : 1.0.1
+  Version       : 1.0.2
   Created Date  : 2025-12-10
-  Last Updated  : 2026-06-30
+  Last Updated  : 2026-10-12
   Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
   Framework     : .NET Fx 4.7.2 (2020-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
   Dependencies  : ModernStyles.xaml
   Changelog     :
     v1.0.0 (2025-12-10) - Initial release.
     v1.0.1 (2026-06-30) - Updated header to 2020-latest coverage and current date.
+    v1.0.2 (2026-10-12) - Parameter step now reads "Select Parameter" / "Choose a parameter" - the list
+                          only ever allows one parameter, so the plural wording was misleading.
   License       : All Rights Reserved
   Repo          : AJ-Tools
 -->
@@ -159,7 +161,7 @@
                         </GroupBox>
 
                         <!-- Parameters -->
-                        <GroupBox Header="2. Select Parameters" 
+                        <GroupBox Header="2. Select Parameter"
                                   Grid.Column="1" 
                                   Style="{StaticResource ModernGroupBox}"
                                   Margin="5,0,5,0">
@@ -171,7 +173,7 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" 
-                                           Text="Choose parameters to filter by" 
+                                           Text="Choose a parameter to filter by"
                                            FontSize="11" 
                                            Foreground="{StaticResource TextSecondary}"
                                            Margin="0,0,0,5"/>

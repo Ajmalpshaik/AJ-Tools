@@ -8,10 +8,10 @@
  *                 references, in the open project or inside a Revit link.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -44,6 +44,10 @@
  *
  * Changelog     :
  * v1.0.0 (2026-08-15) - Initial release, replacing DuctReferenceDimensionGeometry.
+ * v1.0.1 (2026-10-12) - Dead code removed, no behaviour change: the row-offset parameter of
+ *                       TryCreateDimensionLine (every caller passed 0) with its "row-per-run"
+ *                       comment, the never-used along-the-run output of TryGetLineIntervalAlongAxis,
+ *                       and the never-read SourceName on each candidate.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -649,7 +653,7 @@ namespace AJTools.Services.MepReferenceDimension
         /// ("witness line extension"), so extending it from code changes nothing on the sheet - and
         /// padding each piece of a separate-segments chain made adjacent pieces overlap each other.
         /// </remarks>
-        internal static bool TryCreateDimensionLine(DimensionPlan plan, double rowOffsetFeet, out string reason)
+        internal static bool TryCreateDimensionLine(DimensionPlan plan, out string reason)
         {
             reason = string.Empty;
 
@@ -665,8 +669,7 @@ namespace AJTools.Services.MepReferenceDimension
             // Just enough to guarantee Line.CreateBound never sees a zero-length line.
             double slack = Constants.MIN_DISTANCE_TOLERANCE;
 
-            // Row-per-run mode slides each row along the run so they stack instead of overprinting.
-            XYZ origin = plan.Axis.Origin + (plan.Axis.RunDirection * rowOffsetFeet);
+            XYZ origin = plan.Axis.Origin;
 
             XYZ start = origin +
                         (plan.Axis.DimensionDirection * (minCoord - plan.Axis.OriginDimensionCoord - slack));
@@ -707,12 +710,10 @@ namespace AJTools.Services.MepReferenceDimension
             DimensionAxis axis,
             out double minCoord,
             out double maxCoord,
-            out double runCoord,
             out XYZ direction)
         {
             minCoord = 0.0;
             maxCoord = 0.0;
-            runCoord = 0.0;
             direction = null;
 
             Line line = curve as Line;
@@ -735,7 +736,6 @@ namespace AJTools.Services.MepReferenceDimension
                 double b = end.DotProduct(axis.DimensionDirection);
                 minCoord = Math.Min(a, b);
                 maxCoord = Math.Max(a, b);
-                runCoord = ((start + end) * 0.5).DotProduct(axis.RunDirection);
                 return true;
             }
             catch
@@ -1026,8 +1026,7 @@ namespace AJTools.Services.MepReferenceDimension
                 Kind = kind,
                 IsMeasuredRun = isMeasuredRun,
                 IsSeedRun = !string.IsNullOrEmpty(seedElementKey) &&
-                            string.Equals(elementKey, seedElementKey, StringComparison.Ordinal),
-                SourceName = source.DisplayName
+                            string.Equals(elementKey, seedElementKey, StringComparison.Ordinal)
             };
         }
 

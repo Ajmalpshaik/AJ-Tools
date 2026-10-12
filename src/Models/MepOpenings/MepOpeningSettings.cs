@@ -5,10 +5,10 @@
  * Purpose       : Stores all saved settings for the Opening tools.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-03
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,12 +20,15 @@
  * Output        : Normalized settings used by the settings UI and create command.
  *
  * Notes         :
- * - Opening source/host flags prepare the UI for future current-model and linked-model workflows.
+ * - Opening source/host flags choose current-model or linked-model sources and hosts (one of each);
+ *   a linked host needs Family Opening mode.
  * - MergeDistanceMm combines nearby selected MEP crossings into one rectangular opening.
  * - IncludeInsulation adds detected pipe/duct insulation thickness before the buffer is applied.
  *
  * Changelog     :
  * v1.0.0 (2026-07-03) - Initial release.
+ * v1.0.1 (2026-10-12) - Notes only: the source/host flags drive working linked-model workflows, not
+ *                       "future" ones.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

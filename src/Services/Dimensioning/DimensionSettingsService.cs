@@ -6,10 +6,10 @@
  *                 the user's AppData folder.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,8 @@
  * - Follows the MepOpeningSettingsService pattern (JSON under %APPDATA%\AJ Tools\<Tool>\).
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Removed the two parameterless GetSettingsFilePath() helpers on the Automatic
+ *                       Dimension and Auto MEP Dimension services - nothing called them.
  * v1.0.0 (2026-08-15) - Initial release.
  *
  * License       : All Rights Reserved
@@ -133,11 +135,6 @@ namespace AJTools.Services.Dimensioning
             settings?.Normalize();
             return DimensionSettingsPaths.Write(SettingsFileName, settings, out errorMessage);
         }
-
-        public static string GetSettingsFilePath()
-        {
-            return DimensionSettingsPaths.GetSettingsFilePath(SettingsFileName);
-        }
     }
 
     /// <summary>
@@ -163,11 +160,6 @@ namespace AJTools.Services.Dimensioning
         {
             settings?.Normalize();
             return DimensionSettingsPaths.Write(SettingsFileName, settings, out errorMessage);
-        }
-
-        public static string GetSettingsFilePath()
-        {
-            return DimensionSettingsPaths.GetSettingsFilePath(SettingsFileName);
         }
     }
 }

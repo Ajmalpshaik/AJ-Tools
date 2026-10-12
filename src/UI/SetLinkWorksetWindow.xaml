@@ -2,8 +2,8 @@
   Tool Name: Set Link Workset UI
   Description: Dialog to assign Revit links and CAD imports to a workset.
   Author: Ajmal P.S.
-  Version: 2.0.0
-  Last Updated: 2026-04-15
+  Version: 2.0.1
+  Last Updated: 2026-10-12
   Revit Version: 2020
   Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI
 -->
@@ -35,6 +35,15 @@
                    FontSize="11"
                    HorizontalAlignment="Center"
                    Margin="0,0,0,8"/>
+
+        <!-- Result / reason line. Docked above the footer so no Grid.Row below moves;
+             collapsed until there is something to say. -->
+        <TextBlock x:Name="StatusText"
+                   DockPanel.Dock="Bottom"
+                   Foreground="{StaticResource TextSecondary}"
+                   TextWrapping="Wrap"
+                   Margin="14,0,14,8"
+                   Visibility="Collapsed"/>
 
         <Grid Margin="14">
             <Grid.RowDefinitions>

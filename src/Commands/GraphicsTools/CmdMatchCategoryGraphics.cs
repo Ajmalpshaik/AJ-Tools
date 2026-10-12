@@ -5,10 +5,10 @@
  * Purpose       : Copies category-level graphics overrides from one picked source category to the categories of one or more picked target elements in the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-03-30
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * - Only overridable model categories are matched; ESC during a pick cancels silently.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       A target Revit refuses is now reported once at the end, with Revit's reason (it looked like a click that did nothing).
  * v1.5.0 (2026-06-30) - Grouped multi-target matching into one TransactionGroup (single undo); version-safe ElementId access; full metadata block.
  * v1.4.4 (2026-05-09) - Reviewed Match Category Graphics flow, shared validation, and metadata for release.
  *
@@ -91,6 +93,8 @@ namespace AJTools.Commands.GraphicsTools
 
                 var processedCategoryIds = new HashSet<int>();
                 int appliedCount = 0;
+                int refusedCount = 0;
+                string firstRefusal = null;
 
                 using (var transactionGroup = new TransactionGroup(context.Document, "AJ Tools - Match Category Graphics"))
                 {
@@ -146,9 +150,15 @@ namespace AJTools.Commands.GraphicsTools
                                 processedCategoryIds.Add(categoryKey);
                                 appliedCount++;
                             }
-                            catch
+                            catch (Exception ex)
                             {
                                 transaction.RollBack();
+
+                                // Told once at the end - a refused pick used to look exactly like a click
+                                // that did nothing.
+                                refusedCount++;
+                                if (firstRefusal == null)
+                                    firstRefusal = ex.Message;
                             }
                         }
                     }
@@ -163,6 +173,8 @@ namespace AJTools.Commands.GraphicsTools
                     }
                 }
 
+                GraphicsCommandService.ReportNotChanged(dialogTitle, appliedCount, refusedCount, firstRefusal);
+
                 if (appliedCount == 0)
                 {
                     return Result.Cancelled;
@@ -172,7 +184,6 @@ namespace AJTools.Commands.GraphicsTools
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }

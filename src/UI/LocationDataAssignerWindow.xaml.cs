@@ -1,7 +1,7 @@
 ﻿// Tool Name: Location Data Assigner UI
 // Description: Code-behind for assigning room, level, coordinate, altitude, and HVAC zone data.
 // Author: Ajmal P.S.
-// Version: 1.0.1
+// Version: 1.0.2
 // Last Updated: 2026-10-12
 // Revit Version: 2020
 
@@ -25,6 +25,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -70,6 +71,12 @@ namespace AJTools.UI
         public LocationDataAssignerWindow(Document doc)
         {
             InitializeComponent();
+
+            // Process and Create/Rebind pump the dispatcher to repaint their progress, and that pump
+            // runs a real Win32 message loop - so the title-bar X and Alt+F4 DO reach this window
+            // mid-run. Disabling the buttons does not cover those, so refuse the close while busy.
+            // Subscribed before the motion helpers so this veto is already set when they run.
+            Closing += RefuseCloseWhileBusy;
 
             // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
             WindowMotionHelper.AttachStandardEntrance(this);
@@ -313,13 +320,15 @@ namespace AJTools.UI
             bool hasCategories = _allCategories.Any(i => i.IsChecked);
             bool hasParamSpecs = GetSpecs(map, includeLevels, includeCoords, includeAltitude, includeHvac).Count > 0;
             ProcessButton.IsEnabled = hasCategories && !roomMapInvalid && !coordMapInvalid && !roomMissing;
-            CreateParametersButton.IsEnabled = hasParamSpecs;
+            // Create/Rebind binds to the ticked categories, so it needs at least one ticked - it no longer
+            // falls back to a built-in list of categories the user never chose.
+            CreateParametersButton.IsEnabled = hasParamSpecs && hasCategories;
             CheckParametersButton.IsEnabled = hasParamSpecs;
 
             CreateParametersButton.Content = "Create/Rebind Parameters";
 
             if (!hasCategories)
-                StatusText.Text = "Select at least one category.";
+                StatusText.Text = "Select at least one category on the Process tab.";
             else if (roomMapInvalid)
                 StatusText.Text = "Map Room Name and Room Number parameters.";
             else if (coordMapInvalid)
@@ -479,25 +488,42 @@ namespace AJTools.UI
                 return;
             }
 
-            string list = string.Join("\n", specs.Select(s => "- " + s.Name));
-            if (!DialogHelper.ShowYesNo(DialogTitle, "The following parameters will be created/rebound:\n\n" + list + "\n\nContinue?"))
+            // The button is disabled with nothing ticked; re-checked here as a guard. Binding to a
+            // built-in category list the user never chose is what this used to do instead.
+            var selectedCategories = _allCategories.Where(c => c.IsChecked).ToList();
+            if (selectedCategories.Count == 0)
+            {
+                StatusText.Text = "Select at least one category on the Process tab - parameters are bound to the ticked categories.";
+                return;
+            }
+
+            if (!DialogHelper.ShowYesNo(DialogTitle, BuildBindConfirmText(specs, selectedCategories.Count)))
                 return;
 
+            BindResult outcome = null;
             try
             {
                 SetBusy(true, "Creating parameters...");
-                int count;
                 using (var t = new Transaction(_doc, "Create Location Data Parameters"))
                 {
                     t.Start();
-                    count = CreateParameters(specs, _allCategories.Where(c => c.IsChecked).ToList());
-                    t.Commit();
+                    outcome = CreateParameters(specs, selectedCategories);
+                    if (t.Commit() != TransactionStatus.Committed)
+                        throw new InvalidOperationException("Revit did not keep the change (the transaction was rolled back).");
                 }
 
-                DialogHelper.ShowInfo(DialogTitle, "Parameters processed: " + count);
+                // A clean run is reported in the status line only; a popup is kept for a binding Revit refused.
+                if (outcome.Failed.Count > 0)
+                {
+                    DialogHelper.ShowError(
+                        DialogTitle,
+                        "These parameters could not be bound:\n\n- " + string.Join("\n- ", outcome.Failed) +
+                        "\n\nThe other parameters were created or updated.");
+                }
             }
             catch (Exception ex)
             {
+                outcome = null;
                 DialogHelper.ShowError(DialogTitle, "Failed to create parameters:\n\n" + ex.Message);
             }
             finally
@@ -505,6 +531,64 @@ namespace AJTools.UI
                 SetBusy(false, null);
                 UpdateButtons();
             }
+
+            // Set after UpdateButtons, which rewrites the status line.
+            if (outcome != null)
+            {
+                StatusText.Text = string.Format(
+                    "Parameters: {0} created, {1} updated (existing categories and values kept){2}.",
+                    outcome.Created.Count,
+                    outcome.Updated.Count,
+                    outcome.Failed.Count > 0 ? ", " + outcome.Failed.Count + " could not be bound" : string.Empty);
+            }
+        }
+
+        /// <summary>
+        /// The question asked before Create/Rebind runs. It must say what really happens: a parameter
+        /// that already exists keeps every category it is bound to, its values and its instance/type
+        /// setting - the ticked categories are only added to it.
+        /// </summary>
+        private string BuildBindConfirmText(IList<ParamSpec> specs, int tickedCategoryCount)
+        {
+            BindingMap map = _doc.ParameterBindings;
+            var created = new List<string>();
+            var existing = new List<string>();
+
+            foreach (var spec in specs)
+            {
+                Definition definition = FindDefinition(map, spec.Name, out Binding binding);
+                if (definition == null)
+                    created.Add("- " + spec.Name);
+                else if (binding is TypeBinding)
+                    existing.Add("- " + spec.Name + " (type parameter - Process Elements only fills instance parameters)");
+                else
+                    existing.Add("- " + spec.Name);
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendFormat(
+                "These parameters will be bound to the {0} ticked categor{1}.",
+                tickedCategoryCount,
+                tickedCategoryCount == 1 ? "y" : "ies");
+
+            if (created.Count > 0)
+            {
+                sb.Append("\n\nNew - added as instance parameters:\n");
+                sb.Append(string.Join("\n", created));
+            }
+
+            if (existing.Count > 0)
+            {
+                sb.Append("\n\nAlready in this project - the ticked categories are added to the ones they already have. ");
+                sb.Append("Their existing categories, values and instance/type setting are kept:\n");
+                sb.Append(string.Join("\n", existing));
+            }
+
+            sb.Append("\n\nAll of them are listed under Data in Properties. New ones are taken from the shared ");
+            sb.Append("parameter file Revit is set to use (added to its \"" + SharedParamGroupName + "\" group if not ");
+            sb.Append("already in it; a temporary file is used when none is set).");
+            sb.Append("\n\nContinue?");
+            return sb.ToString();
         }
 
         private static List<ParamSpec> GetSpecs(LocationParameterMap map, bool includeLevels, bool includeCoords, bool includeAltitude, bool includeHvac)
@@ -549,11 +633,12 @@ namespace AJTools.UI
             specs.Add(new ParamSpec(clean, type, group));
         }
 
-        private int CreateParameters(IList<ParamSpec> specs, IList<CategoryItem> selectedCategories)
+        private BindResult CreateParameters(IList<ParamSpec> specs, IList<CategoryItem> selectedCategories)
         {
             var app = _doc.Application;
             string originalPath = app.SharedParametersFilename;
             bool tempAssigned = false;
+            var outcome = new BindResult();
 
             try
             {
@@ -574,37 +659,52 @@ namespace AJTools.UI
 
                 var group = GetOrCreateGroup(file, SharedParamGroupName);
 
-                CategorySet categorySet = app.Create.NewCategorySet();
-                int catCount = FillCategorySet(categorySet, selectedCategories);
-                if (catCount == 0)
+                if (FillCategorySet(app.Create.NewCategorySet(), selectedCategories, null) == 0)
                     throw new InvalidOperationException("No valid categories available for binding.");
 
-                int success = 0;
                 BindingMap map = _doc.ParameterBindings;
 
                 foreach (var spec in specs)
                 {
-                    Definition definition = FindDefinition(map, spec.Name) ?? GetOrCreateDefinition(file, group, spec.Name, spec.ParameterType);
+                    Definition existing = FindDefinition(map, spec.Name, out Binding existingBinding);
+                    Definition definition = existing ?? GetOrCreateDefinition(file, group, spec.Name, spec.ParameterType);
                     if (definition == null)
-                        continue;
-
-                    Binding binding = app.Create.NewInstanceBinding(categorySet);
-                    bool hasExisting = FindDefinition(map, spec.Name) != null;
-                    bool ok = hasExisting
-                        ? RevitCompat.ReInsertBinding(map, definition, binding, spec.ParameterGroup)
-                        : RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
-
-                    if (!ok && hasExisting)
                     {
-                        try { map.Remove(definition); } catch (Exception) { }
-                        ok = RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
+                        outcome.Failed.Add(spec.Name + " - could not be created in the shared parameter file");
+                        continue;
                     }
 
-                    if (ok)
-                        success++;
+                    // Ticked categories plus, for an existing parameter, every category it is bound to now:
+                    // a rebind with fewer categories removes the parameter - and its values - from the
+                    // categories left out.
+                    CategorySet categorySet = app.Create.NewCategorySet();
+                    FillCategorySet(categorySet, selectedCategories, existingBinding as ElementBinding);
+
+                    bool ok;
+                    if (existing == null)
+                    {
+                        ok = RevitCompat.InsertBinding(map, definition, app.Create.NewInstanceBinding(categorySet), spec.ParameterGroup);
+                    }
+                    else
+                    {
+                        // Keep an existing parameter the kind it is (instance or type): changing the kind
+                        // drops every value it holds. If Revit refuses the rebind it is reported - it is
+                        // never removed and re-added to force it through, which would wipe its values.
+                        Binding binding = existingBinding is TypeBinding
+                            ? (Binding)app.Create.NewTypeBinding(categorySet)
+                            : app.Create.NewInstanceBinding(categorySet);
+                        ok = RevitCompat.ReInsertBinding(map, definition, binding, spec.ParameterGroup);
+                    }
+
+                    if (!ok)
+                        outcome.Failed.Add(spec.Name + " - Revit did not accept the binding");
+                    else if (existing == null)
+                        outcome.Created.Add(spec.Name);
+                    else
+                        outcome.Updated.Add(spec.Name);
                 }
 
-                return success;
+                return outcome;
             }
             finally
             {
@@ -613,10 +713,27 @@ namespace AJTools.UI
             }
         }
 
-        private int FillCategorySet(CategorySet set, IList<CategoryItem> selected)
+        /// <summary>
+        /// Fills <paramref name="set"/> with the ticked categories plus, when the parameter is already
+        /// bound, every category of its current binding, so a rebind only ever adds categories.
+        /// Returns how many categories went in.
+        /// </summary>
+        private static int FillCategorySet(CategorySet set, IList<CategoryItem> selected, ElementBinding existingBinding)
         {
             int count = 0;
             var ids = new HashSet<int>();
+
+            if (existingBinding?.Categories != null)
+            {
+                foreach (Category c in existingBinding.Categories)
+                {
+                    if (c != null && ids.Add(c.Id.IntValue()))
+                    {
+                        set.Insert(c);
+                        count++;
+                    }
+                }
+            }
 
             if (selected != null)
             {
@@ -631,24 +748,6 @@ namespace AJTools.UI
                         set.Insert(c);
                         count++;
                     }
-                }
-            }
-
-            if (count > 0)
-                return count;
-
-            var defaults = new HashSet<string>(PriorityCategoryNames, StringComparer.OrdinalIgnoreCase);
-            foreach (Category c in _doc.Settings.Categories)
-            {
-                if (c == null || c.CategoryType != CategoryType.Model || !c.AllowsBoundParameters)
-                    continue;
-                if (!defaults.Contains(c.Name))
-                    continue;
-
-                if (ids.Add(c.Id.IntValue()))
-                {
-                    set.Insert(c);
-                    count++;
                 }
             }
 
@@ -685,14 +784,18 @@ namespace AJTools.UI
             catch (Exception) { return null; }
         }
 
-        private static Definition FindDefinition(BindingMap map, string name)
+        private static Definition FindDefinition(BindingMap map, string name, out Binding binding)
         {
+            binding = null;
             var it = map.ForwardIterator();
             while (it.MoveNext())
             {
                 var def = it.Key;
                 if (def != null && string.Equals(def.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    binding = it.Current as Binding;
                     return def;
+                }
             }
             return null;
         }
@@ -763,14 +866,21 @@ namespace AJTools.UI
                     options.IncludeHvac = false;
             }
 
+            ProcessResult result = null;
             try
             {
                 SetBusy(true, "Preparing data...");
-                var result = RunProcess(options, selectedCats);
-                ShowSummary(result, options.Debug);
+                result = RunProcess(options, selectedCats);
+
+                // A run that did everything is reported in the status line only. The summary pops up
+                // when something was left out (skips, errors, notes, type-only parameters), or when
+                // debug mode asked for the skip reasons.
+                if (HasSomethingToReport(result, options.Debug))
+                    ShowSummary(result, options.Debug);
             }
             catch (Exception ex)
             {
+                result = null;
                 DialogHelper.ShowError(DialogTitle, "Processing failed:\n\n" + ex.Message);
             }
             finally
@@ -778,6 +888,25 @@ namespace AJTools.UI
                 SetBusy(false, null);
                 UpdateButtons();
             }
+
+            // Set after UpdateButtons, which rewrites the status line.
+            if (result != null)
+            {
+                StatusText.Text = string.Format(
+                    "Finished: {0} element(s) updated, {1} skipped, {2} error(s).",
+                    result.Updated,
+                    result.Skipped,
+                    result.Errors);
+            }
+        }
+
+        private static bool HasSomethingToReport(ProcessResult result, bool includeDebug)
+        {
+            return result.Skipped > 0 ||
+                   result.Errors > 0 ||
+                   result.Notes.Count > 0 ||
+                   result.TypeOnlyElementIds.Count > 0 ||
+                   (includeDebug && result.Reasons.Count > 0);
         }
         private ProcessResult RunProcess(ProcessOptions options, IList<CategoryItem> selectedCats)
         {
@@ -889,7 +1018,10 @@ namespace AJTools.UI
                     UpdateProgress(i + 1, elements.Count);
                 }
 
-                t.Commit();
+                // Without this check a rolled-back run (e.g. elements owned by another user) would still
+                // be reported as updated.
+                if (t.Commit() != TransactionStatus.Committed)
+                    throw new InvalidOperationException("Revit did not keep the changes (the transaction was rolled back).");
             }
 
             return result;
@@ -981,8 +1113,8 @@ namespace AJTools.UI
                 return false;
             }
 
-            bool wroteName = SetTextOnElementAndType(el, map.RoomName, name, options.OverwriteText, out bool skip1);
-            bool wroteNumber = SetTextOnElementAndType(el, map.RoomNumber, number, options.OverwriteText, out bool skip2);
+            bool wroteName = SetTextOnElement(el, map.RoomName, name, options.OverwriteText, result, out bool skip1);
+            bool wroteNumber = SetTextOnElement(el, map.RoomNumber, number, options.OverwriteText, result, out bool skip2);
             if (!wroteName && !wroteNumber && (skip1 || skip2))
                 AddReason(result, options.Debug, "Overwrite off");
 
@@ -1004,7 +1136,7 @@ namespace AJTools.UI
                 return false;
             }
 
-            bool wroteName = SetTextOnElementAndType(el, map.LevelName, name, options.OverwriteText, out bool skip);
+            bool wroteName = SetTextOnElement(el, map.LevelName, name, options.OverwriteText, result, out bool skip);
             if (!wroteName && skip)
                 AddReason(result, options.Debug, "Overwrite off");
 
@@ -1040,9 +1172,9 @@ namespace AJTools.UI
             string zoneNumber = ReadString(zone, "Number", "Zone Number");
 
             bool wroteName = hasNameParam && !string.IsNullOrWhiteSpace(zoneName) &&
-                             SetTextOnElementAndType(el, map.HvacZoneName, zoneName, options.OverwriteText, out bool _);
+                             SetTextOnElement(el, map.HvacZoneName, zoneName, options.OverwriteText, result, out bool _);
             bool wroteNumber = hasNumberParam && !string.IsNullOrWhiteSpace(zoneNumber) &&
-                               SetTextOnElementAndType(el, map.HvacZoneNumber, zoneNumber, options.OverwriteText, out bool _);
+                               SetTextOnElement(el, map.HvacZoneNumber, zoneNumber, options.OverwriteText, result, out bool _);
             return wroteName || wroteNumber;
         }
 
@@ -1112,8 +1244,8 @@ namespace AJTools.UI
                     return wrote;
                 }
 
-                bool e = SetDoubleOnElementAndType(el, map.Easting, c.X, true, out bool _);
-                bool n = SetDoubleOnElementAndType(el, map.Northing, c.Y, true, out bool _);
+                bool e = SetDoubleOnElement(el, map.Easting, c.X, true, result, out bool _);
+                bool n = SetDoubleOnElement(el, map.Northing, c.Y, true, result, out bool _);
                 wrote |= e || n;
                 if (!e || !n)
                     AddReason(result, options.Debug, "Coordinate write");
@@ -1127,7 +1259,7 @@ namespace AJTools.UI
                     return wrote;
                 }
 
-                bool a = SetDoubleOnElementAndType(el, map.Altitude, c.Z, true, out bool _);
+                bool a = SetDoubleOnElement(el, map.Altitude, c.Z, true, result, out bool _);
                 wrote |= a;
                 if (!a)
                     AddReason(result, options.Debug, "Coordinate write");
@@ -1226,32 +1358,41 @@ namespace AJTools.UI
             return string.Empty;
         }
 
-        private static bool SetTextOnElementAndType(Element el, string paramName, string value, bool overwrite, out bool skipped)
+        // Room, level, zone and coordinates describe ONE element, so only the element's own (instance)
+        // parameter is written. Written into a same-named type parameter, the value would land on every
+        // element of that type, with whichever element was processed last winning. When only the type
+        // carries the parameter, the element is recorded for the report instead.
+        private static bool SetTextOnElement(Element el, string paramName, string value, bool overwrite, ProcessResult result, out bool skipped)
         {
             skipped = false;
             bool wrote = false;
+            bool hasInstanceParameter = false;
 
             foreach (Parameter p in el.GetParameters(paramName))
             {
+                hasInstanceParameter = true;
                 if (SetText(p, value, overwrite, out bool s)) wrote = true;
                 else if (s) skipped = true;
             }
 
-            ElementId typeId = el.GetTypeId();
-            if (typeId != ElementId.InvalidElementId)
-            {
-                Element type = el.Document.GetElement(typeId);
-                if (type != null)
-                {
-                    foreach (Parameter p in type.GetParameters(paramName))
-                    {
-                        if (SetText(p, value, overwrite, out bool s)) wrote = true;
-                        else if (s) skipped = true;
-                    }
-                }
-            }
+            if (!hasInstanceParameter)
+                NoteTypeOnlyParameter(el, paramName, result);
 
             return wrote;
+        }
+
+        private static void NoteTypeOnlyParameter(Element el, string paramName, ProcessResult result)
+        {
+            ElementId typeId = el.GetTypeId();
+            if (typeId == ElementId.InvalidElementId)
+                return;
+
+            Element type = el.Document.GetElement(typeId);
+            if (type != null && type.GetParameters(paramName).Count > 0)
+            {
+                result.TypeOnlyElementIds.Add(el.Id);
+                result.TypeOnlyParameterNames.Add(paramName);
+            }
         }
 
         private static bool SetText(Parameter p, string value, bool overwrite, out bool skipped)
@@ -1270,30 +1411,22 @@ namespace AJTools.UI
             return true;
         }
 
-        private static bool SetDoubleOnElementAndType(Element el, string paramName, double value, bool overwrite, out bool skipped)
+        // Instance parameter only - same reason as SetTextOnElement.
+        private static bool SetDoubleOnElement(Element el, string paramName, double value, bool overwrite, ProcessResult result, out bool skipped)
         {
             skipped = false;
             bool wrote = false;
+            bool hasInstanceParameter = false;
 
             foreach (Parameter p in el.GetParameters(paramName))
             {
+                hasInstanceParameter = true;
                 if (SetDouble(p, value, overwrite, out bool s)) wrote = true;
                 else if (s) skipped = true;
             }
 
-            ElementId typeId = el.GetTypeId();
-            if (typeId != ElementId.InvalidElementId)
-            {
-                Element type = el.Document.GetElement(typeId);
-                if (type != null)
-                {
-                    foreach (Parameter p in type.GetParameters(paramName))
-                    {
-                        if (SetDouble(p, value, overwrite, out bool s)) wrote = true;
-                        else if (s) skipped = true;
-                    }
-                }
-            }
+            if (!hasInstanceParameter)
+                NoteTypeOnlyParameter(el, paramName, result);
 
             return wrote;
         }
@@ -1317,10 +1450,14 @@ namespace AJTools.UI
         {
             try
             {
-                Element survey = new FilteredElementCollector(doc)
+                // OfClass(BasePoint) returns BOTH the Project Base Point and the Survey Point, in no
+                // guaranteed order; taking the first could read the project base point and offset every
+                // shared coordinate by it. The survey point is the one that is shared.
+                BasePoint survey = new FilteredElementCollector(doc)
                     .OfClass(typeof(BasePoint))
                     .WhereElementIsNotElementType()
-                    .FirstElement();
+                    .Cast<BasePoint>()
+                    .FirstOrDefault(bp => bp.IsShared);
 
                 if (survey == null)
                     return XYZ.Zero;
@@ -1340,6 +1477,14 @@ namespace AJTools.UI
         {
             try { return doc.ActiveProjectLocation?.GetTransform() ?? Transform.Identity; }
             catch (Exception) { return Transform.Identity; }
+        }
+
+        private void RefuseCloseWhileBusy(object sender, CancelEventArgs e)
+        {
+            if (_isBusy)
+            {
+                e.Cancel = true;
+            }
         }
 
         private void SetBusy(bool busy, string msg)
@@ -1412,7 +1557,10 @@ namespace AJTools.UI
 
             if (done % 25 == 0 || done == total)
             {
-                Dispatcher.Invoke(DispatcherPriority.Background, new Action(delegate { }));
+                // Render priority repaints without processing input (Input sits below Render), so a
+                // click cannot re-enter the run half way through. The X / Alt+F4 still arrive through
+                // the nested message loop - RefuseCloseWhileBusy handles those.
+                Dispatcher.Invoke(DispatcherPriority.Render, new Action(delegate { }));
             }
         }
 
@@ -1427,6 +1575,16 @@ namespace AJTools.UI
                     "\nErrors: " + result.Errors,
                 CommonButtons = TaskDialogCommonButtons.Ok
             };
+
+            if (result.TypeOnlyElementIds.Count > 0)
+            {
+                dialog.MainContent +=
+                    "\n\n" + result.TypeOnlyElementIds.Count + " element(s) have " +
+                    string.Join(", ", result.TypeOnlyParameterNames) +
+                    " only as a type parameter. Those values were not filled: one type is shared by many " +
+                    "elements, so a per-element room, level, zone or coordinate cannot be stored there. " +
+                    "Bind these parameters as instance parameters to fill them.";
+            }
 
             if (result.Notes.Count > 0)
             {
@@ -1504,6 +1662,17 @@ namespace AJTools.UI
             public int Errors;
             public readonly Dictionary<string, int> Reasons = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             public readonly List<string> Notes = new List<string>();
+
+            // Elements where a mapped parameter exists only on the element's type, so it was not filled.
+            public readonly HashSet<ElementId> TypeOnlyElementIds = new HashSet<ElementId>();
+            public readonly SortedSet<string> TypeOnlyParameterNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private sealed class BindResult
+        {
+            public readonly List<string> Created = new List<string>();
+            public readonly List<string> Updated = new List<string>();
+            public readonly List<string> Failed = new List<string>();
         }
 
         private sealed class LinkItem

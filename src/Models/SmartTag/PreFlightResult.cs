@@ -1,8 +1,10 @@
 // Tool Name: Smart MEP Tag - Pre-Flight Result Model
 // Description: Holds all validated view data from Phase 0 checks — passed downstream to every phase.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
+// Changelog: 1.0.1 (2026-10-12) - Removed CropRegionPoints and HasViewTemplate: nothing has set or
+//            read them since the pre-flight stopped filling them.
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -30,11 +32,6 @@ namespace AJTools.Models.SmartTag
         /// <summary>The view scale (e.g. 50 for 1:50, 100 for 1:100).</summary>
         public int ViewScale { get; set; }
 
-        /// <summary>
-        /// The crop region boundary as a list of XYZ points forming a closed loop.
-        /// Used to determine whether elements fall inside the visible area.
-        /// </summary>
-        public IList<XYZ> CropRegionPoints { get; set; }
 
         /// <summary>
         /// The crop region as an Outline (min/max bounding box) for fast intersection checks.
@@ -47,8 +44,6 @@ namespace AJTools.Models.SmartTag
         /// </summary>
         public Outline AnnotationCropOutline { get; set; }
 
-        /// <summary>True if a View Template is applied — some tag operations may be restricted.</summary>
-        public bool HasViewTemplate { get; set; }
 
         /// <summary>Warning messages collected during pre-flight (non-fatal).</summary>
         public List<string> Warnings { get; set; }

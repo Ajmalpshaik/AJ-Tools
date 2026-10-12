@@ -5,10 +5,10 @@
  * Purpose       : Unhides permanently hidden elements and clears Temporary Hide/Isolate in the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.0
+ * Version       : 1.3.1
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-12
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -29,6 +29,7 @@
  *   collector may exclude hidden elements — needs Revit verification before switching).
  *
  * Changelog     :
+ * v1.3.1 (2026-10-12) - An unexpected error now shows one message, with Revit's own reason added to it (it used to show a general hint, then the reason again in a second, Revit-made box).
  * v1.3.0 (2026-08-12) - Model work moved out to Services/UnhideAll/UnhideAllService.cs so the Web
  *                       Panel can run the identical code from a browser. This command keeps owning
  *                       validation and the TaskDialog report; behaviour from the ribbon is unchanged
@@ -94,8 +95,10 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
-                DialogHelper.ShowError(ToolTitle, "Could not unhide elements in the active view.\n\nPlease check that the view is editable and try again.");
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "Could not unhide elements in the active view.\n\nPlease check that the view is editable and try again."
+                    + "\n\nWhat went wrong: " + ex.Message);
                 return Result.Failed;
             }
         }

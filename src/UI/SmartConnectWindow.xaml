@@ -68,8 +68,8 @@
 
             <!--
               A plain string Content on a RadioButton/CheckBox does NOT wrap in WPF - it silently
-              overflows past the window edge instead, with no sign anything was cut off. The window is
-              a fixed 560 wide, but the two-column category grid gives each box only about half of
+              overflows past the window edge instead, with no sign anything was cut off. The window can be
+              resized (minimum 520 wide), but the two-column category grid gives each box only about half of
               that, so a longer label still needs to wrap. This template fixes it everywhere at once.
             -->
             <DataTemplate x:Key="WrappingOptionContent">

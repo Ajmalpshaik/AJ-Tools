@@ -11,10 +11,10 @@
  *                                                  shots, reset graphics, tour mode
  *
  * Author        : Ajmal P.S.
- * Version       : 1.7.1
+ * Version       : 1.7.2
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-29
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -38,6 +38,17 @@
  * - ALL instance fields of the class live in THIS file (partial-class house style).
  *
  * Changelog     :
+ * v1.7.2 (2026-10-12) - Snag report fix: the punch list was only ever written by Stop(), which runs
+ *                       only when the ENGINE ends the game - every normal exit (Esc then Esc, the
+ *                       ribbon toggle, closing the overlay) sets Running=false in the HUD first, so
+ *                       Execute() returned early and the report was never written. Writing moved to
+ *                       FinishSnagReport(), called by Stop() and by the HUD's stop/close paths, and
+ *                       guarded so the report is written exactly once per game; a failed write is
+ *                       now shown in the end text instead of swallowed. Removed _snagIds (written,
+ *                       never read). Landing check fix in the Movement partial (a fast fall could
+ *                       pass through a slab); key-hint toasts in the Extras partial now name the
+ *                       keys actually bound. Changelog wording below no longer names outside
+ *                       products (project rule).
  * v1.7.1 (2026-07-29) - Aim/display sync (suite 1.38.2): UpdateViewRectangle now calls
  *                       UIView.ZoomToFit on the first frame, on any window-rectangle change and on
  *                       the HUD's ResyncViewQueued request, so a 2D-zoomed/panned perspective view
@@ -62,7 +73,7 @@
  * v1.4.1 (2026-07-29) - Follow-me section box removed entirely per Ajmal ("X no need") - fields,
  *                       toggle, maintenance and ApplySectionBox all deleted; the game is back to
  *                       zero undo entries in every mode.
- * v1.4.0 (2026-07-29) - Workshop-XR-style teleport support: while T is held the aim ray runs every
+ * v1.4.0 (2026-07-29) - VR-style arc teleport support: while T is held the aim ray runs every
  *                       frame (any weapon) and feeds TeleportAimValid + distance for the HUD's arc
  *                       preview; the jump itself still happens via TeleportQueued on release.
  *                       BookmarksVersion bumps on every save for the left-side positions list.
@@ -81,7 +92,7 @@
  *                       moved from the old LaserModeOn bool to WeaponSelect (0/1/2).
  * v1.2.1 (2026-07-29) - Measuring now also fills the X and Y axis deltas (mm) for the HUD's new
  *                       axis breakdown line (Z was already there as Vertical).
- * v1.2.0 (2026-07-28) - Added UpdateMeasurement: BIM-360-style hold-and-release face-to-face
+ * v1.2.0 (2026-07-28) - Added UpdateMeasurement: hold-and-release face-to-face
  *                       measuring in laser mode. Point A is the exact 3D laser hit on the first
  *                       face; live Total/Horizontal/Vertical distances (mm) update while holding;
  *                       releasing locks the result on the HUD until the next press. Pure reads -
@@ -127,9 +138,11 @@ namespace AJTools.Services.GameMode
         private int _prevRectRight;
         private int _prevRectBottom;
 
-        // Snag marker: everything shot with the snag weapon this session.
+        // Snag marker: everything shot with the snag weapon this session, and whether the report
+        // for this game has already been written (it must be written exactly once, however the
+        // game ends - see FinishSnagReport).
         private readonly List<string> _snagReportLines = new List<string>();
-        private readonly List<ElementId> _snagIds = new List<ElementId>();
+        private bool _snagReportFinished;
         private ElementId _solidFillPatternId;
 
         // Levels cache for the compass / level line.
@@ -330,7 +343,7 @@ namespace AJTools.Services.GameMode
                 uidoc.RefreshActiveView();
 
                 // --- Laser: live rangefinder + element identity (gun shots are HUD-side fun only) ---
-                // The same aim ray also feeds the Workshop-XR-style teleport arc while T is held.
+                // The same aim ray also feeds the arc teleport preview while the teleport key is held.
                 bool laserSelected = input.WeaponSelect == 1;
                 GameRayHit aimHit = null;
                 if (laserSelected || input.TeleportAimHold)
@@ -501,40 +514,65 @@ namespace AJTools.Services.GameMode
         private void Stop(string reason)
         {
             // Ending with snag marks pending: write the punch-list report (Documents\AJ Game Snags).
-            if (_snagReportLines.Count > 0)
+            string reportNote = FinishSnagReport();
+            if (reportNote.Length > 0)
             {
-                try
-                {
-                    string folder = System.IO.Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AJ Game Snags");
-                    System.IO.Directory.CreateDirectory(folder);
-                    string file = System.IO.Path.Combine(
-                        folder, "Snags_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
-
-                    var report = new System.Text.StringBuilder();
-                    report.AppendLine("AJ Game Mode - Snag report");
-                    report.AppendLine("Project: " + _session.DocumentTitle);
-                    report.AppendLine("Date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
-                    report.AppendLine(new string('-', 70));
-                    foreach (string line in _snagReportLines)
-                    {
-                        report.AppendLine(line);
-                    }
-                    System.IO.File.WriteAllText(file, report.ToString());
-
-                    reason = (string.IsNullOrEmpty(reason) ? "" : reason + "   ")
-                             + "Snag report saved: Documents\\AJ Game Snags\\" + System.IO.Path.GetFileName(file);
-                    _snagReportLines.Clear();
-                }
-                catch (Exception)
-                {
-                    // The game must always end cleanly, report or not.
-                }
+                reason = (string.IsNullOrEmpty(reason) ? "" : reason + "   ") + reportNote;
             }
 
             _session.Running = false;
             _session.Hud.Alive = false;
             _session.Hud.StopReason = reason;
+        }
+
+        /// <summary>
+        /// Writes the snag punch list to Documents\AJ Game Snags - exactly once per game, whichever
+        /// way the game ends - and returns the line for the end screen: where the report went, why
+        /// it could not be written, or "" when nothing was marked (or it was already written).
+        /// Called by Stop() when the engine ends the game, and by the HUD (StopGame and the overlay
+        /// closing) when the player or the ribbon ends it: those paths set Running=false first, so
+        /// Execute() returns before it could ever reach Stop(). Everything runs on Revit's UI
+        /// thread, so the flag needs no lock. Never throws - the game must always end cleanly.
+        /// </summary>
+        internal string FinishSnagReport()
+        {
+            if (_snagReportFinished)
+            {
+                return string.Empty;
+            }
+
+            _snagReportFinished = true;
+            if (_snagReportLines.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                string folder = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AJ Game Snags");
+                System.IO.Directory.CreateDirectory(folder);
+                string file = System.IO.Path.Combine(
+                    folder, "Snags_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
+
+                var report = new System.Text.StringBuilder();
+                report.AppendLine("AJ Game Mode - Snag report");
+                report.AppendLine("Project: " + _session.DocumentTitle);
+                report.AppendLine("Date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
+                report.AppendLine(new string('-', 70));
+                foreach (string line in _snagReportLines)
+                {
+                    report.AppendLine(line);
+                }
+                System.IO.File.WriteAllText(file, report.ToString());
+
+                _snagReportLines.Clear();
+                return "Snag report saved: Documents\\AJ Game Snags\\" + System.IO.Path.GetFileName(file);
+            }
+            catch (Exception ex)
+            {
+                return "Snag report could NOT be saved (" + ex.Message + ")";
+            }
         }
     }
 }
