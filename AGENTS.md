@@ -216,25 +216,3 @@ wrong answers in this repo. Follow them even when the task looks trivially simpl
     tool. Everything of that kind was stripped on 2026-08-20; putting any of it back undoes a
     deliberate decision. AJ Tools' own command names (Smart MEP Tags, L-Shape Leader, Fix Tag Clash…)
     are Ajmal's and are unaffected.
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
-
-**Scope — do not lose this.** The graph deliberately covers the LIVE trees only (`src/`, `.Codex/`,
-`mcp-server/`, `docs/`, `AJ-Tools-Installer/`, `.agents/`, root docs) and **excludes `AJ Tools\` and
-`_backup\`**. Those are the stale copies; including them makes the graph half-duplicate and wrong
-(`MepOpeningService` appeared twice, `AJTools.Utils` reported 315 edges instead of its real 162, and
-communities came out in mirrored pairs). **`.graphifyignore` at the root now enforces this**, so a plain
-`graphify update .` is safe and no longer needs the stale trees filtered out by hand (verified
-2026-08-19). Do not delete that file — before it existed, every update silently pulled the stale trees
-back in and the scoping had to be redone each time. Rescoping is nearly free either way: the cache under
-`graphify-out/cache/` made the 2026-08-04 rebuild cost zero new tokens. There is no git hook installed —
-this AGENTS.md section, `.graphifyignore`, and the `.Codex/settings.json` PreToolUse guards do that job
-instead (remove with `graphify Codex uninstall`).
