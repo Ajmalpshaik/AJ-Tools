@@ -3,9 +3,9 @@
 // Purpose      : Assigns drafting-view positions for HVAC schematic nodes and edges.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.1
+// Version      : 1.1.2
 // Created      : 2026-05-07
-// Last Updated : 2026-07-27
+// Last Updated : 2026-10-12
 // Target       : Revit 2020 - latest
 // Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
@@ -13,7 +13,9 @@
 // Input        : Analyzed schematic nodes and edges.
 // Output       : Logical HVAC schematic layout coordinates and hierarchy metadata.
 // Notes        : Uses tree-root layout bands and continuation/branch ordering for clean drafting output.
-// Changelog    : v1.1.1 - Fixed a crash ("The given key was not present in the dictionary") that hit
+// Changelog    : v1.1.2 (2026-10-12) - Stopped setting node values nothing reads (IsRoot, IsTrunk, TrunkY).
+//                         No behaviour change.
+//                v1.1.1 - Fixed a crash ("The given key was not present in the dictionary") that hit
 //                         almost every run: AssignTreePositions pre-set continuationChildId to
 //                         "none" (-1) then passed it as the out-parameter of
 //                         continuationChildByParent.TryGetValue, which unconditionally overwrites an

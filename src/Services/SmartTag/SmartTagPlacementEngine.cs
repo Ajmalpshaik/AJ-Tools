@@ -1,9 +1,12 @@
 // Tool Name: Smart Tag Placement Engine
 // Description: Phases 3–6 — scoring, clash detection, repositioning, and tag placement.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - A duct whose size cannot be read no longer pulls its tag closer than
+//            the set offset (the -1 "unknown" width was halved and used as a distance). Report: a tag
+//            Revit refuses to create is reported as refused, not "No Clean Space". Comments repaired.
 
 using System;
 using System.Collections.Generic;
@@ -73,7 +76,9 @@ namespace AJTools.Services.SmartTag
 
             double halfW = estimatedTagWidth * 0.5;
             double halfH = estimatedTagHeight * 0.5;
-            double hostHalfW = hostWidth * 0.5;
+            // GetDuctWidth returns -1 when a duct's size cannot be read; never let that pull the tag
+            // closer than the offset (Create Tags clamps the same way).
+            double hostHalfW = Math.Max(0.0, hostWidth) * 0.5;
 
             double topHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfH;
             double bottomHeadDistance = hostHalfW + offsetFromHostToTextEdge + halfH;

@@ -1,9 +1,11 @@
 // Tool Name: Smart Tag Report Generator
 // Description: Phase 7 — generates a clean formatted report after all tagging is complete.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag
+// Changelog: 1.0.1 (2026-10-12) - Vertical/minor items get their own line and are counted in Filtered Out,
+//            a tag Revit refused to create is listed as refused, and the session-telemetry block is gone.
 
 using System.Collections.Generic;
 using System.Linq;

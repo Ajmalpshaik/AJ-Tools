@@ -1,10 +1,13 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Route Builder
 // Description: Plans and creates Connect MEP Elements routing geometry and fittings between two MEP elements.
 // Author: Ajmal P.S.
-// Version: 3.0.0
-// Last Updated: 2026-08-16
+// Version: 3.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models, AJTools.Utils
+// Changelog: 3.0.1 (2026-10-12) - The new run takes the type of the straight (rigid) pick whichever order the
+//            two were picked in. Insulation/lining copy: a pipe (which has no lining) no longer counts as a
+//            failure, and any real failure is now warned about ('N of M').
 //
 // How this works
 // --------------

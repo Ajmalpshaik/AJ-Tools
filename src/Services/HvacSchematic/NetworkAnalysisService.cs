@@ -3,9 +3,9 @@
 // Purpose      : Builds HVAC schematic nodes, edges, and network metadata from model selections.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.1.0
+// Version      : 1.1.1
 // Created      : 2026-05-07
-// Last Updated : 2026-07-24
+// Last Updated : 2026-10-12
 // Target       : Revit 2020 - latest
 // Framework    : .NET Framework 4.7.2 baseline (per-version build configurations)
 // Platform     : C# Revit Add-in
@@ -13,7 +13,10 @@
 // Input        : Selected HVAC element ids, connector data, and resolved levels.
 // Output       : Analyzed HVAC networks for schematic layout and drafting-view generation.
 // Notes        : Collects supported elements, connector relationships, and unresolved-analysis reports.
-// Changelog    : v1.1.0 - Network traversal restricted to duct-domain connectors so hydronic piping
+// Changelog    : v1.1.1 (2026-10-12) - The primary-equipment check reads only HVAC connectors and survives a
+//                         connector whose system cannot be read (that read throws), instead of
+//                         aborting the whole analysis.
+//                v1.1.0 - Network traversal restricted to duct-domain connectors so hydronic piping
 //                         no longer falsely links separate air systems or feeds water flow into labels.
 //                v1.0.0 - Initial production-ready HVAC schematic network analysis with standardized metadata.
 // License      : All Rights Reserved

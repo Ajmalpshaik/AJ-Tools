@@ -32,6 +32,8 @@
  *                       button connects straight away instead of opening a dialog every time.
  * v1.0.1 (2026-10-12) - Tells the user when the settings file could not be saved. The save used to
  *                       swallow every error, so a failed save looked exactly like a successful one.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -89,7 +91,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show(ToolTitle, "Could not open the settings:" + Environment.NewLine + ex.Message);
                 return Result.Failed;
             }

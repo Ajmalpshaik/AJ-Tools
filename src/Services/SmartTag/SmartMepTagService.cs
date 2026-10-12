@@ -4,8 +4,12 @@
 // Version: 1.1.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils, AJTools.Services.ViewCrop
-// Changelog: 1.1.1 (2026-10-12) - GetDuctWidth and GetElementOrientation opened up (internal) so Create
-//            Tags and Stack Tags use the same orientation and width rules. No behaviour change here.
+// Changelog: 1.1.1 (2026-10-12) - Cable trays now obey the width/height minimums (their size was never
+//            read, so the settings had no effect on them). Minor pipe accessories are reported as a
+//            filtered type, not 'below size threshold', and the report's numbers now add up. The
+//            session-telemetry block left the report. GetDuctWidth and GetElementOrientation opened up
+//            (internal) so Create Tags and Stack Tags use the same rules. Unused code and comments
+//            cleaned up. Tag positions are unchanged.
 //            1.1.0 (2026-08-26) - Crop filter measures the view plane only (was rejecting on world Z
 //            and dropping every element in the view); zero-candidate dialog now names the filter.
 
@@ -780,6 +784,10 @@ namespace AJTools.Services.SmartTag
             }
         }
 
+        /// <summary>
+        /// The duct's width in feet - its diameter for a round duct. Returns -1 when neither can be
+        /// read, so callers must clamp before using it as a distance.
+        /// </summary>
         internal static double GetDuctWidth(Duct duct)
         {
             try

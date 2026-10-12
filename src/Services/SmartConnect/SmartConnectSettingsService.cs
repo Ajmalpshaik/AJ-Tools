@@ -1,14 +1,17 @@
 // Tool Name: Connect MEP Elements (Smart Connect) - Settings Service
 // Description: Persists Connect MEP Elements settings to local JSON storage.
 // Author: Ajmal P.S.
-// Version: 2.0.0
-// Last Updated: 2026-08-15
+// Version: 2.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Newtonsoft.Json, AJTools.Models
 //
 // Note: the maximum bend angle is 90 degrees. Earlier builds let the window save angles up to 175,
 // which the route builder then rejected on every pick. Anything above 90 found in an older settings
 // file is clamped back to 90 on load.
+//
+// Changelog: 2.0.1 (2026-10-12) - Save returns whether it worked, with the reason, so a failed save is
+//            reported instead of looking like a successful one.
 
 using System;
 using System.Collections.Generic;
