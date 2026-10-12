@@ -7,10 +7,10 @@
  *                 all Revit API work to FilterCreator, FilterApplier, and FilterReorderer.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.2
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,12 +25,19 @@
  * - Targets Revit 2020 through latest.
  * - 2020 = .NET Fx 4.7.2; 2021-2024 = .NET Fx (verify 4.8 if required); 2025-2026 = .NET 8; 2027+ = verify Autodesk SDK.
  * - Modal WPF window — all Revit API calls run on the Revit UI thread (no ExternalEvent needed).
- * - Async parameter and value loading uses Task.Run + Dispatcher.Invoke to keep the UI responsive.
+ * - Parameter and value loading runs on the Revit UI thread (Revit API calls must stay there);
+ *   `await Task.Yield()` only lets the "Loading" overlay paint before the work starts.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ * v1.0.2 (2026-10-12) - Fixes: (1) Apply To View / Shuffle Colors no longer force "Update Existing
+ *                        Filters" on - the toggle is honoured and its real value is what gets
+ *                        remembered, so it no longer reopens switched on. (2) Typing in a search box
+ *                        no longer silently deselects picked categories/parameter/values that the
+ *                        search hides - picked items stay listed, so the run uses everything picked.
+ *                        (3) Corrected the loading and Close-button notes.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -105,7 +112,8 @@ namespace AJTools.UI
         {
             close_button.Click += (s, e) =>
             {
-                // Preserve dialog result so Revit keeps changes when the command ends.
+                // Setting DialogResult just closes the window. Whether Revit keeps the changes is decided
+                // by CmdFilterPro from HasChanges (each button already committed its own transaction).
                 DialogResult = _madeChanges;
             };
             create_button.Click += CreateButton_Click;
@@ -181,11 +189,15 @@ namespace AJTools.UI
 
             var source = _currentValues.AsEnumerable();
 
-            // Filter by search text
+            // Filter by search text. Values already selected always stay in the list: a new ItemsSource
+            // that leaves a selected item out makes WPF silently deselect it, so the run would use fewer
+            // values than were picked (and clearing the search would not bring them back).
             string term = value_search_textbox.Text;
             if (!string.IsNullOrWhiteSpace(term))
             {
+                var picked = new HashSet<FilterValueItem>(values_listbox.SelectedItems.Cast<FilterValueItem>());
                 source = source.Where(v =>
+                    picked.Contains(v) ||
                     v.Display.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
             }
 
@@ -208,12 +220,14 @@ namespace AJTools.UI
 
             var source = _allCategories.AsEnumerable();
 
-            // Filter by search text
+            // Filter by search text; selected categories always stay listed (see ApplyValueFilters).
             string term = category_search_textbox.Text;
             if (!string.IsNullOrWhiteSpace(term))
             {
+                var picked = new HashSet<FilterCategoryItem>(categories_listbox.SelectedItems.Cast<FilterCategoryItem>());
                 source = source.Where(c =>
-                    c.Name != null && c.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                    picked.Contains(c) ||
+                    (c.Name != null && c.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
             }
 
             // Sort
@@ -235,12 +249,15 @@ namespace AJTools.UI
 
             var source = _allParameters.AsEnumerable();
 
-            // Filter by search text
+            // Filter by search text; the selected parameter always stays listed (see ApplyValueFilters) -
+            // losing it would also clear the value list.
             string term = parameter_search_textbox.Text;
             if (!string.IsNullOrWhiteSpace(term))
             {
+                var picked = parameters_listbox.SelectedItem as FilterParameterItem;
                 source = source.Where(p =>
-                    p.Name != null && p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                    ReferenceEquals(p, picked) ||
+                    (p.Name != null && p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
             }
 
             // Sort
@@ -903,7 +920,8 @@ namespace AJTools.UI
             selection.ApplyToView = true;
             selection.ApplyGraphics = false;
             selection.RandomColors = false;
-            selection.OverrideExisting = true; // reuse/update existing filters when applying
+            // OverrideExisting stays as the "Update Existing Filters" toggle says: an existing same-named
+            // filter is always reused (FilterCreator, via ApplyToView), but only rewritten when it is on.
 
             var skipped = new List<string>();
             int created = 0;
@@ -935,7 +953,8 @@ namespace AJTools.UI
             selection.ApplyToView = true;
             selection.ApplyGraphics = true;
             selection.RandomColors = true;
-            selection.OverrideExisting = true;
+            // OverrideExisting stays as the toggle says (see ApplyViewButton_Click) - recolouring an
+            // existing filter never needs its categories or rules rewritten.
 
             var skipped = new List<string>();
             int created = 0;

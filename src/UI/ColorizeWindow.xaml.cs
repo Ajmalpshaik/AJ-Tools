@@ -10,10 +10,10 @@
  *                 created here or anywhere downstream.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-13
- * Last Updated  : 2026-07-13
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -46,6 +46,10 @@
  *                       updated to the current .IntValue() convention used by FilterProWindow.xaml.cs
  *                       (the old copy called AJTools.Utils.ElementIdHelper.GetIntegerValue, which this
  *                       tree's FilterPro UI no longer uses); UI/UX and matching logic unchanged.
+ * v1.0.1 (2026-10-12) - Fix: typing in a search box silently deselected picked categories/parameter/values
+ *                       that the search hid, so Shuffle Colors acted on fewer items than picked (a hidden
+ *                       parameter even switched it to whole-category colouring). Picked items now stay
+ *                       listed while searching, so the run uses everything picked.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -182,10 +186,14 @@ namespace AJTools.UI
 
             var source = _allCategories.AsEnumerable();
 
+            // Selected categories always stay listed: a new ItemsSource that leaves a selected item out makes
+            // WPF silently deselect it, so the run would use fewer categories than were picked.
             string term = category_search_textbox.Text;
             if (!string.IsNullOrWhiteSpace(term))
             {
-                source = source.Where(c => c.Name != null && c.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                var picked = new HashSet<FilterCategoryItem>(categories_listbox.SelectedItems.Cast<FilterCategoryItem>());
+                source = source.Where(c => picked.Contains(c) ||
+                                           (c.Name != null && c.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
             }
 
             if (category_sort_combobox.SelectedItem is ComboBoxItem selectedSort && selectedSort.Tag is string sortTag)
@@ -246,10 +254,14 @@ namespace AJTools.UI
 
             var source = _allParameters.AsEnumerable();
 
+            // The selected parameter always stays listed (see ApplyCategoryFilters) - losing it would clear
+            // the values and quietly switch the run to colorizing whole categories.
             string term = parameter_search_textbox.Text;
             if (!string.IsNullOrWhiteSpace(term))
             {
-                source = source.Where(p => p.Name != null && p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                var picked = parameters_listbox.SelectedItem as FilterParameterItem;
+                source = source.Where(p => ReferenceEquals(p, picked) ||
+                                           (p.Name != null && p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
             }
 
             if (parameter_sort_combobox.SelectedItem is ComboBoxItem selectedSort && selectedSort.Tag is string sortTag)
@@ -315,10 +327,13 @@ namespace AJTools.UI
 
             var source = _currentValues.AsEnumerable();
 
+            // Selected values always stay listed (see ApplyCategoryFilters).
             string term = value_search_textbox.Text;
             if (!string.IsNullOrWhiteSpace(term))
             {
-                source = source.Where(v => v.Display.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                var picked = new HashSet<FilterValueItem>(values_listbox.SelectedItems.Cast<FilterValueItem>());
+                source = source.Where(v => picked.Contains(v) ||
+                                           v.Display.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
             }
 
             if (value_sort_combobox.SelectedItem is ComboBoxItem selectedSort && selectedSort.Tag is string sortTag)

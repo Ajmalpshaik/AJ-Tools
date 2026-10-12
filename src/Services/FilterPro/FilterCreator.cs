@@ -6,10 +6,10 @@
  *                 composes and sanitises filter names, and ensures name uniqueness in the project.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.2
+ * Version       : 1.1.3
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -40,6 +40,10 @@
  * v1.1.2 (2026-07-23) - Compatibility audit: corrected stale header notes. Every Revit API member
  *                        used here verified present/correct on 2020-2027 against the per-version
  *                        RevitAPI reference assemblies (Nice3point NuGet). No code changes needed.
+ * v1.1.3 (2026-10-12) - Fix: Apply To View / Shuffle Colors rewrote the categories and rules of every
+ *                        same-named existing filter (project-wide) even with "Update Existing Filters"
+ *                        off. They still use the existing same-named filter rather than making a copy,
+ *                        but now only rewrite it when that toggle is on; otherwise it is applied as is.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -59,7 +63,9 @@ namespace AJTools.Services.FilterPro
         public List<ElementId> ProcessedFilterIds { get; } = new List<ElementId>();
         public int Created { get; set; }
         public int Updated { get; set; }
-        public int TotalAffected => Created + Updated;
+        // Existing same-named filters applied to the view(s) as they are (categories and rules untouched).
+        public int Reused { get; set; }
+        public int TotalAffected => Created + Updated + Reused;
     }
 
     internal static class FilterCreator
@@ -109,6 +115,12 @@ namespace AJTools.Services.FilterPro
             // Track processed filter IDs using a HashSet for O(1) dedup lookups.
             var processedIds = new HashSet<int>();
 
+            // Apply To View and Shuffle Colors (ApplyToView) work on the filter that already carries the
+            // name instead of making a numbered " (2)" copy - Shuffle only ever recolours existing filters.
+            // Whether that filter's categories and rules may be REWRITTEN is decided by the "Update Existing
+            // Filters (overwrite)" toggle alone (OverrideExisting), for every button.
+            bool reuseExisting = selection.OverrideExisting || selection.ApplyToView;
+
             foreach (FilterValueItem value in selection.Values)
             {
                 if (value == null)
@@ -134,7 +146,7 @@ namespace AJTools.Services.FilterPro
                     }
 
                     string filterName = ComposeFilterName(selection, value, doc);
-                    filterName = EnsureUniqueFilterName(filterName, existingFilterNames, selection.OverrideExisting);
+                    filterName = EnsureUniqueFilterName(filterName, existingFilterNames, reuseExisting);
 
                     existingFilterNames.TryGetValue(filterName, out ParameterFilterElement existing);
                     ElementParameterFilter elementFilter = new ElementParameterFilter(rules);
@@ -142,6 +154,7 @@ namespace AJTools.Services.FilterPro
 
                     bool createdNew = false;
                     bool modifiedExisting = false;
+                    bool reusedExisting = false;
 
                     if (filter == null)
                     {
@@ -167,8 +180,15 @@ namespace AJTools.Services.FilterPro
                         modifiedExisting = true;
                         result.Updated++;
                     }
+                    else if (selection.ApplyToView)
+                    {
+                        // Toggle off: apply the existing filter as it is - its categories and rules are
+                        // left exactly as they were (it may be used in other views across the project).
+                        reusedExisting = true;
+                        result.Reused++;
+                    }
 
-                    if (createdNew || modifiedExisting)
+                    if (createdNew || modifiedExisting || reusedExisting)
                     {
                         // O(1) dedup using HashSet — avoids O(n) linear scan from previous version.
                         if (processedIds.Add(filter.Id.IntValue()))
@@ -505,13 +525,15 @@ namespace AJTools.Services.FilterPro
         /// <summary>
         /// Ensures the filter name is unique using a pre-collected in-memory name map.
         /// Avoids O(n^2) repeated Revit database queries from the previous implementation.
+        /// When <paramref name="reuseExisting"/> is true the name is returned as it is, so an existing
+        /// filter with that name is the one used.
         /// </summary>
         private static string EnsureUniqueFilterName(
             string name,
             Dictionary<string, ParameterFilterElement> existingNames,
-            bool overrideExisting)
+            bool reuseExisting)
         {
-            if (overrideExisting)
+            if (reuseExisting)
                 return name;
 
             string baseName = name.Length > MaxFilterNameLength
