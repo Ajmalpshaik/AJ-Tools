@@ -9,10 +9,10 @@
  *                 window just borrows the pane's DataContext).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-07-18
- * Last Updated  : 2026-08-05
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -34,6 +34,11 @@
  *   permanently in the clear.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - Closing without Save (Close button, Esc or the window's X) now throws away
+ *                       what was typed: the view model's key and model fields are put back to the
+ *                       saved values (AiShellViewModel.RevertUnsavedSettings). Before, the typed
+ *                       values stayed in the shared view model, reappeared next time and were
+ *                       written by the next Save.
  * v1.2.0 (2026-08-05) - Fourth provider section (NVIDIA NIM): key PasswordBox + reveal toggle on the
  *                       same Tag-matched pattern as the other three, plus the model picker.
  *                       THE MODEL PICKER IS DELIBERATELY TWO CONTROLS, not one editable ComboBox.
@@ -65,6 +70,9 @@ namespace AJTools.AiShell.Views
 {
     public partial class SettingsWindow : Window
     {
+        // Set by Save Settings. Any other way out (Close, Esc, the window's X) discards the typing.
+        private bool _saved;
+
         public SettingsWindow()
         {
             InitializeComponent();
@@ -76,6 +84,18 @@ namespace AJTools.AiShell.Views
             // validation and close behaviour are unchanged - see WindowMotionHelper's header.
             WindowMotionHelper.AttachStandardExit(this);
             Loaded += SettingsWindow_Loaded;
+
+            // Closed, not Closing: the exit motion cancels and re-issues Closing more than once,
+            // while Closed fires exactly once.
+            Closed += SettingsWindow_Closed;
+        }
+
+        private void SettingsWindow_Closed(object sender, System.EventArgs e)
+        {
+            if (!_saved && DataContext is AiShellViewModel vm)
+            {
+                vm.RevertUnsavedSettings();
+            }
         }
 
         /// <summary>PasswordBox.Password isn't a dependency property, so the initial value (already
@@ -151,8 +171,10 @@ namespace AJTools.AiShell.Views
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            // SaveSettingsCommand (bound on the same button) does the actual save; this just
-            // closes the popup once the click has been handled.
+            // SaveSettingsCommand (bound on the same button) does the actual save - WPF raises
+            // Click first and runs the command right after - so mark the window as saved before
+            // closing, or Closed would revert the very values about to be saved.
+            _saved = true;
             Close();
         }
 

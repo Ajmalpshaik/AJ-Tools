@@ -89,8 +89,8 @@ namespace AJTools.AiShell.Views
             }
         }
 
-        /// <summary>Enter runs the current console line; Up/Down recall previous lines - the same
-        /// keys a real interactive shell (RevitPythonShell's console, a terminal REPL) uses.</summary>
+        /// <summary>Enter runs the current console line; Up/Down recall previous lines - the keys
+        /// anyone who has used a command-line shell expects.</summary>
         private void ReplInputBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (!(DataContext is AiShellViewModel vm)) return;
@@ -130,9 +130,8 @@ namespace AJTools.AiShell.Views
             settingsWindow.ShowDialog();
         }
 
-        /// <summary>Ctrl+Space opens a static, curated Revit API completion list (RevitPythonShell's
-        /// "autocompletion (press CTRL+SPACE after a period)" feature, scaled down to a fixed list
-        /// instead of a live semantic model - see RevitApiCompletionData for why).</summary>
+        /// <summary>Ctrl+Space opens a static, curated Revit API completion list - a fixed list
+        /// instead of a live semantic model; see RevitApiCompletionData for why.</summary>
         private void CodeEditor_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key != System.Windows.Input.Key.Space ||
@@ -206,7 +205,6 @@ namespace AJTools.AiShell.Views
                                 var marker = _textMarkerService.Create(start, length);
                                 marker.MarkerTypes = TextMarkerTypes.SquigglyUnderline;
                                 marker.MarkerColor = Colors.Red;
-                                marker.ToolTip = diag.GetMessage();
                                 marker.Tag = ErrorMarkerTag;
                             }
                         }
@@ -222,10 +220,11 @@ namespace AJTools.AiShell.Views
         private const string ErrorMarkerTag = "error";
         private const string ChangedLineMarkerTag = "changed";
 
-        /// <summary>Highlights which lines actually changed after a GenerateCodeAsync edit, so a
-        /// small incremental change (e.g. "change the color to green") is visibly obvious instead of
-        /// looking like the whole script was silently rewritten. Only fires from a real generate -
-        /// Format/RunFromHistory/auto-fix don't raise CodeGenerated, so they never trigger this.</summary>
+        /// <summary>Highlights which lines actually changed after the AI rewrote the code - a
+        /// Generate, or an auto-fix during Run - so a small incremental change (e.g. "change the
+        /// color to green") is visibly obvious instead of looking like the whole script was silently
+        /// rewritten. Format Code and "Send Last Line to Code Editor" don't raise CodeGenerated, so
+        /// they never trigger this.</summary>
         private void Vm_CodeGenerated(string previousCode, string newCode)
         {
             if (!Dispatcher.CheckAccess())
@@ -265,7 +264,6 @@ namespace AJTools.AiShell.Views
                 var marker = _textMarkerService.Create(docLine.Offset, docLine.Length);
                 marker.BackgroundColor = Color.FromArgb(0x35, 0x00, 0xC8, 0xFF); // translucent Neon Blue
                 marker.Tag = ChangedLineMarkerTag;
-                marker.ToolTip = "Changed by the last generate request";
             }
         }
 

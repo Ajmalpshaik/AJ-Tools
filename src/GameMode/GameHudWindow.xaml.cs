@@ -12,10 +12,10 @@
  *                   GameHudWindow.Photo.cs    - K photo mode
  *
  * Author        : Ajmal P.S.
- * Version       : 1.9.5
+ * Version       : 1.9.6
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-08-05
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -39,6 +39,16 @@
  * - ALL instance fields and consts of the class live in THIS file (partial-class house style).
  *
  * Changelog     :
+ * v1.9.6 (2026-10-12) - (1) Snag report written on EVERY exit: StopGame (Esc then Esc, the ribbon
+ *                       toggle, "Revit stopped accepting game frames") and the overlay closing now
+ *                       call the engine's FinishSnagReport() - before, only an engine-side stop
+ *                       wrote it, so a normal exit lost the whole punch list. The engine writes it
+ *                       once; the end text says where it went, or that it could not be saved, and
+ *                       now wraps instead of running off the pill. (2) The help card, the door /
+ *                       window / teleport hints, the weapon line and the toasts name the keys
+ *                       actually bound (GameSession.Keys) instead of the defaults; the help card is
+ *                       built in code and refreshed after Key Settings closes. Changelog wording
+ *                       below no longer names outside products (project rule).
  * v1.9.5 (2026-08-05) - Camera-whip fix (suite 1.40.6), Ajmal's report: "in the selection gun, if I
  *                       shoot anything the camera goes flying/jumping". The SELECTOR is the only
  *                       weapon that changes the Revit SELECTION, and changing the selection makes
@@ -111,7 +121,7 @@
  *                       MARKER (magenta, J clears); tour (O), flashlight (V), sounds (M, synthesized
  *                       gunshot - no sound files), speed dial (+/-), crouch on C, compass/level and
  *                       snag-count lines in the status card.
- * v1.6.0 (2026-07-29) - Workshop-XR-style teleport, per Ajmal's reference to Autodesk Workshop XR:
+ * v1.6.0 (2026-07-29) - VR-style arc teleport, from Ajmal's reference:
  *                       HOLD T shows a glowing dashed jump ARC from the player to the crosshair
  *                       with a pulsing landing ring + distance ("Release T - jump 12,340 mm");
  *                       releasing T is the OK that performs the jump; invalid targets show gray.
@@ -165,7 +175,13 @@ namespace AJTools.UI.GameMode
         private readonly GameSession _session;
         private readonly ExternalEvent _frameEvent;
         private readonly DispatcherTimer _timer;
-        private readonly GameKeyBindings _keys = GameKeyBindings.Load();
+
+        // The engine behind _frameEvent - held only so every way out of the game can ask it to
+        // write the snag report (see StopGame / OnClosedCleanup).
+        private readonly GameMotionEngine _engine;
+
+        // The session's key bindings (one instance, also used by the engine's toasts).
+        private readonly GameKeyBindings _keys;
 
         private IntPtr _hwnd = IntPtr.Zero;
         private bool _paused;
@@ -235,11 +251,16 @@ namespace AJTools.UI.GameMode
         private int _fullBottom;
         private bool _haveFullRect;
 
-        internal GameHudWindow(GameSession session, ExternalEvent frameEvent)
+        internal GameHudWindow(GameSession session, ExternalEvent frameEvent, GameMotionEngine engine)
         {
             _session = session;
             _frameEvent = frameEvent;
+            _engine = engine;
+            _keys = session.Keys;
             InitializeComponent();
+
+            // Built in code (not fixed XAML text) so it names the keys actually bound.
+            HelpText.Text = BuildHelpText();
 
             _timer = new DispatcherTimer(DispatcherPriority.Input)
             {
@@ -287,6 +308,15 @@ namespace AJTools.UI.GameMode
         /// <summary>Stops the game and closes the overlay (also used by the ribbon toggle).</summary>
         public void StopGame(string reason)
         {
+            // Setting Running=false below means the engine never reaches its own Stop(), which used
+            // to be the only place the snag report was written - so write it from here. The engine
+            // writes it once per game; "" comes back when there is nothing (more) to write.
+            string reportNote = _engine != null ? _engine.FinishSnagReport() : string.Empty;
+            if (reportNote.Length > 0)
+            {
+                reason = (string.IsNullOrEmpty(reason) ? "" : reason + "   ") + reportNote;
+            }
+
             _session.Running = false;
             _session.Hud.Alive = false;
             _session.Hud.StopReason = reason;
@@ -323,6 +353,13 @@ namespace AJTools.UI.GameMode
 
             _closedDown = true;
             _session.Running = false;
+
+            // The overlay can also close without StopGame (e.g. Revit closing its owner window).
+            // Make sure the snag report still gets written; a no-op if it already was.
+            if (_engine != null)
+            {
+                _engine.FinishSnagReport();
+            }
 
             try { _timer.Stop(); } catch (Exception) { }
             ReleaseLook();

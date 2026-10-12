@@ -6,10 +6,10 @@
  *                 slot, how many slots, and how big the wheel opens.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,9 @@
  * - Also reachable by pressing S on the wheel itself.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - "No AJ Tools buttons could be read" now counts AJ Tools entries only
+ *                       (CmdQuickMenu.CountAjToolsEntries): Revit's own commands are always in the
+ *                       catalog, so the old whole-list check could never fire.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -71,7 +74,10 @@ namespace AJTools.Commands.QuickMenu
             try
             {
                 IList<QuickToolEntry> tools = QuickMenuCatalog.Refresh(uiapp);
-                if (tools.Count == 0)
+
+                // AJ Tools buttons only - Revit's own commands are always in the list, so a plain
+                // Count check could never fire.
+                if (CmdQuickMenu.CountAjToolsEntries(tools) == 0)
                 {
                     DialogHelper.ShowError(
                         ToolTitle,

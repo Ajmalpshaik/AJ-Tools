@@ -1,5 +1,3 @@
-using System;
-
 namespace AJTools.AiShell.Models
 {
     public class CodeExecutionResult
@@ -7,6 +5,5 @@ namespace AJTools.AiShell.Models
         public bool Success { get; set; }
         public string Output { get; set; }
         public string ErrorMessage { get; set; }
-        public Exception Exception { get; set; }
     }
 }

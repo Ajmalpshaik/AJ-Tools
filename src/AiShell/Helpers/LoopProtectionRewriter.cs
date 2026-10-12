@@ -30,8 +30,24 @@ namespace AJTools.AiShell.Helpers
     // default thread stack is expected to overflow even under pessimistic per-frame assumptions -
     // but "comfortably below" here is an estimate, not a measurement. Tune this once it can actually
     // be tested live (see docs/AJ-AI-Testing-Checklist.md).
+    //
+    // TYPES DECLARED IN THE SCRIPT ARE LEFT ALONE (2026-10-12): the checks this file injects name the
+    // script-level CancellationToken global and the script-level __ajRecursionDepth counter, and code
+    // inside a class/struct/record/interface the script declares cannot reach either of them (CS0120,
+    // an object reference is required). Instrumenting those bodies made any pasted script that
+    // declares a type with a loop or a method fail to compile. Top-level script code - loops, local
+    // functions, script-level methods and lambdas - is instrumented exactly as before; a loop inside
+    // a declared type is covered only by the caller's hard wait limit, not by a checkpoint.
     public class LoopProtectionRewriter : CSharpSyntaxRewriter
     {
+        public override SyntaxNode VisitClassDeclaration(ClassDeclarationSyntax node) => node;
+
+        public override SyntaxNode VisitStructDeclaration(StructDeclarationSyntax node) => node;
+
+        public override SyntaxNode VisitRecordDeclaration(RecordDeclarationSyntax node) => node;
+
+        public override SyntaxNode VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) => node;
+
         private StatementSyntax GetCancellationCheck()
         {
             var code = @"if (CancellationToken.IsCancellationRequested) throw new System.OperationCanceledException(""Script execution timed out (infinite loop protection)."");";

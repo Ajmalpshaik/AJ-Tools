@@ -245,7 +245,7 @@ namespace AJTools.UI.GameMode
             GunRecoil.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, null);
             ApplyWeaponVisuals();
             _session.Hud.Toast(_professional
-                ? "Professional mode ON - no gun shown, all tools work the same (N brings it back)"
+                ? "Professional mode ON - no gun shown, all tools work the same (" + _keys.Label(GameKeyBindings.Professional) + " brings it back)"
                 : "Professional mode OFF - guns are back");
         }
 
@@ -369,11 +369,11 @@ namespace AJTools.UI.GameMode
                     color = Color.FromRgb(0x7A, 0xE8, 0x86);
                     break;
                 case 2:
-                    name = "CLEANER - shot hides the element, U restores";
+                    name = "CLEANER - shot hides the element, " + _keys.Label(GameKeyBindings.UnhideAll) + " restores";
                     color = Color.FromRgb(0xF0, 0xF0, 0xF0);
                     break;
                 case 3:
-                    name = "SNAG MARKER - shot paints red + report on exit, J resets";
+                    name = "SNAG MARKER - shot paints red + report on exit, " + _keys.Label(GameKeyBindings.ResetGraphics) + " resets";
                     color = Color.FromRgb(0xFF, 0x6A, 0x6A);
                     break;
                 case 4:
@@ -388,7 +388,7 @@ namespace AJTools.UI.GameMode
 
             if (_professional)
             {
-                WeaponText.Text = "Tool: " + name + "   |   professional mode (N = guns back)";
+                WeaponText.Text = "Tool: " + name + "   |   professional mode (" + _keys.Label(GameKeyBindings.Professional) + " = guns back)";
                 WeaponText.Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xD0, 0xFF));
             }
             else if (_holstered)

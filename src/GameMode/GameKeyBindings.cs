@@ -8,10 +8,10 @@
  *                 the scroll wheel, the number keys 1-9 and the arrow keys stay fixed.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-29
- * Last Updated  : 2026-07-29
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,6 +23,12 @@
  *                 actions fall back to their defaults.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Load fix: a saved line is now accepted when its action id is one of
+ *                       Actions. It used to require the action to still hold a key at that moment,
+ *                       so a layout with two keys swapped (e.g. forward on S, back on W) reloaded
+ *                       with one action keyless: the first line took the other action's default
+ *                       key, removing that action, and its own line was then skipped. Added Label()
+ *                       so the HUD's help card, hints and toasts name the keys actually bound.
  * v1.0.0 (2026-07-29) - Initial release.
  *
  * License       : All Rights Reserved
@@ -127,6 +133,49 @@ namespace AJTools.Services.GameMode
             return _actionByKey.TryGetValue(key, out action) ? action : null;
         }
 
+        /// <summary>The key bound to an action, written the way the help card shows it ("E",
+        /// "Space", "Shift", "+") - so on-screen hints follow a remapped key.</summary>
+        public string Label(string actionId)
+        {
+            Key key = Get(actionId);
+            switch (key)
+            {
+                case Key.None:
+                    return "(no key)";
+                case Key.LeftShift:
+                case Key.RightShift:
+                    return "Shift";
+                case Key.LeftCtrl:
+                case Key.RightCtrl:
+                    return "Ctrl";
+                case Key.LeftAlt:
+                case Key.RightAlt:
+                    return "Alt";
+                case Key.OemPlus:
+                case Key.Add:
+                    return "+";
+                case Key.OemMinus:
+                case Key.Subtract:
+                    return "-";
+                default:
+                    return key.ToString();
+            }
+        }
+
+        /// <summary>True when the id names one of the remappable Actions.</summary>
+        private static bool IsKnownAction(string actionId)
+        {
+            foreach (GameKeyAction action in Actions)
+            {
+                if (action.Id == actionId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Assign a key; returns false when another action already uses it.</summary>
         public bool TrySet(string actionId, Key key)
         {
@@ -189,7 +238,9 @@ namespace AJTools.Services.GameMode
                         string id = line.Substring(0, split).Trim();
                         string keyName = line.Substring(split + 1).Trim();
                         Key key;
-                        if (bindings._keyByAction.ContainsKey(id) && Enum.TryParse(keyName, out key))
+                        // Validate the id against the action list, NOT against "still holds a key":
+                        // an earlier line may just have taken this action's default key away.
+                        if (IsKnownAction(id) && Enum.TryParse(keyName, out key))
                         {
                             // Free the saved key from whichever default holds it, then assign.
                             string holder = bindings.FindAction(key);

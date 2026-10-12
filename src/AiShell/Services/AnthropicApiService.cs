@@ -73,31 +73,61 @@ namespace AJTools.AiShell.Services
                 request.Headers.Add("x-api-key", apiKey);
                 request.Headers.Add("anthropic-version", ApiVersion);
 
-                var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-
-                if (!response.IsSuccessStatusCode)
+                HttpResponseMessage response;
+                try
                 {
-                    var err = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    throw new Exception($"Claude API Error ({response.StatusCode}): {err}");
+                    response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // HttpClient reports its own timeout as TaskCanceledException - without this
+                    // check it read as if the user had pressed Stop.
+                    throw new Exception(
+                        $"The AI service did not answer in time ({ProviderName}, {_httpClient.Timeout.TotalSeconds:0} seconds). " +
+                        "Try again, or ask for something shorter.");
                 }
 
-                var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                dynamic result = JsonConvert.DeserializeObject(responseJson);
-
-                // content is an array of blocks (text, possibly others) - concatenate every
-                // text block in order rather than assuming there is exactly one.
-                if (result?.content == null) return string.Empty;
-
-                var sb = new StringBuilder();
-                foreach (var block in result.content)
+                using (response)
                 {
-                    string blockType = block?.type?.ToString();
-                    if (blockType == "text")
+                    if (!response.IsSuccessStatusCode)
                     {
-                        sb.Append(block.text?.ToString() ?? string.Empty);
+                        var err = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        throw new Exception($"Claude API Error ({response.StatusCode}): {err}");
                     }
+
+                    var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    dynamic result = JsonConvert.DeserializeObject(responseJson);
+
+                    // content is an array of blocks (text, possibly others) - concatenate every
+                    // text block in order rather than assuming there is exactly one.
+                    var sb = new StringBuilder();
+                    if (result?.content != null)
+                    {
+                        foreach (var block in result.content)
+                        {
+                            string blockType = block?.type?.ToString();
+                            if (blockType == "text")
+                            {
+                                sb.Append(block.text?.ToString() ?? string.Empty);
+                            }
+                        }
+                    }
+
+                    string reply = sb.ToString();
+                    if (string.IsNullOrWhiteSpace(reply))
+                    {
+                        // Say WHY when Claude says why - a refusal or a cut-off answer can come back
+                        // with no text, which used to be handed on as an empty reply.
+                        string stopReason = result?.stop_reason?.ToString();
+                        if (!string.IsNullOrWhiteSpace(stopReason) && !string.Equals(stopReason, "end_turn", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new AiEmptyReplyException($"Claude stopped without writing anything (stop reason: {stopReason}).");
+                        }
+                        throw new AiEmptyReplyException("Claude sent back an empty reply.");
+                    }
+
+                    return reply;
                 }
-                return sb.ToString();
             }
         }
     }

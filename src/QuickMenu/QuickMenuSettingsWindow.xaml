@@ -4,8 +4,8 @@
                how many slots there are, and how big the wheel opens. The slots are shown as the
                wheel itself and tools are dragged straight onto it.
   Author: Ajmal P.S.
-  Version: 1.2.0
-  Last Updated: 2026-08-19
+  Version: 1.2.1
+  Last Updated: 2026-10-12
   Revit Version: 2020 - latest
 -->
 <Window x:Class="AJTools.UI.QuickMenu.QuickMenuSettingsWindow"
@@ -61,6 +61,16 @@
                     MinWidth="110"
                     Click="OnCancelClick"/>
         </Grid>
+
+        <!-- Inline message for a failed save or an unreadable layout file (house rule: no popup,
+             the window stays open). Collapsed - and so taking no room - until there is one. -->
+        <TextBlock x:Name="ErrorText"
+                   DockPanel.Dock="Bottom"
+                   Margin="0,10,0,0"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource AccentDanger}"
+                   Visibility="Collapsed"/>
 
         <!-- Header -->
         <StackPanel DockPanel.Dock="Top">

@@ -7,10 +7,10 @@
  *                 so generated code can reasonably assume what the user is looking at.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,11 +27,17 @@
  * - Per-element detail (type/level) is capped at AiShellConstants.MaxContextElementDetails so a
  *   huge selection doesn't blow up the AI request size; the category-count summary still covers
  *   the full selection either way.
- * - "No active document." and "No elements currently selected." are checked verbatim by
- *   AiShellViewModel.GenerateCodeAsync to decide whether to inject context — do not change
- *   this exact wording without updating that check too.
+ * - "No active document." is returned on its own and is checked verbatim by
+ *   AiShellViewModel.GenerateCodeAsync to skip injecting context - do not change that exact
+ *   wording without updating the check too. "No elements currently selected." is only ever one
+ *   line of a longer summary (document + active view come first), so a summary with no selection
+ *   is still sent to the AI.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - Notes corrected: only "No active document." is compared verbatim by the
+ *                       view model; the "No elements currently selected." comparison there could
+ *                       never match (that text is never the whole summary) and has been removed.
+ *                       No code change in this file.
  * v1.2.0 (2026-07-23) - Added the same re-entrancy guard RevitExecutionService/ReplSessionService
  *                       already use: a second ExtractContextAsync() call while one is still running
  *                       now returns immediately instead of overwriting the shared _tcs field, which

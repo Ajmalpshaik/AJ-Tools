@@ -8,10 +8,10 @@
  *                 Gemini/OpenAI/Claude providers.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-05
- * Last Updated  : 2026-08-05
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -51,6 +51,10 @@
  *   its own piece of work (Ajmal deferred it 2026-08-05).
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - A reply with no text now throws AiEmptyReplyException (with the finish
+ *                       reason when there is one) instead of returning "" - the C# pane used to put
+ *                       that empty string into the Code Editor, wiping the script, and still report
+ *                       "Code generated successfully". Same change in the other three providers.
  * v1.0.0 (2026-08-05) - Initial release. NVIDIA NIM as the fourth provider, default model
  *                       z-ai/glm-5.2, per Ajmal's request to use the build.nvidia.com free catalog.
  *
@@ -176,7 +180,7 @@ namespace AJTools.AiShell.Services
 
                     if (result?.choices == null || result.choices.Count == 0)
                     {
-                        return string.Empty;
+                        throw new AiEmptyReplyException("NVIDIA sent back an empty reply.");
                     }
 
                     var firstChoice = result.choices[0];
@@ -194,6 +198,17 @@ namespace AJTools.AiShell.Services
                         throw new Exception(
                             $"NVIDIA model {modelName} used its entire {MaxOutputTokens}-token budget on reasoning " +
                             "and returned no answer. Try a shorter or simpler request.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(reply))
+                    {
+                        // Same rule as the other three providers: an empty reply is an explained
+                        // failure, never an empty string that wipes the Code Editor.
+                        if (!string.IsNullOrWhiteSpace(finishReason) && !string.Equals(finishReason, "stop", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new AiEmptyReplyException($"NVIDIA model {modelName} stopped without writing anything (finish reason: {finishReason}).");
+                        }
+                        throw new AiEmptyReplyException($"NVIDIA model {modelName} sent back an empty reply.");
                     }
 
                     return reply;

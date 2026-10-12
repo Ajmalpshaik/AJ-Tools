@@ -7,10 +7,10 @@
  *                 motion engine, and all movement tuning constants (defined in mm, used in feet).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.1
+ * Version       : 1.8.2
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-29
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,11 @@
  *   ribbon entry removes the whole tool.
  *
  * Changelog     :
+ * v1.8.2 (2026-10-12) - The session now owns the game's key bindings (Keys), shared by the HUD and
+ *                       the engine, so the engine's toasts ("press B to save one") name the key
+ *                       actually bound instead of the default; the HUD and the Key Settings window
+ *                       still edit that same instance live. Changelog wording below no longer names
+ *                       outside products (project rule).
  * v1.8.1 (2026-07-29) - ResyncViewQueued input for the aim/display sync fix (suite 1.38.2): the HUD
  *                       queues a re-fit of the picture to the window on resume, the engine answers
  *                       with UIView.ZoomToFit. (Entry added in the 1.38.4 audit - the field shipped
@@ -43,7 +48,7 @@
  *                       flag, live speed factor, sound toggle, compass/level text, and the
  *                       engine-projected screen positions for the green rubber-band measure line.
  * v1.5.1 (2026-07-29) - Removed the follow-me section box input (Ajmal: "X no need, remove that").
- * v1.5.0 (2026-07-29) - Workshop-XR-style teleport state (TeleportAimHold input; TeleportAimValid +
+ * v1.5.0 (2026-07-29) - VR-style arc teleport state (TeleportAimHold input; TeleportAimValid +
  *                       distance outputs) and BookmarksVersion for the new left-side saved-positions
  *                       list.
  * v1.4.0 (2026-07-29) - "Add all" round: WeaponSelect (gun/laser/cleaner) replaces the LaserModeOn
@@ -53,7 +58,7 @@
  * v1.3.0 (2026-07-29) - Measuring also reports the axis breakdown Ajmal asked for: MeasureDeltaXMm /
  *                       MeasureDeltaYMm alongside the existing Vertical (Z) value.
  * v1.2.0 (2026-07-28) - Added the laser measuring state (MeasureHold input; MeasurePhase +
- *                       Total/Horizontal/Vertical mm outputs) for the BIM-360-style hold-and-release
+ *                       Total/Horizontal/Vertical mm outputs) for the hold-and-release
  *                       face-to-face measure Ajmal asked for.
  * v1.1.0 (2026-07-28) - Ajmal's feedback round after playing: sprint raised 2.2x -> 3.0x ("shift
  *                       running speed increase"); weapon system reworked - LaserOn/L-key toggle and
@@ -164,7 +169,7 @@ namespace AJTools.Services.GameMode
         // 3 = snag marker (paint red + report), 4 = selector (Revit selection add/remove).
         public byte WeaponSelect;
 
-        // Workshop-XR-style teleport: hold T = aiming (engine feeds the arc target), release T =
+        // VR-style arc teleport: hold T = aiming (engine feeds the arc target), release T =
         // the HUD queues the actual jump.
         public bool TeleportAimHold;
 
@@ -260,6 +265,7 @@ namespace AJTools.Services.GameMode
             StartPosition = startPosition;
             Input = new GameInputState();
             Hud = new GameHudState();
+            Keys = GameKeyBindings.Load();
             Input.YawDeg = startYawDeg;
             Input.PitchDeg = 0.0;
             Mode = GameMoveMode.Walk;
@@ -280,6 +286,10 @@ namespace AJTools.Services.GameMode
 
         public GameInputState Input { get; private set; }
         public GameHudState Hud { get; private set; }
+
+        /// <summary>This game's key bindings - one instance, shared by the HUD (key handling, help
+        /// card, hints), the Key Settings window (edits it live) and the engine (toast wording).</summary>
+        public GameKeyBindings Keys { get; private set; }
 
         /// <summary>
         /// Saved positions for this game session: slot (1, 2, 3, ... no limit) ->

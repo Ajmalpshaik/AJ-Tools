@@ -4,14 +4,14 @@
  * File Name     : ReplSessionService.cs
  * Purpose       : Runs one line of C# at a time against the live Revit document and keeps the
  *                 resulting variables/imports alive for the next line - the actual "interactive
- *                 shell" piece (same idea as RevitPythonShell's IronPython console), sitting next
- *                 to the existing AI-authored full-script Run/RevitExecutionService path.
+ *                 shell" piece (type a line, it runs, its variables stay for the next), sitting
+ *                 next to the existing AI-authored full-script Run/RevitExecutionService path.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.2
+ * Version       : 1.0.3
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -48,6 +48,12 @@
  *   line a live, non-disposed token.
  *
  * Changelog     :
+ * v1.0.3 (2026-10-12) - The line's Transaction.Commit() result is now checked: Revit can roll a
+ *                       commit back itself (an error it cannot resolve), and the console used to
+ *                       report that line as a success and keep its variables anyway. The session
+ *                       now moves on, and success is reported, only when Commit returns Committed;
+ *                       otherwise the line is reported as rolled back with the session left as it
+ *                       was. Purpose reworded without naming an outside tool (project rule).
  * v1.0.2 (2026-07-23) - Fixed a misreported-failure bug shared with RevitExecutionService:
  *                       RefreshActiveView() ran right after tx.Commit()/_state update but before
  *                       the line's success was reported - if the refresh threw, the outer catch-all
@@ -226,15 +232,29 @@ namespace AJTools.AiShell.Services
                             tcs.TrySetResult(new CodeExecutionResult
                             {
                                 Success = false,
-                                ErrorMessage = ex.InnerException?.Message ?? ex.Message,
-                                Exception = ex.InnerException ?? ex
+                                ErrorMessage = ex.InnerException?.Message ?? ex.Message
                             });
                             return;
                         }
 
                         if (lineResult.Success)
                         {
-                            tx.Commit();
+                            // Commit can come back as RolledBack (Revit hit an error it could not
+                            // resolve and undid the line itself). Only a real commit may move the
+                            // session on - otherwise the next line would see variables describing
+                            // changes that are no longer in the model.
+                            TransactionStatus commitStatus = tx.Commit();
+                            if (commitStatus != TransactionStatus.Committed)
+                            {
+                                tcs.TrySetResult(new CodeExecutionResult
+                                {
+                                    Success = false,
+                                    ErrorMessage = "Revit did not accept this line's changes and rolled them back (" + commitStatus +
+                                                   "). Nothing was changed, and the session's variables are as they were before this line."
+                                });
+                                return;
+                            }
+
                             _state = lineResult.NewState;
                             TryRefreshActiveView(app);
 
@@ -264,8 +284,7 @@ namespace AJTools.AiShell.Services
                 tcs?.TrySetResult(new CodeExecutionResult
                 {
                     Success = false,
-                    ErrorMessage = "An unexpected error occurred: " + ex.Message,
-                    Exception = ex
+                    ErrorMessage = "An unexpected error occurred: " + ex.Message
                 });
             }
             finally

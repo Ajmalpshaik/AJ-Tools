@@ -153,15 +153,21 @@ namespace AJTools.Services.GameMode
 
             var moved = new XYZ(position.X, position.Y, position.Z + dz);
 
-            // Landing check.
+            // Landing check. Looks down from where the eye was BEFORE this step, over the whole
+            // step plus eye height: a fast fall (up to 15 m/s with a slow frame of 0.25 s = a
+            // 3.75 m step) could otherwise move the eye past a slab in one go, and a ray starting
+            // from the already-moved eye never sees a floor that is now above it. Same rule as the
+            // head-bump check above, which already measures from the pre-step position. The
+            // landing height is unchanged: feet on the first surface found.
             if (_session.VerticalVelocityFtPerSec <= 0)
             {
-                GameRayHit landing = _collision.CastNearest(moved, new XYZ(0, 0, -1), _currentEyeHeightFt + (50.0 * Constants.MM_TO_FEET));
-                if (landing != null && landing.DistanceFt <= _currentEyeHeightFt)
+                double fallFt = Math.Abs(dz);
+                GameRayHit landing = _collision.CastNearest(position, new XYZ(0, 0, -1), fallFt + _currentEyeHeightFt + (50.0 * Constants.MM_TO_FEET));
+                if (landing != null && landing.DistanceFt <= fallFt + _currentEyeHeightFt)
                 {
                     _session.Grounded = true;
                     _session.VerticalVelocityFtPerSec = 0;
-                    return new XYZ(moved.X, moved.Y, moved.Z + (_currentEyeHeightFt - landing.DistanceFt));
+                    return new XYZ(position.X, position.Y, position.Z - landing.DistanceFt + _currentEyeHeightFt);
                 }
 
                 if (groundHit == null && moved.Z < _session.StartPosition.Z - GameTuning.FloorSearchFt)
