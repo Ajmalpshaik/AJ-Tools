@@ -19,12 +19,8 @@ nothing worth keeping stays trapped in chat history.
    ever differ):
    - AJ Tools coding convention/decision → `knowledge/ajtools-conventions.md`
    - Ambiguous term or dictation quirk → `knowledge/glossary.md`
-   - AJ AI Bridge / live-model gotcha → the matching topic file in `knowledge/live-model/` (route via
-     its README index)
    - Reply-format correction → `knowledge/reply-style.md`
    - Bug found + fixed → `knowledge/debug-log.md`
-   - Reusable live-model C# → `.claude/scripts/` per that folder's README (compose filters + actions;
-     bespoke multi-stage builds go in `recipes/`), updating the README table in the same step
    - Cross-session fact about Ajmal / standing feedback / project state → the memory system at
      `C:\Users\ajmal\.claude\projects\D--06-Development-01-AJ-Tools-Revit-Addins\memory\` (one file per fact, then
      add its one-line pointer in `MEMORY.md` — an unindexed memory is never recalled)

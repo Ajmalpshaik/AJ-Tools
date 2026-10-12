@@ -13,11 +13,7 @@ How to answer Ajmal, separate from what to build or fix.
   each matching element with its **Family/Type (or Category) AND Element ID** — a small table
   (`Id | Family and Type | ...`) rather than a bare count. The reason: a narrowed-down request like this
   is almost always the setup for a next step ("now select those", "now move them", "what's their length")
-  — the Element IDs are what make that next step possible without re-filtering from scratch. Compose
-  [`filters/filter-by-category-and-numeric-param.cs`](../scripts/filters/filter-by-category-and-numeric-param.cs)
-  (or whichever filter matches) with
-  [`actions/action-report-parameters.cs`](../scripts/actions/action-report-parameters.cs) for this —
-  `action-count-and-report.cs` is for a bare count/aggregate breakdown, not this case.
+  — the Element IDs are what make that next step possible without re-filtering from scratch.
 
 - **Substantive work** (a build/fix/check, or anything touching the live model — not a quick count/size
   question) — close with this **7-point Final Report**:

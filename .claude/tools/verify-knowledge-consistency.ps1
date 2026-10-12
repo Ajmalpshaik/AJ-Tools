@@ -1,21 +1,20 @@
 <#
 .SYNOPSIS
-    Checks the AJ Tools knowledge system (.claude/skills, .claude/knowledge, .claude/scripts) for
-    consistency drift - broken cross-references, missing frontmatter, an out-of-sync scripts README.
+    Checks the AJ Tools knowledge system (.claude/skills, .claude/knowledge) for consistency
+    drift - broken cross-references, missing frontmatter.
 
 .DESCRIPTION
-    This project runs on a "living document" convention: skills, knowledge files, and scripts all
-    cross-link each other and get updated in place over time. Nothing enforces those links stay valid
-    as files get renamed, moved, split, or retired - this script is that enforcement, run on demand
-    (part of an ajtools-knowledge-sync pass, or whenever something feels stale).
+    This project runs on a "living document" convention: skills and knowledge files cross-link each
+    other and get updated in place over time. Nothing enforces those links stay valid as files get
+    renamed, moved, split, or retired - this script is that enforcement, run on demand (part of an
+    ajtools-knowledge-sync pass, or whenever something feels stale).
 
     Checks performed:
       1. Every .claude/skills/*/SKILL.md has YAML frontmatter with both "name" and "description".
       2. Every markdown-style relative link [text](path) inside .claude/skills/**/*.md,
-         .claude/knowledge/*.md, .claude/scripts/**/*.md, and the root CLAUDE.md resolves to a real file.
-      3. Every .cs file under .claude/scripts/{filters,actions,recipes,creators,commands,examples}
-         is mentioned in .claude/scripts/README.md, and every .cs path mentioned in that README
-         actually exists on disk - catches drift between the index and the real folder contents.
+         .claude/knowledge/*.md, and the root CLAUDE.md resolves to a real file.
+      3. Every skill name and .md file CLAUDE.md mentions in backticks exists.
+      4. Every memory file has its pointer line in MEMORY.md, and every pointer resolves.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .claude\tools\verify-knowledge-consistency.ps1
@@ -61,7 +60,6 @@ Write-Host "`n=== 2. Markdown link targets ===" -ForegroundColor Cyan
 $mdFiles = @()
 $mdFiles += Get-ChildItem -Path (Join-Path $claudeDir "skills") -Filter "*.md" -Recurse -ErrorAction SilentlyContinue
 $mdFiles += Get-ChildItem -Path (Join-Path $claudeDir "knowledge") -Filter "*.md" -Recurse -ErrorAction SilentlyContinue
-$mdFiles += Get-ChildItem -Path (Join-Path $claudeDir "scripts") -Filter "*.md" -Recurse -ErrorAction SilentlyContinue
 $rootClaudeMd = Join-Path $repoRoot "CLAUDE.md"
 if (Test-Path $rootClaudeMd) { $mdFiles += Get-Item $rootClaudeMd }
 
@@ -79,42 +77,7 @@ foreach ($md in $mdFiles) {
 }
 Write-Host ("Checked {0} link(s) across {1} markdown file(s)." -f $linkCount, $mdFiles.Count)
 
-Write-Host "`n=== 3. Scripts README vs folder contents ===" -ForegroundColor Cyan
-$scriptsDir = Join-Path $claudeDir "scripts"
-$readmePath = Join-Path $scriptsDir "README.md"
-if (Test-Path $readmePath) {
-    $readmeContent = Get-Content -Path $readmePath -Raw
-    $subfolders = @("filters", "actions", "recipes", "creators", "commands", "examples")
-
-    $onDisk = @()
-    foreach ($folder in $subfolders) {
-        $folderPath = Join-Path $scriptsDir $folder
-        if (Test-Path $folderPath) {
-            $onDisk += Get-ChildItem -Path $folderPath -Filter "*.cs" | ForEach-Object { "$folder/$($_.Name)" }
-        }
-    }
-
-    foreach ($file in $onDisk) {
-        if ($readmeContent -notmatch [regex]::Escape($file)) {
-            $issues.Add("SCRIPT NOT IN README: " + $file + " exists on disk but isn't mentioned in scripts/README.md")
-        }
-    }
-
-    $readmeScriptRefs = [regex]::Matches($readmeContent, '\(((?:filters|actions|recipes|creators|commands|examples)/[^)]+\.cs)\)') |
-        ForEach-Object { $_.Groups[1].Value }
-    foreach ($ref in $readmeScriptRefs) {
-        $refPath = Join-Path $scriptsDir $ref
-        if (-not (Test-Path $refPath)) {
-            $issues.Add("README REFERENCES MISSING SCRIPT: '" + $ref + "' listed in README.md but not found on disk")
-        }
-    }
-
-    Write-Host ("Checked {0} script file(s) on disk against README.md." -f $onDisk.Count)
-} else {
-    $issues.Add("MISSING FILE: .claude/scripts/README.md not found")
-}
-
-Write-Host "`n=== 4. CLAUDE.md backtick mentions (skills + knowledge files) ===" -ForegroundColor Cyan
+Write-Host "`n=== 3. CLAUDE.md backtick mentions (skills + knowledge files) ===" -ForegroundColor Cyan
 # Added 2026-07-28: the 2026-07-22 Brain-split cleanup deleted reply-style.md and two skills that
 # CLAUDE.md still referenced in backticks - invisible to check 2, which only sees [text](path) links.
 # This check scans CLAUDE.md for `ajtools-...` skill tokens and `<name>.md` file tokens and verifies
@@ -143,16 +106,14 @@ if (Test-Path $rootClaudeMd) {
                 (Join-Path $repoRoot $token),
                 (Join-Path $repoRoot $fileName),
                 (Join-Path $claudeDir ("knowledge\" + $fileName)),
-                (Join-Path $claudeDir ("knowledge\live-model\" + $fileName)),
-                (Join-Path $claudeDir ("knowledge\" + ($token -replace '/', '\'))),
-                (Join-Path $claudeDir ("scripts\" + $fileName))
+                (Join-Path $claudeDir ("knowledge\" + ($token -replace '/', '\')))
             )
             $found = $false
             foreach ($candidate in $candidates) {
                 if (Test-Path $candidate) { $found = $true; break }
             }
             if (-not $found) {
-                $issues.Add("CLAUDE.md MENTIONS MISSING FILE: '" + $token + "' not found at repo root, .claude/knowledge (incl. live-model), or .claude/scripts")
+                $issues.Add("CLAUDE.md MENTIONS MISSING FILE: '" + $token + "' not found at repo root or .claude/knowledge")
             }
         }
     }
@@ -161,7 +122,7 @@ if (Test-Path $rootClaudeMd) {
     $issues.Add("MISSING FILE: root CLAUDE.md not found")
 }
 
-Write-Host "`n=== 5. Memory index vs memory folder ===" -ForegroundColor Cyan
+Write-Host "`n=== 4. Memory index vs memory folder ===" -ForegroundColor Cyan
 # Added 2026-07-28: a memory file that never gets its one-line pointer in MEMORY.md is never recalled
 # by any future session - it silently doesn't exist. Machine-specific path, so skip (not fail) when absent.
 $memoryDir = "C:\Users\ajmal\.claude\projects\D--06-Development-01-AJ-Tools-Revit-Addins\memory"

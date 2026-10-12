@@ -62,6 +62,5 @@ Translate, keeping behaviour identical but the *implementation* native to AJ Too
   call, don't touch the extension folder either way without it.
 - Suite version: new tool in AJ Tools = minor bump in `src/Properties/AssemblyInfo.cs` + changelog entry.
 - Append a dated line to `ajtools-conventions-log.md` (what was ported, anything learned). A new
-  IronPython→C# translation trap worth remembering goes to `ajtools-conventions.md`'s conventions; a
-  live-model gotcha found while verifying goes to the matching topic file under `knowledge/live-model/`
-  (route via its [`README.md`](../../knowledge/live-model/README.md)) — one fact, one file.
+  IronPython→C# translation trap worth remembering goes to `ajtools-conventions.md`'s conventions —
+  one fact, one file.
