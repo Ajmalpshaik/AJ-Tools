@@ -64,10 +64,9 @@ For every file in scope, check and fix:
 ### Step 4 — Verify
 
 Build clean with deploy skipped —
-`msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true` —
+`dotnet build "AJ Tools.sln" -c Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true --no-incremental` —
 zero errors, zero warnings. If the pass touched version-sensitive API, build at least one newer config too
-(e.g. `Release R25`). If the AJ AI Bridge is connected and a tool's effect is observable in the
-model, spot-check one live; otherwise state plainly that Revit wasn't launched.
+(e.g. `Release R25`). State plainly that Revit wasn't launched, and list what Ajmal should spot-check.
 
 ### Step 5 — Version + changelog
 

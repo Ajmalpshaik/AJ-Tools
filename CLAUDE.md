@@ -27,7 +27,8 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
   `McpBridgeService`, the "AJ AI" ribbon button), its Node MCP server and the PowerShell callers were all
   deleted at Ajmal's instruction; that job now belongs to his separate Heron AI project — never touch that
   project from here. The C# pane (with its AI chat, for now), Run Pinned / Saved Scripts, Game Mode and
-  Quick Menu stay. Do not add a bridge back without Ajmal asking.
+  Quick Menu stay. Do not add a bridge back without Ajmal asking. The live-model notes and C# scripts that
+  went with it were deleted the same day (Heron already covers that work) — git history has them.
 
 **Hard rule — trees you must never edit:** `_backup\`
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated
@@ -51,58 +52,30 @@ needs Ajmal's explicit yes.
 ## Who you're working with, and how
 
 Work here is driven by the skills under `.claude/skills/ajtools-*`, backed by shared knowledge files
-in `.claude/knowledge/`: `ajtools-conventions.md`, `glossary.md`, `reply-style.md`, `debug-log.md`, and
-the **live-model set** `knowledge/live-model/` — an indexed folder, not one file. **Since v1.57.0 nothing in
-this repo can reach the live model** (bridge removed). The live-model notes, `.claude/scripts/` and the
-`revit-family-author` skill are kept as reference only until Ajmal decides what moves to Heron AI; anywhere
-they say "ping" or "run_csharp", that path no longer exists — say so instead of trying it, and ask Ajmal to
-test in Revit himself.
+in `.claude/knowledge/`: `ajtools-conventions.md`, `glossary.md`, `reply-style.md`, `debug-log.md`.
+Nothing in this repo can reach the live Revit model (see above) — when something needs checking in Revit,
+say so and ask Ajmal to test it himself.
 
-**Read by routing, never wholesale (Ajmal's rule, 2026-07-16).** Knowledge is split small and indexed so a
-task reads only the part it needs: open the index — [`knowledge/live-model/README.md`](.claude/knowledge/live-model/README.md)
-for live-model work, [`scripts/README.md`](.claude/scripts/README.md) for reusable C# — pick the one row
-that matches the request, open that one file. Don't read a whole set to find one section. Same rule applies
-to anything new: if a knowledge file grows past ~300 lines, split it by topic and add it to its index.
+**Read by routing, never wholesale (Ajmal's rule, 2026-07-16).** Read only the part of a knowledge file a
+task needs (search it, then open that section). If a knowledge file grows past ~300 lines, split it by topic.
 
 Ajmal is a BIM modeller, not a developer — always reply in plain, non-developer language (reply
 formats live in `reply-style.md`), and confirm before any action that's hard to reverse or that
-reaches beyond this working folder: changing the live Revit model destructively, deploying over a
-live add-in, anything touching GitHub or the installer repo, or deleting/overwriting files you didn't
+reaches beyond this working folder: deploying over a live add-in, anything touching GitHub or the installer repo, or deleting/overwriting files you didn't
 create.
 
 ## Always-on discipline (applies to every AJ Tools task, whether or not a specific skill got invoked)
 
-**AJ Adaptive AI-Local Workflow.** Work as a hybrid system: AI interprets Ajmal's request, routes it to
-the right local knowledge/module, fills the inputs, and verifies the result; local `.claude/knowledge`,
-`.claude/scripts`, and project code provide the reusable execution. The split is not fixed: a task can be
-mostly local reuse, mostly AI reasoning, or anywhere between. The loop is
-`request -> route by shape -> compose local modules -> run/check -> answer -> improve the library`, so
-repeated work gets faster over time instead of being rewritten from scratch. If no local module fits yet,
-AI still solves the task with the smallest correct one-off, verifies it, then saves the reusable part only
-when the shape is likely to repeat. Decision order: reuse existing module first; if missing, do the task
-normally; after verification, harvest reusable pieces when useful.
-
 1. **Before starting substantive work**, check the relevant `.claude/knowledge/*.md` file(s) for a term,
-   convention, or prior finding that already answers or shapes the request. Don't re-derive or re-trace
-   something that's already documented — e.g. the CRAC A↔B refrigerant pairing and the geometric MEP trace
-   method are already recorded in `glossary.md` / `knowledge/live-model/mep-trace.md`; re-solving them from scratch is
-   wasted work and risks a different (wrong) answer than what was already verified. **Before writing any
-   new AJ AI Bridge C#, also check [`.claude/scripts/`](.claude/scripts/README.md)** — most live-model
-   requests split into "which elements" (a `filters/` fragment, or a `creators/` fragment if the
-   elements don't exist yet and need creating) and "what to do to them" (one or more `actions/`
-   fragments), composed together per request rather than written as one bespoke script each time;
-   genuinely bespoke multi-stage builds live in `recipes/` instead. Route by request shape first, not by
-   file-name searching today's noun (`*duct*`, `*pipe*`, etc.), because the reusable modules are generic
-   and may not contain the element name. Adapt what's there before writing from scratch.
+   convention, or prior finding that already answers or shapes the request. Don't re-derive something
+   that's already documented and verified — re-solving it from scratch is wasted work and risks a
+   different (wrong) answer. Reuse the plugin's existing helpers and services before writing new ones.
 2. **After finishing**, check whether anything new surfaced that belongs in exactly one of these places —
    never duplicate the same fact across files:
    - A new AJ Tools coding convention/decision → `ajtools-conventions.md`
    - A new ambiguous term or dictation quirk → `glossary.md`
-   - A new AJ AI Bridge/live-model technical gotcha → the matching topic file in `knowledge/live-model/` (route via its README index)
    - A reply-format correction from Ajmal → `reply-style.md`
    - A bug found + fixed → `debug-log.md`
-   - A genuinely reusable piece of live-model C# (not a one-off query) → save or update it in
-     `.claude/scripts/`, following that folder's own README
    - A fact about Ajmal, an ongoing project decision, or standing feedback that should follow him across
      *all* projects/sessions (not just this repo) → the cross-session memory system
      (`C:\Users\ajmal\.claude\projects\D--06-Development-01-AJ-Tools-Revit-Addins\memory\`), per its own type rules
@@ -128,9 +101,7 @@ run themselves rather than just reading the tag.
 - **Proof case**: the CRAC refrigerant trace. Tag names implied `CAC001A` pairs with `ACU001A*`, and
   `Connector.IsConnected` was `false` end to end — both looked like they should be trustworthy, both were
   wrong. The real pairing (A↔B cross-connected) only came out by geometrically tracing actual connector
-  positions, ignoring both the naming and the `IsConnected` flag. See `glossary.md` (the pairing) and
-  `knowledge/live-model/mep-trace.md` (the trace technique) for the full detail — don't re-derive it, read it first (see
-  discipline #1 above).
+  positions, ignoring both the naming and the `IsConnected` flag (pairing recorded in `glossary.md`).
 - **The general habit, for every AJ Tools task** (not just MEP tracing): when the direct/obvious Revit API
   answer doesn't hold up — a flag that should be true isn't, a name that should predict behavior doesn't —
   don't paper over it or guess. Find the technique that gets the *real* answer (geometry, cross-referencing
@@ -138,8 +109,7 @@ run themselves rather than just reading the tag.
   contradicts what the naming or a surface-level check would suggest.
 - **Grow this as a library, not a one-off**: each time a new "trick" like this gets discovered (a case
   where the obvious approach lied and something else revealed the truth), write it down in the knowledge
-  file it belongs to (`knowledge/live-model/` — the right topic file — for AJ AI Bridge/live-model techniques, `ajtools-conventions.md`
-  for compiled-plugin-side ones) — same routing rule as discipline #2. The point is that the next session
+  file it belongs to (`ajtools-conventions.md`) — same routing rule as discipline #2. The point is that the next session
   starts with a bigger toolbox of "here's how you get the real answer when Revit's own data doesn't just
   hand it to you," not that everyone re-invents the same trick each time.
 
@@ -151,8 +121,8 @@ before starting the next (Ajmal confirmed this way of working) — never one opa
 **Plugin source work** (`ajtools-build` / `ajtools-debug`):
 1. House conventions followed — metadata block, version-safe helpers, `LeaderLogicService` for tag
    leaders, ribbon wiring in the ribbon managers. The checklist with detail is `ajtools-conventions.md`.
-2. Clean build, deploy skipped:
-   `msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true`
+2. Clean build, deploy skipped (this PC has the .NET SDK, not Visual Studio/MSBuild):
+   `dotnet build "AJ Tools.sln" -c Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true --no-incremental`
    → zero errors, zero warnings (the project currently builds warning-free — keep it that way).
    `Release` (2020) is the minimum; if the change touches version-sensitive API, also build at least
    one newer config (e.g. `Release R25`) before calling it done.
@@ -160,10 +130,6 @@ before starting the next (Ajmal confirmed this way of working) — never one opa
    new tool.
 4. Report honestly what was and wasn't tested. If Revit wasn't launched, say so plainly — "builds
    clean, not yet loaded in Revit" — never imply live testing that didn't happen.
-
-**Live-model work** (AJ AI Bridge): verify the result against the real model with a fresh read-back —
-never trust `IsConnected`, naming, or an earlier turn's state (see Modeler mindset). All numbers to
-Ajmal in mm.
 
 **Everything, always**: knowledge capture done (discipline #2), and scope held — never grow a small
 fix into a project-wide refactor (e.g. the pending `ElementIdHelper` migration across old files)
@@ -178,14 +144,14 @@ wrong answers in this repo. Follow them even when the task looks trivially simpl
 1. **Read first, act second.** Relevant `.claude/knowledge/*.md` file(s) before substantive work. An
    ambiguous or garbled term (Ajmal dictates a lot) → check `glossary.md`, then ask — one short
    question with a recommended default — rather than guessing.
-2. **Never answer a Revit API question from memory.** Verify in the knowledge files, live via
-   AJ AI Bridge, or against the real installed `RevitAPI.dll` (`C:\Program Files\Autodesk\`). NuGet
+2. **Never answer a Revit API question from memory.** Verify in the knowledge files or against the
+   real installed `RevitAPI.dll` (`C:\Program Files\Autodesk\`). NuGet
    reference packages and web docs have both been proven wrong here.
 3. **Plan → split → execute.** Show a short numbered plan, run one step at a time, check each step's
    real result before starting the next. Never one opaque script that does everything at once.
 4. **Fresh reads, not recall.** Never trust `Connector.IsConnected`, element names/tags, or your own
-   earlier turn's results — Ajmal undoes and edits things in Revit between messages. Re-query before
-   acting on "known" state, and verify what you changed with a read-back after.
+   earlier turn's results — in tool code too: read the real state, and re-read the files and git state
+   before acting on what an earlier turn found.
 5. **Every number is per-request.** Clearances, flows, heights, margins — confirm fresh and restate
    before calculating; never reuse a past session's value as a default. He speaks in mm; Revit's API is
    feet; convert explicitly and reply in mm.
@@ -195,19 +161,17 @@ wrong answers in this repo. Follow them even when the task looks trivially simpl
 7. **Confirm before**: bulk or hard-to-reverse model changes (state what will happen and how many
    elements), anything destructive, anything touching GitHub/releases/deployment. Small, easily-undone
    changes: just do them and report. A vague "let me check" from Ajmal is not a go-ahead.
-8. **"Mistake" / "undo" / "previous"** → Revit's native Undo command via the bridge, never a
-   hand-written delete script. If he says he already undid it himself, believe him and re-query.
-9. **Compiled plugin work**: metadata block, compat helpers, `LeaderLogicService` for leaders, ribbon
+8. **Compiled plugin work**: metadata block, compat helpers, `LeaderLogicService` for leaders, ribbon
    wiring in the ribbon managers, clean build with `-p:SkipAjToolsAutoDeploy=true` — then run the
    Definition of done above.
-10. **Capture or it didn't happen.** New fact → exactly one knowledge file (routing table in
+9. **Capture or it didn't happen.** New fact → exactly one knowledge file (routing table in
     discipline #2). Recurring task pattern → create the skill via `ajtools-claude-maker` and report it in
     the same reply (create-then-report, Ajmal's 2026-07-16 rule); never without the report. Deleting or
     replacing an existing skill still needs his OK.
-11. **Report honestly.** If something failed, wasn't live-verified, or contradicts what the naming/tags
+10. **Report honestly.** If something failed, wasn't live-verified, or contradicts what the naming/tags
     suggest — say exactly that. A confident wrong answer costs Ajmal real model damage; an honest "built
     but not tested in Revit" costs nothing.
-12. **Never name an outside source in anything written into this repo** — no other people's repos,
+11. **Never name an outside source in anything written into this repo** — no other people's repos,
     tools, products, websites or personal names, in code comments, knowledge files, changelogs or
     commit messages. Ajmal's instruction, 2026-08-20: *"do not mention any thing that we took from this
     web site or repo... the words also remove... remove his name and do not use like that."* If a

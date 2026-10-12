@@ -224,7 +224,7 @@ place rather than leaving stale info sitting next to the new truth.
   itself would use tagging manually — `Document.GetDefaultFamilyTypeId(category.Id)` — not a guessed
   generic name like "M_Duct Size Tag", and not AJ Tools' own Smart MEP Tag Settings (a separate,
   AJ-Tools-specific enable/priority setting, not the same thing). Full technical detail + a related
-  `IndependentTag.Create()` type-argument gotcha found while fixing this in `live-model/tagging.md` §
+  `IndependentTag.Create()` type-argument gotcha found while fixing this in the old tagging notes (deleted 2026-10-12, in git history) §
   Finding the RIGHT tag family.
 - **Duct tag SIDE must be consistent by orientation, not alternated (Ajmal, 2026-07-13,
   "documentation looking quality")**: same-pattern ducts (e.g. two mirrored branches of the same size)
@@ -237,7 +237,7 @@ place rather than leaving stale info sitting next to the new truth.
 - **Which LEFT/RIGHT the leader extends toward = real flow direction, not position (Ajmal, 2026-07-13,
   confirmed directly)**: for horizontal ducts, the leader/text must extend toward the downstream side —
   read from the duct's own `Connector.Direction` (In/Out), not a geometric guess (nearest riser,
-  group centroid, etc. were all tried first and superseded — see `live-model/tagging.md` § Leader side
+  group centroid, etc. were all tried first and superseded — see the old tagging notes (deleted 2026-10-12, in git history) § Leader side
   should follow REAL flow direction for the full progression and why each earlier version broke).
   **Exception confirmed 2026-07-14**: Supply Air ducts specifically must point the OPPOSITE of their
   real flow direction; Return Air and Exhaust Air keep the real flow direction as-is. Standard drafting
@@ -249,12 +249,12 @@ place rather than leaving stale info sitting next to the new truth.
   standing rule)**: every mm-based clearance (elbow push, resolver margins, base offset) must scale
   with the view's current scale, computed as one shared ratio right at the start, not hardcoded. A
   clearance measured/tuned at one scale silently breaks the moment the view scale changes — this
-  already caused a real regression (546 own-leader-clashes) once. Full detail in `live-model/tagging.md`
+  already caused a real regression (546 own-leader-clashes) once. Full detail in the old tagging notes (deleted 2026-10-12, in git history)
   § Check view.Scale FIRST.
 - **Duct tagging scope rule (Ajmal, 2026-07-13)**: when tagging ducts, only tag **horizontal runs** —
   skip vertical risers — and only runs **1000mm or longer**; shorter stubs don't get tagged. Applies
   generally to duct tagging, not just the one request it came from. Default in
-  `.claude/scripts/recipes/tag-elements-in-active-view.cs` (`onlyHorizontalRuns = true`,
+  the old tag-elements script (deleted 2026-10-12, in git history) (`onlyHorizontalRuns = true`,
   `minLengthMm = 1000.0`) — still restate/confirm before running per "every number is per-request", in
   case a future request explicitly overrides it.
 - **Create Tags' vertical-run skip is deliberately WIDER than Smart MEP Tag's own (Ajmal, 2026-07-28)**:
@@ -330,7 +330,7 @@ place rather than leaving stale info sitting next to the new truth.
 - Ajmal asked directly whether the Brain's clash work was better and should replace this one. It was
   compared file-by-file. **It is not, and it was not adopted.** Recorded so nobody re-runs this
   comparison or "upgrades" the compiled engine to the script version later.
-- The Brain's version (`knowledge/live-model/tagging.md`, § *Tag-vs-tag overlap resolution*) sees
+- The Brain's version (the old tagging notes (deleted 2026-10-12, in git history), § *Tag-vs-tag overlap resolution*) sees
   **tag against tag only**; `TagClashEngine` also sees text notes, dimensions, detail components,
   detail lines, generic annotations, keynote tags, spot elevations/coordinates and revision clouds. The
   Brain splits every move **50/50 across both tags**, where this engine decides *who* moves by leader
@@ -932,7 +932,7 @@ place rather than leaving stale info sitting next to the new truth.
 - **Running one of REVIT'S OWN commands from an add-in (established 2026-08-19, the Quick Menu).**
   Same `PostCommand` route, but the id comes free: `RevitCommandId.LookupPostableCommandId(PostableCommand.X)`
   — no `CustomCtrl_%...` string involved at all. (Already proven live through the AJ AI Bridge for
-  `PostableCommand.Undo` — see `knowledge/live-model/undo.md`.) **The version trap, and the fix:**
+  `PostableCommand.Undo` — see the old undo notes (deleted 2026-10-12, in git history).) **The version trap, and the fix:**
   `PostableCommand` gains and loses members every Revit release, so writing *any* member name in
   compiled source breaks the build on the versions that never had it — fatal in a project that builds
   2020 → 2027 from one file. Walk the enum **by name at run time** instead —

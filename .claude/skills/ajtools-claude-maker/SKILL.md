@@ -1,6 +1,6 @@
 ---
 name: ajtools-claude-maker
-description: Create a NEW skill in this repo's .claude/skills when a recurring, bounded, multi-step AJ Tools task pattern is spotted — either because Ajmal asks ("make this a skill", "save this workflow") or proactively mid-work when the same shape of request keeps coming back. Create it, then report it in the same reply ("created skill X because Y — say delete if you don't want it") — the report is mandatory, silent creation is forbidden. Do NOT use for one-off tasks, for universal habits that must apply to every task regardless of skill (those belong in CLAUDE.md or a knowledge file), for reusable C# fragments (those go in .claude/scripts per its README), or for the AJ AI Brain at D:\Ajmal\AJ AI Brain (the Brain maintains itself via its own brain-self-maintain skill). Deleting or replacing an EXISTING skill always needs Ajmal's explicit OK first.
+description: Create a NEW skill in this repo's .claude/skills when a recurring, bounded, multi-step AJ Tools task pattern is spotted — either because Ajmal asks ("make this a skill", "save this workflow") or proactively mid-work when the same shape of request keeps coming back. Create it, then report it in the same reply ("created skill X because Y — say delete if you don't want it") — the report is mandatory, silent creation is forbidden. Do NOT use for one-off tasks, for universal habits that must apply to every task regardless of skill (those belong in CLAUDE.md or a knowledge file), or for the AJ AI Brain at D:\Ajmal\AJ AI Brain (the Brain maintains itself via its own brain-self-maintain skill). Deleting or replacing an EXISTING skill always needs Ajmal's explicit OK first.
 ---
 
 # AJ Tools Skill Maker
@@ -19,9 +19,8 @@ create-then-report rule Ajmal set on 2026-07-16.
    ajtools-port-pyrevit, aj-tools-github, revit-csharp-plugin, revit-ui, ...). If an existing skill
    already covers the pattern, improve that one instead of creating a rival — two skills claiming the
    same request poisons routing for every future session.
-3. **Code goes elsewhere.** If the reusable part is C# for the live model, it belongs in
-   `.claude/scripts/` (route via that folder's README) with the skill merely pointing at it — never
-   paste working C# into a SKILL.md.
+3. **Code goes elsewhere.** Reusable C# belongs in the plugin source (`src/`), with the skill merely
+   pointing at it — never paste working C# into a SKILL.md.
 
 ## Building the skill
 
@@ -31,8 +30,8 @@ create-then-report rule Ajmal set on 2026-07-16.
    fire on, naming the skill that owns that instead.
 3. Bake in plan-split-execute: a short visible plan, one step at a time, each verified before the next —
    never one opaque action.
-4. Point at shared knowledge (`glossary.md`, `reply-style.md`, `ajtools-conventions.md`,
-   `knowledge/live-model/` via its README) — don't duplicate facts into the skill.
+4. Point at shared knowledge (`glossary.md`, `reply-style.md`, `ajtools-conventions.md`) — don't
+   duplicate facts into the skill.
 5. Size rule: a SKILL.md stays roughly 60–150 lines — when to trigger and the steps, not reference
    material.
 6. Run `.claude/tools/verify-knowledge-consistency.ps1` — the new skill's frontmatter and any links it

@@ -68,8 +68,7 @@ confusion — that's the whole point of this file.
   origin to the nearest other element's connector origin within ~50mm, continuing hop by hop until
   reaching a Mechanical Equipment element (or falling back to nearest-equipment-by-distance if the chain
   goes cold before actually reaching one).
-  - **Re-confirmed 2026-07-08** via a second, independent bulk-clustering trace (see
-    `live-model/mep-trace.md`): 5 of 8 legs (`CAC001A`↔both `ACU001B*`, `CAC002A`↔both `ACU002B*`,
+  - **Re-confirmed 2026-07-08** via a second, independent bulk-clustering trace (trace notes removed 2026-10-12): 5 of 8 legs (`CAC001A`↔both `ACU001B*`, `CAC002A`↔both `ACU002B*`,
     `CAC002B`↔`ACU002A2`) matched cleanly and geometrically on their own. The remaining 3 legs
     (`CAC001B`↔`ACU001A1`, `CAC001B`↔`ACU001A2`, `CAC002B`↔`ACU002A1`) share one physical header/manifold —
     the pipe network alone can't split them apart element-by-element without a deeper tee-by-tee walk — so
@@ -92,8 +91,7 @@ confusion — that's the whole point of this file.
   `Family_Naming_Convention_Documentation.docx`, `Material_Code_Documentation.docx` (a DIFFERENT
   thing — defines a `Material_Abbreviation` shared-parameter code list like AL/GI/PVC for physical
   construction material, not the color-coding `Material` assets used for graphics), and
-  `Tagging_Convention_Documentation.docx`. Full sync technique (Excel → Revit System Types → Materials →
-  View Filters) is in `live-model/mep-color-standard.md`.
+  `Tagging_Convention_Documentation.docx`.
 - **"Type" (Excel column) vs "System_Name" (Excel column)** → `Type` is the full compound code Ajmal wants
   as the Revit Type Name (e.g. `HVAC_AC_Return Air Duct System_RAD` = Service_Code + Main_System_Code +
   System_Name + Abbreviation, underscore-joined). `System_Name` is just the descriptive part alone (e.g.
@@ -106,4 +104,4 @@ confusion — that's the whole point of this file.
 - 2026-07-08 — Added: "schedule" is ambiguous between a real Revit `ViewSchedule` and a chat-only table —
   ask which one rather than assuming.
 - 2026-07-16 — Added "MEP Color Data Standard" location/structure and the Type-vs-System_Name column
-  distinction, from the standard-rollout session (see `live-model/mep-color-standard.md` for the full technique).
+  distinction, from the standard-rollout session.
