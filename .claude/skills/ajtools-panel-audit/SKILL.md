@@ -27,8 +27,8 @@ the next. Use task tracking so Ajmal can see which tool the pass is on.
 ### Step 1 — Read the knowledge files
 
 [`ajtools-conventions.md`](../../knowledge/ajtools-conventions.md) (the standards this pass enforces),
-[`debug-log.md`](../../knowledge/debug-log.md) (known bug history — don't reintroduce one), and
-[`glossary.md`](../../knowledge/glossary.md) if any term in the request is ambiguous.
+[`debug-log.md`](../../knowledge/debug-log.md) (known bug history — don't reintroduce one). Ask if any
+term in the request is ambiguous.
 
 ### Step 2 — Inventory the scope
 

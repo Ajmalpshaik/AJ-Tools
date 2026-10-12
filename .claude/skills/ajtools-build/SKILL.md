@@ -48,11 +48,8 @@ real benefit. Match the amount of ceremony to the actual size of the job.
 
 1. **Read the knowledge files**: [`ajtools-conventions.md`](../../knowledge/ajtools-conventions.md) (house
    conventions — branding, metadata block format, version-safe API helpers, tag/leader logic rules,
-   current build reality, plus a running log of past decisions) and
-   [`glossary.md`](../../knowledge/glossary.md) (Ajmal's spoken terms → exact Revit/AJ Tools meaning —
-   check this before guessing what an ambiguous or garbled term means, e.g. "fitting" isn't always Duct
-   Fitting). If either file is missing, recreate it from what this skill already knows and note that it
-   was missing.
+   current build reality, plus a running log of past decisions). Ajmal dictates a lot, so if a term is
+   ambiguous or garbled (e.g. "fitting" isn't always Duct Fitting), ask rather than guess.
 2. **Understand the ask.** If Ajmal's request is ambiguous in a way that would change the actual
    implementation (which elements/categories, what triggers it, what the output looks like), ask —
    briefly, with a sensible recommended default, the way you would for any other Revit automation task.

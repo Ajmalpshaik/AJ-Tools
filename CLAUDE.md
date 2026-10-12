@@ -52,7 +52,7 @@ needs Ajmal's explicit yes.
 ## Who you're working with, and how
 
 Work here is driven by the skills under `.claude/skills/ajtools-*`, backed by shared knowledge files
-in `.claude/knowledge/`: `ajtools-conventions.md`, `glossary.md`, `reply-style.md`, `debug-log.md`.
+in `.claude/knowledge/`: `ajtools-conventions.md`, `reply-style.md`, `debug-log.md`.
 Nothing in this repo can reach the live Revit model (see above) — when something needs checking in Revit,
 say so and ask Ajmal to test it himself.
 
@@ -73,7 +73,6 @@ create.
 2. **After finishing**, check whether anything new surfaced that belongs in exactly one of these places —
    never duplicate the same fact across files:
    - A new AJ Tools coding convention/decision → `ajtools-conventions.md`
-   - A new ambiguous term or dictation quirk → `glossary.md`
    - A reply-format correction from Ajmal → `reply-style.md`
    - A bug found + fixed → `debug-log.md`
    - A fact about Ajmal, an ongoing project decision, or standing feedback that should follow him across
@@ -101,7 +100,7 @@ run themselves rather than just reading the tag.
 - **Proof case**: the CRAC refrigerant trace. Tag names implied `CAC001A` pairs with `ACU001A*`, and
   `Connector.IsConnected` was `false` end to end — both looked like they should be trustworthy, both were
   wrong. The real pairing (A↔B cross-connected) only came out by geometrically tracing actual connector
-  positions, ignoring both the naming and the `IsConnected` flag (pairing recorded in `glossary.md`).
+  positions, ignoring both the naming and the `IsConnected` flag.
 - **The general habit, for every AJ Tools task** (not just MEP tracing): when the direct/obvious Revit API
   answer doesn't hold up — a flag that should be true isn't, a name that should predict behavior doesn't —
   don't paper over it or guess. Find the technique that gets the *real* answer (geometry, cross-referencing
@@ -142,7 +141,7 @@ steps a model tends to skip under time or capability pressure — and skipping t
 wrong answers in this repo. Follow them even when the task looks trivially simple:
 
 1. **Read first, act second.** Relevant `.claude/knowledge/*.md` file(s) before substantive work. An
-   ambiguous or garbled term (Ajmal dictates a lot) → check `glossary.md`, then ask — one short
+   ambiguous or garbled term (Ajmal dictates a lot) → ask — one short
    question with a recommended default — rather than guessing.
 2. **Never answer a Revit API question from memory.** Verify in the knowledge files or against the
    real installed `RevitAPI.dll` (`C:\Program Files\Autodesk\`). NuGet

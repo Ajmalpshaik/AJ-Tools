@@ -30,7 +30,7 @@ create-then-report rule Ajmal set on 2026-07-16.
    fire on, naming the skill that owns that instead.
 3. Bake in plan-split-execute: a short visible plan, one step at a time, each verified before the next —
    never one opaque action.
-4. Point at shared knowledge (`glossary.md`, `reply-style.md`, `ajtools-conventions.md`) — don't
+4. Point at shared knowledge (`reply-style.md`, `ajtools-conventions.md`) — don't
    duplicate facts into the skill.
 5. Size rule: a SKILL.md stays roughly 60–150 lines — when to trigger and the steps, not reference
    material.

@@ -35,9 +35,8 @@ Read three small files before doing anything else — each covers a different co
 - [`.claude/knowledge/debug-log.md`](../../knowledge/debug-log.md) — past bugs, root causes, and fixes.
   The symptom Ajmal describes today may be a repeat of something already diagnosed — recognizing that
   instantly instead of re-deriving it is the whole point of this skill.
-- [`.claude/knowledge/glossary.md`](../../knowledge/glossary.md) — Ajmal dictates a lot of requests and
-  terms get garbled or are genuinely ambiguous (e.g. "fitting" could mean Duct Fitting *or* Pipe Fitting —
-  don't assume, check context or ask). Check this before guessing what a term means.
+- Ajmal dictates a lot of requests and terms get garbled or are genuinely ambiguous (e.g. "fitting"
+  could mean Duct Fitting *or* Pipe Fitting) — don't assume, check context or ask.
 
 ## Step 2 — Find the tool
 
@@ -70,8 +69,6 @@ This is what makes the skill sharper over time — don't skip it.
 - Append an entry to [`.claude/knowledge/debug-log.md`](../../knowledge/debug-log.md) using its format:
   symptom (Ajmal's words) → root cause (often different from the first guess — that gap is exactly what's
   worth recording) → fix → verified how (Ajmal tested in Revit, or code-review only) → date.
-- If a *new* term or ambiguity came up (like the fitting/pipe-fitting ambiguity), add it to
-  [`glossary.md`](../../knowledge/glossary.md) instead.
 - If the fix depended on or changed a coding convention, update
   [`ajtools-conventions.md`](../../knowledge/ajtools-conventions.md) instead.
 
