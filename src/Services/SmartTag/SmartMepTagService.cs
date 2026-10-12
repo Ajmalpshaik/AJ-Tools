@@ -9,7 +9,10 @@
 //            filtered type, not 'below size threshold', and the report's numbers now add up. The
 //            session-telemetry block left the report. GetDuctWidth and GetElementOrientation opened up
 //            (internal) so Create Tags and Stack Tags use the same rules. Unused code and comments
-//            cleaned up. Tag positions are unchanged.
+//            cleaned up. Tag gap now measured from every element's EDGE (GetHostWidth: pipe outside
+//            diameter, tray width, an accessory's size across its run, equipment's narrower side) -
+//            it was measured from the centre for everything except ducts, so tags sat on wide
+//            accessories and equipment. Tags now sit further out by half the element's size.
 //            1.1.0 (2026-08-26) - Crop filter measures the view plane only (was rejecting on world Z
 //            and dropping every element in the view); zero-candidate dialog now names the filter.
 
@@ -22,6 +25,7 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using AJTools.Models.SmartTag;
 using AJTools.Services.CreateTags;
+using AJTools.Services.TagClash;
 using AJTools.Services.ViewCrop;
 using AJTools.Utils;
 
@@ -435,11 +439,13 @@ namespace AJTools.Services.SmartTag
                     elementCurve = locCurve.Curve;
                 }
 
-                double hostWidth = 0;
-                if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct d)
-                {
-                    hostWidth = GetDuctWidth(d);
-                }
+                BoundingBoxXYZ viewBox = elem.get_BoundingBox(activeView);
+
+                // Every category gets a width now, so the placement engine measures each tag's gap
+                // from the element's EDGE ("150 mm from its edge"), not from its centre. Only ducts
+                // had one before; an accessory or a piece of equipment got 0, so its tag sat the gap
+                // from its middle and its own outline could block every side.
+                double hostWidth = GetHostWidth(elem, bic, activeView, viewBox);
 
                 // FILTER 5 — DENSITY PRE-CHECK
                 // Count elements within 500mm radius. Flag but don't skip yet — priority decides later.
@@ -448,7 +454,7 @@ namespace AJTools.Services.SmartTag
                     ElementId = eid,
                     Category = bic,
                     Priority = SmartTagSettingsTracker.ResolvePriority(settingsState, bic),
-                    BoundingBox = elem.get_BoundingBox(activeView),
+                    BoundingBox = viewBox,
                     Midpoint = midpoint,
                     ElementCurve = elementCurve,
                     IsDenseZone = false,
@@ -855,6 +861,160 @@ namespace AJTools.Services.SmartTag
             {
                 return true; // On error, include the element.
             }
+        }
+
+        /// <summary>
+        /// How wide the element is across its run, in feet. The placement engine adds half of this to
+        /// every tag offset, so a tag's gap is measured from the element's EDGE - "150 mm from its
+        /// edge" for a tag with no leader - instead of from its centre.
+        /// </summary>
+        /// <remarks>
+        /// - Duct: exactly the value it always had (GetDuctWidth).
+        /// - Pipe and cable tray: their own size, read the same way - a pipe's outside diameter, a
+        ///   tray's width. Parameters rather than the view box, because a run lying at an angle in the
+        ///   view has a box far wider than the run itself.
+        /// - Duct and pipe accessories: the view box measured ACROSS the run they sit in, the run read
+        ///   from their two end connectors. Across is where a no-leader tag ends up - along the run it
+        ///   would sit on the accessory's own duct or pipe.
+        /// - Equipment, and an accessory whose run is seen end-on (a riser in plan): the narrower side
+        ///   of the view box. The tag then sits the full gap off the narrow sides, and on the long
+        ///   sides a position that would land on the element itself is rejected.
+        /// Anything that cannot be read gives 0, which measures from the centre as before.
+        /// </remarks>
+        private static double GetHostWidth(Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox)
+        {
+            switch (category)
+            {
+                case BuiltInCategory.OST_DuctCurves:
+                    return elem is Duct duct ? GetDuctWidth(duct) : 0.0;
+
+                case BuiltInCategory.OST_PipeCurves:
+                    return ReadFirstLengthFeet(
+                        elem,
+                        BuiltInParameter.RBS_PIPE_OUTER_DIAMETER,
+                        BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+
+                case BuiltInCategory.OST_CableTray:
+                    return ReadFirstLengthFeet(elem, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM);
+
+                default:
+                    return GetViewBoxHostWidth(elem, category, view, viewBox);
+            }
+        }
+
+        /// <summary>
+        /// The first of the given length parameters that holds a positive value, in feet; 0 if none.
+        /// </summary>
+        private static double ReadFirstLengthFeet(Element element, params BuiltInParameter[] parameters)
+        {
+            foreach (BuiltInParameter parameter in parameters)
+            {
+                try
+                {
+                    Parameter found = element.get_Parameter(parameter);
+                    if (found == null || !found.HasValue || found.StorageType != StorageType.Double)
+                        continue;
+
+                    double value = found.AsDouble();
+                    if (value > 0.0)
+                        return value;
+                }
+                catch (Exception)
+                {
+                    // Try the next parameter.
+                }
+            }
+
+            return 0.0;
+        }
+
+        /// <summary>
+        /// HostWidth for an accessory or a piece of equipment, measured from its box in the view -
+        /// see GetHostWidth for which side is used and why.
+        /// </summary>
+        private static double GetViewBoxHostWidth(
+            Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox)
+        {
+            try
+            {
+                XYZ viewRight = TagViewGeometry.GetViewRight(view);
+                XYZ viewUp = TagViewGeometry.GetViewUp(view);
+                AnnotationBox box = TagViewGeometry.ToViewBox(viewBox, viewRight, viewUp);
+                if (box == null)
+                    return 0.0;
+
+                double sizeAlongRight = box.MaxX - box.MinX;
+                double sizeAlongUp = box.MaxY - box.MinY;
+
+                XYZ run;
+                if ((category == BuiltInCategory.OST_DuctAccessory || category == BuiltInCategory.OST_PipeAccessory)
+                    && TryGetInlineRunDirection(elem, out run)
+                    && !IsSeenEndOn(run, view))
+                {
+                    // A run lying left-right in the view is crossed up-down, and the other way round.
+                    return Math.Abs(run.DotProduct(viewRight)) >= Math.Abs(run.DotProduct(viewUp))
+                        ? sizeAlongUp
+                        : sizeAlongRight;
+                }
+
+                return Math.Min(sizeAlongRight, sizeAlongUp);
+            }
+            catch (Exception)
+            {
+                return 0.0;
+            }
+        }
+
+        /// <summary>
+        /// The direction of the run an inline fitting sits in, from its two end connectors. False when
+        /// it does not have exactly two (a three-way valve has no single run to measure across).
+        /// </summary>
+        private static bool TryGetInlineRunDirection(Element elem, out XYZ direction)
+        {
+            direction = null;
+
+            try
+            {
+                ConnectorManager manager = (elem as FamilyInstance)?.MEPModel?.ConnectorManager;
+                if (manager == null)
+                    return false;
+
+                var ends = new List<XYZ>();
+                foreach (Connector connector in manager.Connectors)
+                {
+                    if (connector == null || !connector.IsValidObject || connector.ConnectorType != ConnectorType.End)
+                        continue;
+
+                    ends.Add(connector.Origin);
+                }
+
+                if (ends.Count != 2 || ends[0] == null || ends[1] == null)
+                    return false;
+
+                XYZ between = ends[1] - ends[0];
+                if (between.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
+                    return false;
+
+                direction = between.Normalize();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// True when a run points mostly into or out of the view - the same 0.7 test
+        /// GetElementOrientation uses for a riser.
+        /// </summary>
+        private static bool IsSeenEndOn(XYZ runDirection, View view)
+        {
+            XYZ viewNormal = view?.ViewDirection;
+            if (runDirection == null || viewNormal == null || viewNormal.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
+                return false;
+
+            return Math.Abs(runDirection.DotProduct(viewNormal.Normalize())) > 0.7;
         }
 
         /// <summary>
