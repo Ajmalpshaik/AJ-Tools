@@ -414,7 +414,7 @@
  *                       before; it shows in the skip tally and is switched off by setting width to 0.
  *                       Rejected 100x100 (silently drops shallow ducts too) and filter OFF (silently
  *                       starts tagging small ducts). Design note in
- *                       docs/superpowers/specs/2026-08-17-smart-mep-tag-size-filters-and-leader-toggle-design.md
+ *                       docs/design/2026-08-17-smart-mep-tag-size-filters-and-leader-toggle-design.md
  * v1.49.6 (2026-08-17) - Fix Tag Clash moves tags the SHORTEST way out instead of a fixed step, an
  *                       idea taken from the AJ AI Brain after Ajmal asked whether the Brain's clash
  *                       work was better than this one. Compared both: it is NOT, and it was not
