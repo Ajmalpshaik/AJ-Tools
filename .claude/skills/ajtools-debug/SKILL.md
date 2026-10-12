@@ -1,6 +1,6 @@
 ---
 name: ajtools-debug
-description: Check, test, or debug an EXISTING tool/command in the AJ Tools Revit C# add-in (D:\06_Development\01_AJ-Tools\Revit Addins) — use whenever Ajmal reports something broken, wrong, crashing, giving bad results, or asks to "check"/"test"/"debug" a tool he already has, even without those exact words ("why does X give wrong sizes", "my duct tag button isn't working right", "check the ceiling magnet tool", "this tool gave me the wrong count"). When Revit is open and the AJ AI Bridge is connected, this skill verifies the bug AND the fix live against the real model instead of just reading code — always check with mcp__aj-tools-aj-ai__ping first. Remembers past bugs, root causes, and conventions between sessions via a shared local log file. Do NOT use this for building brand-new capability from scratch — use ajtools-build for that instead.
+description: Check, test, or debug an EXISTING tool/command in the AJ Tools Revit C# add-in (D:\06_Development\01_AJ-Tools\Revit Addins) — use whenever Ajmal reports something broken, wrong, crashing, giving bad results, or asks to "check"/"test"/"debug" a tool he already has, even without those exact words ("why does X give wrong sizes", "my duct tag button isn't working right", "check the ceiling magnet tool", "this tool gave me the wrong count"). When Revit is open and the AJ AI Bridge is connected, this skill verifies the bug AND the fix live against the real model instead of just reading code — always check with tools\invoke-revit-bridge.ps1 -Ping first. Remembers past bugs, root causes, and conventions between sessions via a shared local log file. Do NOT use this for building brand-new capability from scratch — use ajtools-build for that instead.
 ---
 
 # AJ Tools — Debug an Existing Tool
@@ -51,7 +51,7 @@ exact name.
 Check the AJ AI Bridge before assuming you can only read code:
 
 ```
-mcp__aj-tools-aj-ai__ping
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\invoke-revit-bridge.ps1 -Ping
 ```
 
 - **If it responds "pong"** (Revit is open, bridge connected): use `run_csharp` to query the live document

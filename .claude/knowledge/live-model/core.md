@@ -2,8 +2,7 @@
 
 > Entry point of the live-model knowledge set. Index: [`README.md`](README.md) — route from there to the topic you need.
 
-Technical notes specific to writing C# snippets run via the `mcp__aj-tools-aj-ai__run_csharp` /
-`ping` MCP tools against Ajmal's live, open Revit document. Separate concern from
+Technical notes specific to writing C# snippets run through the AJ AI Bridge against Ajmal's live, open Revit document. Separate concern from
 [`ajtools-conventions.md`](../ajtools-conventions.md), which is about the *compiled AJ Tools plugin project*
 — these are two different code contexts (ad-hoc script vs. real source file) and a gotcha in one doesn't
 necessarily apply to the other.
@@ -35,7 +34,9 @@ rather than just act on existing ones and don't fit the filter+action shape.
   `model_summary` MCP tool when it is exposed. It performs one read-only bridge call and returns the
   Revit version and model title, so a separate ping is unnecessary. Keep `run_csharp` for complex,
   multi-parameter, geometry, and model-changing work.
-- Always `mcp__aj-tools-aj-ai__ping` first if it's been a while — if it fails, Revit is closed or
+- Call the bridge with `tools\invoke-revit-bridge.ps1`: `-Ping` to check it, `-CodeFile <script.cs>` to run C#
+  (`run_csharp` in these notes means exactly that). There is no MCP server any more (removed 2026-10-12).
+- Always `-Ping` first if it's been a while — if it fails, Revit is closed or
   the AJ AI pane's Connect AJ AI Bridge toggle is off. Ask Ajmal to reconnect rather than guessing.
 - **Whenever reporting a successful ping, always also report the session snapshot** — Ajmal wants this
   every time, not just on request (rule extended 2026-07-16: active view added to the original

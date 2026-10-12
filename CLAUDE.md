@@ -49,7 +49,7 @@ needs Ajmal's explicit yes.
 Work here is driven by the skills under `.claude/skills/ajtools-*`, backed by shared knowledge files
 in `.claude/knowledge/`: `ajtools-conventions.md`, `glossary.md`, `reply-style.md`, `debug-log.md`, and
 the **live-model set** `knowledge/live-model/` — an indexed folder, not one file. Live-model work runs
-through the AJ AI Bridge (`mcp__aj-tools-aj-ai__ping` / `run_csharp`) — ping first;
+through the AJ AI Bridge, called with `tools\invoke-revit-bridge.ps1` (`-Ping` first, then `-CodeFile`);
 bridge rules are in `knowledge/live-model/core.md`.
 
 **Read by routing, never wholesale (Ajmal's rule, 2026-07-16).** Knowledge is split small and indexed so a
@@ -76,8 +76,7 @@ AI still solves the task with the smallest correct one-off, verifies it, then sa
 when the shape is likely to repeat. Decision order: reuse existing module first; if missing, do the task
 normally; after verification, harvest reusable pieces when useful.
 
-For simple live-model count/size checks, do not rebuild the AJ AI Bridge named-pipe caller by hand. If
-native `mcp__aj-tools-aj-ai__ping` / `run_csharp` tools are not exposed, use the visible fallback
+For live-model checks, do not rebuild the AJ AI Bridge named-pipe caller by hand. Use the visible
 shortcut `tools\invoke-revit-bridge.ps1` (for example `-Ping` or `-CodeFile <composed-script.cs>`). Plain
 `rg --files` ignores dot folders like `.claude`, so this visible wrapper exists to prevent agents missing
 the real helper and taking the slow route.

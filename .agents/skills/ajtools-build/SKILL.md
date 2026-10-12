@@ -78,7 +78,7 @@ deliberate calls, not because someone likes rules for their own sake. In particu
   the existing pattern for that panel.
 - If you're genuinely unsure whether a Revit API member exists/behaves the same across 2020-2027, don't
   guess from memory or general web knowledge — this codebase has already been burned by that. If AJ Tools
-  is currently connected via the AJ AI Bridge (`mcp__aj-tools-aj-ai__ping`), you can
+  is currently connected via the AJ AI Bridge (`tools\invoke-revit-bridge.ps1 -Ping`), you can
   verify live against whichever Revit version Ajmal has open.
 
 ## After you finish

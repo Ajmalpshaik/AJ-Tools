@@ -3,9 +3,7 @@
     Fast local caller for the AJ Tools AJ AI bridge.
 
 .DESCRIPTION
-    Use this only when the native MCP tool (`mcp__aj-tools-aj-ai__ping` /
-    `mcp__aj-tools-aj-ai__run_csharp`) is not exposed in the current agent
-    session. It reads the Revit-side discovery file, sends one C# snippet through
+    The way to reach Revit from an AI session. It reads the Revit-side discovery file, sends one C# snippet through
     the named pipe, prints the bridge JSON response, and exits.
 
 .EXAMPLE

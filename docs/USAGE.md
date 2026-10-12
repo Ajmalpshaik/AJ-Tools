@@ -122,33 +122,23 @@ the AJ AI Bridge - is scanned before it runs:
   generated code before running it on a model you care about, the same as you would any script from
   any source.
 
-### Connecting an external AI agent (AJ AI Bridge / MCP)
+### Connecting an external AI agent (AJ AI Bridge)
 
 The **AJ AI** ribbon button (separate from the chat pane) starts a local bridge that lets an
-external MCP-capable AI tool - such as Claude Code - run C# against the currently open Revit
+AI agent working in this repository - such as Claude Code - run C# against the currently open Revit
 document, with the same safety checks as above. This is how this repository itself is developed
 and reviewed with AI help.
 
 1. In Revit, click the **AJ AI** ribbon button (AI Assistant panel) to turn the bridge on - its
    icon changes to show it's connected.
-2. In your MCP-capable AI tool, register this project's `mcp-server` folder as an MCP server
-   (one-time setup - run `npm install` inside `mcp-server/` first). For Claude Code, that means an
-   entry like this in `.mcp.json`:
+2. From this repository, the agent calls the bridge with the PowerShell helper - nothing to install:
 
-   ```json
-   {
-     "mcpServers": {
-       "aj-tools-aj-ai": {
-         "command": "node",
-         "args": ["<path-to-this-repo>/mcp-server/index.js"]
-       }
-     }
-   }
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File tools\invoke-revit-bridge.ps1 -Ping
+   powershell -NoProfile -ExecutionPolicy Bypass -File tools\invoke-revit-bridge.ps1 -CodeFile script.cs
    ```
 
-3. Reconnect/restart your AI tool's MCP connection so it picks up the new server. It will then have
-   three tools: `run_csharp` (run a snippet and get the result), `ping` (check the bridge is
-   alive), and `model_summary` (fast read-only element counts for common MEP categories).
+   `-Ping` checks the bridge is alive; `-CodeFile` runs a C# snippet and prints the result.
 
 Notes:
 - The bridge is local-machine-only (a named pipe, not a network port), and every request must
