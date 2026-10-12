@@ -26,6 +26,7 @@
  *
  * Changelog     :
  * v1.5.2 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       When nothing could be changed, the message now gives Revit's own reason.
  * v1.5.1 (2026-07-28) - Audit: settings window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
  * v1.4.4 (2026-05-09) - Uses the reference-style split apply buttons and prevents duplicate settings windows.
@@ -164,7 +165,7 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (!summary.HasChanges)
                 {
-                    DialogHelper.ShowError(DialogTitle, "No graphics overrides were applied.");
+                    GraphicsCommandService.ReportNothingChanged(DialogTitle, summary, "item(s)");
                     return Result.Cancelled;
                 }
 

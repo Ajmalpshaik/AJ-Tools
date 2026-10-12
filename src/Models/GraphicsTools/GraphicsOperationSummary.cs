@@ -5,10 +5,10 @@
  * Purpose       : Tracks attempted, applied, and skipped counts for a graphics override operation.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-03-30
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,8 @@
  * - HasChanges is true only when at least one override was applied.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - Keeps the first reason an item was skipped (FirstSkipReason, NoteSkip), so a
+ *                       tool that changed nothing can say why instead of finishing in silence.
  * v1.5.0 (2026-06-30) - Full metadata block; reviewed for release.
  * v1.4.4 (2026-05-09) - Reviewed summary model for shared Graphics transaction handling.
  *
@@ -44,6 +46,20 @@ namespace AJTools.Models.GraphicsTools
         public int Applied { get; set; }
 
         public int Skipped { get; set; }
+
+        /// <summary>
+        /// Why the first skipped item was skipped - Revit's own message where there was one. Lets a tool
+        /// that changed nothing say why instead of finishing in silence.
+        /// </summary>
+        public string FirstSkipReason { get; set; }
+
+        /// <summary>Counts one skipped item and keeps the first reason given.</summary>
+        public void NoteSkip(string reason)
+        {
+            Skipped++;
+            if (string.IsNullOrWhiteSpace(FirstSkipReason) && !string.IsNullOrWhiteSpace(reason))
+                FirstSkipReason = reason.Trim();
+        }
 
         public bool HasChanges
         {

@@ -54,7 +54,8 @@
  * v1.2.1 (2026-10-12) - Notes no longer point at removed AI-bridge scripts and notes; the facts they
  *                       recorded are kept in place.
  *                       Also: an unexpected error now shows one message, not the same text twice
- *                       (Revit's own error box is no longer given it).
+ *                       (Revit's own error box is no longer given it). When nothing could be changed, the
+ *                       message now gives Revit's own reason.
  * v1.2.0 (2026-07-26) - Completed the insulation story flagged in v1.1.0's scope note, both halves:
  *                       (1) selecting insulation/lining directly now pulls its HOST into the red set
  *                       (InsulationLiningBase.HostElementId), so the duct/pipe under a picked wrap
@@ -177,13 +178,14 @@ namespace AJTools.Commands.GraphicsTools
                         {
                             Attempted = highlightSummary.Attempted + restSummary.Attempted,
                             Applied = highlightSummary.Applied + restSummary.Applied,
-                            Skipped = highlightSummary.Skipped + restSummary.Skipped
+                            Skipped = highlightSummary.Skipped + restSummary.Skipped,
+                            FirstSkipReason = highlightSummary.FirstSkipReason ?? restSummary.FirstSkipReason
                         };
                     });
 
                 if (!summary.HasChanges)
                 {
-                    DialogHelper.ShowError(DialogTitle, "No graphics overrides were applied.");
+                    GraphicsCommandService.ReportNothingChanged(DialogTitle, summary, "item(s)");
                     return Result.Cancelled;
                 }
 

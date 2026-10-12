@@ -26,6 +26,7 @@
  *
  * Changelog     :
  * v1.5.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       When nothing could be changed it now says so, with Revit's own reason (it ended in silence).
  * v1.5.0 (2026-06-30) - Scoped the collector to the active view (performance); full metadata block.
  * v1.4.4 (2026-05-09) - Aligned Reset Element Graphics in View with shared Graphics command validation and transactions.
  *
@@ -90,7 +91,14 @@ namespace AJTools.Commands
                         context.ActiveView,
                         elementIds));
 
-                return summary.HasChanges ? Result.Succeeded : Result.Cancelled;
+                if (!summary.HasChanges)
+                {
+                    // House rule: a tool that did nothing says why - this used to end in silence.
+                    GraphicsCommandService.ReportNothingChanged(dialogTitle, summary, "element(s)");
+                    return Result.Cancelled;
+                }
+
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {

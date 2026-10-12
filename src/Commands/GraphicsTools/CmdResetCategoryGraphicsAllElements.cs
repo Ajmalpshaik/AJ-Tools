@@ -25,6 +25,7 @@
  *
  * Changelog     :
  * v1.5.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       When nothing could be changed it now says so, with Revit's own reason (it ended in silence).
  * v1.5.0 (2026-06-30) - Full metadata block; reviewed for release.
  * v1.4.4 (2026-05-09) - Reviewed Reset Category Graphics in View flow, shared validation, and metadata for release.
  *
@@ -84,6 +85,8 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (!summary.HasChanges)
                 {
+                    // House rule: a tool that did nothing says why - this used to end in silence.
+                    GraphicsCommandService.ReportNothingChanged(dialogTitle, summary, "categor(ies)");
                     return Result.Cancelled;
                 }
 

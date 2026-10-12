@@ -26,6 +26,7 @@
  *
  * Changelog     :
  * v1.5.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       When nothing could be changed it now says so, with Revit's own reason (it ended in silence).
  * v1.5.0 (2026-06-30) - Aligned dialog title with the ribbon label and added a missing-selection message; full metadata block.
  * v1.4.4 (2026-05-09) - Reviewed Graphics reset flow, shared validation, and metadata for release.
  *
@@ -90,6 +91,8 @@ namespace AJTools.Commands.GraphicsTools
 
                 if (!summary.HasChanges)
                 {
+                    // House rule: a tool that did nothing says why - this used to end in silence.
+                    GraphicsCommandService.ReportNothingChanged(dialogTitle, summary, "element(s)");
                     return Result.Cancelled;
                 }
 

@@ -5,10 +5,10 @@
  * Purpose       : Applies and clears element-level graphics overrides for the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-03-30
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,7 @@
  * - Clearing overrides applies an empty OverrideGraphicSettings (reset to By View).
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - A skipped element now records why (Revit's own message), for the "nothing changed" report.
  * v1.5.0 (2026-06-30) - Version-safe ElementId access; full metadata block.
  * v1.4.4 (2026-05-09) - Reviewed element override application and reset behavior for release.
  *
@@ -32,6 +33,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using AJTools.Models.GraphicsTools;
@@ -78,7 +80,7 @@ namespace AJTools.Services.GraphicsTools
                 Element element = doc.GetElement(elementId);
                 if (element == null)
                 {
-                    summary.Skipped++;
+                    summary.NoteSkip("The element no longer exists.");
                     continue;
                 }
 
@@ -87,9 +89,9 @@ namespace AJTools.Services.GraphicsTools
                     view.SetElementOverrides(elementId, settings);
                     summary.Applied++;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    summary.Skipped++;
+                    summary.NoteSkip(ex.Message);
                 }
             }
 
