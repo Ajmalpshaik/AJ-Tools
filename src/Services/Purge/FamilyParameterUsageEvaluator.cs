@@ -292,13 +292,8 @@ namespace AJTools.Services.Purge
 
                     case StorageType.Integer:
                     {
+                        // Yes/No parameters are stored as integers too (0 = No), so one rule covers both.
                         int value = familyType.AsInteger(parameter) ?? 0;
-                        bool isYesNo = RevitCompat.IsYesNo(parameter.Definition);
-                        if (isYesNo)
-                        {
-                            return value != 0 ? ValueStrength.Meaningful : ValueStrength.DefaultLike;
-                        }
-
                         return value != 0 ? ValueStrength.Meaningful : ValueStrength.DefaultLike;
                     }
 

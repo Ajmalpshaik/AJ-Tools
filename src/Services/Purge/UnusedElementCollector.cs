@@ -6,10 +6,10 @@
  *                 actually referenced anywhere, per UnusedElementPurgeMode.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,11 +21,11 @@
  * Output        : Ordered list of UnusedElementPurgeItem candidates (not yet delete-probed).
  *
  * Notes         :
- * - ViewTemplates: a template is "used" if any non-template View's ViewTemplateId points at it. A
- *   template set as Revit's own default-for-new-views is not visible through the public API the same
- *   way, so it could still show here even though Revit relies on it - the probe-delete step in
- *   UnusedElementPurgeService is the real safety net for that case, not this static scan (see Modeler
- *   Mindset in CLAUDE.md: don't trust a single API signal as the full picture).
+ * - ViewTemplates: a template is "used" if any non-template View's ViewTemplateId points at it, OR any
+ *   view type's "View template applied to new views" (ViewFamilyType.DefaultTemplateId, in the API since
+ *   2013) points at it. That second link IS visible through the API, and it must be checked here: the
+ *   view type is not deleted along with the template, so the delete probe in UnusedElementPurgeService
+ *   has nothing to flag and would mark such a template safe.
  * - Filters: a filter is "used" if it appears in View.GetFilters() on ANY view OR view template (both
  *   carry V/G override filter lists independently).
  * - Groups: Model Group and Detail Group types (OST_IOSModelGroups / OST_IOSDetailGroups) whose
@@ -35,6 +35,10 @@
  *
  * Changelog     :
  * v1.0.0 (2026-07-28) - Initial release.
+ * v1.0.1 (2026-10-12) - Fixed: a view template used only as a view type's "View template applied to new
+ *                       views" was listed as unused and offered for deletion, which would silently clear
+ *                       that setting. ViewFamilyType.DefaultTemplateId now counts as a use; header note
+ *                       that called this link invisible to the API corrected.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -100,6 +104,22 @@ namespace AJTools.Services.Purge
                 if (templateId != null && templateId != ElementId.InvalidElementId)
                 {
                     usedTemplateIds.Add(templateId.IntValue());
+                }
+            }
+
+            // A template set as a view type's "View template applied to new views" (ViewFamilyType.
+            // DefaultTemplateId) is in use too. The view type is not deleted along with the template, so the
+            // delete probe has nothing to flag and the setting would just be lost - count it as used here.
+            IEnumerable<ViewFamilyType> viewTypes = new FilteredElementCollector(_doc)
+                .OfClass(typeof(ViewFamilyType))
+                .Cast<ViewFamilyType>()
+                .Where(t => t != null);
+            foreach (ViewFamilyType viewType in viewTypes)
+            {
+                ElementId defaultTemplateId = SafeGetDefaultTemplateId(viewType);
+                if (defaultTemplateId != null && defaultTemplateId != ElementId.InvalidElementId)
+                {
+                    usedTemplateIds.Add(defaultTemplateId.IntValue());
                 }
             }
 
@@ -201,6 +221,18 @@ namespace AJTools.Services.Purge
             try
             {
                 return view.ViewTemplateId;
+            }
+            catch
+            {
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        private static ElementId SafeGetDefaultTemplateId(ViewFamilyType viewType)
+        {
+            try
+            {
+                return viewType.DefaultTemplateId;
             }
             catch
             {

@@ -1,19 +1,20 @@
 // ==================================================
 // Tool Name    : Purge Unplaced Views
-// Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
+// Purpose      : Names which kind of unplaced view the shared Purge Unplaced tools scan for, with its
+//                display text.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
 // Version      : 1.1.0
 // Created      : 2026-05-11
 // Last Updated : 2026-07-28
-// Target       : Revit 2020 - latest
-// Framework    : .NET Framework 4.7.2 (2020) / .NET 8 (2025-2026) / .NET 10 (2027+)
+// Target       : Revit 2020 - 2027
+// Framework    : .NET Framework 4.7.2 (2020) / 4.8 (2021-2024) / .NET 8 (2025-2026) / .NET 10 (2027)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Active Revit document and user purge options.
 // Output       : Safe purge result with final report.
 // Notes        : Added under AJ Tools Purge panel.
-// Changelog    : v1.0.0 - Converted from Interactive Python Shell script.
+// Changelog    : v1.0.0 - Ported from an earlier AJ Tools script.
 //                v1.1.0 (2026-07-28) - Added Schedules/Legends/DraftingViews modes (same "not placed on any
 //                sheet" shape as the original ThreeDViews/SectionViews, extended to 3 more view kinds).
 //                ThreeDViews/SectionViews behaviour unchanged.

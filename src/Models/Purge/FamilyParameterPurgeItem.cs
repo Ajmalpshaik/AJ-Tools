@@ -28,19 +28,6 @@ namespace AJTools.Models.Purge
 
         public Guid SharedGuid { get; set; }
 
-        public string SharedGuidText
-        {
-            get
-            {
-                if (!IsShared || SharedGuid == Guid.Empty)
-                {
-                    return "N/A";
-                }
-
-                return SharedGuid.ToString();
-            }
-        }
-
         public string SourceText
         {
             get { return IsShared ? "Shared" : "Family"; }
