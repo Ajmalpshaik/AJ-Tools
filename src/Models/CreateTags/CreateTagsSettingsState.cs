@@ -28,7 +28,7 @@ namespace AJTools.Models.CreateTags
         public double MinLengthInternal { get; set; }
 
         /// <summary>
-        /// How far the tag sits from its element, in mm on the printed sheet.
+        /// How far the tag sits from its element, in mm.
         /// </summary>
         /// <remarks>
         /// A real distance in the model, NOT a size on the printed sheet - it is not multiplied by the

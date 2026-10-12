@@ -770,7 +770,7 @@ namespace AJTools.Services.SmartTag
             }
         }
 
-        private static double GetDuctWidth(Duct duct)
+        internal static double GetDuctWidth(Duct duct)
         {
             try
             {
@@ -1129,7 +1129,7 @@ namespace AJTools.Services.SmartTag
         /// Horizontal ducts/pipes → prefer tag above/below.
         /// Vertical risers → prefer tag left/right.
         /// </summary>
-        private static ElementOrientation GetElementOrientation(Element elem, View view)
+        internal static ElementOrientation GetElementOrientation(Element elem, View view)
         {
             try
             {

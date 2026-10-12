@@ -15,8 +15,9 @@ namespace AJTools.Services.CreateTags
 {
     /// <summary>
     /// Keeps Create Tags settings scoped to the active document during this Revit session.
-    /// Same category list as Smart MEP Tag (reused directly), no priority/offset concept -
-    /// Create Tags places each tag exactly where the user clicks.
+    /// Same category list as Smart MEP Tag (reused directly), no priority concept. The distance
+    /// from the element (TagOffsetMm) decides where each tag lands - Create Tags places tags
+    /// automatically, it does not ask for a click per tag.
     /// </summary>
     internal sealed class CreateTagsSettingsTracker
     {
@@ -30,7 +31,9 @@ namespace AJTools.Services.CreateTags
         internal const double DefaultMinLengthMm = 1000.0;
 
         /// <summary>
-        /// How far a tag sits from its element, mm on the printed sheet.
+        /// How far a tag sits from its element, in mm - a real distance in the model, not a size on
+        /// the printed sheet. CreateTagsService.ResolveTagOffsetFeet never multiplies it by the view
+        /// scale.
         /// </summary>
         /// <remarks>
         /// Added 2026-08-17 with the switch to automatic placement: the tool no longer asks for a

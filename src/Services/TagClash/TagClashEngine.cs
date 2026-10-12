@@ -13,10 +13,10 @@
  *                 runs on the handful that actually collide.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-16
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -49,6 +49,12 @@
  *   does not change size when the tag moves, so shifting is accurate.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Keynote tags and revision cloud tags are no longer also collected as static
+ *                       obstacles: they are IndependentTag movers, so each one clashed with its own
+ *                       copy and was always moved or marked. The drift-limit count is now per tag
+ *                       (BlockedByDriftLimit + new CouldNotMove) instead of per refused position, so
+ *                       the report can tell "the limit stopped everything" from "some were refused".
+ *                       Dropped a doc reference to a notes file that no longer exists.
  * v1.0.0 (2026-08-16) - Initial release.
  *
  * License       : All Rights Reserved
@@ -93,7 +99,17 @@ namespace AJTools.Services.TagClash
         /// <summary>Tags that clash but are pinned, so they were left alone.</summary>
         public int SkippedPinned { get; set; }
 
-        /// <summary>Times a move was refused because it would exceed the drift limit.</summary>
+        /// <summary>
+        /// Tags the engine tried to move and could not get clear - still clashing at the end. Pinned
+        /// tags and tags that kept their place by winning a contest are not counted: nothing tried to
+        /// move them.
+        /// </summary>
+        public int CouldNotMove { get; set; }
+
+        /// <summary>
+        /// Of <see cref="CouldNotMove"/>, the tags whose last attempt had EVERY position it tried
+        /// refused for going past the drift limit. A count of tags, not of refused positions.
+        /// </summary>
         public int BlockedByDriftLimit { get; set; }
 
         /// <summary>Total moves applied across every pass.</summary>
@@ -279,7 +295,17 @@ namespace AJTools.Services.TagClash
                     .WhereElementIsNotElementType();
 
                 foreach (Element element in collector)
+                {
+                    // Keynote tags and revision cloud tags are IndependentTag elements, so
+                    // CollectMovableTags already has every one of them as a mover. Adding them here
+                    // as well gave each such tag an unmovable copy of itself to clash with, so it was
+                    // always flagged, then moved or marked. A pinned one still stays put - it is a
+                    // mover with CanMove = false.
+                    if (element is IndependentTag)
+                        continue;
+
                     AddBox(element, view, boxes, viewRight, viewUp);
+                }
             }
             catch (Exception)
             {
@@ -378,6 +404,11 @@ namespace AJTools.Services.TagClash
             var leaderLogic = new LeaderLogicService(view);
             result.TotalTags = items.Count;
 
+            // Tag id -> outcome of that tag's most recent FAILED move: true when every position it
+            // tried was past the drift limit. A tag that later moves is taken out again. Read once at
+            // the end so the report counts tags, not refused positions.
+            var failedMoves = new Dictionary<int, bool>();
+
             bool firstPass = true;
             int passes = TagClashSettings.ClampPasses(settings.FixPasses);
 
@@ -432,15 +463,21 @@ namespace AJTools.Services.TagClash
                         continue;
                     }
 
+                    bool blockedByDriftOnly;
                     bool moved = TryMoveClear(
                         doc, leaderLogic, offender, avoidIndex,
                         toleranceFeet, minGapFeet, maxDriftFeet,
-                        settings.FullSearch, viewRight, viewUp, result);
+                        settings.FullSearch, viewRight, viewUp, out blockedByDriftOnly);
 
                     if (moved)
                     {
                         movedAnything = true;
                         result.MovesApplied++;
+                        failedMoves.Remove(offender.Id.IntValue());
+                    }
+                    else
+                    {
+                        failedMoves[offender.Id.IntValue()] = blockedByDriftOnly;
                     }
                 }
 
@@ -455,7 +492,17 @@ namespace AJTools.Services.TagClash
                 out _, out _);
 
             foreach (TagClashItem item in remaining)
+            {
                 result.UnfixedTagIds.Add(item.Id);
+
+                bool blockedByDriftOnly;
+                if (failedMoves.TryGetValue(item.Id.IntValue(), out blockedByDriftOnly))
+                {
+                    result.CouldNotMove++;
+                    if (blockedByDriftOnly)
+                        result.BlockedByDriftLimit++;
+                }
+            }
 
             result.StillClashing = remaining.Count;
             result.Fixed = result.ClashingAtStart - result.StillClashing;
@@ -606,6 +653,11 @@ namespace AJTools.Services.TagClash
         /// other side of the host and sliding along the run before falling back to stepping up and
         /// down - the same choices the old engine had, but paid for only on the few tags that clash.
         /// </summary>
+        /// <param name="blockedByDriftOnly">
+        /// True when the tag could not move and EVERY position tried was past the drift limit. False
+        /// when at least one position was inside the limit but occupied - then the neighbours stopped
+        /// it, not the limit.
+        /// </param>
         private static bool TryMoveClear(
             Document doc,
             LeaderLogicService leaderLogic,
@@ -617,8 +669,10 @@ namespace AJTools.Services.TagClash
             bool fullSearch,
             XYZ viewRight,
             XYZ viewUp,
-            TagClashRunResult result)
+            out bool blockedByDriftOnly)
         {
+            blockedByDriftOnly = false;
+
             if (item == null || item.Box == null || item.Head == null)
                 return false;
 
@@ -632,6 +686,8 @@ namespace AJTools.Services.TagClash
 
             XYZ bestOffset = null;
             double bestDistance = double.MaxValue;
+            int positionsTried = 0;
+            int refusedByDrift = 0;
 
             foreach (XYZ offset in offsets)
             {
@@ -642,6 +698,7 @@ namespace AJTools.Services.TagClash
                 if (moveLength <= Constants.ZERO_LENGTH_TOLERANCE)
                     continue;
 
+                positionsTried++;
                 XYZ proposedHead = item.Head.Add(offset);
 
                 // Never let a tag wander further than the drift limit from where it started.
@@ -649,7 +706,7 @@ namespace AJTools.Services.TagClash
                     proposedHead, item.OriginalHead, viewRight, viewUp);
                 if (drift > maxDriftFeet)
                 {
-                    result.BlockedByDriftLimit++;
+                    refusedByDrift++;
                     continue;
                 }
 
@@ -669,7 +726,10 @@ namespace AJTools.Services.TagClash
             }
 
             if (bestOffset == null)
+            {
+                blockedByDriftOnly = positionsTried > 0 && refusedByDrift == positionsTried;
                 return false;
+            }
 
             if (!ApplyMove(doc, leaderLogic, item, bestOffset, viewRight, viewUp))
                 return false;
@@ -691,13 +751,11 @@ namespace AJTools.Services.TagClash
         /// height up or down, a whole tag width sideways. So two tags overlapping by a hair were still
         /// shoved a full tag apart, which looks wrong on a drawing and burns the drift allowance for
         /// nothing - and a tag that runs out of drift is left clashing and marked instead of fixed.
-        /// Measuring the overlap and moving exactly that far plus the gap is the idea taken from the
-        /// AJ AI Brain's push-apart pass (knowledge/live-model/tagging.md), which is the one thing it
-        /// did better than this engine.
+        /// Measuring the overlap and moving exactly that far plus the gap avoids both.
         ///
-        /// Deliberately NOT the Brain's version of the rest: it splits the move 50/50 across BOTH
-        /// tags, which this engine must not do - who moves is already decided by leader length, and a
-        /// frozen winner may never move again. These are candidates for the offender only.
+        /// Deliberately NOT split 50/50 across BOTH tags: who moves is already decided by leader
+        /// length, and a frozen winner may never move again. These are candidates for the offender
+        /// only.
         ///
         /// The clearance added is minGap + tolerance, not just minGap, because a pair left exactly on
         /// the gap still satisfies IsClashing's "closer than the minimum gap" test on the next pass -

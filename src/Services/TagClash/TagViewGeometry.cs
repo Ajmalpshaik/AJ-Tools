@@ -10,10 +10,10 @@
  *                 plus a sixth copy of the raw 8-corner loop in SmartMepTagService.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-16
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -38,6 +38,8 @@
  * - Every "paper mm" here is millimetres on the printed sheet. PaperMmToFeet applies the view scale.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Removed OffsetInView and LooksLikeTag: neither had a caller anywhere (the
+ *                       OffsetInView the tag tools call is LeaderLogicService's own). No behaviour change.
  * v1.0.0 (2026-08-16) - Initial release. New shared block; the three older private copies still
  *                       exist and are switched over separately once a Windows build can verify it.
  *
@@ -136,17 +138,6 @@ namespace AJTools.Services.TagClash
                 return new UV(0, 0);
 
             return new UV(point.DotProduct(viewRight), point.DotProduct(viewUp));
-        }
-
-        /// <summary>Moves a model point by view-space horizontal / vertical amounts.</summary>
-        internal static XYZ OffsetInView(XYZ point, double deltaRight, double deltaUp, XYZ viewRight, XYZ viewUp)
-        {
-            if (point == null || viewRight == null || viewUp == null)
-                return point;
-
-            return point
-                .Add(viewRight.Multiply(deltaRight))
-                .Add(viewUp.Multiply(deltaUp));
         }
 
         /// <summary>Flat view-plane distance between two model points.</summary>
@@ -262,23 +253,6 @@ namespace AJTools.Services.TagClash
             catch (Exception)
             {
                 return null;
-            }
-        }
-
-        /// <summary>True when this element exposes a tag head, i.e. it behaves like a tag.</summary>
-        internal static bool LooksLikeTag(Element element)
-        {
-            if (element == null)
-                return false;
-
-            try
-            {
-                return element.GetType().GetProperty(
-                    "TagHeadPosition", BindingFlags.Instance | BindingFlags.Public) != null;
-            }
-            catch (Exception)
-            {
-                return false;
             }
         }
 

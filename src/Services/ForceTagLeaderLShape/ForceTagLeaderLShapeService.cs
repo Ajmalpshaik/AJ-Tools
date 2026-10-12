@@ -10,10 +10,10 @@
  *                 by other tools too) - this Service calls into it, it does not duplicate it.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-17
- * Last Updated  : 2026-07-17
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,11 +32,22 @@
  * - Reflection is used because Revit's tag element types (IndependentTag, SpatialElementTag, etc.)
  *   don't share a common base exposing LeaderElbow/LeaderEndCondition/TagHeadPosition/LeaderEnd -
  *   these are read/written by property name across whatever concrete tag type is passed in.
+ * - EXCEPT an IndependentTag's leader end and elbow: Revit 2023 removed IndependentTag.LeaderEnd and
+ *   .LeaderElbow (only GetLeaderEnd(reference) / SetLeaderElbow(reference, point) remain), so those
+ *   two go through LeaderLogicService.GetL1 / TrySetLeaderElbow, which wrap TagCompat. HasLeader,
+ *   LeaderEndCondition, TagOrientation and TagHeadPosition still exist on IndependentTag in every
+ *   version, so they stay on reflection. Room / space / area tags keep reflection for everything.
  * - Pure algorithm - no direct Selection/dialog/transaction interaction; the caller owns the
  *   transaction (or sub-transaction) per tag and tallies success/failure.
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Fixed on Revit 2023 and newer: every element tag (MEP, door, keynote...)
+ *                       was skipped ("No editable tag leaders were found") because the leader end
+ *                       and elbow were read and written through IndependentTag properties that 2023
+ *                       removed. Those two now go through the shared version-safe helpers for
+ *                       IndependentTag. Room / space / area tags, the horizontal/vertical split and
+ *                       the Free-then-restore leader end handling are unchanged.
  * v1.0.0 (2026-07-17) - Initial extraction from CmdForceTagLeaderLShape.cs (code review cleanup
  *                       pass) - no behavior change. The prior cleanup pass's empty-catch comments
  *                       (reflection can legitimately fail if a property is missing on some element)
@@ -67,7 +78,7 @@ namespace AJTools.Services.ForceTagLeaderLShape
 
         /// <summary>
         /// Attempts to force the given tag's leader into an L-shape elbow. Returns false when the
-        /// tag has no writable LeaderElbow property, no leader, or the elbow could not be computed.
+        /// tag's elbow cannot be written, it has no leader, or the elbow could not be computed.
         /// </summary>
         internal static bool TryForceLShape(Element tag, View activeView, LeaderLogicService leaderLogic)
         {
@@ -77,7 +88,10 @@ namespace AJTools.Services.ForceTagLeaderLShape
             if (!EnsureLeaderEnabled(tag))
                 return false;
 
-            if (!HasWritableProperty(tag, "LeaderElbow"))
+            // An IndependentTag (MEP, door, keynote... tags) always takes an elbow through the
+            // version-safe helpers - it has no LeaderElbow PROPERTY at all from Revit 2023 on, so this
+            // check used to reject every one of them there. Room / space / area tags still have it.
+            if (!(tag is IndependentTag) && !HasWritableProperty(tag, "LeaderElbow"))
                 return false;
 
             // Determine if horizontal or vertical
@@ -124,7 +138,7 @@ namespace AJTools.Services.ForceTagLeaderLShape
             if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
 
-            if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
+            if (!TryGetLeaderEnd(tag, out XYZ end))
                 return false;
 
             XYZ elbow = leaderLogic.ComputeElbow(head, end);
@@ -133,7 +147,7 @@ namespace AJTools.Services.ForceTagLeaderLShape
                 return true;
 
             elbow = TagLeaderService.NudgeElbowClearOfText(tag, activeView, leaderLogic, elbow);
-            return TrySetXYZProperty(tag, "LeaderElbow", elbow);
+            return TrySetLeaderElbow(tag, elbow);
         }
 
         private static bool TryForceLShapeVertical(Element tag, View activeView, LeaderLogicService leaderLogic)
@@ -160,7 +174,7 @@ namespace AJTools.Services.ForceTagLeaderLShape
             if (!TryGetXYZProperty(tag, "TagHeadPosition", out XYZ head))
                 return false;
 
-            if (!TryGetXYZProperty(tag, "LeaderEnd", out XYZ end))
+            if (!TryGetLeaderEnd(tag, out XYZ end))
                 return false;
 
             // Always use Top/Bottom attachment for vertical text, shifted outside the bounding box,
@@ -172,6 +186,39 @@ namespace AJTools.Services.ForceTagLeaderLShape
 
             elbow = TagLeaderService.NudgeElbowClearOfTextVertical(
                 tag, activeView, leaderLogic, elbow, head, end);
+
+            return TrySetLeaderElbow(tag, elbow);
+        }
+
+        /// <summary>
+        /// Reads where the leader meets the element. An IndependentTag goes through the shared
+        /// version-safe read (LeaderLogicService.GetL1 -> TagCompat): its LeaderEnd property was
+        /// removed in Revit 2023 in favour of GetLeaderEnd(reference). Room / space / area tags
+        /// (SpatialElementTag) still have the LeaderEnd property on every version, so they keep the
+        /// reflection read. Either way an Attached leader end does not read - that is what the
+        /// Free-then-restore retry in the callers above is for, unchanged.
+        /// </summary>
+        private static bool TryGetLeaderEnd(Element tag, out XYZ end)
+        {
+            if (tag is IndependentTag independentTag)
+            {
+                end = LeaderLogicService.GetL1(independentTag);
+                return end != null;
+            }
+
+            return TryGetXYZProperty(tag, "LeaderEnd", out end);
+        }
+
+        /// <summary>
+        /// Writes the elbow. An IndependentTag goes through the shared version-safe write
+        /// (LeaderLogicService.TrySetLeaderElbow -> TagCompat), because its LeaderElbow property was
+        /// removed in Revit 2023 in favour of SetLeaderElbow(reference, point). Room / space / area
+        /// tags keep the reflection write.
+        /// </summary>
+        private static bool TrySetLeaderElbow(Element tag, XYZ elbow)
+        {
+            if (tag is IndependentTag independentTag)
+                return LeaderLogicService.TrySetLeaderElbow(independentTag, elbow);
 
             return TrySetXYZProperty(tag, "LeaderElbow", elbow);
         }
