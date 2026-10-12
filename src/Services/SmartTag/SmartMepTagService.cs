@@ -1,10 +1,12 @@
 ﻿// Tool Name: Smart MEP Tag Service
 // Description: Orchestrates intelligent MEP element tagging across all phases.
 // Author: Ajmal P.S.
-// Version: 1.1.0
+// Version: 1.1.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils, AJTools.Services.ViewCrop
-// Changelog: 1.1.0 (2026-08-26) - Crop filter measures the view plane only (was rejecting on world Z
+// Changelog: 1.1.1 (2026-10-12) - GetDuctWidth and GetElementOrientation opened up (internal) so Create
+//            Tags and Stack Tags use the same orientation and width rules. No behaviour change here.
+//            1.1.0 (2026-08-26) - Crop filter measures the view plane only (was rejecting on world Z
 //            and dropping every element in the view); zero-candidate dialog now names the filter.
 
 using System;

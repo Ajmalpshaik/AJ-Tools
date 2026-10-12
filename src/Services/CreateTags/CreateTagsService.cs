@@ -5,10 +5,13 @@
 //              run (duct, pipe or cable tray - the same switchable rule Smart MEP Tags uses).
 //              Eligibility/matching logic lives in CreateTagsEligibilityFilter, shared with StackTagsService.
 // Author: Ajmal P.S.
-// Version: 1.1.0
+// Version: 1.1.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Models.SmartTag, AJTools.Models.CreateTags,
 //               AJTools.Services.SmartTag, AJTools.Services.LeaderLogic, AJTools.Utils
+// Changelog: 1.1.1 (2026-10-12) - Batch mode (elements already selected) now asks first when more than
+//            500 are selected, the same shared question Stack Tags asks; one-by-one mode never asks.
+//            Header text brought up to date; unused ShowNothingToTag removed.
 
 using System;
 using System.Collections.Generic;
@@ -80,6 +83,19 @@ namespace AJTools.Services.CreateTags
             //                the click, not for a multi-selection to gather first.
             ICollection<ElementId> preSelectedIds = uidoc.Selection.GetElementIds();
             bool oneByOne = preSelectedIds == null || preSelectedIds.Count == 0;
+
+            // Ask before a long run - batch mode only. One button press tags every selected element with
+            // nothing to press afterwards, which is the house test for when a tool must ask. One-by-one
+            // mode is self-paced (one tag per click, Esc to finish), cannot freeze, and never asks.
+            if (!oneByOne && !DialogHelper.ConfirmLongRun(
+                    ToolTitle,
+                    preSelectedIds.Count,
+                    string.Format(
+                        "About to tag up to {0} selected elements in one go (any already tagged, too short or vertical are skipped).",
+                        preSelectedIds.Count)))
+            {
+                return Result.Cancelled;
+            }
 
             var tracker = new CreateTagsSettingsTracker(doc);
             CreateTagsSettingsState settings = CreateTagsSettingsTracker.EnsureDefaults(tracker.LastState);

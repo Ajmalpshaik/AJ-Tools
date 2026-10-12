@@ -1,10 +1,13 @@
 // Tool Name: Intelligent Tag Arranger Service
-// Description: Converts the pyRevit intelligent tag arranger workflow into native C#.
+// Description: Rearranges the selected tags into a stack at each clicked point, nearest tag first, with
+//              L-shaped leaders (ported from the tag arranger in Ajmal's earlier pyRevit extension).
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-07
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Services.LeaderLogic, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - An unexpected error during a click used to end the run in silence;
+//            that click is still undone, and the user is now told what went wrong.
 
 using System;
 using System.Collections.Generic;

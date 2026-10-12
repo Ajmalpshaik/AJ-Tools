@@ -209,7 +209,7 @@ place rather than leaving stale info sitting next to the new truth.
   direction. Take the position from the tessellated edge point nearest the measuring line instead.
 
 **Tag & leader logic**
-- All tag placement / L-shaped leader tools must use `LeaderLogicService` (`src/Services/LeaderLogic/LeaderLogicService.cs`) for elbow computation — a specific 3-case elbow logic (Normal L-shape, Guard 1 same-X push, Guard 2 same-Y no-elbow) in view-space coordinates that must stay consistent across every tool. Instantiate `LeaderLogicService(view)`, use `ComputeElbow(headModel, leaderEndModel)` or `ApplyLeaderLogic(...)`. For stacking tools use `GetT1()` / `GetE1()`.
+- All tag placement / L-shaped leader tools must use `LeaderLogicService` (`src/Services/LeaderLogic/LeaderLogicService.cs`) for elbow computation — a specific 3-case elbow logic (Normal L-shape, Guard 1 same-X push, Guard 2 same-Y no-elbow) in view-space coordinates that must stay consistent across every tool. Instantiate `LeaderLogicService(view)` and use `ComputeElbow(headModel, leaderEndModel)` (or `GetE1(l1, t1)`). Read a tag's leader end with the static `GetL1(tag)` and set an elbow with `TrySetLeaderElbow(tag, elbow)` — both go through `TagCompat`, so they work on 2023+ where `IndependentTag` no longer has the `LeaderElbow`/`LeaderEnd` properties (L-Shape Leader read those by reflection and silently did nothing on 2023+ until 2026-10-12). Stacking tools snap heads to the column in `TagStackService` and set elbows through `TagLeaderService.ApplyLShapedLeader`. (`ApplyLeaderLogic` and `GetT1` were never called and were removed 2026-10-12.)
 - Tag tools (Smart MEP Tag, tag arranger) still place one tag per element — Revit 2022+ supports multi-leader tags (`MultiLeader`), but switching to that is a workflow decision that changes how many tags get created. Flag it to Ajmal before touching; don't switch unprompted.
 - **Rearrange Tags' click behaviour is whole-batch-per-click, not per-click-per-tag (verified by reading
   `IntelligentTagArrangerService.TryArrangeAtPoint`, 2026-07-28)**: every single `PickPoint` click
@@ -299,13 +299,15 @@ place rather than leaving stale info sitting next to the new truth.
 - **The test for whether a tool needs it is not "is it slow" — it is "does ONE action commit the user
   to ALL the work, with nothing to press afterwards".** Tags panel tools that ask: Smart MEP Tags,
   Fix Tag Clash, Stack Tags (one click builds the whole stack), Rearrange Tags (every click re-arranges
-  the whole selection), L-Shape Leader (**preselected path only**), Center Room Tags, Clear Tag Clash
-  Marks.
-- **Create Tags deliberately has NO confirm, and adding one would be a regression.** It asks for one
-  click *per tag* and its own prompt already reads *"Click a location for the next tag (3 of 47
-  remaining) - Esc to finish"* — self-paced, live count, cannot freeze. Same reasoning for L-Shape
-  Leader's pick-one-at-a-time path, which is why only its preselected branch got the confirm. If a
-  future audit reports these as "missing the guard", that is the audit being wrong.
+  the whole selection), L-Shape Leader (**preselected path only**), Create Tags (**batch path only**),
+  Center Room Tags, Clear Tag Clash Marks.
+- **Create Tags asks in its batch path only (2026-10-12).** Since 2026-08-17 it no longer asks for a
+  click per tag: with elements already selected it tags every one of them in one go, which passes the
+  test above, so that path now calls `ConfirmLongRun` with the selection count. With nothing selected
+  it works one element per click, Esc to finish — self-paced, cannot freeze — and does NOT ask. Same
+  reasoning for L-Shape Leader: only its preselected branch asks, never its pick-one-at-a-time path.
+  If a future audit reports the one-at-a-time paths as "missing the guard", that is the audit being
+  wrong.
 - **A tool that owns a real window should get a progress bar, not a prompt** (`ProgressReporter`,
   `PurgeUnusedElementsWindow`). The confirm exists precisely because these tools run *without* a
   window, so there is nowhere to put progress or a Cancel short of rebuilding them as modeless windows

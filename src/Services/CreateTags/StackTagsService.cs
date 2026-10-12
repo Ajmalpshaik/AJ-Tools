@@ -8,10 +8,12 @@
 //              same category + minimum-length settings, and the same stack spacing Rearrange Tags
 //              itself uses - nothing new to configure for this tool specifically.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, AJTools.Models.SmartTag, AJTools.Models.CreateTags,
 //               AJTools.Services.SmartTag, AJTools.Services.LeaderLogic, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - The end-of-run summary only appears when something was skipped or
+//            there is a warning; a clean run, or Esc before any click, ends silently (house rule).
 
 using System;
 using System.Collections.Generic;

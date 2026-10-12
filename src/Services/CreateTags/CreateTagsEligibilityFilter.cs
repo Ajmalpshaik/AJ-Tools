@@ -5,10 +5,14 @@
 //              Kept in one place so the two tools can never quietly drift apart on what counts as
 //              already tagged / too short / vertical.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.0.1
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.DB.Mechanical, AJTools.Models.SmartTag,
 //               AJTools.Models.CreateTags, AJTools.Services.SmartTag, AJTools.Utils
+// Changelog: 1.0.1 (2026-10-12) - Each candidate now gets its orientation (horizontal/vertical run) and
+//            duct width, using Smart MEP Tags' own rules. Both were left unset, so every run read as
+//            horizontal and the distance was measured from the centreline - tags landed inside wide
+//            ducts. Removed FindNearestCandidate/DistanceInView, unused since placement went automatic.
 
 using System;
 using System.Collections.Generic;

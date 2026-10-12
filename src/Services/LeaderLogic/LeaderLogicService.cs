@@ -1,11 +1,14 @@
 // Tool Name: Leader Logic Service
 // Description: Reusable L-shaped leader calculation logic for tag placement tools.
 // Author: Ajmal P.S.
-// Version: 1.2.0
-// Last Updated: 2026-07-18
+// Version: 1.2.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, System.Reflection
 //
+// v1.2.1 (2026-10-12) - Removed code nothing called: ApplyLeaderLogic, GetT1, and GetL1's last
+//   fallback (reading a "LeaderEnd" property by reflection - it repeated what TagCompat had just
+//   read on 2020-2022 and finds no such property from 2023). Elbow results are unchanged.
 // v1.2.0 (2026-07-18) - GetL1 now includes the same tagged-reference/reflection fallback chain
 //   that SmartTagPlacementEngine.cs and IntelligentTagArrangerService.cs each independently
 //   reimplemented (~150 lines duplicated near-verbatim between the two); also added
