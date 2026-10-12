@@ -5,10 +5,10 @@
  * Purpose       : Stores one row of user-editable MEP opening settings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-03
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -16,15 +16,18 @@
  *
  * Dependencies  : Newtonsoft.Json
  *
- * Input         : User-edited opening shape, cutout buffer, and future opening families.
+ * Input         : User-edited opening shape, cutout buffer, and opening family names.
  * Output        : Normalized settings per MEP element kind.
  *
  * Notes         :
  * - CutoutBufferMm is applied on each side after insulation is included.
  * - Duct and cable tray are always rectangular.
+ * - VerticalOpeningFamilyName is the family Family Opening mode places. HorizontalOpeningFamilyName is
+ *   stored but nothing reads it yet, so Opening Settings does not require it.
  *
  * Changelog     :
  * v1.0.0 (2026-07-03) - Initial release.
+ * v1.0.1 (2026-10-12) - Notes only: which family name is used, and that the horizontal one is not yet.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools

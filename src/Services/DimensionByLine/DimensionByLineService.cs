@@ -51,33 +51,50 @@ namespace AJTools.Services.DimensionByLine
                 if (!IsSectionOrElevation(view))
                     return Fail(title, "This tool only works in Section or Elevation views.");
 
-                if (!PrepareSketchPlane(doc, view))
-                    return Fail(title, "Could not prepare the view for selection.");
-
-                if (!PickDimensionLinePoints(uidoc, out var p1, out var p2))
-                    return Result.Cancelled;
-
-                var levelsToDim = GetLevelsToDimension(doc, view, p1, p2);
-                if (levelsToDim.Count < 2)
-                    return Fail(title, "Fewer than two levels were found within the picked range.");
-
-                using (Transaction t = new Transaction(doc, title))
+                // The work-plane setup and the dimension share one TransactionGroup, so a finished run
+                // is a single undo step, and Esc or a refusal part-way rolls the work-plane change back
+                // instead of leaving a stray "Set Sketch Plane" step (and an unused sketch plane).
+                using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
+                    group.Start();
                     try
                     {
-                        t.Start();
-                        CreateLevelDimension(doc, view, levelsToDim, p1);
-                        t.Commit();
+                        if (!PrepareSketchPlane(doc, view))
+                            return Fail(title, "Could not prepare the view for selection.");
+
+                        if (!PickDimensionLinePoints(uidoc, out var p1, out var p2))
+                            return Result.Cancelled;
+
+                        var levelsToDim = GetLevelsToDimension(doc, view, p1, p2);
+                        if (levelsToDim.Count < 2)
+                            return Fail(title, "Fewer than two levels were found within the picked range.");
+
+                        using (Transaction t = new Transaction(doc, title))
+                        {
+                            try
+                            {
+                                t.Start();
+                                CreateLevelDimension(doc, view, levelsToDim, p1);
+                                t.Commit();
+                            }
+                            catch (Exception ex)
+                            {
+                                if (t.HasStarted() && !t.HasEnded())
+                                    t.RollBack();
+                                return Fail(title, $"Failed to create level dimensions: {ex.Message}");
+                            }
+                        }
+
+                        group.Assimilate();
+                        return Result.Succeeded;
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        if (t.HasStarted() && !t.HasEnded())
-                            t.RollBack();
-                        return Fail(title, $"Failed to create level dimensions: {ex.Message}");
+                        // Every exit that did not assimilate rolls the work-plane change back explicitly.
+                        if (group.HasStarted() && !group.HasEnded())
+                            group.RollBack();
                     }
                 }
-
-                return Result.Succeeded;
             }
             catch (Exception ex)
             {
@@ -110,40 +127,56 @@ namespace AJTools.Services.DimensionByLine
                 if (!isPlan && !isSection)
                     return Fail(title, "This tool only works in Plan, Section, or Elevation views.");
 
-                if (isSection && !PrepareSketchPlane(doc, view))
-                    return Fail(title, "Could not prepare the view for selection.");
-
-                if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
-                    return Result.Cancelled;
-
-                var gridLines = GetGridLinesInView(doc, view);
-                if (gridLines.Count < 2)
-                    return Fail(title, "Need at least two visible grids in this view.");
-
-                if (p1.DistanceTo(p2) < Constants.MIN_DISTANCE_TOLERANCE)
-                    return Result.Cancelled;
-
-                var gridsToDim = FilterGridLines(gridLines, view, p1, p2);
-                if (gridsToDim.Count < 2)
-                    return Fail(title, "Pick a line that crosses at least two visible grids in this view direction.");
-
-                using (Transaction t = new Transaction(doc, title))
+                // Same single-undo-step grouping as DimensionLevels (the work plane is only set in
+                // section/elevation views; in a plan the group just wraps the dimension).
+                using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
+                    group.Start();
                     try
                     {
-                        t.Start();
-                        CreateGridDimension(doc, view, gridsToDim, p1);
-                        t.Commit();
+                        if (isSection && !PrepareSketchPlane(doc, view))
+                            return Fail(title, "Could not prepare the view for selection.");
+
+                        if (!PickSelectionLinePoints(uidoc, out var p1, out var p2))
+                            return Result.Cancelled;
+
+                        var gridLines = GetGridLinesInView(doc, view);
+                        if (gridLines.Count < 2)
+                            return Fail(title, "Need at least two visible grids in this view.");
+
+                        if (p1.DistanceTo(p2) < Constants.MIN_DISTANCE_TOLERANCE)
+                            return Result.Cancelled;
+
+                        var gridsToDim = FilterGridLines(gridLines, view, p1, p2);
+                        if (gridsToDim.Count < 2)
+                            return Fail(title, "Pick a line that crosses at least two visible grids in this view direction.");
+
+                        using (Transaction t = new Transaction(doc, title))
+                        {
+                            try
+                            {
+                                t.Start();
+                                CreateGridDimension(doc, view, gridsToDim, p1);
+                                t.Commit();
+                            }
+                            catch (Exception ex)
+                            {
+                                if (t.HasStarted() && !t.HasEnded())
+                                    t.RollBack();
+                                return Fail(title, $"Failed to create grid dimensions: {ex.Message}");
+                            }
+                        }
+
+                        group.Assimilate();
+                        return Result.Succeeded;
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        if (t.HasStarted() && !t.HasEnded())
-                            t.RollBack();
-                        return Fail(title, $"Failed to create grid dimensions: {ex.Message}");
+                        // Every exit that did not assimilate rolls the work-plane change back explicitly.
+                        if (group.HasStarted() && !group.HasEnded())
+                            group.RollBack();
                     }
                 }
-
-                return Result.Succeeded;
             }
             catch (Exception ex)
             {

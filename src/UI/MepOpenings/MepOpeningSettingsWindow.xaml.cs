@@ -5,10 +5,10 @@
  * Purpose       : Provides the WPF settings window for opening source, host, and element rules.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-03
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -22,9 +22,18 @@
  * Notes         :
  * - This settings window does not read or write Revit model elements.
  * - Direct wall openings are rectangular in the Revit API; circle requests use their bounding rectangle on walls.
+ * - Only the Vertical family is required for a checked duct/cable tray row in Family Opening mode;
+ *   the Horizontal family is stored but not used by Create Openings yet.
  *
  * Changelog     :
  * v1.0.0 (2026-07-03) - Initial release.
+ * v1.0.1 (2026-10-12) - Save no longer demands a Horizontal family (nothing reads it - Create Openings
+ *                       places the Vertical family only); the column says so in a tooltip. The body
+ *                       now scrolls and MinHeight dropped from 784 to 560 (height capped to the
+ *                       screen), so the window fits a 768-high screen. Cutout Buffer updates on leaving
+ *                       the cell, so a decimal such as 12.5 can be typed. With a linked host, picking
+ *                       Direct Opening now visibly snaps the combo back to Family Opening instead of
+ *                       showing Direct while saving Family.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -156,13 +165,27 @@ namespace AJTools.UI.MepOpenings
             get { return _creationMode; }
             set
             {
+                bool forcedToFamily = false;
                 if (UseLinkedModelHosts && value == MepOpeningCreationMode.DirectOpening)
                 {
                     value = MepOpeningCreationMode.FamilyOpening;
+                    forcedToFamily = true;
                 }
 
                 if (_creationMode == value)
                 {
+                    if (forcedToFamily)
+                    {
+                        // A linked host only takes Family Opening, so the pick was turned back - but the
+                        // combo still showed "Direct Opening" while Family was saved. Announce the real
+                        // value once the combo has finished its own selection change (a change raised
+                        // while WPF is still pushing the user's pick is not reliably shown) so the combo
+                        // snaps back to what will actually be saved.
+                        Dispatcher.BeginInvoke(
+                            new Action(() => OnPropertyChanged(nameof(CreationMode))),
+                            System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    }
+
                     return;
                 }
 
@@ -341,6 +364,11 @@ namespace AJTools.UI.MepOpenings
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
+            // The Cutout Buffer cell now updates when the cell loses focus (which clicking Save already
+            // does); also push any cell edit still open before the rules are read. The result is not
+            // used to block Save - an unreadable entry keeps its last good value, as it always has.
+            RulesGrid?.CommitEdit();
+
             MepOpeningSettings settings;
             string validationMessage;
             if (!TryBuildSettings(out settings, out validationMessage))
@@ -364,6 +392,51 @@ namespace AJTools.UI.MepOpenings
         {
             DialogResult = false;
             Close();
+        }
+
+        /// <summary>
+        /// The rules grid sits inside the window's ScrollViewer, and the grid's own internal
+        /// ScrollViewer marks every mouse-wheel event handled even when it has nothing to scroll, so
+        /// the window could not be wheel-scrolled with the pointer over the grid. Re-raising the event
+        /// from the grid lets it bubble on to the outer ScrollViewer (same fix as PinElementsWindow).
+        /// Wheel events from an open drop-down list come from a popup outside the grid's visual tree
+        /// and are left alone, so a long family list still scrolls normally.
+        /// </summary>
+        private void RulesGrid_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (e.Handled || !(sender is UIElement grid))
+            {
+                return;
+            }
+
+            if (!IsWithin(grid, e.OriginalSource as DependencyObject))
+            {
+                return;
+            }
+
+            var forwarded = new System.Windows.Input.MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+            {
+                RoutedEvent = UIElement.MouseWheelEvent
+            };
+            grid.RaiseEvent(forwarded);
+            e.Handled = true;
+        }
+
+        private static bool IsWithin(DependencyObject ancestor, DependencyObject node)
+        {
+            while (node != null)
+            {
+                if (ReferenceEquals(node, ancestor))
+                {
+                    return true;
+                }
+
+                node = node is System.Windows.Media.Visual || node is System.Windows.Media.Media3D.Visual3D
+                    ? System.Windows.Media.VisualTreeHelper.GetParent(node)
+                    : LogicalTreeHelper.GetParent(node);
+            }
+
+            return false;
         }
 
         private bool TryBuildSettings(out MepOpeningSettings settings, out string message)
@@ -446,13 +519,15 @@ namespace AJTools.UI.MepOpenings
                     includedRuleCount++;
                 }
 
+                // Only the Vertical family is required: it is the one Create Openings places. Nothing
+                // reads the Horizontal family yet, so an empty one must not block Save (it still
+                // saves whatever is picked).
                 if (cloned.IsIncluded &&
                     RequiresFamily(built.CreationMode, built.UseLinkedModelHosts) &&
                     IsFamilyOpeningImplementedNow(cloned.ElementKind) &&
-                    (string.IsNullOrWhiteSpace(cloned.VerticalOpeningFamilyName) ||
-                     string.IsNullOrWhiteSpace(cloned.HorizontalOpeningFamilyName)))
+                    string.IsNullOrWhiteSpace(cloned.VerticalOpeningFamilyName))
                 {
-                    message = "Select vertical and horizontal opening families for each checked duct and cable tray row.";
+                    message = "Select a vertical opening family for each checked duct and cable tray row.";
                     return false;
                 }
 

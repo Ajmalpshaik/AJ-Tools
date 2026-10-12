@@ -5,10 +5,10 @@
  * Purpose       : Revit external command entry point for automatic MEP opening creation.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -17,16 +17,25 @@
  * Dependencies  : Autodesk Revit API, AJTools.Services.MepOpenings
  *
  * Input         : Selection-scope MEP sources or opening hosts, based on Opening Settings.
- * Output        : Direct openings in current-model walls, floors/slabs, and beams.
+ * Output        : Direct openings in current-model walls, floors/slabs, and beams, or opening families
+ *                 (Family Opening mode).
  *
  * Notes         :
  * - One transaction named "AJ-Tools: Create Openings" is used for all model changes.
- * - Normal create runs do not show confirmation or success/report popups.
+ * - No confirmation and no success popup: a clean run is silent. A run that created nothing, or that
+ *   failed or skipped anything, shows one report with the reasons grouped, counted and capped.
  * - Linked source elements are read only and transformed into current-model coordinates.
- * - Linked host elements are not modified; they require the later family opening mode.
+ * - Linked host elements are never modified; linked walls are handled by Family Opening mode, which
+ *   places an opening family in the current model (Source Elements selection).
  * - Direct wall openings are rectangular in the Revit API; circle settings use a bounding rectangle on walls.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - Run report: the failure reasons the service collects were never shown - a run
+ *                       where every opening failed returned Failed with an empty message and showed
+ *                       nothing, and a partly successful run never said what it left out. Now one
+ *                       plain report lists failures and skips (grouped, counted, capped) whenever
+ *                       anything failed or was skipped, and the Failed result carries a message.
+ *                       Corrected the stale note that linked hosts need a "later" family mode.
  * v1.2.0 (2026-07-21) - Reverted v1.1.0 below - the Opening split button's default face is now permanently
  *                       fixed on "Create Openings" (RibbonManager.cs v1.12.0, IsSynchronizedWithCurrentItem
  *                       = false), so Execute() no longer needs to set CurrentButton itself.
@@ -44,6 +53,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -156,21 +166,22 @@ namespace AJTools.Commands
                     result = service.CreateOpenings(doc, selectedSources, settings);
                 }
 
+                // The service collects a reason for every failure and skip. The failures used to be
+                // shown nowhere: a run where every opening failed returned Failed with an empty message
+                // and showed nothing, and a run that created some openings never said what it left out.
                 if (result.Failed > 0 && result.OpeningsCreated == 0)
                 {
+                    TaskDialog.Show("Create Openings", BuildRunReport(result));
+                    message = "No openings were created (" + result.Failed + " failed).";
                     return Result.Failed;
                 }
 
-                // A run that created nothing and reported nothing as "failed" (e.g. everything was
-                // unchecked in Opening Settings, or every crossing was already covered) must still tell
-                // the modeller why - a bare silent success here looks identical to "it worked".
-                if (result.OpeningsCreated == 0)
+                // A run that created nothing (e.g. everything was unchecked in Opening Settings, or
+                // every crossing was already covered) must still tell the modeller why, and a run that
+                // failed or skipped anything says what it left out. A clean run stays silent.
+                if (result.OpeningsCreated == 0 || result.Failed > 0 || result.Skipped > 0)
                 {
-                    string reasons = string.Join("\n - ", result.GetTopSkipReasons());
-                    TaskDialog.Show(
-                        "Create Openings",
-                        "No openings were created." +
-                        (string.IsNullOrWhiteSpace(reasons) ? string.Empty : "\n\nReasons:\n - " + reasons));
+                    TaskDialog.Show("Create Openings", BuildRunReport(result));
                 }
 
                 return Result.Succeeded;
@@ -184,6 +195,57 @@ namespace AJTools.Commands
                 message = ex.Message;
                 TaskDialog.Show("Create Openings", "Openings could not be created:\n\n" + ex.Message);
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// One plain report: what was created, then the failures and the skips, each grouped by
+        /// reason with a count and capped, so a big selection cannot turn it into a wall of text.
+        /// </summary>
+        private static string BuildRunReport(MepOpeningRunResult result)
+        {
+            var text = new StringBuilder();
+            text.Append(result.OpeningsCreated == 0
+                ? "No openings were created."
+                : result.OpeningsCreated + " opening(s) created. Some of the selection was left out:");
+
+            AppendReasons(text, "Failed", result.Failed, result.FailureReasons, result.GetTopFailureReasons());
+            AppendReasons(text, "Skipped", result.Skipped, result.SkipReasons, result.GetTopSkipReasons());
+
+            // Crossings that already had an opening are not counted as skips, but when nothing was
+            // created they are often the whole answer.
+            if (result.OpeningsCreated == 0 && result.AlreadyCovered > 0)
+            {
+                text.Append("\n\nAlready covered by an existing opening: ")
+                    .Append(result.AlreadyCovered)
+                    .Append(" crossing(s).");
+            }
+
+            return text.ToString();
+        }
+
+        private static void AppendReasons(
+            StringBuilder text,
+            string heading,
+            int count,
+            IList<string> allReasons,
+            IEnumerable<string> topReasons)
+        {
+            if (count <= 0)
+            {
+                return;
+            }
+
+            text.Append("\n\n").Append(heading).Append(" (").Append(count).Append("):");
+            foreach (string line in topReasons)
+            {
+                text.Append("\n - ").Append(line);
+            }
+
+            int notListed = allReasons.Distinct().Count() - MepOpeningRunResult.MaxReportedReasons;
+            if (notListed > 0)
+            {
+                text.Append("\n - ...and ").Append(notListed).Append(" more");
             }
         }
 
