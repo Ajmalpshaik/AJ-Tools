@@ -1,8 +1,8 @@
 // Tool Name: Set Link Workset - Settings
 // Description: Persists last-used workset name for the Set Link Workset tool.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-23
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: System, System.IO
 
@@ -39,10 +39,16 @@ namespace AJTools.Utils
             }
         }
 
-        internal static void SaveLastWorksetName(string worksetName)
+        /// <summary>
+        /// Saves the workset name for next time. Returns false, with the reason in
+        /// <paramref name="error"/>, when it could not be written - the caller reports it rather than
+        /// the failure passing silently.
+        /// </summary>
+        internal static bool SaveLastWorksetName(string worksetName, out string error)
         {
+            error = null;
             if (string.IsNullOrEmpty(worksetName))
-                return;
+                return true;
 
             try
             {
@@ -52,10 +58,12 @@ namespace AJTools.Utils
                     Directory.CreateDirectory(dir);
 
                 File.WriteAllText(path, worksetName);
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore settings write failures.
+                error = ex.Message;
+                return false;
             }
         }
 

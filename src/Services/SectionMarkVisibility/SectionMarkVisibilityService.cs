@@ -6,10 +6,10 @@
  *                 evaluating each Section View's native 'Sheet Number' parameter.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-05-24
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -33,6 +33,11 @@
  * v1.2.0 (2026-06-30) - Cleanup pass: section markers collected/classified once before the
  *                       view loop (performance); workshared view editability check with clear
  *                       skip reason; removed never-matching Id fallback; metadata block.
+ * v1.2.1 (2026-10-12) - Failures are no longer swallowed: a Sections category that could not be
+ *                       turned on (e.g. locked by a view template) or marks that could not be
+ *                       hidden/unhidden now go into the errors list, and such a view is not counted
+ *                       as Processed. The skip summary no longer calls views owned by another user
+ *                       "unsupported".
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -134,11 +139,15 @@ namespace AJTools.Services.SectionMarkVisibility
                             continue;
                         }
 
+                        // Anything that could not be done in this view is collected here. A view with a
+                        // failure is reported, not counted as Processed - the marks there are not as asked.
+                        var viewErrors = new List<string>();
+
                         // A. Ensure the OST_Sections category is visible in the view
-                        EnsureSectionsCategoryVisible(view);
+                        EnsureSectionsCategoryVisible(view, viewErrors);
 
                         // B. Unhide ALL section markers in the target view first (reset state)
-                        UnhideAllSectionsInView(view, sectionMarkers);
+                        UnhideAllSectionsInView(view, sectionMarkers, viewErrors);
 
                         // CRITICAL: We must regenerate the document here.
                         // Otherwise, the view-specific FilteredElementCollector in HideNonMatchingSectionsInView
@@ -149,10 +158,17 @@ namespace AJTools.Services.SectionMarkVisibility
                         //    Otherwise, hide sections that do not match the sheet criteria
                         if (!_settings.UnhideAllSections)
                         {
-                            HideNonMatchingSectionsInView(view, sectionByName);
+                            HideNonMatchingSectionsInView(view, sectionByName, viewErrors);
                         }
 
-                        processedCount++;
+                        if (viewErrors.Count == 0)
+                        {
+                            processedCount++;
+                        }
+                        else
+                        {
+                            errors.AddRange(viewErrors);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -166,7 +182,7 @@ namespace AJTools.Services.SectionMarkVisibility
 
             string summary = $"Processed {processedCount} view(s).";
             if (skippedCount > 0)
-                summary += $" Skipped {skippedCount} unsupported view(s).";
+                summary += $" Skipped {skippedCount} view(s) (not a supported plan view, or owned by another user).";
             if (errors.Count > 0)
                 summary += $" {errors.Count} error(s) encountered.";
 
@@ -236,9 +252,10 @@ namespace AJTools.Services.SectionMarkVisibility
         }
 
         /// <summary>
-        /// Ensures the OST_Sections category is visible in the view.
+        /// Ensures the OST_Sections category is visible in the view. A failure is added to
+        /// <paramref name="viewErrors"/>: with the category off, no section mark shows whatever else is done.
         /// </summary>
-        private void EnsureSectionsCategoryVisible(View view)
+        private void EnsureSectionsCategoryVisible(View view, IList<string> viewErrors)
         {
             try
             {
@@ -251,9 +268,10 @@ namespace AJTools.Services.SectionMarkVisibility
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Category visibility might be locked by a View Template
+                viewErrors.Add($"View '{view.Name}': could not turn on the Sections category (a view template may control it) - {ex.Message}");
             }
         }
 
@@ -317,8 +335,9 @@ namespace AJTools.Services.SectionMarkVisibility
         /// Unhides ALL section markers that are currently hidden in this view.
         /// This resets the view state so that fresh filtering can be applied.
         /// Uses the pre-collected marker set, so no document scan happens inside the loop.
+        /// Marks that could not be unhidden are added to <paramref name="viewErrors"/>.
         /// </summary>
-        private void UnhideAllSectionsInView(View view, IList<Element> sectionMarkers)
+        private void UnhideAllSectionsInView(View view, IList<Element> sectionMarkers, IList<string> viewErrors)
         {
             var elementsToUnhide = new List<ElementId>();
 
@@ -350,17 +369,23 @@ namespace AJTools.Services.SectionMarkVisibility
                     }
                     catch
                     {
-                        // Fallback: unhide one by one
+                        // Fallback: unhide one by one, counting the ones that still fail
+                        int failed = 0;
                         foreach (ElementId elId in elementsToUnhide)
                         {
-                            try { view.UnhideElements(new[] { elId }); } catch { }
+                            try { view.UnhideElements(new[] { elId }); } catch { failed++; }
+                        }
+
+                        if (failed > 0)
+                        {
+                            viewErrors.Add($"View '{view.Name}': {failed} hidden section mark(s) could not be unhidden.");
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore collector errors
+                viewErrors.Add($"View '{view.Name}': section marks could not be unhidden - {ex.Message}");
             }
         }
 
@@ -370,8 +395,9 @@ namespace AJTools.Services.SectionMarkVisibility
         /// Strategy: Collect VISIBLE OST_Viewers from this specific view, match each marker to 
         /// its corresponding ViewSection by name, evaluate the ViewSection's Sheet Number parameter,
         /// and hide markers whose section doesn't match the filter.
+        /// Marks that could not be hidden are added to <paramref name="viewErrors"/>.
         /// </summary>
-        private void HideNonMatchingSectionsInView(View view, Dictionary<string, ViewSection> sectionByName)
+        private void HideNonMatchingSectionsInView(View view, Dictionary<string, ViewSection> sectionByName, IList<string> viewErrors)
         {
             var markersToHide = new List<ElementId>();
 
@@ -448,17 +474,23 @@ namespace AJTools.Services.SectionMarkVisibility
                     }
                     catch
                     {
-                        // Fallback: hide one by one
+                        // Fallback: hide one by one, counting the ones that still fail
+                        int failed = 0;
                         foreach (ElementId elId in markersToHide)
                         {
-                            try { view.HideElements(new[] { elId }); } catch { }
+                            try { view.HideElements(new[] { elId }); } catch { failed++; }
+                        }
+
+                        if (failed > 0)
+                        {
+                            viewErrors.Add($"View '{view.Name}': {failed} section mark(s) that should be hidden could not be hidden.");
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore collector errors
+                viewErrors.Add($"View '{view.Name}': section marks could not be filtered - {ex.Message}");
             }
         }
 

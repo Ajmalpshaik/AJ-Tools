@@ -5,10 +5,10 @@
  * Purpose       : Code-behind for the multiple target-view selection dialog (grouped, searchable).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-05-24
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,8 @@
  * Changelog     :
  * v1.0.0 (2026-05-24) - Initial release.
  * v1.2.0 (2026-06-30) - Cleanup pass: removed dead constructor loop; metadata block.
+ * v1.2.1 (2026-10-12) - "Selected: N / M" now updates when views are ticked one at a time - it only
+ *                       changed on Select All / Clear All / search. Each row's checkbox click refreshes it.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -123,6 +125,14 @@ namespace AJTools.UI.SectionMarkVisibility
                 }
             }
             ViewsListBox.Refresh(); // Force ListBox UI repaint
+            UpdateSelectionCount();
+        }
+
+        // A row's checkbox writes IsSelected straight onto its item through the binding, and the item
+        // raises no change notification, so nothing else recounts. Click fires after the binding has
+        // updated the item (mouse and Space alike), so the count read here is already current.
+        private void OnViewCheckBoxClick(object sender, RoutedEventArgs e)
+        {
             UpdateSelectionCount();
         }
 

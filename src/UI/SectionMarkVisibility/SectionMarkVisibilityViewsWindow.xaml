@@ -4,9 +4,9 @@ Tool Name    : Section Mark Visibility
 Purpose      : Defines the selectable target view list dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.2.0
+Version      : 1.2.1
 Created      : 2026-05-24
-Last Updated : 2026-06-30
+Last Updated : 2026-10-12
 Target Revit : 2020 - latest
 Framework    : .NET Fx 4.7.2 (2020) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in
@@ -136,7 +136,8 @@ Dependencies : Autodesk Revit API, WPF
                                   VerticalAlignment="Center"
                                   Style="{StaticResource ModernListCheckBox}"
                                   IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                  IsEnabled="{Binding CanSelect}"/>
+                                  IsEnabled="{Binding CanSelect}"
+                                  Click="OnViewCheckBoxClick"/>
 
                         <TextBlock Grid.Column="1"
                                    Text="{Binding ViewName}"

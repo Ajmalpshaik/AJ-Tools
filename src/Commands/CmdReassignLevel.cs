@@ -8,10 +8,10 @@
  *                 (TO level only; each element's own current level is used as its FROM).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.4.0
+ * Version       : 1.4.1
  *
  * Created Date  : 2026-04-14
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -60,6 +60,10 @@
  *                       FROM level needed since it is read per element. Whole Project path is unchanged
  *                       byte-for-byte; the new path is an additional branch using the new
  *                       ReassignLevelService.CollectCandidatesFromSelection/ReassignElementToLevel.
+ * v1.4.1 (2026-10-12) - Dropped the always-true "Revit 2020 or above" check (2020 is the oldest supported
+ *                       version) - OffsetHelper is built the same way as before. Selected items with no
+ *                       level are now skipped up front by the service instead of being counted as failed,
+ *                       so the skip line in the report names that reason too.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -127,8 +131,7 @@ namespace AJTools.Commands
                 return Result.Cancelled;
             }
 
-            bool isRevit2020OrAbove = ReassignLevelService.IsRevit2020OrAbove(commandData.Application);
-            var offsetHelper = new ReassignLevelService.OffsetHelper(doc, isRevit2020OrAbove);
+            var offsetHelper = new ReassignLevelService.OffsetHelper(doc);
 
             if (scope == ReassignScope.SelectedElements)
             {
@@ -324,7 +327,7 @@ namespace AJTools.Commands
             {
                 resultMessage += string.Format(
                     CultureInfo.CurrentCulture,
-                    "\n\n{0} selected item(s) are not supported by this tool (only MEP curves, free-standing families, and spaces can be reassigned).",
+                    "\n\n{0} selected item(s) were skipped - not supported by this tool, or no level to reassign from (only MEP curves, free-standing families, and spaces with a level can be reassigned).",
                     skippedUnsupported);
             }
 
