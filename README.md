@@ -4,7 +4,7 @@ AJ Tools is the main development repository for the AJ Tools add-in for Autodesk
 builds for Revit 2020 through 2027; Revit 2020 is the tested baseline and the version the published
 installer currently ships.
 
-Current suite version: **1.56.2** (as reported by `src/Properties/AssemblyInfo.cs` — see
+Current suite version: **1.57.0** (as reported by `src/Properties/AssemblyInfo.cs` — see
 [CHANGELOG.md](CHANGELOG.md) for the release-numbering note)
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
@@ -58,7 +58,7 @@ AJ Tools provides commands for:
 - automatic and quick dimensioning of grids, levels, and ducts
 - duct flow annotations, revision clouds, and text-note copy/swap
 - intelligent MEP tagging, tag creation and stacking, tag rearranging, and L-shape leaders
-- a built-in AI Assistant (AJ AI) with an MCP bridge for external AI agents
+- a built-in AI Assistant (AJ AI) C# pane
 - Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
   identification, temporary hiding, snag marking, and selection carried back into Revit
 - Quick Menu: a customisable radial tool wheel that opens around the mouse pointer and runs any
@@ -92,7 +92,7 @@ The add-in registers **two** ribbon tabs:
     (Unplaced: 3D Views, Sections, Schedules, Legends, Drafting Views · Unused: View Templates,
     Filters, Groups · Family Parameters)
   - **Family** — Shared to Family
-  - **AI Assistant** — AJ AI (C# chat pane), AJ AI bridge toggle, Run Pinned / Saved Scripts
+  - **AI Assistant** — AJ AI (C# chat pane), Run Pinned / Saved Scripts
   - **Game** — Game Mode
   - **About**
 - `AJ Annotation`: separate annotation tab with the following panels:

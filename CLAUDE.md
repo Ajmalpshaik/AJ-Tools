@@ -21,9 +21,13 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
 - **AJ Tools does not serve a web page, and must not grow one back without Ajmal asking.** A built-in
   Web Panel shipped in v1.43.0 (a ribbon button starting a localhost HTTP server that ran ribbon tools
   from a browser) and was **removed at Ajmal's instruction in v1.44.0** — code deleted, not disabled,
-  the same way the spoken voice went in v1.42.0. The AJ AI bridge (named pipe, `McpBridgeService`) is a
-  **different** feature and stays. What was learned building the panel is kept as lessons in
+  the same way the spoken voice went in v1.42.0. What was learned building the panel is kept as lessons in
   `.claude/knowledge/ajtools-conventions.md`; treat that section as history, not as a live design.
+- **No outside-AI connection either (removed v1.57.0, 2026-10-12).** The AJ AI Bridge (named pipe,
+  `McpBridgeService`, the "AJ AI" ribbon button), its Node MCP server and the PowerShell callers were all
+  deleted at Ajmal's instruction; that job now belongs to his separate Heron AI project — never touch that
+  project from here. The C# pane (with its AI chat, for now), Run Pinned / Saved Scripts, Game Mode and
+  Quick Menu stay. Do not add a bridge back without Ajmal asking.
 
 **Hard rule — trees you must never edit:** `_backup\`
 (pre-multiversion snapshot). All source work happens in root `src/` only. Never hand-edit generated
@@ -48,9 +52,11 @@ needs Ajmal's explicit yes.
 
 Work here is driven by the skills under `.claude/skills/ajtools-*`, backed by shared knowledge files
 in `.claude/knowledge/`: `ajtools-conventions.md`, `glossary.md`, `reply-style.md`, `debug-log.md`, and
-the **live-model set** `knowledge/live-model/` — an indexed folder, not one file. Live-model work runs
-through the AJ AI Bridge, called with `tools\invoke-revit-bridge.ps1` (`-Ping` first, then `-CodeFile`);
-bridge rules are in `knowledge/live-model/core.md`.
+the **live-model set** `knowledge/live-model/` — an indexed folder, not one file. **Since v1.57.0 nothing in
+this repo can reach the live model** (bridge removed). The live-model notes, `.claude/scripts/` and the
+`revit-family-author` skill are kept as reference only until Ajmal decides what moves to Heron AI; anywhere
+they say "ping" or "run_csharp", that path no longer exists — say so instead of trying it, and ask Ajmal to
+test in Revit himself.
 
 **Read by routing, never wholesale (Ajmal's rule, 2026-07-16).** Knowledge is split small and indexed so a
 task reads only the part it needs: open the index — [`knowledge/live-model/README.md`](.claude/knowledge/live-model/README.md)
@@ -75,11 +81,6 @@ repeated work gets faster over time instead of being rewritten from scratch. If 
 AI still solves the task with the smallest correct one-off, verifies it, then saves the reusable part only
 when the shape is likely to repeat. Decision order: reuse existing module first; if missing, do the task
 normally; after verification, harvest reusable pieces when useful.
-
-For live-model checks, do not rebuild the AJ AI Bridge named-pipe caller by hand. Use the visible
-shortcut `tools\invoke-revit-bridge.ps1` (for example `-Ping` or `-CodeFile <composed-script.cs>`). Plain
-`rg --files` ignores dot folders like `.claude`, so this visible wrapper exists to prevent agents missing
-the real helper and taking the slow route.
 
 1. **Before starting substantive work**, check the relevant `.claude/knowledge/*.md` file(s) for a term,
    convention, or prior finding that already answers or shapes the request. Don't re-derive or re-trace

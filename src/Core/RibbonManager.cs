@@ -7,10 +7,10 @@
  *                 split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.14.0
+ * Version       : 1.15.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,9 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.15.0 (2026-10-12) - "AJ AI" bridge button removed from the AI Assistant panel (AddAiBridgeTool),
+ *                       with the bridge itself, at Ajmal's instruction. The panel keeps the C# pane
+ *                       and Run Pinned / Saved Scripts.
  * v1.14.0 (2026-08-18) - New "Quick" panel, first on the tab, with the AJ Quick Menu split button
  *                       (Quick Menu / Customise) - the game-style tool wheel that opens around the
  *                       mouse pointer. Self-contained: src/QuickMenu + Resources\QuickMenu.png +
@@ -381,7 +384,6 @@ namespace AJTools.App
         private void BuildAiPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAiTool());
-            AddTopLevelTool(panel, AddAiBridgeTool());
             AddTopLevelTool(panel, AddRunPinnedTool());
         }
 
@@ -459,21 +461,6 @@ namespace AJTools.App
                 typeof(AJTools.AiShell.Commands.ShowAiShellCommand),
                 "CSharp_with_AI.png",
                 "CSharp_with_AI.png");
-        }
-
-        private TopLevelToolSpec AddAiBridgeTool()
-        {
-            // Starts on the OFF icon - the bridge never auto-connects on startup. ToggleAiBridgeCommand
-            // swaps this same button's icon to AJ_AI_ON.png / AJ_AI_OFF.png after each click, via the
-            // PushButton reference captured below into App.AiBridgeButton.
-            return CreatePushToolSpec(
-                "AJ AI",
-                "Connect or disconnect AJ AI - lets an external AI agent (via MCP) run C# against this " +
-                "live Revit document, without opening the C# panel. Click again to disconnect.",
-                typeof(AJTools.AiShell.Commands.ToggleAiBridgeCommand),
-                "AJ_AI_OFF.png",
-                "AJ_AI_OFF.png",
-                pushButton => App.AiBridgeButton = pushButton);
         }
 
         private TopLevelToolSpec AddRunPinnedTool()

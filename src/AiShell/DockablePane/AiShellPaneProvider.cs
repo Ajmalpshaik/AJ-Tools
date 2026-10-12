@@ -11,12 +11,6 @@ namespace AJTools.AiShell.DockablePane
     {
         public static readonly DockablePaneId PaneId = new DockablePaneId(new Guid("d4a8e32d-1a8c-4f9e-a89e-4a6c4b2d3c1d"));
         private readonly AiShellView _view;
-        private readonly McpBridgeService _mcpBridge;
-
-        /// <summary>Shared with the standalone "AJ AI Bridge" ribbon button (ToggleAiBridgeCommand,
-        /// via the static App.AiBridge reference) so both reach the same running bridge/pipe instead
-        /// of a second one being created.</summary>
-        public McpBridgeService Bridge => _mcpBridge;
 
         public AiShellPaneProvider()
         {
@@ -31,17 +25,10 @@ namespace AJTools.AiShell.DockablePane
             var contextService = new RevitContextExtractionService();
             var replService = new ReplSessionService(roslynService);
             var snoopService = new ElementSnoopService();
-            _mcpBridge = new McpBridgeService(revitExecService);
 
             var vm = new AiShellViewModel(config, geminiService, openAiService, anthropicService, nvidiaService, revitExecService, contextService, replService, snoopService);
 
             _view = new AiShellView { DataContext = vm };
-        }
-
-        /// <summary>Stops the AJ AI bridge and clears its discovery file on Revit shutdown.</summary>
-        public void Shutdown()
-        {
-            _mcpBridge?.Stop();
         }
 
         public void SetupDockablePane(DockablePaneProviderData data)

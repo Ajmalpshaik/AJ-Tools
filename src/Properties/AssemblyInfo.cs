@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.56.3
+ * Version       : 1.57.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-10-12
@@ -24,6 +24,12 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.57.0 (2026-10-12) - AJ AI BRIDGE REMOVED at Ajmal's instruction - the outside-agent connection
+ *                       now lives in a separate project. Deleted McpBridgeService, AiTaskWarningBarService,
+ *                       ToggleAiBridgeCommand, BridgeStatusToast and the AJ_AI_ON/OFF icons; unhooked
+ *                       from App (RibbonManager 1.15.0, App 1.17.0) and AiShellPaneProvider. The C# pane,
+ *                       Run Pinned / Saved Scripts, Game Mode and Quick Menu are unchanged. Minor bump,
+ *                       same as the v1.44.0 Web Panel removal.
  * v1.56.3 (2026-10-12) - LOCATION DATA ASSIGNER READS HVAC ZONES THE REVIT 2027 WAY. Revit 2027 retires
  *                       a space's own Zone property (old HVAC zones are upgraded to space-based system
  *                       zones). On 2027+ the tool now finds a space's zone from the zones that list it
@@ -2330,8 +2336,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.56.3.0")]
-[assembly: AssemblyFileVersion("1.56.3.0")]
+[assembly: AssemblyVersion("1.57.0.0")]
+[assembly: AssemblyFileVersion("1.57.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

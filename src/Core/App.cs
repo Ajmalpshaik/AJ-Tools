@@ -6,10 +6,10 @@
  *                 commands on Revit startup; handles assembly resolution for bundled DLLs.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.16.0
+ * Version       : 1.17.0
  *
  * Created Date  : 2025-01-01
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +27,9 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.17.0 (2026-10-12) - AJ AI Bridge removed at Ajmal's instruction: the static AiBridge /
+ *                       AiBridgeButton references and the pane-provider Shutdown call (which only
+ *                       stopped the bridge) are gone. The "C#" dockable pane is still registered.
  * v1.16.0 (2026-07-21) - Removed the MepOpeningSplitButton / CreateOpeningsButton / OpeningSettingsButton
  *                       / RunPinnedSplitButton / RunPinnedButton / SavedScriptsButton statics added in
  *                       v1.15.0/v1.14.0 below - Ajmal wants both split buttons' default face permanently
@@ -73,7 +76,6 @@
 
 using Autodesk.Revit.UI;
 using AJTools.AiShell.DockablePane;
-using AJTools.AiShell.Services;
 using System;
 using System.IO;
 using System.Reflection;
@@ -84,17 +86,6 @@ namespace AJTools.App
     {
         private static string _addinFolder;
         private AiShellPaneProvider _aiShellPaneProvider;
-
-        /// <summary>Shared AJ AI Bridge instance, set once at startup, so the standalone ribbon
-        /// button (ToggleAiBridgeCommand) can connect/disconnect the same running bridge the C# with
-        /// AI pane owns instead of creating a second one.</summary>
-        public static McpBridgeService AiBridge { get; private set; }
-
-        /// <summary>The "AJ AI" ribbon PushButton itself, captured at ribbon-build time so
-        /// ToggleAiBridgeCommand can swap its icon between AJ_AI_ON.png / AJ_AI_OFF.png after each
-        /// connect/disconnect - a plain PushButton has no built-in on/off visual state.</summary>
-        public static PushButton AiBridgeButton { get; set; }
-
 
         public Result OnStartup(UIControlledApplication app)
         {
@@ -128,7 +119,6 @@ namespace AJTools.App
                 annotationRibbonManager.CreateRibbon();
 
                 _aiShellPaneProvider = new AiShellPaneProvider();
-                AiBridge = _aiShellPaneProvider.Bridge;
                 app.RegisterDockablePane(AiShellPaneProvider.PaneId, "C#", _aiShellPaneProvider);
 
                 return Result.Succeeded;
@@ -170,9 +160,6 @@ namespace AJTools.App
 
         public Result OnShutdown(UIControlledApplication app)
         {
-            _aiShellPaneProvider?.Shutdown();
-            AiBridge = null;
-            AiBridgeButton = null;
             AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
             return Result.Succeeded;
         }

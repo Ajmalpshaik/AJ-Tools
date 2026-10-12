@@ -34,7 +34,7 @@ rather than just act on existing ones and don't fit the filter+action shape.
   `model_summary` MCP tool when it is exposed. It performs one read-only bridge call and returns the
   Revit version and model title, so a separate ping is unnecessary. Keep `run_csharp` for complex,
   multi-parameter, geometry, and model-changing work.
-- Call the bridge with `tools\invoke-revit-bridge.ps1`: `-Ping` to check it, `-CodeFile <script.cs>` to run C#
+- **The bridge was removed in v1.57.0 (2026-10-12) — these notes are reference only.** It used to be called with `-Ping` / `-CodeFile <script.cs>` to run C#
   (`run_csharp` in these notes means exactly that). There is no MCP server any more (removed 2026-10-12).
 - Always `-Ping` first if it's been a while — if it fails, Revit is closed or
   the AJ AI pane's Connect AJ AI Bridge toggle is off. Ask Ajmal to reconnect rather than guessing.
