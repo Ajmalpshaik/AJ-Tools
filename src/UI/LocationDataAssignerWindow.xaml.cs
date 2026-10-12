@@ -1,8 +1,8 @@
 ﻿// Tool Name: Location Data Assigner UI
 // Description: Code-behind for assigning room, level, coordinate, altitude, and HVAC zone data.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-04-09
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 
 using AJTools.Utils;
@@ -823,6 +823,9 @@ namespace AJTools.UI
                     result.Notes.Add("HVAC disabled because no Spaces were found.");
                 }
             }
+            var spaceZones = options.IncludeHvac
+                ? BuildSpaceZoneMap(sourceDoc, spaces)
+                : new Dictionary<ElementId, Element>();
 
             var elements = CollectElements(selectedCats);
             if (elements.Count == 0)
@@ -866,7 +869,7 @@ namespace AJTools.UI
                                 wroteAny |= WriteLevel(el, room, options, result);
 
                             if (options.IncludeHvac)
-                                wroteAny |= WriteHvac(el, spaces, queryPt, options, result);
+                                wroteAny |= WriteHvac(el, spaces, spaceZones, queryPt, options, result);
 
                             if (options.IncludeCoords || options.IncludeAltitude)
                                 wroteAny |= WriteCoords(el, pt, options, survey, internalToShared, result);
@@ -1008,7 +1011,7 @@ namespace AJTools.UI
             return wroteName;
         }
 
-        private static bool WriteHvac(Element el, IList<Space> spaces, XYZ point, ProcessOptions options, ProcessResult result)
+        private static bool WriteHvac(Element el, IList<Space> spaces, IDictionary<ElementId, Element> spaceZones, XYZ point, ProcessOptions options, ProcessResult result)
         {
             var map = options.ParameterMap ?? CreateDefaultParameterMap();
             bool hasNameParam = !string.IsNullOrWhiteSpace(map.HvacZoneName);
@@ -1026,8 +1029,7 @@ namespace AJTools.UI
                 return false;
             }
 
-            Zone zone = null;
-            try { zone = space.Zone; } catch (Exception) { zone = null; }
+            spaceZones.TryGetValue(space.Id, out Element zone);
             if (zone == null)
             {
                 AddReason(result, options.Debug, "No HVAC zone");
@@ -1042,6 +1044,47 @@ namespace AJTools.UI
             bool wroteNumber = hasNumberParam && !string.IsNullOrWhiteSpace(zoneNumber) &&
                                SetTextOnElementAndType(el, map.HvacZoneNumber, zoneNumber, options.OverwriteText, out bool _);
             return wroteName || wroteNumber;
+        }
+
+        // Space id -> HVAC zone, built once per run. Revit 2027 deprecates Space.Zone: HVAC zones are
+        // upgraded to space-based system zones (GenericZone), so there the map is read from the zones.
+        private static Dictionary<ElementId, Element> BuildSpaceZoneMap(Document doc, IList<Space> spaces)
+        {
+            var map = new Dictionary<ElementId, Element>();
+#if REVIT2027_OR_GREATER
+            var zones = new FilteredElementCollector(doc)
+                .OfClass(typeof(Autodesk.Revit.DB.Analysis.GenericZone))
+                .Cast<Autodesk.Revit.DB.Analysis.GenericZone>();
+            foreach (var zone in zones)
+            {
+                try
+                {
+                    if (zone.GeometricDefinition != Autodesk.Revit.DB.Analysis.ZoneGeometricDefinition.Spaces)
+                        continue;
+                    object data = zone.GetDomainData();
+                    bool isUpgradedHvac = data is HVACZoneData;
+                    if (!isUpgradedHvac && !(data is SystemZoneData))
+                        continue;
+
+                    // A zone upgraded from an old HVAC zone wins over a plain system zone.
+                    foreach (ElementId spaceId in zone.GetSpaceIds())
+                    {
+                        if (isUpgradedHvac || !map.ContainsKey(spaceId))
+                            map[spaceId] = zone;
+                    }
+                }
+                catch (Exception) { }
+            }
+#else
+            foreach (Space space in spaces)
+            {
+                Zone zone = null;
+                try { zone = space.Zone; } catch (Exception) { zone = null; }
+                if (zone != null)
+                    map[space.Id] = zone;
+            }
+#endif
+            return map;
         }
 
         private static bool WriteCoords(Element el, XYZ point, ProcessOptions options, XYZ survey, Transform internalToShared, ProcessResult result)

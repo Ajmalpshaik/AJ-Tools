@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.56.2
+ * Version       : 1.56.3
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-08-20
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,12 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.56.3 (2026-10-12) - LOCATION DATA ASSIGNER READS HVAC ZONES THE REVIT 2027 WAY. Revit 2027 retires
+ *                       a space's own Zone property (old HVAC zones are upgraded to space-based system
+ *                       zones). On 2027+ the tool now finds a space's zone from the zones that list it
+ *                       (an upgraded HVAC zone wins over a plain system zone); 2020-2026 still read the
+ *                       space's Zone exactly as before. The zone lookup is now built once per run
+ *                       instead of per element. Clears the last Release R27 build warning.
  * v1.56.2 (2026-08-26) - SMART MEP TAG STOPPED TAGGING ENTIRE VIEWS. Its crop-region filter made an
  *                       element prove it overlapped the crop box on DEPTH as well as across the view.
  *                       A crop region only bounds the view plane; depth is the view range, and Revit
@@ -2324,8 +2330,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.56.2.0")]
-[assembly: AssemblyFileVersion("1.56.2.0")]
+[assembly: AssemblyVersion("1.56.3.0")]
+[assembly: AssemblyFileVersion("1.56.3.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with
