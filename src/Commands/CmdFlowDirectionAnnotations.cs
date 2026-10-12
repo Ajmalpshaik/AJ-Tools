@@ -6,10 +6,10 @@
  *                 using the family and spacing set in Duct Flow Annotation Settings.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2025-12-21
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,7 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - The 'no settings yet' message now names the real ribbon button.
  * v1.0.0 (2025-12-21) - Initial release.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Annotation behaviour unchanged.
  *
@@ -81,7 +82,7 @@ namespace AJTools.Commands
             FlowDirectionSettingsState state = settingsTracker.LastState;
             if (state == null)
             {
-                DialogHelper.ShowInfo("Duct Flow", "Run 'Duct Flow Settings' to choose the annotation family and spacing.");
+                DialogHelper.ShowInfo("Duct Flow", "Open Duct Flow Annotations > 'Duct Flow Annotation Settings' first to choose the annotation family and spacing.");
                 return Result.Cancelled;
             }
 

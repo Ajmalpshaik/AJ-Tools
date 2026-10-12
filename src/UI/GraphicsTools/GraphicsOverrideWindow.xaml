@@ -49,7 +49,7 @@ Repo          : AJ-Tools
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome ResizeBorderThickness="0"
+        <shell:WindowChrome ResizeBorderThickness="6"
                             CaptionHeight="0"
                             CornerRadius="0"
                             GlassFrameThickness="0"/>

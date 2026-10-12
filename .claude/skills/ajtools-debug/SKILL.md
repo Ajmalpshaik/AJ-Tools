@@ -28,7 +28,7 @@ up a separate agent for one bug in one file is more overhead than it's worth.
 
 ## Step 1 — Read the knowledge files first
 
-Read three small files before doing anything else — each covers a different concern, don't skip any:
+Read the two knowledge files before doing anything else — each covers a different concern, don't skip either:
 
 - [`.claude/knowledge/ajtools-conventions.md`](../../knowledge/ajtools-conventions.md) — house coding
   conventions, so your fix doesn't introduce a new violation.
@@ -45,7 +45,7 @@ things descriptively (`CmdSmartMepTag.cs`, `CmdCeilingMagnet.cs`, etc.) but Ajma
 — match on what the tool visibly does (ribbon button text, tooltip, behavior) rather than expecting an
 exact name.
 
-## Step 3 — Reproduce it for real when you can
+## Step 3 — Check it against the real Revit API
 
 There is no live connection to Revit any more (the AJ AI Bridge was removed in v1.57.0), so this
 step is careful reading, not live reproduction:

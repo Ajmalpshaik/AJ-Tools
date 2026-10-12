@@ -32,6 +32,16 @@ function Get-UninstallTargets {
                 Version = $version
                 AddinRoot = Join-Path $env:ProgramData "Autodesk\Revit\Addins\$version"
             }
+
+            # Revit 2027+ reads all-users add-ins from Program Files. Clean that folder too, and keep
+            # the ProgramData entry above so an install made before this fix is also cleaned up.
+            if ($version -ge 2027) {
+                $targets += @{
+                    Scope = "All Users"
+                    Version = $version
+                    AddinRoot = Join-Path $env:ProgramFiles "Autodesk\Revit\Addins\$version"
+                }
+            }
         }
     }
 

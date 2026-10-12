@@ -319,7 +319,7 @@
                                 Style="{StaticResource CompactSecondaryButton}"
                                 MinWidth="128"
                                 Click="OnReset"
-                                ToolTip="Tick every category, put each priority back to its default, and switch vertical-run skipping back on."/>
+                                ToolTip="Tick every category, put each priority and leader setting back to its default, reset the size limits, and switch vertical-run skipping back on."/>
 
                         <Button Grid.Column="2"
                                 x:Name="SaveButton"

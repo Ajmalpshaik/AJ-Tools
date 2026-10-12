@@ -1,6 +1,6 @@
 ---
 name: ajtools-port-pyrevit
-description: Convert one of Ajmal's existing pyRevit tools (his AJ-Tools.extension) into a proper AJ Tools C# command — same behaviour, house conventions, ribbon button and all. Use whenever Ajmal points at a pyRevit pushbutton/script and wants it in AJ Tools: "convert this tool to C#", "this is my pyRevit tool, make it in AJ Tools", "using this script build the same in the plugin", "study how I achieve this" (with a .py path or a .pushbutton folder), or broken-English/dictated versions ("convert this pyrevit tool", "make this in c sharp"). Also use when a paste of IronPython/pyRevit code arrives with intent to port it. His pyRevit scripts encode hard-won, WORKING logic — the port must reproduce it exactly, not "improve" it silently. Do NOT use this for writing new pyRevit/Python tools (that's the revit-pyrevit-python skill) or for brand-new C# capability with no existing script to port (that's ajtools-build). Do NOT use this for debugging an already-ported tool — that's ajtools-debug.
+description: Convert one of Ajmal's existing pyRevit tools (his AJ-Tools.extension) into a proper AJ Tools C# command — same behaviour, house conventions, ribbon button and all. Use whenever Ajmal points at a pyRevit pushbutton/script and wants it in AJ Tools: "convert this tool to C#", "this is my pyRevit tool, make it in AJ Tools", "using this script build the same in the plugin", "study how I achieve this" (with a .py path or a .pushbutton folder), or broken-English/dictated versions ("convert this pyrevit tool", "make this in c sharp"). Also use when a paste of IronPython/pyRevit code arrives with intent to port it. His pyRevit scripts encode hard-won, WORKING logic — the port must reproduce it exactly, not "improve" it silently. Do NOT use this for writing new pyRevit/Python tools (that's the revit-tool-pyrevit skill) or for brand-new C# capability with no existing script to port (that's ajtools-build). Do NOT use this for debugging an already-ported tool — that's ajtools-debug.
 ---
 
 # AJ Tools — Port a pyRevit Tool to C#
@@ -48,7 +48,7 @@ Translate, keeping behaviour identical but the *implementation* native to AJ Too
 ### Step 4 — Verify against the original
 
 1. Build clean with deploy skipped:
-   `msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true` —
+   `dotnet build "AJ Tools.sln" -c Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true` —
    zero errors, zero warnings.
 2. Ask Ajmal to run both the pyRevit tool and the new command on the same elements and compare -
    there is no live bridge since v1.57.0. The cap-end port was

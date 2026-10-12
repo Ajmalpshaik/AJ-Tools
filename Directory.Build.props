@@ -78,7 +78,6 @@
        Disable with -p:SkipAjToolsAutoDeploy=true -->
   <PropertyGroup>
     <SkipAjToolsAutoDeploy Condition="'$(SkipAjToolsAutoDeploy)'==''">false</SkipAjToolsAutoDeploy>
-    <RevitAddinsPath Condition="'$(RevitAddinsPath)'==''">$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)\AJ Tools\</RevitAddinsPath>
     <!-- A running Revit process locks the current DLL. Deploy every build into a fresh payload folder,
          then repoint the root manifest for the next Revit start. -->
     <AutoDeployStamp Condition="'$(AutoDeployStamp)'==''">$([System.DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff'))</AutoDeployStamp>

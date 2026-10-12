@@ -106,7 +106,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="1"
-                                Content="Start"
+                                Content="Save"
                                 Style="{StaticResource ModernButton}"
                                 Click="OnStart"
                                 IsDefault="True"

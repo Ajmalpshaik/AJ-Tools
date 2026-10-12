@@ -36,9 +36,6 @@ dist/Payload/
 dist/release/
 dist/*.zip
 
-# Local cleanup quarantine
-_backup_review/
-
 # Logs and caches
 *.log
 build_*.log
@@ -51,7 +48,6 @@ _build_*.log
 *.snupkg
 journal*.txt
 packages/
-.dotnet-sdk/
 
 # OS files
 Thumbs.db
@@ -61,8 +57,9 @@ desktop.ini
 # Local safety backups (pre-multiversion conversion)
 _backup/
 
-# Stale pre-multiversion copy of the project. The live source tree is root src/.
-# This folder is a near-identical duplicate and must never be committed from here.
+# The old pre-multiversion copy of the project lived here until 2026-10-12 (deleted then).
+# The live source tree is root src/. If an "AJ Tools/" folder ever reappears it is a stale
+# copy - never commit from it.
 AJ Tools/
 
 # The installer ships from its own separate GitHub repository
@@ -71,10 +68,12 @@ AJ-Tools-Installer/
 
 # Claude working folder: everything is backed up EXCEPT machine-local state.
 # settings.local.json is per-machine by design and scheduled_tasks.lock is runtime state -
-# both would only create noise between machines. The knowledge, skills and scripts
-# folders ARE tracked on purpose; they are the accumulated working memory.
+# both would only create noise between machines. worktrees/ holds temporary working copies
+# made by AI sessions. The knowledge, skills and tools folders ARE tracked on purpose; they are
+# the accumulated working memory.
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+.claude/worktrees/
 
 # A separate product used to live under this root and was moved out to its own repository.
 # Two copies of anything drift apart, which has already cost real time here once with the old

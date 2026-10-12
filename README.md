@@ -1,11 +1,11 @@
 # AJ Tools
 
 AJ Tools is the main development repository for the AJ Tools add-in for Autodesk Revit. One codebase
-builds for Revit 2020 through 2027; Revit 2020 is the tested baseline and the version the published
-installer currently ships.
+builds for Revit 2020 through 2027, and the published installer carries a build for each of those
+versions. Revit 2020 is the most-tested baseline.
 
 Current suite version: **1.57.0** (as reported by `src/Properties/AssemblyInfo.cs` — see
-[CHANGELOG.md](CHANGELOG.md) for the release-numbering note)
+[CHANGELOG.md](CHANGELOG.md))
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).
 
@@ -14,7 +14,6 @@ This repository owns the source code, build and packaging scripts, internal rele
 - C# Revit add-in source repository
 - WPF/XAML user interfaces
 - Multi-version Revit API target: 2020 → 2027 from the single `src/` codebase
-- No pyRevit `.extension`, `.tab`, `.panel`, or `.pushbutton` structure is present in this repository
 
 ## Compatibility
 
@@ -27,9 +26,10 @@ One codebase, one build configuration per Revit version (`Directory.Build.props`
 | `Release R25` / `R26` | 2025–2026 | .NET 8 |
 | `Release R27` | 2027 | .NET 10 |
 
-Windows x64 in all cases. Revit 2020 is the build the published installer ships and the one validated
-inside Revit; the 2021–2027 builds compile clean but require Revit-side validation before publishing a
-compatible installer.
+Windows x64 in all cases. The published installer ships all eight builds (one `Payload\<year>` folder
+each) and installs whichever Revit versions are on the machine. Revit 2020 is the version used day to day
+and the most tested inside Revit; the other versions build clean and are checked against each version's
+Revit API, but get less hands-on testing.
 
 ## Technology Stack
 
@@ -38,7 +38,7 @@ compatible installer.
 - Autodesk Revit API via NuGet (`Nice3point.Revit.Api.RevitAPI` / `RevitAPIUI`, version-matched per configuration)
 - WPF/XAML
 - `Newtonsoft.Json`
-- `AvalonEdit`, `CommunityToolkit.Mvvm`, and Roslyn scripting for the AI shell
+- `AvalonEdit`, `CommunityToolkit.Mvvm`, and Roslyn scripting for the C# pane
 
 ## Product Scope
 
@@ -57,8 +57,9 @@ AJ Tools provides commands for:
 - shared-to-family parameter conversion
 - automatic and quick dimensioning of grids, levels, and ducts
 - duct flow annotations, revision clouds, and text-note copy/swap
-- intelligent MEP tagging, tag creation and stacking, tag rearranging, and L-shape leaders
-- a built-in AI Assistant (AJ AI) C# pane
+- intelligent MEP tagging, tag creation and stacking, tag clash fixing, tag rearranging, and L-shape
+  leaders
+- a built-in "C#" pane: script editor and runner with an AI chat that writes C# for the open model
 - Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
   identification, temporary hiding, snag marking, and selection carried back into Revit
 - Quick Menu: a customisable radial tool wheel that opens around the mouse pointer and runs any
@@ -76,36 +77,13 @@ Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged D
 
 ## Revit Ribbon Tabs
 
-The add-in registers **two** ribbon tabs:
+The add-in registers **two** ribbon tabs: `AJ Tools` (view, graphics, datum, MEP, coordination, data,
+manage, family, AI Assistant, Game and Quick Menu panels) and `AJ Annotation` (dimensions, annotation,
+text, family and tags panels). The full panel-by-panel tool list lives in one place only,
+[docs/USAGE.md](docs/USAGE.md), so it cannot drift out of step with a second copy here.
 
-- `AJ Tools`: main tool tab with the following panels:
-  - **Quick** — Quick Menu (radial tool wheel), Customise
-  - **View** — View Crop, Unhide All, Toggle Links, Filter Pro, Colorize, Highlight Selection
-  - **Graphics** — Apply Graphics, Match Graphics, Reset Graphics
-  - **Datums** — Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles
-  - **Modify** — Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements, Smart Selection
-  - **MEP** — Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing
-  - **Opening** — MEP Openings (create openings, opening settings)
-  - **Coordination** — Element ID lookup, 3D Views by Workset, Link Workset
-  - **Data** — Assign Location, Duct Standard
-  - **Manage** — Transfer (View Templates, Schedules, Legends, Drafting Views) and Purge
-    (Unplaced: 3D Views, Sections, Schedules, Legends, Drafting Views · Unused: View Templates,
-    Filters, Groups · Family Parameters)
-  - **Family** — Shared to Family
-  - **AI Assistant** — AJ AI (C# chat pane), Run Pinned / Saved Scripts
-  - **Game** — Game Mode
-  - **About**
-- `AJ Annotation`: separate annotation tab with the following panels:
-  - **Dimensions** — Auto MEP Dimension, Automatic Dimension, Automatic Grid Dimensions,
-    Automatic Level Dimensions, Quick Dimension, Copy Dimension Text
-  - **Annotation** — Duct Flow Annotations, Revision Clouds, Revision Clouds by Elements,
-    Copy/Swap Text Notes, Copy Text Notes
-  - **Text** — Arrange Text in Box
-  - **Family** — Center Annotation
-  - **Tags** — Smart MEP Tags, Create Tags, Stack Tags, Rearrange Tags, L-Shape Leader,
-    Center Room Tags, Section Mark Visibility
-
-The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab plus a dockable **AJ AI** pane — it is not a separate ribbon tab.
+The C# pane is opened from the **AI Assistant** panel on the `AJ Tools` tab and docks inside Revit — it
+is not a separate ribbon tab.
 
 ## Installation
 
@@ -117,15 +95,20 @@ The AI shell is delivered as the **AI Assistant** panel on the `AJ Tools` tab pl
 No local Revit installation is needed to compile — the Revit API comes from NuGet and is restored per
 configuration.
 
-1. Open `AJ Tools.sln` in Visual Studio 2022 (the .NET 9 SDK covers the 2020–2026 configs; the
-   `Release R27` config needs the .NET 10 SDK, shipped with VS 2022 17.12+).
-2. Pick the configuration for the Revit version you want (see Compatibility) and build.
-   Note: **a normal build auto-deploys the add-in into the local Revit Addins folders** for that
-   version — pass `-p:SkipAjToolsAutoDeploy=true` for a compile-only build.
-3. Package the release payload (packages the `Release` / Revit 2020 build):
+1. Install the .NET 10 SDK (it builds every configuration, 2020–2027). Visual Studio 2026 (18.x) works
+   too; older Visual Studio versions cannot build the `Release R27` (.NET 10) configuration.
+2. Build the configuration for the Revit version you want (see Compatibility), for example:
+
+   ```powershell
+   dotnet build "AJ Tools.sln" -c "Release R24" -p:Platform=x64
+   ```
+
+   Note: **a normal build auto-deploys the add-in into your own Revit Addins folder** (AppData) for
+   that version — add `-p:SkipAjToolsAutoDeploy=true` for a compile-only build.
+3. Package the release payload (builds all eight configurations into `dist\Payload\<year>`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\dist\package.ps1 -Configuration Release
+powershell -ExecutionPolicy Bypass -File .\dist\package.ps1
 ```
 
 Expected output:

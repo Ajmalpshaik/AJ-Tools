@@ -824,7 +824,7 @@
                                     Margin="0,0,0,14">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="System Operational"
+                                    <TextBlock Text="Add-in loaded"
                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                FontSize="11"
                                                FontWeight="Bold"/>
@@ -834,7 +834,7 @@
                             <TextBlock Text="AJ Tools Platform" Style="{StaticResource SectionTitleStyle}"/>
 
                             <TextBlock Style="{StaticResource BodyTextStyle}"
-                                       Text="AJ Tools is a Revit productivity add-in built for practical BIM workflows: view and graphics control, datum and MEP coordination, dimensioning, tagging/annotation, and an in-app AI shell for on-demand C# automation. One installed add-in adds two ribbon tabs, AJ Tools and AJ Annotation, to Revit."
+                                       Text="AJ Tools is a Revit productivity add-in built for practical BIM workflows: view and graphics control, datum and MEP coordination, dimensioning, tagging/annotation, and a C# script pane with an AI chat for one-off automation. One installed add-in adds two ribbon tabs, AJ Tools and AJ Annotation, to Revit."
                                        Margin="0,0,0,18"/>
 
                             <UniformGrid Columns="2" Margin="0,0,0,6">
@@ -854,7 +854,7 @@
 
                                 <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,10,14">
                                     <StackPanel>
-                                        <TextBlock Text=".NET Framework" Style="{StaticResource ValueLabelStyle}"/>
+                                        <TextBlock Text=".NET" Style="{StaticResource ValueLabelStyle}"/>
                                         <TextBlock x:Name="FrameworkText" Style="{StaticResource ValueTextStyle}" Text="4.7.2"/>
                                     </StackPanel>
                                 </Border>
@@ -938,7 +938,7 @@
                             <Border Style="{StaticResource CardBorderStyle}">
                                 <StackPanel>
                                     <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="AJ Tools tab" Margin="0,0,0,10"/>
-                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="View &amp; Graphics - Filter Pro, Colorize, Toggle Link, Unhide All, Pin/Unpin Elements, Apply/Match/Reset Graphics, Section Mark Visibility&#x0a;Datums - Flip Grid/Level Bubbles, Reset Grid/Level Extents to 3D, Modify/Match Level Extents&#x0a;MEP &amp; Coordination - Smart Connect MEP Elements, Match MEP Element Elevation, HVAC Schematic, Duct Standard, Pipe Sizing, MEP Openings, Elements to Ceiling Grid&#x0a;Data &amp; Manage - Element ID lookup, Link Workset, Reassign Reference Level, Assign Location, View Crop, Shared to Family, Purge Unplaced Views/Sections&#x0a;AI Assistant - C# with AI chat shell, Run Pinned / Saved Scripts"
+                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="Quick - Quick Menu (tool wheel around the pointer), Customise&#x0a;View - View Crop, Unhide All, Toggle Links, Filter Pro, Colorize, Highlight Selection&#x0a;Graphics - Apply Graphics, Match Graphics, Reset Graphics&#x0a;Datums - Reset Grid/Level Extents to 3D, Modify Level Extents, Flip Grid/Level Bubbles&#x0a;Modify - Match MEP Element Elevation, Reassign Reference Level, Pin/Unpin Elements, Smart Selection&#x0a;MEP &amp; Opening - Connect MEP Elements, Elements to Ceiling Grid, HVAC Schematic, Pipe Sizing, MEP Openings&#x0a;Coordination &amp; Data - Element ID lookup, 3D Views by Workset, Link Workset, Assign Location, Duct Standard&#x0a;Manage - Transfer View Templates / Schedules / Legends / Drafting Views; Purge Unplaced 3D Views / Sections / Schedules / Legends / Drafting Views; Purge Unused View Templates / Filters / Groups; Purge Family Parameters&#x0a;Family - Shared to Family&#x0a;AI Assistant - C# (script pane with AI chat), Run Pinned / Saved Scripts&#x0a;Game - Game Mode"
                                                Margin="0,0,0,4"/>
                                 </StackPanel>
                             </Border>
@@ -946,7 +946,7 @@
                             <Border Style="{StaticResource CardBorderStyle}">
                                 <StackPanel>
                                     <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="AJ Annotation tab" Margin="0,0,0,10"/>
-                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="Dimensioning - Automatic Grid/Level Dimensions, Quick Parallel Dimensions, Copy Dimension Text&#x0a;Tagging - Smart MEP Tags, Rearrange Tags, L-Shape Leader, Center Room Tags/Annotation&#x0a;Duct Flow - Duct Flow Annotations&#x0a;Text &amp; Clouds - Copy/Swap Text Notes, Arrange Text in Box, Revision Clouds by Elements"/>
+                                    <TextBlock Style="{StaticResource BodyTextStyle}" Text="Dimensions - Auto MEP Dimension, Automatic Dimension, Automatic Grid/Level Dimensions, Quick Dimension (incl. Grid/Level Dimensions by Picked Line), Copy Dimension Text&#x0a;Annotation - Duct Flow Annotations, Revision Clouds, Revision Clouds by Elements, Copy/Swap Text Notes, Copy Text Notes&#x0a;Text - Arrange Text in Box&#x0a;Family - Center Annotation&#x0a;Tags - Smart MEP Tags, Create Tags, Stack Tags, Fix Tag Clash, Clear Tag Clash Marks, Rearrange Tags, L-Shape Leader, Center Room Tags, Section Mark Visibility"/>
                                 </StackPanel>
                             </Border>
 
@@ -967,7 +967,7 @@
                                 <StackPanel>
                                     <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Recent Highlights" Margin="0,0,0,10"/>
                                     <TextBlock Style="{StaticResource BodyTextStyle}"
-                                               Text="- AJ AI shell: crash/close recovery auto-saves your Prompt and code so a Revit crash no longer loses unsaved work&#x0a;- AJ AI shell: changed lines are now highlighted after every AI edit, including the auto-fix loop&#x0a;- One codebase now builds and deploys across Revit 2020 through 2027 from a single source tree&#x0a;- Colorize and MEP Openings tools carried over and wired into the live ribbon&#x0a;- Ongoing project-wide audit pass: version-safe API helpers, single-undo grouping, and full metadata on every tool"/>
+                                               Text="- Full audit of every file (2026-10-12): a long list of fixes across the tools - see the changelog for details&#x0a;- The outside-AI connection was removed; the C# pane stays for scripts and its AI chat&#x0a;- Quick Menu: a customisable tool wheel that opens around the mouse pointer&#x0a;- Fix Tag Clash: separates overlapping tags and marks any it could not move&#x0a;- Auto MEP Dimension for ducts, pipes, cable trays and conduits&#x0a;- One installer carries builds for every Revit version from 2020 to 2027"/>
                                 </StackPanel>
                             </Border>
 
@@ -975,7 +975,7 @@
                                 <StackPanel>
                                     <TextBlock Foreground="White" FontSize="15" FontWeight="SemiBold" Text="Current Direction" Margin="0,0,0,10"/>
                                     <TextBlock Style="{StaticResource BodyTextStyle}"
-                                               Text="- Keep every AJ Tools panel refactored to the same house conventions&#x0a;- Grow the AJ AI shell so more one-off model tasks can be handled without a new ribbon tool&#x0a;- Widen version coverage as new Revit releases ship&#x0a;- Keep the GitHub release/installer workflow simple to run"/>
+                                               Text="- Keep every AJ Tools panel to the same house conventions&#x0a;- Keep tools honest: no silent failures, no success popups, clear reasons when something is skipped&#x0a;- Widen version coverage as new Revit releases ship&#x0a;- Keep the GitHub release/installer workflow simple to run"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

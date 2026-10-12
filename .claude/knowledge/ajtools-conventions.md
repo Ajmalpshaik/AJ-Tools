@@ -106,7 +106,7 @@ place rather than leaving stale info sitting next to the new truth.
     reads like one. When a generated path must match a copy destination, derive both from the same custom
     metadata value instead of re-concatenating.
 
-**The ProgramData auto-deploy was BROKEN and is now disabled (found 2026-08-12)**
+**The ProgramData auto-deploy was BROKEN — disabled 2026-08-12, removed 2026-10-12**
 - `DeployAjToolsAddin` copied only `$(TargetPath)`, the PDB and `@(Content)` — the DLL and the icons.
   It **never copied the NuGet dependencies** (Newtonsoft.Json, Roslyn, AvalonEdit, CommunityToolkit),
   so it produced a **7.7 MB install missing everything the AI shell needs** — and
@@ -116,11 +116,11 @@ place rather than leaving stale info sitting next to the new truth.
   complete 1.42.1. The obvious move — keep the newer-looking one — would have **deleted the working
   install and kept the broken one**. Always check a deploy is COMPLETE (dependencies present), not
   just newer.
-- Disabled by commenting out `RevitAddinDeployName` + `DeployRoots` in `src/AJ Tools.csproj`.
-  `AutoDeployRevitAddin` (AppData) copies `$(OutputPath)**\*.*` — everything — and is the deploy that
-  always actually worked. All-users installs still go through `dist\install-all-users.cmd`, which
-  ships a complete payload. To re-enable, restore both entries AND fix the target to copy
-  dependencies, or the same half-install returns.
+- The dead target and its properties were deleted on 2026-10-12, together with a leftover build step
+  that renamed the DLL inside `%APPDATA%\...\<year>\AJ Tools\` (the installer's folder, not the build's)
+  on every build. `AutoDeployRevitAddin` (AppData) copies `$(OutputPath)**\*.*` — everything — and is
+  the only build-time deploy. All-users installs go through `dist\install-all-users.cmd`, which ships a
+  complete payload. Never bring back a deploy that skips the dependencies.
 
 **Every build left a payload folder behind — now swept automatically (2026-08-12)**
 - `AutoDeployRevitAddin` must create a fresh `AJ Tools.<timestamp>\` each build (a running Revit locks

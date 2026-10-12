@@ -6,7 +6,7 @@ RevitAPIUI reference assemblies** (Nice3point.Revit.Api NuGet packages — the s
 ones the build uses), not just documentation. Method presence *and* full parameter
 signatures are decoded from assembly metadata.
 
-Verification method: `dnfile`-based ECMA-335 metadata audit script run against
+Verification method: an ECMA-335 metadata-reading audit script run against
 RevitAPI.dll / RevitAPIUI.dll for all eight versions (2020.2.60, 2021.1.50,
 2022.1.80, 2023.1.90, 2024.3.40, 2025.4.50, 2026.4.10, 2027.1.0).
 
@@ -36,7 +36,7 @@ LocationDataAssignerWindow) are the sanctioned `AjGroup`/`AjSpec` alias pattern.
 `snapshot.IntegerValue` hits are a plain model property, not `ElementId.IntegerValue`.
 
 **Source changes: none.** Build verification: same limitation as all other audits — a real
-8-configuration `build-all.ps1` run on the local machine remains the final step before release.
+8-configuration build on the local machine (`dist\package.ps1` builds all eight) remains the final step before release.
 
 ---
 
@@ -175,7 +175,7 @@ No `#if` blocks; all ElementId numeric access via `ElementIdHelper.GetIntegerVal
 **Source changes: none** — headers contain no stale compatibility claims.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -202,7 +202,7 @@ No `#if` blocks; no legacy unit/ElementId usage; `.IntValue()` used for id compa
 **Source changes: none** — headers contain no stale compatibility claims.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -229,7 +229,7 @@ removed member; ElementId access via `.IntValue()`.
 **Source changes: none** — headers contain no stale compatibility claims.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -258,7 +258,7 @@ no conditional compilation needed.
 **Source changes: none** — headers contain no stale compatibility claims.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -300,7 +300,7 @@ from tool files per the project rule ("version-specific code lives ONLY inside h
 behaviour difference on any version.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -321,7 +321,7 @@ no ElementId numeric access, no unit API, no string filter rules, no tagging API
 **Source changes: none** — headers contain no stale compatibility claims.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -358,7 +358,7 @@ frameworks. Config persistence is JSON via Newtonsoft (framework-independent).
 **Source changes: none** — headers contain no stale compatibility claims.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -383,7 +383,7 @@ via Newtonsoft — identical API surface on .NET Fx 4.7.2/4.8, .NET 8, and .NET 
 **Source changes: none** — headers are accurate.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -419,7 +419,7 @@ DisplayUnitType — revisit for 2021+ ForgeTypeId builds", but the code had alre
 RevitCompat in an earlier pass — the stale notes were corrected (no code touched).
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -479,7 +479,7 @@ helpers, per the project rule.
 absent again in 2025+ — a reminder not to adopt one-version-only overloads outside helpers.
 
 **Build verification:** same limitation as the other audits — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -515,7 +515,7 @@ to any removed member.
 claims, unlike the older Filter Pro headers corrected in this same audit branch).
 
 **Build verification:** same limitation as Filter Pro below — assembly-metadata verification only;
-a real 8-configuration build still needs `build-all.ps1` on the local machine.
+a real 8-configuration build still needs to run on the local machine (`dist\package.ps1` builds all eight).
 
 ---
 
@@ -585,4 +585,4 @@ as `int` via `IntValue()`. Revit 2024+ ids are 64-bit; the repo-wide documented 
 **Build verification:** not possible in the cloud session that produced this audit — the sandbox
 has no .NET SDK and its network policy blocks the SDK download (`builds.dotnet.microsoft.com`
 denied). Compatibility was instead verified at assembly-metadata level as described above. A real
-8-configuration build (`build-all.ps1`) still needs to be run on the local machine.
+8-configuration build (`dist\package.ps1` builds all eight) still needs to be run on the local machine.

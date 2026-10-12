@@ -67,10 +67,6 @@ namespace AJTools.Utils
         /// </summary>
         public const int ELEMENT_SCAN_LIMIT = 10000;
 
-        /// <summary>
-        /// Precision for rounding grid direction keys (decimal places).
-        /// </summary>
-        public const int DIRECTION_PRECISION = 3;
 
         /// <summary>
         /// Very small value used for near-zero length checks.

@@ -488,7 +488,7 @@ Revit, or code-review only) -> date.
   duct/pipe/tray runs can tilt the cloud away from 0/90 degrees — but not applied without his sign-off.
   -> 2026-07-28 (open).
 
-### 2026-07-28 (HVAC Schematic: "The given key was not present in the dictionary" — OPEN, diagnostic build deployed)
+### 2026-07-28 (HVAC Schematic: "The given key was not present in the dictionary" — FIXED in 1.25.7, entry closed 2026-10-12)
 - **Symptom (Ajmal's words: "IN THE HVAC SCHEMATIC ITS CAME WHY")**: Create HVAC Schematic From Model
   shows "An unexpected error occurred. / The given key was not present in the dictionary." Popup text is
   the OUTER catch of `HvacSchematicCommand.Execute` — so the crash is in analysis/layout, BEFORE the
@@ -521,6 +521,15 @@ Revit, or code-review only) -> date.
 - **Process note**: reproduced the click via desktop automation once — a stray second Revit (viewer
   mode) got launched and Ajmal stopped it; desktop automation is now off-limits (see cross-session
   memory `no-desktop-automation`). Ask him to click instead. -> 2026-07-28.
+- **Resolution (recorded 2026-10-12, full audit)**: the root cause was found and fixed the same night in
+  commit 29d6112 (`SchematicLayoutEngine.cs` v1.1.1, suite 1.25.7), but this entry was never closed.
+  `AssignTreePositions` pre-set `continuationChildId` to "none" (-1) and then passed it as the `out`
+  argument of `TryGetValue`, which overwrites it with 0 when the key is missing - so every leaf node
+  looked up `nodeById[0]` and threw on almost every run. The hand-written replay passed because it
+  checked `TryGetValue`'s return value, which the shipped code did not. The fix checks it. The audit
+  also confirmed every remaining `[ ]` lookup in the schematic code only receives guaranteed keys.
+  **Lesson**: an `out` parameter is always written, even when the lookup fails - never pre-set a
+  default and then pass the same variable as `out`.
 
 ### 2026-07-28 (v1.25.6 shipped as a public release, same day as the audit)
 - Ajmal asked to finish the remaining work (public installer release) right after the audit landed on

@@ -6,10 +6,10 @@
  *                 for instant visual identification of a selection against the rest of the model.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-07-19
- * Last Updated  : 2026-07-26
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,12 +24,12 @@
  * Notes         :
  * - Targets Revit 2020 through latest.
  * - Colors both projection and cut (line + solid surface fill) so the effect reads the same in plan,
- *   section, and 3D views - mirrors AJ AI Bridge fragment action-highlight-vs-rest.cs, proven live
- *   2026-07-19 (22 selected, 19 landed in the active 3D view, 3 were tags belonging to a different view).
+ *   section, and 3D views. Proven live 2026-07-19 (22 selected, 19 landed in the active 3D view, 3 were
+ *   tags belonging to a different view).
  * - The current selection can include elements not present in the active view's collector (e.g. tags
  *   that belong to a different open view) - only the subset actually in the active view gets colored
  *   red; if NONE of the selection is in the active view, that's reported as an error instead of silently
- *   doing nothing. See knowledge/live-model/views.md for the live-verified root cause.
+ *   doing nothing. (Root cause verified live 2026-07-19: a selection can hold tags owned by another view.)
  * - ExpandInsulationAndLining() is deliberately NOT restricted to Ducts/Pipes - it calls
  *   Autodesk.Revit.DB.InsulationLiningBase.GetInsulationIds / GetLiningIds on every highlighted
  *   element regardless of category, and just catches/skips the ArgumentException Revit itself throws
@@ -51,6 +51,8 @@
  * - ESC during a pick cancels silently (no error dialog).
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - Notes no longer point at removed AI-bridge scripts and notes; the facts they
+ *                       recorded are kept in place. No behaviour change.
  * v1.2.0 (2026-07-26) - Completed the insulation story flagged in v1.1.0's scope note, both halves:
  *                       (1) selecting insulation/lining directly now pulls its HOST into the red set
  *                       (InsulationLiningBase.HostElementId), so the duct/pipe under a picked wrap

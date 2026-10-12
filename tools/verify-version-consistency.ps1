@@ -2,7 +2,7 @@
     verify-version-consistency.ps1 - AJ Tools
 
     WHY THIS EXISTS
-    The suite version is written in five places, and they drift. An independent audit on 2026-08-05
+    The suite version is written in six places, and they drift. An independent audit on 2026-08-05
     caught README.md advertising 1.39.1 while the assembly was 1.40.3 - ten versions behind. It was
     fixed by hand, and then drifted AGAIN one version later, because the next version bump updated
     AssemblyInfo and CHANGELOG but not the README. A hand-fix does not solve a recurring drift; a check
@@ -66,8 +66,17 @@ foreach ($f in $found) {
 }
 
 # Informational only: the deployed DLL lags whenever a bump happened after the last deploy.
-$deployed = 'C:\ProgramData\Autodesk\Revit\Addins\2020\AJ Tools\AJ Tools.dll'
-if (Test-Path $deployed) {
+# Builds deploy to the current user's AppData into a fresh "AJ Tools.<stamp>" folder each time, so
+# read the DLL path from the Revit 2020 manifest instead of guessing a folder.
+$deployed = $null
+$manifest = Join-Path $env:APPDATA 'Autodesk\Revit\Addins\2020\AJ Tools.addin'
+if (Test-Path $manifest) {
+    try {
+        $assemblyNode = ([xml](Get-Content -Raw $manifest)).RevitAddIns.AddIn.Assembly
+        if ($assemblyNode) { $deployed = [string]$assemblyNode }
+    } catch { $deployed = $null }
+}
+if ($deployed -and (Test-Path $deployed)) {
     $dv = (Get-Item $deployed).VersionInfo.FileVersion
     Write-Host ("`n  {0,-24} {1,-12} {2}" -f 'deployed DLL (info)', $dv, $(if ($dv -like "$expected*") { 'matches' } else { 'older - redeploy to update' }))
 }

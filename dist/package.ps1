@@ -80,9 +80,9 @@ function Copy-PayloadFromOutput {
 }
 
 function Resolve-DotNetPath {
-    # The VS-bundled MSBuild.exe only sees the machine-wide .NET SDK (currently 9.x here), which
-    # cannot target net10.0-windows (Revit 2027). The user-local SDK install has .NET 10 - use its
-    # own dotnet.exe for that build so it resolves its own SDK correctly.
+    # Revit 2027 needs the .NET 10 SDK. Older Visual Studio MSBuild versions resolve an older
+    # machine-wide SDK that cannot target net10.0-windows, so the 2027 build always goes through
+    # dotnet.exe: a user-local SDK install first (where one exists), otherwise dotnet on PATH.
     $localDotNet = Join-Path $env:LOCALAPPDATA "Microsoft\dotnet\dotnet.exe"
     if (Test-Path -LiteralPath $localDotNet) {
         return $localDotNet
@@ -240,4 +240,4 @@ if ($IncludeSymbols) {
 } else {
     Write-Host "Symbols       : excluded (use -IncludeSymbols to include .pdb)"
 }
-Write-Host "Next step     : Upload the zip to public installer releases: https://github.com/Ajmalpshaik/AJ-Tools-Installer/releases"
+Write-Host "Next step     : Follow RELEASE_PROCESS.md (prepare-release.ps1 in AJ-Tools-Installer, then push the tag - publishing is automated; do not upload by hand)."

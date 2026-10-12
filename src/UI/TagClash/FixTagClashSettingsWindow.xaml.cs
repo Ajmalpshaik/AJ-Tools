@@ -6,10 +6,10 @@
  *                 matching tolerances.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-08-16
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,8 @@
  *   made elsewhere. Same reason "Reset to defaults" here deliberately leaves that one value alone.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Added the standard window entrance/exit motion every other working dialog has; header
+ *                       version brought in line with the changelog (it still said 1.0.0).
  * v1.1.0 (2026-08-17) - Moved the "skip vertical runs" tick box out to the Create Tags settings window
  *                       where a tagging rule belongs; the value is still stored here and carried
  *                       through untouched. Ajmal's call.
@@ -76,6 +78,12 @@ namespace AJTools.UI.TagClash
         public FixTagClashSettingsWindow(TagClashSettingsState current)
         {
             InitializeComponent();
+
+            // Shared AJ Tools window entrance and exit (fade + short rise / sink). Cosmetic only - the
+            // window's result, validation and close behaviour are unchanged (see WindowMotionHelper).
+            WindowMotionHelper.AttachStandardEntrance(this);
+            WindowMotionHelper.AttachStandardExit(this);
+
             LoadFrom(current ?? TagClashSettings.CreateDefaults());
             _loaded = true;
             Validate();
