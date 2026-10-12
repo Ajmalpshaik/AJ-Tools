@@ -6,10 +6,10 @@
  *                 Element ID together with which model it came from.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.1
+ * Version       : 1.1.2
  *
  * Created Date  : 2025-12-07
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,6 +23,10 @@
  * Notes         :
  * - Targets Revit 2020 through latest; version-safe ElementId access via ElementIdHelper.
  * - Read-only: reads linked-model data via the link instance, never modifies any element.
+ * - One pick (ObjectType.PointOnElement) covers both models: a linked pick comes back with
+ *   LinkedElementId set, a host pick without it, and Execute branches on that. A click that lands on
+ *   a link without hitting one element inside it is asked again as a linked-element pick, the same
+ *   pick this tool always used for links.
  * - Esc during the pick cancels silently.
  * - Production-ready implementation.
  *
@@ -30,6 +34,10 @@
  * v1.0.1 (2025-12-10) - Host/linked pick fallback and clean link naming.
  * v1.1.0 (2026-07-01) - Refactor/audit: full metadata block; version-safe ElementId display. Behaviour unchanged.
  * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
+ * v1.1.2 (2026-10-12) - Host-model elements can now be picked: the pick used ObjectType.LinkedElement only, and
+ *                       the host fallback waited for an InvalidOperationException PickObject never throws, so
+ *                       "model or linked" (the ribbon tooltip) only ever worked for linked elements. Now one
+ *                       PointOnElement pick, branched on LinkedElementId; linked results are unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -136,24 +144,26 @@ namespace AJTools.Commands
         {
             try
             {
-                // First try picking from linked models.
-                return uiDoc.Selection.PickObject(
-                    ObjectType.LinkedElement,
-                    "Select an element from a linked model or press ESC to cancel");
-            }
-            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
-            {
-                // Fall back to current model if linked selection is not available in this context.
-                try
+                // PointOnElement reaches the current model AND loaded links: a linked pick returns the link
+                // instance as ElementId with LinkedElementId set, a host pick leaves LinkedElementId invalid.
+                // (LinkedElement alone can never pick a host element.)
+                Reference picked = uiDoc.Selection.PickObject(
+                    ObjectType.PointOnElement,
+                    "Select an element in the current model or a linked model, or press ESC to cancel");
+
+                // A click on a loaded link that did not land on one element inside it comes back as the link
+                // instance itself - ask once more with the linked-element pick this tool always used for links.
+                if (picked != null &&
+                    picked.LinkedElementId == ElementId.InvalidElementId &&
+                    uiDoc.Document.GetElement(picked.ElementId) is RevitLinkInstance linkInstance &&
+                    linkInstance.GetLinkDocument() != null)
                 {
                     return uiDoc.Selection.PickObject(
-                        ObjectType.Element,
-                        "Select an element from the current model or press ESC to cancel");
+                        ObjectType.LinkedElement,
+                        "Select the element inside the linked model, or press ESC to cancel");
                 }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                {
-                    return null;
-                }
+
+                return picked;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {

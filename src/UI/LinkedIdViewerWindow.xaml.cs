@@ -1,8 +1,8 @@
 ﻿// Tool Name: Linked ID Viewer UI
 // Description: WPF dialog showing picked element ID and model source with copy support.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Windows
 using System;
@@ -16,6 +16,8 @@ namespace AJTools.UI
 {
     public partial class LinkedIdViewerWindow : Window
     {
+        private readonly string _defaultInfoText;
+
         public LinkedIdViewerWindow(string elementId, string modelSource)
         {
             InitializeComponent();
@@ -28,6 +30,7 @@ namespace AJTools.UI
             WindowMotionHelper.AttachStandardExit(this);
             ElementIdBox.Text = elementId ?? string.Empty;
             ModelSourceBox.Text = modelSource ?? "Current Model";
+            _defaultInfoText = InfoText.Text;
         }
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
@@ -43,10 +46,17 @@ namespace AJTools.UI
                 {
                     Clipboard.SetText(ElementIdBox.Text);
                 }
+
+                InfoText.Text = _defaultInfoText;
+                InfoText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ignore clipboard errors and keep the window open
+                // Keep the window open, but say the copy did not happen - otherwise the user pastes
+                // whatever was on the clipboard before. Usually another program holding the clipboard.
+                InfoText.Text = "Could not copy to the clipboard: " + ex.Message +
+                                " Try Copy again, or select the ID above and press Ctrl+C.";
+                InfoText.SetResourceReference(TextBlock.ForegroundProperty, "AccentDanger");
             }
         }
 

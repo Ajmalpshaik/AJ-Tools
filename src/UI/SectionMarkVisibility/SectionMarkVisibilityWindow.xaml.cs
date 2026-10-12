@@ -5,10 +5,10 @@
  * Purpose       : Code-behind for the main options dialog (run scope, sheet-number rows, modes).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-05-24
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,10 @@
  * Changelog     :
  * v1.0.0 (2026-05-24) - Initial release.
  * v1.2.0 (2026-06-30) - Cleanup pass: metadata block; aligned with service refactor.
+ * v1.2.1 (2026-10-12) - Keep All Placed and Unhide All no longer wipe the saved sheet numbers: they
+ *                       saved an empty list, so the typed filter was gone next time. Those modes do not
+ *                       use the list, so the typed rows are now saved as they are. A failed settings save
+ *                       is now reported instead of ignored.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -138,10 +142,7 @@ namespace AJTools.UI.SectionMarkVisibility
             ErrorText.Text = string.Empty;
 
             // Extract, clean, and validate sheet numbers
-            var sheets = _sheetRows
-                .Select(r => (r.SheetNumber ?? string.Empty).Trim())
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToList();
+            var sheets = ReadTypedSheetNumbers();
 
             if (sheets.Count == 0)
             {
@@ -155,7 +156,7 @@ namespace AJTools.UI.SectionMarkVisibility
             SelectedSettings.SheetNumbers = sheets;
 
             // Save settings persistent memory
-            SectionMarkVisibilityConfigStore.Save(SelectedSettings);
+            SaveSettings();
 
             DialogResult = true;
             Close();
@@ -168,9 +169,12 @@ namespace AJTools.UI.SectionMarkVisibility
             SelectedSettings.ApplyToActiveViewOnly = ActiveViewOnlyRadio.IsChecked == true;
             SelectedSettings.KeepAllPlacedSections = true;
             SelectedSettings.UnhideAllSections = false;
-            SelectedSettings.SheetNumbers = new List<string>();
 
-            SectionMarkVisibilityConfigStore.Save(SelectedSettings);
+            // This mode does not use the sheet numbers, but they are saved for next time - saving an
+            // empty list here used to wipe the user's typed filter.
+            SelectedSettings.SheetNumbers = ReadTypedSheetNumbers();
+
+            SaveSettings();
 
             DialogResult = true;
             Close();
@@ -183,12 +187,37 @@ namespace AJTools.UI.SectionMarkVisibility
             SelectedSettings.ApplyToActiveViewOnly = ActiveViewOnlyRadio.IsChecked == true;
             SelectedSettings.KeepAllPlacedSections = false;
             SelectedSettings.UnhideAllSections = true;
-            SelectedSettings.SheetNumbers = new List<string>();
 
-            SectionMarkVisibilityConfigStore.Save(SelectedSettings);
+            // Not used by this mode either - kept so the saved filter survives (see OnKeepAllPlaced).
+            SelectedSettings.SheetNumbers = ReadTypedSheetNumbers();
+
+            SaveSettings();
 
             DialogResult = true;
             Close();
+        }
+
+        private List<string> ReadTypedSheetNumbers()
+        {
+            return _sheetRows
+                .Select(r => (r.SheetNumber ?? string.Empty).Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Saves the settings for next time. A failed save does not stop the run - it only means the
+        /// choices will not be remembered - but the user is told rather than finding out next time.
+        /// </summary>
+        private void SaveSettings()
+        {
+            if (!SectionMarkVisibilityConfigStore.Save(SelectedSettings, out string error))
+            {
+                DialogHelper.ShowError(
+                    "Section Mark Visibility",
+                    "Your settings could not be saved for next time:\n\n" + error +
+                    "\n\nThis run is not affected.");
+            }
         }
 
         private void OnCancel(object sender, RoutedEventArgs e)

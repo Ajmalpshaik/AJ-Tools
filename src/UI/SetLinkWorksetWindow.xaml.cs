@@ -1,8 +1,8 @@
 ﻿// Tool Name: Set Link Workset UI
 // Description: Dialog to assign Revit links and CAD imports to a workset.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-23
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, System.Windows
 
@@ -12,6 +12,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using Autodesk.Revit.DB;
 using AJTools.Utils;
 
@@ -23,6 +24,9 @@ namespace AJTools.UI
     public partial class SetLinkWorksetWindow : Window
     {
         private const string DialogTitle = "Set Link Workset";
+        private const string NotWorksharedMessage =
+            "This model is not workshared, so links can't be put on a workset here. " +
+            "Turn on worksharing first (Collaborate tab > Worksets) - this tool will not do that for you.";
         private readonly Document _doc;
         private readonly ObservableCollection<LinkWorksetItem> _linkItems;
 
@@ -51,7 +55,25 @@ namespace AJTools.UI
             workset_combobox.ItemsSource = worksetNames;
             workset_combobox.Text = LinkWorksetSettings.GetLastWorksetName();
 
+            // Worksets only exist in a workshared model. Turning worksharing on is a decision for the
+            // whole model (it also clears the Undo history), so this tool never does it - it says so
+            // up front instead of failing part way through.
+            if (!_doc.IsWorkshared)
+            {
+                assign_workset_button.IsEnabled = false;
+                ShowStatus(NotWorksharedMessage, isProblem: true);
+            }
+
             Loaded += (s, e) => workset_combobox.Focus();
+        }
+
+        private void ShowStatus(string message, bool isProblem)
+        {
+            StatusText.Text = message ?? string.Empty;
+            StatusText.SetResourceReference(TextBlock.ForegroundProperty, isProblem ? "AccentDanger" : "TextSecondary");
+            StatusText.Visibility = string.IsNullOrEmpty(StatusText.Text)
+                ? System.Windows.Visibility.Collapsed
+                : System.Windows.Visibility.Visible;
         }
 
         private static IList<LinkWorksetItem> CollectLinkItems(Document doc)
@@ -99,6 +121,13 @@ namespace AJTools.UI
 
         private void OnAssignWorkset(object sender, RoutedEventArgs e)
         {
+            // The button is disabled for a non-workshared model; re-checked here as a guard.
+            if (!_doc.IsWorkshared)
+            {
+                ShowStatus(NotWorksharedMessage, isProblem: true);
+                return;
+            }
+
             string targetWorksetName = workset_combobox.Text ?? string.Empty;
             if (string.IsNullOrEmpty(targetWorksetName))
             {
@@ -106,9 +135,8 @@ namespace AJTools.UI
                 return;
             }
 
-            List<Element> linksToMove = _linkItems
+            List<LinkWorksetItem> linksToMove = _linkItems
                 .Where(item => item.IsChecked)
-                .Select(item => item.Element)
                 .ToList();
 
             if (linksToMove.Count == 0)
@@ -117,43 +145,79 @@ namespace AJTools.UI
                 return;
             }
 
+            var moved = new List<string>();
+            var notMoved = new List<string>();
+            int alreadyThere = 0;
+
             try
             {
                 using (var t = new Transaction(_doc, "Assign Links to Workset"))
                 {
                     t.Start();
 
-                    if (!_doc.IsWorkshared)
-                    {
-                        _doc.EnableWorksharing("Shared Levels and Grids", "Workset1");
-                    }
-
                     Workset targetWorkset = FindOrCreateWorkset(_doc, targetWorksetName);
 
-                    foreach (Element link in linksToMove)
+                    // The workset parameter expects an integer Workset id value.
+                    // WorksetId.IntegerValue is unrelated to ElementId and is valid in all versions.
+                    int targetId = targetWorkset.Id.IntegerValue;
+
+                    foreach (LinkWorksetItem item in linksToMove)
                     {
-                        Parameter worksetParam = link.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
-                        if (worksetParam != null && !worksetParam.IsReadOnly)
+                        Parameter worksetParam = item.Element.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                        if (worksetParam == null || worksetParam.IsReadOnly)
                         {
-                            // The workset parameter expects an integer Workset id value.
-                            // WorksetId.IntegerValue is unrelated to ElementId and is valid in all versions.
-                            worksetParam.Set(targetWorkset.Id.IntegerValue);
+                            notMoved.Add(item.Name);
+                            continue;
                         }
+
+                        if (worksetParam.AsInteger() == targetId)
+                        {
+                            alreadyThere++;
+                            continue;
+                        }
+
+                        if (worksetParam.Set(targetId))
+                            moved.Add(item.Name);
+                        else
+                            notMoved.Add(item.Name);
                     }
 
-                    t.Commit();
+                    // A rolled-back commit (e.g. a link owned by another user) moved nothing.
+                    if (t.Commit() != TransactionStatus.Committed)
+                    {
+                        ShowStatus("Revit did not keep the change, so no link was moved.", isProblem: true);
+                        return;
+                    }
                 }
-
-                LinkWorksetSettings.SaveLastWorksetName(targetWorksetName);
-                Close();
-                DialogHelper.ShowInfo(
-                    "Success",
-                    $"Successfully moved {linksToMove.Count} link(s) to the \"{targetWorksetName}\" workset.");
             }
             catch (Exception ex)
             {
                 DialogHelper.ShowError(DialogTitle, "Failed to assign workset:\n\n" + ex.Message);
+                return;
             }
+
+            bool saved = LinkWorksetSettings.SaveLastWorksetName(targetWorksetName, out string saveError);
+
+            // The result goes in the status line - no success popup. The window stays open so the
+            // line can be read; Close when done.
+            string status = $"Moved {moved.Count} link(s) to the \"{targetWorksetName}\" workset.";
+            if (alreadyThere > 0)
+                status += $" {alreadyThere} were already on it.";
+            if (notMoved.Count > 0)
+                status += " Not moved - their workset can't be changed: " + JoinNames(notMoved) + ".";
+            if (!saved)
+                status += " The workset name could not be remembered for next time: " + saveError;
+
+            ShowStatus(status, isProblem: notMoved.Count > 0 || !saved);
+        }
+
+        private static string JoinNames(IList<string> names)
+        {
+            const int MaxShown = 5;
+            string shown = string.Join(", ", names.Take(MaxShown));
+            return names.Count > MaxShown
+                ? shown + $" and {names.Count - MaxShown} more"
+                : shown;
         }
 
         private static Workset FindOrCreateWorkset(Document doc, string targetWorksetName)

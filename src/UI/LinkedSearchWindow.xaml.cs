@@ -1,8 +1,8 @@
 ﻿// Tool Name: Linked Element Search UI
 // Description: WPF dialog to search by Element ID across host and linked models and zoom to the result.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2025-12-10
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, Autodesk.Revit.UI, System.Windows
 using System;
@@ -28,15 +28,15 @@ namespace AJTools.UI
         private readonly Document _hostDoc;
         private readonly View _activeView;
         private readonly IList<LinkDisplayItem> _linkItems;
+        private readonly string _defaultInfoText;
 
-        private ElementId _lastHostElementId = ElementId.InvalidElementId;
-        private RevitLinkInstance _lastLinkInstance;
-        private ElementId _lastLinkedElementId = ElementId.InvalidElementId;
-        private ElementId _lastOverrideTarget = ElementId.InvalidElementId;
+        // True while the match list is being filled or cleared in code, so that is not taken as a pick.
+        private bool _fillingMatches;
 
         public LinkedSearchWindow(UIDocument uiDoc, Document hostDoc, View activeView, IEnumerable<RevitLinkInstance> links)
         {
             InitializeComponent();
+            _defaultInfoText = InfoText.Text;
 
             // Shared AJ Tools window entrance (fade + short rise). Cosmetic only.
             WindowMotionHelper.AttachStandardEntrance(this);
@@ -89,11 +89,6 @@ namespace AJTools.UI
         private void OnSearch(object sender, RoutedEventArgs e)
         {
             ClearMessages();
-            _lastOverrideTarget = ElementId.InvalidElementId;
-            _lastHostElementId = ElementId.InvalidElementId;
-            _lastLinkedElementId = ElementId.InvalidElementId;
-            _lastLinkInstance = null;
-            
 
             if (!int.TryParse(ElementIdBox.Text?.Trim(), out int parsedId) || parsedId <= 0)
             {
@@ -103,22 +98,12 @@ namespace AJTools.UI
                 return;
             }
 
-            bool found = false;
-
+            List<LinkDisplayItem> modelsToSearch;
             bool searchAll = SearchAllCheck?.IsChecked == true;
 
             if (searchAll)
             {
-                found = TryFindInHost(parsedId);
-                if (!found)
-                {
-                    foreach (var item in _linkItems.Where(i => !i.IsHost))
-                    {
-                        found = TryFindInLink(parsedId, item);
-                        if (found)
-                            break;
-                    }
-                }
+                modelsToSearch = _linkItems.ToList();
             }
             else
             {
@@ -133,21 +118,99 @@ namespace AJTools.UI
                 }
 
                 var selectedSet = new HashSet<LinkDisplayItem>(selectedItems);
-                foreach (var item in _linkItems.Where(i => selectedSet.Contains(i)))
-                {
-                    found = item.IsHost
-                        ? TryFindInHost(parsedId)
-                        : TryFindInLink(parsedId, item);
+                modelsToSearch = _linkItems.Where(i => selectedSet.Contains(i)).ToList();
+            }
 
-                    if (found)
-                        break;
+            // Element IDs are only unique inside ONE model - the host and every link number their own
+            // elements, so the same ID often exists in several of them. Every chosen model is searched
+            // instead of stopping at the first hit, so a linked element's ID can't silently land on an
+            // unrelated host element.
+            List<SearchMatch> matches = FindMatches(parsedId, modelsToSearch);
+
+            if (matches.Count == 0)
+            {
+                ErrorText.Text = "Element ID not found in the chosen model(s).";
+                return;
+            }
+
+            if (matches.Count == 1)
+            {
+                if (ShowMatch(matches[0]))
+                {
+                    InfoText.Text = "Found in: " + matches[0].Label;
+                }
+
+                return;
+            }
+
+            // Several models have this ID - nothing is selected until the user says which one they mean.
+            InfoText.Text = string.Format(
+                CultureInfo.CurrentCulture,
+                "Element ID {0} exists in {1} models. Pick the one you mean:",
+                parsedId,
+                matches.Count);
+
+            _fillingMatches = true;
+            try
+            {
+                MatchList.ItemsSource = matches;
+                MatchList.SelectedItem = null;
+            }
+            finally
+            {
+                _fillingMatches = false;
+            }
+
+            MatchList.Visibility = System.Windows.Visibility.Visible;
+        }
+
+        private void OnMatchSelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (_fillingMatches)
+                return;
+
+            if (MatchList.SelectedItem is SearchMatch match)
+            {
+                ErrorText.Text = string.Empty;
+                ShowMatch(match);
+            }
+        }
+
+        private List<SearchMatch> FindMatches(int elementId, IEnumerable<LinkDisplayItem> models)
+        {
+            var matches = new List<SearchMatch>();
+            ElementId id = ElementIdHelper.FromInt(elementId);
+
+            foreach (LinkDisplayItem model in models)
+            {
+                Document doc;
+                if (model.IsHost)
+                {
+                    doc = _hostDoc;
+                }
+                else
+                {
+                    if (model.Instance == null || model.LinkDocument == null)
+                        continue;
+
+                    doc = model.LinkDocument;
+                }
+
+                Element element = doc?.GetElement(id);
+                if (element != null)
+                {
+                    matches.Add(new SearchMatch(model, element));
                 }
             }
 
-            if (!found)
-            {
-                ErrorText.Text = "Element ID not found in the chosen model(s).";
-            }
+            return matches;
+        }
+
+        private bool ShowMatch(SearchMatch match)
+        {
+            return match.Model.IsHost
+                ? ShowHostElement(match.Element.Id)
+                : ShowLinkedElement(match.Element, match.Model);
         }
 
         // Cancel button handler from XAML
@@ -267,23 +330,12 @@ namespace AJTools.UI
 
             return formatted.Width;
         }
-        private bool TryFindInHost(int elementId)
+        private bool ShowHostElement(ElementId id)
         {
-            ElementId id = ElementIdHelper.FromInt(elementId);
-            Element element = _hostDoc.GetElement(id);
-            if (element == null)
-                return false;
-
             try
             {
                 _uiDoc.Selection.SetElementIds(new List<ElementId> { id });
                 _uiDoc.ShowElements(id);
-
-                _lastHostElementId = id;
-                _lastLinkedElementId = ElementId.InvalidElementId;
-                _lastLinkInstance = null;
-                _lastOverrideTarget = id;
-                
 
                 // Found in current model
                 return true;
@@ -295,14 +347,9 @@ namespace AJTools.UI
             }
         }
 
-        private bool TryFindInLink(int elementId, LinkDisplayItem item)
+        private bool ShowLinkedElement(Element element, LinkDisplayItem item)
         {
-            if (item?.Instance == null || item.LinkDocument == null)
-                return false;
-
-            ElementId id = ElementIdHelper.FromInt(elementId);
-            Element element = item.LinkDocument.GetElement(id);
-            if (element == null)
+            if (element == null || item?.Instance == null || item.LinkDocument == null)
                 return false;
 
             try
@@ -334,12 +381,6 @@ namespace AJTools.UI
                     _uiDoc.ShowElements(new List<ElementId> { item.Instance.Id });
                 }
 
-                _lastHostElementId = ElementId.InvalidElementId;
-                _lastLinkedElementId = id;
-                _lastLinkInstance = item.Instance;
-                _lastOverrideTarget = item.Instance.Id; // override at link instance level
-                
-
                 // Found in link
                 return true;
             }
@@ -368,8 +409,50 @@ namespace AJTools.UI
         private void ClearMessages()
         {
             ErrorText.Text = string.Empty;
-            // clear status
+            InfoText.Text = _defaultInfoText;
+
+            _fillingMatches = true;
+            try
+            {
+                MatchList.ItemsSource = null;
+            }
+            finally
+            {
+                _fillingMatches = false;
+            }
+
+            MatchList.Visibility = System.Windows.Visibility.Collapsed;
         }
 
+        /// <summary>One model that contains the searched Element ID, as listed for the user to pick.</summary>
+        private sealed class SearchMatch
+        {
+            public SearchMatch(LinkDisplayItem model, Element element)
+            {
+                Model = model;
+                Element = element;
+                Label = BuildLabel(model, element);
+            }
+
+            public LinkDisplayItem Model { get; }
+
+            public Element Element { get; }
+
+            public string Label { get; }
+
+            public override string ToString() => Label;
+
+            private static string BuildLabel(LinkDisplayItem model, Element element)
+            {
+                string category = "No category";
+                string name = string.Empty;
+
+                try { category = element.Category?.Name ?? category; } catch (System.Exception) { }
+                try { name = element.Name ?? string.Empty; } catch (System.Exception) { }
+
+                string label = model.DisplayName + " - " + category;
+                return string.IsNullOrWhiteSpace(name) ? label : label + ": " + name;
+            }
+        }
     }
 }

@@ -5,10 +5,10 @@
  * Purpose       : Persists/loads the user's run scope and sheet-number filter between sessions.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-05-24
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,6 +26,8 @@
  * Changelog     :
  * v1.0.0 (2026-05-24) - Initial release.
  * v1.2.0 (2026-06-30) - Cleanup pass: persist only the values restored by the UI; metadata block.
+ * v1.2.1 (2026-10-12) - Save now returns whether it worked (and why not), so a failed write is reported
+ *                       to the user instead of being swallowed silently.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -96,12 +98,14 @@ namespace AJTools.Utils
         }
 
         /// <summary>
-        /// Saves the given settings to disk.
+        /// Saves the given settings to disk. Returns false, with the reason in <paramref name="error"/>,
+        /// when the file could not be written - the caller tells the user rather than it failing silently.
         /// </summary>
-        internal static void Save(SectionMarkVisibilitySettings settings)
+        internal static bool Save(SectionMarkVisibilitySettings settings, out string error)
         {
+            error = null;
             if (settings == null)
-                return;
+                return true;
 
             try
             {
@@ -117,10 +121,13 @@ namespace AJTools.Utils
                     writer.WriteLine($"ApplyToActiveViewOnly={settings.ApplyToActiveViewOnly}");
                     writer.WriteLine($"SheetNumbers={sheetNumbersCsv}");
                 }
+
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore settings write failures.
+                error = ex.Message;
+                return false;
             }
         }
 

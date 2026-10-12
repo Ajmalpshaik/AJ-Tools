@@ -9,10 +9,10 @@
  *                 another without moving them physically.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-07-17
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,9 +21,8 @@
  * Dependencies  : Autodesk Revit API, Autodesk.Revit.DB.Mechanical, AJTools.Utils
  *
  * Input         : Document, candidate Elements (from a FROM level or from a selection), source/target
- *                 Level, and an OffsetHelper built from the active Revit version - all supplied by
- *                 CmdReassignLevel.cs, which owns UI prompting, the confirmation dialog, and the
- *                 transaction.
+ *                 Level, and an OffsetHelper - all supplied by CmdReassignLevel.cs, which owns UI
+ *                 prompting, the confirmation dialog, and the transaction.
  * Output        : Candidate element list for a given FROM level, or for an explicit selection (each
  *                 with a hosted/unsupported skip count), and per-element reassignment - elements
  *                 re-pointed to the target level with host offset compensated so they stay put;
@@ -44,6 +43,12 @@
  *                       current level as FROM, since a selection can span several levels at once).
  *                       Both are additive; CollectCandidates/ReassignElement are unchanged and still
  *                       used as-is by the Whole Project scope.
+ * v1.1.1 (2026-10-12) - Selected Elements scope: an element whose level reads as "invalid" (none set)
+ *                       passed the "!= null" check, became a candidate and was then counted as a
+ *                       failure - contradicting this file's own rule that elements with no resolvable
+ *                       level are excluded and counted with the unsupported ones. It is now excluded.
+ *                       Removed IsRevit2020OrAbove and OffsetHelper's pre-2020 branch: 2020 is the
+ *                       oldest supported version, so the flag was always true. No behaviour change.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -51,11 +56,8 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.UI;
 using AJTools.Utils;
 
 namespace AJTools.Services.ReassignLevel
@@ -69,16 +71,6 @@ namespace AJTools.Services.ReassignLevel
     {
         private const double MetersPerFoot = 0.3048;
         private const double OneMeterInFeet = 1.0 / MetersPerFoot;
-
-        /// <summary>
-        /// Returns true when the active Revit version is 2020 or above.
-        /// </summary>
-        internal static bool IsRevit2020OrAbove(UIApplication uiApp)
-        {
-            int year;
-            return int.TryParse(uiApp?.Application?.VersionNumber, NumberStyles.Integer, CultureInfo.InvariantCulture, out year) &&
-                   year >= 2020;
-        }
 
         /// <summary>
         /// Collects every supported element (MEP curve, free-standing family instance, space)
@@ -168,7 +160,11 @@ namespace AJTools.Services.ReassignLevel
 
                     bool isSupportedType = element is MEPCurve || element is FamilyInstance || element is Space;
 
-                    if (isSupportedType && GetCurrentLevelId(element) != null)
+                    // A level that reads as InvalidElementId is "no level" too - such an element can't be
+                    // reassigned (ReassignElementToLevel would only fail it), so it is excluded here and
+                    // counted with the unsupported ones, as the summary above says.
+                    ElementId currentLevelId = isSupportedType ? GetCurrentLevelId(element) : null;
+                    if (currentLevelId != null && currentLevelId != ElementId.InvalidElementId)
                     {
                         candidates.Add(element);
                     }
@@ -619,35 +615,18 @@ namespace AJTools.Services.ReassignLevel
         {
             private readonly HashSet<int> _categoryIdsToOffset = new HashSet<int>();
 
-            public OffsetHelper(Document doc, bool isRevit2020OrAbove)
+            public OffsetHelper(Document doc)
             {
-                var toOffsetCategories = new HashSet<BuiltInCategory>
+                // Duct/pipe accessories and fittings and cable tray/conduit fittings were compensated only
+                // before Revit 2020. 2020 is the oldest version AJ Tools supports, so they are not listed -
+                // this is the set the old "2020 or above" branch always produced.
+                var categories = new[]
                 {
-                    BuiltInCategory.OST_DuctAccessory,
-                    BuiltInCategory.OST_DuctFitting,
-                    BuiltInCategory.OST_PipeAccessory,
-                    BuiltInCategory.OST_PipeFitting,
-                    BuiltInCategory.OST_CableTrayFitting,
-                    BuiltInCategory.OST_ConduitFitting,
                     BuiltInCategory.OST_DuctTerminal,
                     BuiltInCategory.OST_PlumbingFixtures,
                     BuiltInCategory.OST_GenericModel,
                     BuiltInCategory.OST_MechanicalEquipment
                 };
-
-                var noOffsetFrom2020Categories = new HashSet<BuiltInCategory>
-                {
-                    BuiltInCategory.OST_DuctAccessory,
-                    BuiltInCategory.OST_DuctFitting,
-                    BuiltInCategory.OST_PipeAccessory,
-                    BuiltInCategory.OST_PipeFitting,
-                    BuiltInCategory.OST_CableTrayFitting,
-                    BuiltInCategory.OST_ConduitFitting
-                };
-
-                IEnumerable<BuiltInCategory> categories = isRevit2020OrAbove
-                    ? toOffsetCategories.Where(c => !noOffsetFrom2020Categories.Contains(c))
-                    : toOffsetCategories;
 
                 foreach (BuiltInCategory categoryId in categories)
                 {
