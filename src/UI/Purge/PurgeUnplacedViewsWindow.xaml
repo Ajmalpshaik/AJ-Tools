@@ -168,8 +168,6 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Text="Filter" Style="{StaticResource SubtitleText}"/>
@@ -180,19 +178,9 @@
                                  Style="{StaticResource ModernTextBox}"
                                  TextChanged="OnSearchTextChanged"/>
 
-                        <TextBlock x:Name="lblKindFilter" Grid.Row="3" Margin="0,10,0,4" Text="View Type"/>
-                        <ComboBox x:Name="cmbKindFilter"
-                                  Grid.Row="4"
-                                  SelectionChanged="OnFilterChanged"
-                                  SelectedValuePath="Tag">
-                            <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
-                            <ComboBoxItem Content="3D Views" Tag="3D View"/>
-                            <ComboBoxItem Content="Sections" Tag="Section"/>
-                        </ComboBox>
-
-                        <TextBlock Grid.Row="5" Margin="0,10,0,4" Text="Status"/>
+                        <TextBlock Grid.Row="3" Margin="0,10,0,4" Text="Status"/>
                         <ComboBox x:Name="cmbStatusFilter"
-                                  Grid.Row="6"
+                                  Grid.Row="4"
                                   SelectionChanged="OnFilterChanged"
                                   SelectedValuePath="Tag">
                             <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>

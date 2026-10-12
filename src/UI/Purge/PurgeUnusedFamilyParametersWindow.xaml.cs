@@ -263,7 +263,10 @@ namespace AJTools.UI.Purge
 
         private void ShowDeleteResult(FamilyParameterPurgeDeleteResult result)
         {
-            if (result == null)
+            // House rule: a run that did everything asked finishes silently - the rescan straight after
+            // already shows the result. Every selected parameter that was not deleted is recorded as a
+            // failure, so this only speaks when something was left behind, to say what and why.
+            if (result == null || result.FailedCount == 0)
             {
                 return;
             }

@@ -1,19 +1,24 @@
 ﻿// ==================================================
 // Tool Name    : Purge Unplaced Views
-// Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
+// Purpose      : Review window for the five Purge Unplaced tools - scan, filter, select and delete the
+//                views that are safe to purge.
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.0.1
 // Created      : 2026-05-11
-// Last Updated : 2026-05-11
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Last Updated : 2026-10-12
+// Target       : Revit 2020 - 2027
+// Framework    : .NET Framework 4.7.2 (2020) / 4.8 (2021-2024) / .NET 8 (2025-2026) / .NET 10 (2027)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Active Revit document and user purge options.
-// Output       : Safe purge result with final report.
+// Output       : Safe purge result; a report only when something was skipped or failed.
 // Notes        : Added under AJ Tools Purge panel.
-// Changelog    : v1.0.0 - Converted from Interactive Python Shell script.
+// Changelog    : v1.0.0 - Ported from an earlier AJ Tools script.
+//                v1.0.1 (2026-10-12) - The purge report no longer pops up after a run where everything
+//                selected was purged (house rule: silent success); it still appears when anything was
+//                skipped or failed. Removed the "View Type" filter, which was always hidden and never
+//                read.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -232,7 +237,6 @@ namespace AJTools.UI.Purge
             btnUnselectAll.IsEnabled = !busy;
             btnDeleteSelected.IsEnabled = !busy;
             txtSearch.IsEnabled = !busy;
-            cmbKindFilter.IsEnabled = !busy;
             cmbStatusFilter.IsEnabled = !busy;
             dgViews.IsEnabled = !busy;
         }
@@ -339,7 +343,9 @@ namespace AJTools.UI.Purge
 
         private void ShowPurgeReport(UnplacedViewPurgeResult result)
         {
-            if (result == null)
+            // House rule: a run that did everything asked finishes silently - the rescan straight after
+            // already shows the result. The report only appears to say what was skipped or failed, and why.
+            if (result == null || (result.SkippedCount == 0 && result.FailedCount == 0))
             {
                 return;
             }
@@ -396,8 +402,6 @@ namespace AJTools.UI.Purge
             txtWindowTitle.Text = _dialogTitle;
             txtWindowDescription.Text = _mode.GetDescription();
             txtTargetKindLabel.Text = _mode.GetViewKindPlural();
-            lblKindFilter.Visibility = System.Windows.Visibility.Collapsed;
-            cmbKindFilter.Visibility = System.Windows.Visibility.Collapsed;
         }
     }
 }

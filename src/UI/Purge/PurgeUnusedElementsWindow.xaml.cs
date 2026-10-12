@@ -2,8 +2,8 @@
 // Description: Code-behind for scanning, filtering, and deleting selected unused elements. Generalizes the
 //              same shape as PurgeUnplacedViewsWindow for the three modes handled by UnusedElementPurgeService.
 // Author: Ajmal P.S.
-// Version: 1.0.0
-// Last Updated: 2026-07-28
+// Version: 1.0.1
+// Last Updated: 2026-10-12
 // Revit Version: 2020 - latest
 // Dependencies: Autodesk.Revit.DB, System.Windows
 
@@ -327,7 +327,9 @@ namespace AJTools.UI.Purge
 
         private void ShowPurgeReport(UnusedElementPurgeResult result)
         {
-            if (result == null)
+            // House rule: a run that did everything asked finishes silently - the rescan straight after
+            // already shows the result. The report only appears to say what was skipped or failed, and why.
+            if (result == null || (result.SkippedCount == 0 && result.FailedCount == 0))
             {
                 return;
             }

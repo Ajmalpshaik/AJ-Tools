@@ -1,19 +1,24 @@
 // ==================================================
 // Tool Name    : Purge Unplaced Views
-// Purpose      : Convert Python shell purge workflow into AJ Tools C# Revit add-in.
+// Purpose      : Checks each unplaced view with a rolled-back delete and deletes the selected safe ones
+//                (shared engine behind the five Purge Unplaced tools).
 // Author       : Ajmal P.S.
 // Company      : AJ Tools
-// Version      : 1.0.0
+// Version      : 1.0.1
 // Created      : 2026-05-11
-// Last Updated : 2026-05-11
-// Target       : Revit 2020
-// Framework    : .NET Framework 4.7.2
+// Last Updated : 2026-10-12
+// Target       : Revit 2020 - 2027
+// Framework    : .NET Framework 4.7.2 (2020) / 4.8 (2021-2024) / .NET 8 (2025-2026) / .NET 10 (2027)
 // Platform     : C# Revit Add-in
 // Dependencies : Autodesk Revit API
 // Input        : Active Revit document and user purge options.
 // Output       : Safe purge result with final report.
 // Notes        : Added under AJ Tools Purge panel.
-// Changelog    : v1.0.0 - Converted from Interactive Python Shell script.
+// Changelog    : v1.0.0 - Ported from an earlier AJ Tools script.
+//                v1.0.1 (2026-10-12) - Fixed: a view whose delete also takes other views with it
+//                (dependent views, callout views drawn in it - and their viewports when those are on a
+//                sheet) was marked Safe and deleted, because only the target's own id was checked in
+//                Revit's deleted-id set. Probe and delete now refuse it and say how many would go.
 // License      : All Rights Reserved
 // Repo         : AJ-Tools
 // ==================================================
@@ -58,12 +63,15 @@ namespace AJTools.Services.Purge
         {
             IList<UnplacedViewPurgeItem> items = _collector.Collect();
 
+            // Built once for the whole scan, not once per candidate.
+            HashSet<long> viewAndPlacementIds = CollectViewAndPlacementIds();
+
             int done = 0;
             int total = items.Count;
 
             foreach (UnplacedViewPurgeItem item in items)
             {
-                ProbeDelete(item);
+                ProbeDelete(item, viewAndPlacementIds);
 
                 done++;
                 if (onProgress != null)
@@ -106,6 +114,9 @@ namespace AJTools.Services.Purge
                 return result;
             }
 
+            // Built once for the whole run - same check as the scan's probe, applied before each commit.
+            HashSet<long> viewAndPlacementIds = CollectViewAndPlacementIds();
+
             using (var group = new TransactionGroup(_doc, _mode.GetTransactionName()))
             {
                 group.Start();
@@ -140,6 +151,17 @@ namespace AJTools.Services.Purge
                                 continue;
                             }
 
+                            int alsoDeleted = CountOtherViewsOrPlacements(deletedIds, viewIdToDelete, viewAndPlacementIds);
+                            if (alsoDeleted > 0)
+                            {
+                                RollBackIfStarted(transaction);
+                                result.AddSkipped(
+                                    GetItemName(item),
+                                    GetItemIdValue(item),
+                                    DescribeOtherViewsDeleted(alsoDeleted));
+                                continue;
+                            }
+
                             transaction.Commit();
                             hasCommit = true;
                             result.DeletedCount++;
@@ -165,7 +187,7 @@ namespace AJTools.Services.Purge
             return result;
         }
 
-        private void ProbeDelete(UnplacedViewPurgeItem item)
+        private void ProbeDelete(UnplacedViewPurgeItem item, ISet<long> viewAndPlacementIds)
         {
             if (item == null ||
                 item.Status == UnplacedViewPurgeStatus.Skipped ||
@@ -193,17 +215,27 @@ namespace AJTools.Services.Purge
                     ICollection<ElementId> deletedIds = _doc.Delete(viewIdToProbe);
                     transaction.RollBack();
 
-                    if (ContainsId(deletedIds, viewIdToProbe))
-                    {
-                        item.MarkSafe(
-                            "Unplaced, non-template view passed Revit delete probe.",
-                            "AJ Tools verified that Revit allows this view to be deleted inside a rolled-back transaction.");
-                    }
-                    else
+                    int alsoDeleted = CountOtherViewsOrPlacements(deletedIds, viewIdToProbe, viewAndPlacementIds);
+
+                    if (!ContainsId(deletedIds, viewIdToProbe))
                     {
                         item.MarkCannotDelete(
                             "Delete probe did not include this view.",
                             "Revit did not confirm that this view would be deleted.");
+                    }
+                    else if (alsoDeleted > 0)
+                    {
+                        item.MarkCannotDelete(
+                            DescribeOtherViewsDeleted(alsoDeleted),
+                            "Revit's delete check showed that removing this view also removes other views - usually " +
+                            "its dependent views or callout views drawn inside it - and their places on sheets if they " +
+                            "are placed. AJ Tools only purges a view that goes on its own, so this one is kept.");
+                    }
+                    else
+                    {
+                        item.MarkSafe(
+                            "Unplaced, non-template view passed Revit delete probe.",
+                            "AJ Tools verified that Revit allows this view to be deleted inside a rolled-back transaction.");
                     }
                 }
                 catch (Exception ex)
@@ -321,6 +353,64 @@ namespace AJTools.Services.Purge
 
             int target = targetId.IntValue();
             return ids.Any(id => id != null && id.IntValue() == target);
+        }
+
+        /// <summary>
+        /// Ids of every view (of any kind - sheets, schedules and templates included), every viewport and
+        /// every schedule placement in the document.
+        /// </summary>
+        /// <remarks>
+        /// Document.Delete on a view also deletes "any elements that are totally dependent upon" it (the API's
+        /// own wording) and reports them only in the id set it returns. That set legitimately holds the view's
+        /// own markers and internal elements, but it also holds its dependent views and any callout view drawn
+        /// inside it - with their viewports, if those views sit on a sheet. Checking the target's own id alone
+        /// cannot tell those apart. The target is unplaced, so it has no viewport or schedule placement of its
+        /// own: any of THESE ids other than the target in the deleted set means another view would go with it.
+        /// </remarks>
+        private HashSet<long> CollectViewAndPlacementIds()
+        {
+            var ids = new HashSet<long>();
+            AddIds(ids, new FilteredElementCollector(_doc).OfClass(typeof(View)).ToElementIds());
+            AddIds(ids, new FilteredElementCollector(_doc).OfClass(typeof(Viewport)).ToElementIds());
+            AddIds(ids, new FilteredElementCollector(_doc).OfClass(typeof(ScheduleSheetInstance)).ToElementIds());
+            return ids;
+        }
+
+        private static void AddIds(ISet<long> target, IEnumerable<ElementId> ids)
+        {
+            foreach (ElementId id in ids)
+            {
+                if (id != null && id != ElementId.InvalidElementId)
+                {
+                    target.Add(id.LongValue());
+                }
+            }
+        }
+
+        /// <summary>
+        /// How many views or sheet placements OTHER than the target are in a Document.Delete result.
+        /// </summary>
+        private static int CountOtherViewsOrPlacements(
+            IEnumerable<ElementId> deletedIds,
+            ElementId targetId,
+            ISet<long> viewAndPlacementIds)
+        {
+            if (deletedIds == null || viewAndPlacementIds == null || viewAndPlacementIds.Count == 0)
+            {
+                return 0;
+            }
+
+            long target = targetId != null ? targetId.LongValue() : ElementId.InvalidElementId.LongValue();
+            return deletedIds.Count(id =>
+                id != null &&
+                id.LongValue() != target &&
+                viewAndPlacementIds.Contains(id.LongValue()));
+        }
+
+        private static string DescribeOtherViewsDeleted(int count)
+        {
+            return "Deleting it would also delete " + count +
+                   " other view(s) or sheet placement(s) (dependent views or callouts).";
         }
 
         private static bool IsDefault3DView(View view)
