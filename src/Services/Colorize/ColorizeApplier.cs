@@ -9,10 +9,10 @@
  *                 counterpart to Filter Pro's FilterCreator + FilterApplier.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-13
- * Last Updated  : 2026-07-13
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -53,6 +53,10 @@
  *                       none of which exist in the live Filter Pro anymore. Colorize's own behaviour
  *                       (category/value matching, per-value palette colour, multi-view apply) is
  *                       unchanged from the original.
+ * v1.0.1 (2026-10-12) - Fix: each value's colour ignored the colour list worked out once for the whole
+ *                       apply, so with Shuffle Colors on several views the same value got a different
+ *                       colour in each view. Now every view uses that list; an empty entry in the value
+ *                       list also advances the position, matching how the list was built.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -211,12 +215,15 @@ namespace AJTools.Services.Colorize
             GraphicsOperationSummary summary,
             IList<string> skipped)
         {
+            // valueIndex is the value's position in selection.Values - the same position ResolveColors used
+            // to build `colors` - so it advances for every entry, empty ones included.
             int valueIndex = 0;
 
             foreach (FilterValueItem value in selection.Values)
             {
                 if (value == null)
                 {
+                    valueIndex++;
                     continue;
                 }
 
@@ -247,9 +254,11 @@ namespace AJTools.Services.Colorize
                     continue;
                 }
 
-                Color color = selection.RandomColors
-                    ? ColorPalette.GetRandomColor()
-                    : ColorPalette.GetColorAt(valueIndex);
+                // Take the colour worked out once for the whole apply, so a value gets the same colour in
+                // every target view (rolling a fresh random colour here gave it a different one per view).
+                Color color = colors != null && valueIndex < colors.Count
+                    ? colors[valueIndex]
+                    : (selection.RandomColors ? ColorPalette.GetRandomColor() : ColorPalette.GetColorAt(valueIndex));
 
                 OverrideGraphicSettings settings = BuildOverrideSettings(selection, color, patternId);
 

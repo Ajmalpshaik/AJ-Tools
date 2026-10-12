@@ -6,10 +6,10 @@
  *                 preserving the graphic overrides and visibility of all pre-existing filters.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.2
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -31,6 +31,10 @@
  * Changelog     :
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.0.1 (2026-06-30) - Added mandatory metadata block; confirmed 2020-latest version coverage.
+ * v1.0.2 (2026-10-12) - Fix: reordering removes and re-adds every filter, and Revit re-adds a filter
+ *                        enabled, so filters the user had switched off ("Enable Filter" unticked) came
+ *                        back switched on. Each filter's enabled tick is now saved and put back
+ *                        (Revit 2021+; 2020 has no such setting). Ordering logic unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -86,9 +90,11 @@ namespace AJTools.Services.FilterPro
                 }
 
                 var (overridesMap, visibilityMap) = CaptureFilterSettings(view, liveClean);
+                var enabledMap = CaptureFilterEnabledStates(view, liveClean);
 
                 RemoveAllFilters(view, liveClean);
                 ReapplyFilters(doc, view, desiredOrder, newFilters, selection, solidFillId, overridesMap, visibilityMap, skipped);
+                RestoreFilterEnabledStates(view, enabledMap);
 
                 _lastKnownOrderByView[view.Id.IntValue()] = desiredOrder.ToList();
             }
@@ -228,6 +234,52 @@ namespace AJTools.Services.FilterPro
             }
 
             return (overridesMap, visibilityMap);
+        }
+
+        /// <summary>
+        /// Records each filter's "Enable Filter" tick (Revit 2021 and later). The reorder has to remove
+        /// and re-add every filter, and Revit re-adds a filter enabled, so a filter the user had switched
+        /// off would come back switched on. Revit 2020 has no such setting, so nothing is recorded there.
+        /// </summary>
+        private static Dictionary<ElementId, bool> CaptureFilterEnabledStates(View view, List<ElementId> liveClean)
+        {
+            var enabledMap = new Dictionary<ElementId, bool>(new ElementIdIntegerComparer());
+#if REVIT2021_OR_GREATER
+            foreach (var id in liveClean)
+            {
+                try
+                {
+                    enabledMap[id] = view.GetIsFilterEnabled(id);
+                }
+                catch
+                {
+                    // Unreadable: leave it out, the filter keeps Revit's default (enabled) after re-adding.
+                }
+            }
+#endif
+            return enabledMap;
+        }
+
+        /// <summary>
+        /// Puts back the "Enable Filter" ticks recorded by <see cref="CaptureFilterEnabledStates"/> once
+        /// every filter has been re-added (Revit 2021 and later; nothing to do on 2020).
+        /// </summary>
+        private static void RestoreFilterEnabledStates(View view, Dictionary<ElementId, bool> enabledMap)
+        {
+#if REVIT2021_OR_GREATER
+            foreach (var entry in enabledMap)
+            {
+                try
+                {
+                    if (view.IsFilterApplied(entry.Key) && view.GetIsFilterEnabled(entry.Key) != entry.Value)
+                        view.SetIsFilterEnabled(entry.Key, entry.Value);
+                }
+                catch
+                {
+                    // Ignore, same as the visibility and override restores.
+                }
+            }
+#endif
         }
 
         private static void RemoveAllFilters(View view, List<ElementId> liveClean)

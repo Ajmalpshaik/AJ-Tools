@@ -6,10 +6,10 @@
  *                 assignment, halftone, and view-template protection checks.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.2
+ * Version       : 1.0.3
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -34,6 +34,10 @@
  * v1.0.2 (2026-07-23) - Compatibility audit: every Revit API member used here verified present on
  *                        2020-2027 against the per-version RevitAPI reference assemblies. No code
  *                        changes needed.
+ * v1.0.3 (2026-10-12) - Fix: copying a filter's overrides kept only 7 of its 21 settings, so line
+ *                        weights/patterns, background patterns, transparency and detail level were
+ *                        wiped whenever Filter Pro reordered or recoloured filters. Now a full copy
+ *                        (Revit's own copy constructor); applying a colour pattern still makes it visible.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -176,12 +180,16 @@ namespace AJTools.Services.FilterPro
                     ogs.SetCutLineColor(chosenColor);
                 }
 
+                // The copy above now keeps the filter's own pattern-visibility switches, so a pattern the
+                // user had hidden would stay hidden under the new colour. Applying a colour pattern makes
+                // it visible, exactly as it always ended up before the copy kept that switch.
                 if (applyProjPatterns)
                 {
                     if (patternId != ElementId.InvalidElementId)
                         ogs.SetSurfaceForegroundPatternId(patternId);
 
                     ogs.SetSurfaceForegroundPatternColor(chosenColor);
+                    ogs.SetSurfaceForegroundPatternVisible(true);
                 }
 
                 if (applyCutPatterns)
@@ -190,6 +198,7 @@ namespace AJTools.Services.FilterPro
                         ogs.SetCutForegroundPatternId(patternId);
 
                     ogs.SetCutForegroundPatternColor(chosenColor);
+                    ogs.SetCutForegroundPatternVisible(true);
                 }
 
                 if (applyHalftone)
@@ -206,27 +215,21 @@ namespace AJTools.Services.FilterPro
         }
 
         /// <summary>
-        /// Creates a deep copy of override graphic settings.
+        /// Creates a full copy of override graphic settings - every setting a filter can carry (line
+        /// colours, weights and patterns, foreground and background fill patterns with their colours and
+        /// visibility, transparency, halftone, detail level), so nothing the user set is lost when the
+        /// copy is written back to the view.
         /// </summary>
         /// <param name="source">The source override settings to clone.</param>
         /// <returns>A new OverrideGraphicSettings instance with copied settings.</returns>
         internal static OverrideGraphicSettings CloneOverrideGraphics(OverrideGraphicSettings source)
         {
-            if (source == null)
-                return new OverrideGraphicSettings();
-
-            var clone = new OverrideGraphicSettings();
-
-            // Revit API may throw if a property was never set; ignore and continue.
-            try { clone.SetProjectionLineColor(source.ProjectionLineColor); } catch { }
-            try { clone.SetCutLineColor(source.CutLineColor); } catch { }
-            try { clone.SetSurfaceForegroundPatternId(source.SurfaceForegroundPatternId); } catch { }
-            try { clone.SetSurfaceForegroundPatternColor(source.SurfaceForegroundPatternColor); } catch { }
-            try { clone.SetCutForegroundPatternId(source.CutForegroundPatternId); } catch { }
-            try { clone.SetCutForegroundPatternColor(source.CutForegroundPatternColor); } catch { }
-            try { clone.SetHalftone(source.Halftone); } catch { }
-
-            return clone;
+            // Revit's own copy constructor (present 2020 onward) copies all of them. Copying property by
+            // property used to carry only 7 of the 21 and silently wiped the rest whenever a filter's
+            // overrides were saved and re-applied (filter reorder, recolouring).
+            return source == null
+                ? new OverrideGraphicSettings()
+                : new OverrideGraphicSettings(source);
         }
 
         /// <summary>

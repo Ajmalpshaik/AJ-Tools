@@ -6,10 +6,10 @@
  *                 unique parameter values from the project for the Filter Pro UI.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.2
+ * Version       : 1.0.3
  *
  * Created Date  : 2025-12-11
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -37,6 +37,10 @@
  * v1.0.2 (2026-07-23) - Compatibility audit: every Revit API member used here verified present on
  *                        2020-2027 against the per-version RevitAPI reference assemblies. No code
  *                        changes needed.
+ * v1.0.3 (2026-10-12) - Fix: the value list looked the parameter up by NAME before its id, so a
+ *                        different parameter with the same name could supply the listed values while
+ *                        the filter rule used the selected parameter. Now by id first (built-in id, then
+ *                        the parameter's own definition, then an id scan), name only as a last resort.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -188,6 +192,14 @@ namespace AJTools.Services.FilterPro
             bool isBuiltIn = ElementIdHelper.IsDefinedBuiltInParameter(paramIntId);
             BuiltInParameter builtInParam = isBuiltIn ? (BuiltInParameter)paramIntId : 0;
 
+            // The filter rule is built on the selected parameter's id, so the listed values must come from
+            // that same parameter. A project/shared parameter is found exactly (and quickly) through its
+            // definition; the name is only a last resort, because a different parameter can carry the
+            // same name (e.g. a project parameter named like a built-in one).
+            Definition paramDefinition = isBuiltIn
+                ? null
+                : (_doc.GetElement(param.Id) as ParameterElement)?.GetDefinition();
+
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var collectedValuesResult = new List<FilterValueItem>();
             int scanned = 0;
@@ -208,9 +220,9 @@ namespace AJTools.Services.FilterPro
                     p = elem.get_Parameter(builtInParam);
                 }
 
-                if (p == null)
+                if (p == null && paramDefinition != null)
                 {
-                    p = elem.LookupParameter(param.Name);
+                    p = elem.get_Parameter(paramDefinition);
                 }
 
                 if (p == null)
@@ -223,6 +235,11 @@ namespace AJTools.Services.FilterPro
                             break;
                         }
                     }
+                }
+
+                if (p == null)
+                {
+                    p = elem.LookupParameter(param.Name);
                 }
 
                 if (p == null || p.StorageType == StorageType.None || !p.HasValue)
