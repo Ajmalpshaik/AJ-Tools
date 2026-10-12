@@ -22,7 +22,7 @@ connected to each one": the plan is Step 1 — confirm what "VCD" and "connected
 precisely (VCD is a family within Duct Accessories; "connected" means ducts joined at its connectors).
 Step 2 — check the codebase for existing services that already do part of this (element collection
 helpers, connector-walking logic) so nothing gets reinvented. Step 3 — write the command, following house
-conventions. Step 4 — compile-check it (and live-test via AJ AI Bridge if connected). Step 5 — update the
+conventions. Step 4 — compile-check it (Ajmal tests it in Revit; there is no live bridge since v1.57.0). Step 5 — update the
 knowledge log. Each step's output feeds the next, and if step 1 reveals a wrong assumption about what
 "connected" means, you find out before writing a single line of the wrong logic.
 
@@ -77,9 +77,8 @@ deliberate calls, not because someone likes rules for their own sake. In particu
 - Register new ribbon buttons in `Core/RibbonManager.cs` or `Core/AnnotationRibbonManager.cs`, matching
   the existing pattern for that panel.
 - If you're genuinely unsure whether a Revit API member exists/behaves the same across 2020-2027, don't
-  guess from memory or general web knowledge — this codebase has already been burned by that. If AJ Tools
-  is currently connected via the AJ AI Bridge (`tools\invoke-revit-bridge.ps1 -Ping`), you can
-  verify live against whichever Revit version Ajmal has open.
+  guess from memory or general web knowledge — this codebase has already been burned by that. Instead,
+  check the real installed `RevitAPI.dll` for that version under `C:\Program Files\Autodesk\`.
 
 ## After you finish
 

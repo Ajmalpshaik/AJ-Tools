@@ -996,8 +996,8 @@ place rather than leaving stale info sitting next to the new truth.
   installed Revit 2020 `RevitAPI.dll` (2026-07-28) before use — none of them are in this file's known
   version-gap list above, so no `#if` branching was needed for any of them.
 
-**AJ AI Bridge (live Revit session testing)**
-- `tools\invoke-revit-bridge.ps1` (`-Ping` / `-CodeFile`) lets Claude run C# directly against Ajmal's live, open Revit document — only works from a session running locally on Ajmal's PC (not a remote/cloud sandbox).
+**AJ AI Bridge (live Revit session testing) — REMOVED in v1.57.0 (2026-10-12); history only below**
+- The bridge used to let Claude run C# directly against Ajmal's live, open Revit document — only works from a session running locally on Ajmal's PC (not a remote/cloud sandbox).
 - The bridge **blocks reflection and assembly-loading** as a safety guard — you cannot use it to reach into an AJTools internal (non-public) class to test its private logic directly. Only plain Revit API calls are allowed. If you need to exercise a command's real internal logic, either replicate the behavior with plain Revit API calls, or ask Ajmal to click the button himself once you've set up the preconditions.
 - Posting one of AJ Tools' own ribbon buttons programmatically (`RevitCommandId.LookupCommandId(...)` + `UIApplication.PostCommand(...)`) does **not** reliably work for commands nested inside a `PulldownButton` — `PushButton.GetCommandId()` doesn't exist in this API version, and manually constructed `CustomCtrl_%...` lookup strings didn't resolve in testing. Don't spend time re-guessing this; treat it as unsolved.
 - Destructive ops (Delete/Purge/file writes) are refused by the bridge unless explicitly allowed — this is intentional, don't try to route around it.
@@ -1351,8 +1351,7 @@ process id**. Alongside it, each session writes `%APPDATA%\AJTools\bridges\<pid>
 token, Revit version and window title, so a client can name the sessions rather than number them. Dead
 files are swept in `Start()`, because a crash or task-kill never runs `Stop()`.
 
-**`ajai-bridge.json` is still written, unchanged in shape.** The bridge helper (`.claude\tools\invoke-aj-ai-bridge.ps1`)
-finds the pipe and token through it, so it must stay even though the Node MCP server was removed 2026-10-12. It is deleted on `Stop()` only if it still
+**`ajai-bridge.json` was written so the bridge's callers could find the pipe and token** (all removed in v1.57.0). It is deleted on `Stop()` only if it still
 points at THIS Revit — otherwise closing one session would disconnect another that is still running.
 
 **The choosing rule is Ajmal's, and he was asked:** *ask, don't guess.* One Revit open behaves exactly as

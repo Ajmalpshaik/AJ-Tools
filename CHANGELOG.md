@@ -5,6 +5,15 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.57.0] - 2026-10-12
+
+- **Removed: the AJ AI Bridge.** The "AJ AI" button on the AI Assistant panel and the local connection
+  behind it, which let an outside AI agent run C# against the open model, are gone at Ajmal's instruction
+  (the outside connection now lives in a separate project). Its on/off icons went with it. The C# pane,
+  Run Pinned and Saved Scripts are unchanged, as are Game Mode and Quick Menu.
+- **Removed from the repository:** the Node MCP server, the code-map helper, the Codex copy of the AI
+  instructions and leftover one-off query files. None of these shipped in the add-in.
+
 ## [1.56.2] - 2026-08-26
 
 - **Fixed: Smart MEP Tag said "No elements to tag in this view" in views full of untagged ducts.** The

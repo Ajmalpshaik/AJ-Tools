@@ -1,6 +1,6 @@
 ---
 name: ajtools-debug
-description: Check, test, or debug an EXISTING tool/command in the AJ Tools Revit C# add-in (D:\06_Development\01_AJ-Tools\Revit Addins) — use whenever Ajmal reports something broken, wrong, crashing, giving bad results, or asks to "check"/"test"/"debug" a tool he already has, even without those exact words ("why does X give wrong sizes", "my duct tag button isn't working right", "check the ceiling magnet tool", "this tool gave me the wrong count"). When Revit is open and the AJ AI Bridge is connected, this skill verifies the bug AND the fix live against the real model instead of just reading code — always check with tools\invoke-revit-bridge.ps1 -Ping first. Remembers past bugs, root causes, and conventions between sessions via a shared local log file. Do NOT use this for building brand-new capability from scratch — use ajtools-build for that instead.
+description: Check, test, or debug an EXISTING tool/command in the AJ Tools Revit C# add-in (D:\06_Development\01_AJ-Tools\Revit Addins) — use whenever Ajmal reports something broken, wrong, crashing, giving bad results, or asks to "check"/"test"/"debug" a tool he already has, even without those exact words ("why does X give wrong sizes", "my duct tag button isn't working right", "check the ceiling magnet tool", "this tool gave me the wrong count"). Remembers past bugs, root causes, and conventions between sessions via a shared local log file. Do NOT use this for building brand-new capability from scratch — use ajtools-build for that instead.
 ---
 
 # AJ Tools — Debug an Existing Tool
@@ -14,9 +14,9 @@ his real live model rather than just "looks right in the code."
 
 The 5 steps below are the general shape, but for each actual debugging task, work out the specific
 version of that plan for this bug before diving in — e.g. "the ceiling magnet gives the wrong grid size"
-becomes: Step 1 — locate `CmdCeilingMagnet.cs` and its grid-detection logic. Step 2 — check the real
-ceiling family's parameters live via AJ AI Bridge. Step 3 — compare what the code assumes against what's
-actually there. Step 4 — fix the mismatch. Step 5 — re-verify live. Treat this like a relay: finish one
+becomes: Step 1 — locate `CmdCeilingMagnet.cs` and its grid-detection logic. Step 2 — ask Ajmal for the real
+ceiling family's parameters (or read them from the family). Step 3 — compare what the code assumes against what's
+actually there. Step 4 — fix the mismatch. Step 5 — Ajmal re-tests in Revit. Treat this like a relay: finish one
 step cleanly, confirm its result, then hand off to the next — don't let an unverified assumption from
 step 2 quietly become the foundation for steps 3 and 4.
 
@@ -48,29 +48,13 @@ exact name.
 
 ## Step 3 — Reproduce it for real when you can
 
-Check the AJ AI Bridge before assuming you can only read code:
+There is no live connection to Revit any more (the AJ AI Bridge was removed in v1.57.0), so this
+step is careful reading, not live reproduction:
 
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\invoke-revit-bridge.ps1 -Ping
-```
-
-- **If it responds "pong"** (Revit is open, bridge connected): use `run_csharp` to query the live document
-  and actually reproduce the reported symptom against the real model — read the actual parameter values,
-  actual element states, actual counts. Check [`.claude/scripts/`](../../scripts/README.md) first —
-  composing a `filters/` fragment with `actions/action-count-and-report.cs`, or running a `recipes/`
-  script like `verify-duct-connectivity.cs`, may already be the fastest way to pull the real state needed
-  to confirm or rule out the bug, instead of writing a throwaway query. This turns "I think this is the
-  bug" into "I confirmed this is the bug," which matters
-  because plausible-looking C# can still be wrong about what Revit's API actually returns on Ajmal's
-  installed version. After fixing the source, re-verify live where the fix is something observable that
-  way (a value, a count, a created element) — not everything can be live-checked (e.g. a pure UI/ribbon
-  issue), use judgment.
-- **If it's not connected**, say so plainly to Ajmal rather than silently skipping this step, then fall
-  back to careful static reading of the code and Revit API version behavior. Tell him the fix is
-  code-reviewed but not yet live-verified, so he knows to test it himself.
-- The bridge refuses reflection/assembly-loading and destructive operations (Delete/Purge/file writes)
-  by design — don't try to route around either of those; they're deliberate safety limits, not bugs in
-  the bridge.
+- Read the code path end to end and check the Revit API behaviour against the real installed
+  `RevitAPI.dll` for the versions involved, never from memory.
+- Tell Ajmal plainly that the fix is code-reviewed but not live-verified, and give him the exact
+  steps to reproduce and re-test it in Revit himself.
 
 ## Step 4 — Fix it, following the house conventions
 
@@ -85,7 +69,7 @@ This is what makes the skill sharper over time — don't skip it.
 
 - Append an entry to [`.claude/knowledge/debug-log.md`](../../knowledge/debug-log.md) using its format:
   symptom (Ajmal's words) → root cause (often different from the first guess — that gap is exactly what's
-  worth recording) → fix → verified how (live via AJ AI Bridge, or code-review only) → date.
+  worth recording) → fix → verified how (Ajmal tested in Revit, or code-review only) → date.
 - If a *new* term or ambiguity came up (like the fitting/pipe-fitting ambiguity), add it to
   [`glossary.md`](../../knowledge/glossary.md) instead.
 - If the fix depended on or changed a coding convention, update

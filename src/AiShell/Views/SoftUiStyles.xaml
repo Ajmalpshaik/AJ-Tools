@@ -1,5 +1,5 @@
 <!--
-Tool Name : C# / AJ AI Bridge shared UI styles
+Tool Name : C# pane shared UI styles
 Purpose   : Soft Revit UI resource dictionary (Neumorphism + Claymorphism, Neon Blue primary, dark
             theme) shared by AiShellView.xaml (the docked pane), SettingsWindow.xaml and
             SavedScriptsWindow.xaml, so all three surfaces stay visually consistent from one source.
