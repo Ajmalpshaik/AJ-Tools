@@ -4,9 +4,9 @@ Tool Name    : View Crop
 Purpose      : Defines the selectable target view list dialog layout.
 Author       : Ajmal P.S.
 Company      : AJ Tools
-Version      : 1.3.0
+Version      : 1.3.1
 Created      : 2026-04-08
-Last Updated : 2026-06-28
+Last Updated : 2026-10-12
 Target       : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
 Framework    : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
 Platform     : C# Revit Add-in
@@ -14,7 +14,8 @@ Dependencies : Autodesk Revit API, WPF
 Input        : Active Revit document, active or selected target views, and View Crop settings.
 Output       : Updated view crop or annotation crop settings for supported target views.
 Notes        : Lists supported plan views only (Floor/Ceiling/Engineering/Area). Pixel-scrolling list.
-Changelog    : v1.3.0 - List supported views only; removed Status column; fixed grouped-list scrolling.
+Changelog    : v1.3.1 (2026-10-12) - Subtitle corrected: it still said unsupported views are listed with a reason, but only supported plan views have been listed since v1.3.0.
+               v1.3.0 - List supported views only; removed Status column; fixed grouped-list scrolling.
                v1.2.0 - Custom chrome (title bar + window controls) to match the View Crop Settings window; resizable via corner grip.
                v1.1.0 - UI polish: subtitle guidance, softened list border, no-italic footer, metadata aligned.
 License      : All Rights Reserved
@@ -79,7 +80,7 @@ Repo         : AJ-Tools
                                Foreground="{StaticResource TextPrimary}"
                                FontSize="18"
                                FontWeight="Bold"/>
-                    <TextBlock Text="Pick the views to crop. Views that cannot be cropped are listed with a reason and cannot be selected."
+                    <TextBlock Text="Pick the views to crop. Only floor, ceiling, engineering and area plans are listed - other view types cannot be cropped by this tool."
                                Foreground="{StaticResource TextSecondary}"
                                FontSize="12"
                                TextWrapping="Wrap"

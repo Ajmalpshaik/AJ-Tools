@@ -9,10 +9,10 @@
  *                 reference that landed inside a link.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -41,6 +41,8 @@
  *   unloaded or removed, Revit drops the dimension. That is Revit behaviour, not a tool limitation.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Comment wording only (ToHostReference remarks): the technical point is kept in
+ *                       this project's own words, with no comparison to an outside tool. No code change.
  * v1.0.0 (2026-08-15) - Initial release.
  *
  * License       : All Rights Reserved
@@ -193,10 +195,9 @@ namespace AJTools.Services.Dimensioning
         /// </summary>
         /// <remarks>
         /// CreateLinkReference on its own is NOT enough. Handing its result to NewDimension throws
-        /// "the references are not geometric references" - the same wall the Dynamo Dimension.ByElements
-        /// node hits on linked elements. The reference has to be rebuilt from its stable representation
-        /// with the "RVTLINK/&lt;linkTypeUniqueId&gt;" segment reduced to a bare "RVTLINK", which is what
-        /// NewDimension will accept. See PrepareForDimensioning.
+        /// "the references are not geometric references". The reference has to be rebuilt from its stable
+        /// representation with the "RVTLINK/&lt;linkTypeUniqueId&gt;" segment reduced to a bare "RVTLINK",
+        /// which is what NewDimension will accept. See PrepareForDimensioning.
         /// </remarks>
         internal Reference ToHostReference(Reference reference)
         {

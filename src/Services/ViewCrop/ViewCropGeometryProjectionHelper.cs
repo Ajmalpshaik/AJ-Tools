@@ -5,10 +5,10 @@
  * Purpose       : Projects model-space bounding boxes into view-local crop coordinates and builds rectangular crop loops.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-04-08
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,8 @@
  * - All XYZ values validated via IsFinite (X, Y, Z).
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Removed TryIncludeBoundingBox: it had no callers (the extents service projects
+ *                       each element's corners itself so it can track the outermost element per edge).
  * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
  *
  * License       : All Rights Reserved
@@ -100,26 +102,6 @@ namespace AJTools.Services.ViewCrop
                 throw new InvalidOperationException("View crop box transform is not available.");
 
             return cropBox.Transform.Inverse;
-        }
-
-        internal static bool TryIncludeBoundingBox(BoundingBoxXYZ bbox, Transform modelToView, PlaneBounds bounds)
-        {
-            if (bbox == null || modelToView == null || bounds == null)
-                return false;
-
-            bool included = false;
-            XYZ[] corners = GetBoundingBoxCorners(bbox);
-            for (int i = 0; i < corners.Length; i++)
-            {
-                XYZ local = modelToView.OfPoint(corners[i]);
-                if (!IsFinite(local))
-                    continue;
-
-                bounds.Include(local.X, local.Y);
-                included = true;
-            }
-
-            return included;
         }
 
         internal static XYZ[] GetBoundingBoxCorners(BoundingBoxXYZ bbox)

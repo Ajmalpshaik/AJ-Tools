@@ -7,10 +7,10 @@
  *                 whether they may come from a linked model.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,8 +25,12 @@
  * - Pure UI: no collectors, no transaction. The command owns the model work and the save.
  * - Validation happens INSIDE the window (inline message + Save disabled), never after ShowDialog
  *   returns - a popup after closing loses everything the user typed.
+ * - "Gap between rows" must be more than 0 while both the chain and the overall row are ticked: the
+ *   overall row is placed one gap beyond the chain, so at 0 it lands on top of it.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - "Gap between rows" of 0 is refused when both rows are ticked - it drew the overall
+ *                       row on top of the chain row.
  * v1.0.0 (2026-08-15) - Initial release.
  *
  * License       : All Rights Reserved
@@ -283,6 +287,12 @@ namespace AJTools.UI.Dimensioning
 
             if (!TryParseNumber(RowSpacingBox.Text, out double spacing) || spacing < 0 || spacing > 200)
                 return Reject("The gap between rows must be a number between 0 and 200 mm.");
+
+            // The overall row sits one gap beyond the chain, so a gap of 0 puts it on top of the chain.
+            // Only matters when both rows are drawn - with one row the gap is never used.
+            if (spacing <= 0 && IndividualRowCheck.IsChecked == true && OverallRowCheck.IsChecked == true)
+                return Reject("The gap between rows must be more than 0 mm when both the chain and the overall row " +
+                              "are ticked - at 0 the overall row is drawn on top of the chain.");
 
             ErrorText.Text = string.Empty;
             SaveButton.IsEnabled = true;
