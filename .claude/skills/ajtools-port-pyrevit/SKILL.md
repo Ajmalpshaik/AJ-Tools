@@ -17,7 +17,7 @@ improvements separately.
 ### Step 1 — Read the knowledge files
 
 [`ajtools-conventions.md`](../../knowledge/ajtools-conventions.md) (house conventions the ported command
-must follow) and [`glossary.md`](../../knowledge/glossary.md) for any ambiguous term in the request.
+must follow); ask about any ambiguous term in the request.
 
 ### Step 2 — Locate and study the source tool
 

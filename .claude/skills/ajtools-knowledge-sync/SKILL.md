@@ -18,7 +18,6 @@ nothing worth keeping stays trapped in chat history.
 3. **Route each item to exactly one home** (this is CLAUDE.md discipline #2's table — it wins if the two
    ever differ):
    - AJ Tools coding convention/decision → `knowledge/ajtools-conventions.md`
-   - Ambiguous term or dictation quirk → `knowledge/glossary.md`
    - Reply-format correction → `knowledge/reply-style.md`
    - Bug found + fixed → `knowledge/debug-log.md`
    - Cross-session fact about Ajmal / standing feedback / project state → the memory system at
