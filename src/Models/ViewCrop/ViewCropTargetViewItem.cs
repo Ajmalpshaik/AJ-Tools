@@ -5,10 +5,10 @@
  * Purpose       : Represents one selectable target view row in the View Crop view-picker UI.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-04-08
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,9 +20,14 @@
  * Output        : View row bound by the WPF picker.
  *
  * Notes         :
- * - CanSelect=false rows are visible but cannot be checked - they show the SupportMessage instead.
+ * - Only supported plan views are collected (ViewCropTargetViewCollector v1.2.0+), so every row can be
+ *   ticked - there is no per-row "cannot select" state.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Removed CanSelect, SupportMessage and StatusText. Only supported views are listed,
+ *                       so they were always true / "Supported". Their only readers were the picker's
+ *                       always-true checks and its search, where the hidden word "Supported" made any
+ *                       part of it (e.g. "sup") match every row.
  * v1.1.0 (2026-06-27) - Metadata refresh and version coverage notes.
  *
  * License       : All Rights Reserved
@@ -53,10 +58,6 @@ namespace AJTools.Models.ViewCrop
 
         public string GroupName { get; set; }
 
-        public bool CanSelect { get; set; }
-
-        public string SupportMessage { get; set; }
-
         public bool IsSelected
         {
             get => _isSelected;
@@ -69,8 +70,6 @@ namespace AJTools.Models.ViewCrop
                 OnPropertyChanged(nameof(IsSelected));
             }
         }
-
-        public string StatusText => CanSelect ? "Supported" : SupportMessage;
 
         public event PropertyChangedEventHandler PropertyChanged;
 

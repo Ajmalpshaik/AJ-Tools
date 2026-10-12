@@ -6,10 +6,10 @@
  *                 builds the plain-language summary shown when the run finishes.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -26,8 +26,14 @@
  *   batch run finished silently and skipped work was invisible. Reporting is on by default now.
  * - Skip reasons are aggregated by text, so a run over hundreds of elements produces a short list
  *   rather than one line per element.
+ * - Skips and failures are kept apart: "Why things were skipped" holds skip reasons only, so its counts
+ *   add up to "Skipped: N". Failures are listed on their own under "Could not be dimensioned".
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - RecordFailed no longer adds its reason to the skip-reason list. "Why things were
+ *                       skipped" also listed every refusal, so its counts did not add up to "Skipped: N"
+ *                       and each failure was reported twice. Removed the unused
+ *                       RecordSkipped(reason, count) overload.
  * v1.0.0 (2026-08-15) - Initial release, replacing DuctReferenceDimensionReport.
  *
  * License       : All Rights Reserved
@@ -121,19 +127,13 @@ namespace AJTools.Services.Dimensioning
             AddReason(reason);
         }
 
-        internal void RecordSkipped(string reason, int count)
-        {
-            if (count <= 0)
-                return;
-
-            SkippedCount += count;
-            AddReason(reason, count);
-        }
-
+        /// <summary>
+        /// Something Revit refused. Listed under "Could not be dimensioned" - deliberately NOT added to the
+        /// skip reasons, which must add up to the skipped count.
+        /// </summary>
         internal void RecordFailed(ElementId elementId, string reason)
         {
             _failedItems.Add(new FailedItem(elementId, reason));
-            AddReason(reason);
         }
 
         /// <summary>A free-text line added verbatim to the top of the summary (e.g. which links were read).</summary>

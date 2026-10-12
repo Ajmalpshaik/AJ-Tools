@@ -7,10 +7,10 @@
  *                 on one side or both, using the datum's own extents when the view has no crop.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.0.0
+ * Version       : 2.0.1
  *
  * Created Date  : 2025-12-11
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,8 @@
  * - The individual chain and the overall row can each use their own dimension type.
  * - With exactly two datums the overall row is suppressed by default: it duplicated the individual
  *   chain exactly, one row further out, so every two-grid view got two identical dimensions.
+ *   That is the setting doing its job, so it is recorded as a NOTE, never as a skip - a skip counts as
+ *   unfinished work and would pop the report after a run that did everything it was asked.
  * - Each row is created independently. Previously one reference Revit refused aborted the whole run
  *   and nothing at all was placed.
  * - Grids that are curved, skewed, or sitting on top of another grid are now counted and REPORTED
@@ -45,6 +47,10 @@
  * v2.0.0 (2026-08-15) - Rewrite: settings-driven rows, both-sides placement, per-row dimension types,
  *                       no-crop fallback, linked grids/levels, duplicate protection, skip reporting,
  *                       per-row failure isolation, single undo step.
+ * v2.0.1 (2026-10-12) - Leaving the overall row out for a two-datum set is now an informational note,
+ *                       not a skip. With the shipped defaults every view with exactly two grids or
+ *                       levels in a row counted it as unfinished work, so the report popped up after a
+ *                       fully successful run.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -313,8 +319,11 @@ namespace AJTools.Services.AutoDimension
                                    settings.SkipOverallWhenTwoDatums &&
                                    spaced.Count == 2);
 
+            // A note, not a skip: this is the "leave the overall row out when there are only two" setting
+            // working as asked. Counted as a skip it made every two-datum run look unfinished and popped
+            // the report even though nothing had been left out.
             if (settings.CreateOverallRow && !overallWanted)
-                report.RecordSkipped("Overall row skipped - with only two " + label + " it repeats the chain");
+                report.AddNote("Overall row left out where only two " + label + " are in line - it would repeat the chain.");
 
             foreach (RowSide side in sides)
             {

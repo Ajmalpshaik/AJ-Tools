@@ -5,10 +5,10 @@
  * Purpose       : Collects project views for the View Crop target-view picker and maps each to its sheet.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-04-08
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -17,14 +17,22 @@
  * Dependencies  : Autodesk Revit API
  *
  * Input         : Active Revit document, optional pre-selected view ElementId.
- * Output        : List of ViewCropTargetViewItem with sheet context and support status.
+ * Output        : List of ViewCropTargetViewItem with sheet context.
  *
  * Notes         :
  * - Templates, browsers, sheets, internal views, and drafting sheets are filtered out.
- * - Each view is marked CanSelect=true only when ViewCropViewSupport approves the type.
+ * - Only views ViewCropViewSupport supports are collected, so every listed view can be selected.
+ * - One sheet record is shared by every view on that sheet. A view placed on several sheets (a legend)
+ *   gets its OWN copy marked with "+" - mutating the shared record put the "+" on every view of that
+ *   sheet.
  * - ElementId numeric value access via ElementIdHelper (Revit 2024+ deprecated IntegerValue).
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - A legend placed on several sheets appended "+" to the sheet record shared by every
+ *                       view on its first sheet, so all plans there showed and grouped as "A101+" - the
+ *                       legend now gets its own record. Dropped the always-true CanSelect /
+ *                       SupportMessage values (only supported views are collected since v1.2.0).
+ *                       Header version synced - it still read 1.1.0.
  * v1.2.0 (2026-06-28) - Collect only supported plan views (hide unsupported types from the picker).
  * v1.1.0 (2026-06-27) - Refactor/audit pass: ElementIdHelper, metadata, version coverage notes.
  *
@@ -74,7 +82,6 @@ namespace AJTools.Services.ViewCrop
             var items = new List<ViewCropTargetViewItem>(views.Count);
             foreach (View view in views)
             {
-                bool isSupported = ViewCropViewSupport.TryValidateType(view, out string reason);
                 int viewKey = ElementIdHelper.GetIntegerValue(view.Id);
 
                 string groupName = "Unplaced Views";
@@ -96,9 +103,7 @@ namespace AJTools.Services.ViewCrop
                     SheetNumber = sheetNumber,
                     SheetName = sheetName,
                     GroupName = groupName,
-                    CanSelect = isSupported,
-                    SupportMessage = isSupported ? "Supported" : reason,
-                    IsSelected = isSupported && ElementIdHelper.IsValid(preselectViewId) && preselectKey == viewKey
+                    IsSelected = ElementIdHelper.IsValid(preselectViewId) && preselectKey == viewKey
                 });
             }
 
@@ -137,8 +142,10 @@ namespace AJTools.Services.ViewCrop
                     }
                     else
                     {
+                        // Placed on more than one sheet (a legend). The record in the map is shared with
+                        // every other view on its first sheet, so never edit it - give this view its own.
                         SheetInfo existing = map[viewInt];
-                        existing.Number = existing.Number + "+";
+                        map[viewInt] = new SheetInfo { Number = existing.Number + "+", Name = existing.Name };
                     }
                 }
             }

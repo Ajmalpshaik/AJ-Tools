@@ -5,10 +5,10 @@
  * Purpose       : Coordinates annotation crop UI, target view selection, execution, and reporting.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-04-11
- * Last Updated  : 2026-06-27
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,11 +21,15 @@
  *
  * Notes         :
  * - Tool scope: Active View OR a user-selected batch of plan views.
- * - Skips unsupported, template, scope-box-controlled, and view-template-locked views.
+ * - Skips unsupported, template, and view-template-locked views. There is NO scope-box check here
+ *   (ViewCropAnnotationService has none) - unlike View Crop, a view whose crop is set by a scope box
+ *   is still processed.
  * - Bulk-edit confirmation is shown when more than one view is targeted.
  * - Summary and error-log handling delegated to ViewCropReportPresenter.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - Notes corrected: they said scope-box views were skipped, but this tool has no
+ *                       scope-box check. Settings save call updated for the tracker's success flag.
  * v1.1.0 (2026-06-27) - Refactor/audit pass: bulk-edit confirmation, shared report presenter, metadata, version coverage notes.
  *
  * License       : All Rights Reserved
@@ -89,7 +93,9 @@ namespace AJTools.Services.ViewCrop
                     return Result.Cancelled;
 
                 ViewCropAnnotationSettings settings = optionsWindow.SelectedSettings ?? new ViewCropAnnotationSettings();
-                settingsTracker.Save(settings);
+
+                // This tracker is in-memory only (no disk store), so the save cannot fail.
+                settingsTracker.Save(settings, out _);
 
                 IList<View> targetViews = ViewCropCommandService.ResolveTargetViews(
                     commandData,

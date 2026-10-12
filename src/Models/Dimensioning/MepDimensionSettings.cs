@@ -7,10 +7,10 @@
  *                 the open project, from loaded Revit links, or both, plus run filters and layout.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,11 +24,15 @@
  * Notes         :
  * - Reference targets carry a DimensionModelScope EACH, not one global "use links" switch. Walls in
  *   the open project and walls in a linked architectural model are separate choices on purpose.
- * - Every length is stored in MILLIMETRES. Paper-millimetre values (padding) are multiplied by the
- *   view scale at the point of use; model-millimetre values (minimum run length, search band) are not.
+ * - Every length is stored in MILLIMETRES of model space (minimum run length, search band) and is
+ *   converted straight to feet - none is scaled by the view.
+ * - A settings file written by an older version may still carry RowSpacingMm / PaddingMm. They are no
+ *   longer properties here; the JSON reader ignores unknown fields, so such a file still loads.
  * - Targets Revit 2020 through latest.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Removed RowSpacingMm (its note described the RowPerRun mode removed in 1.48.0) and
+ *                       PaddingMm: both were defaulted, clamped and copied but never read.
  * v1.0.0 (2026-08-15) - Initial release.
  *
  * License       : All Rights Reserved
@@ -94,20 +98,6 @@ namespace AJTools.Models.Dimensioning
 
         /// <summary>Include the run's own width as a segment in the chain.</summary>
         public bool IncludeRunWidth { get; set; }
-
-        /// <summary>
-        /// Paper millimetres between one row and the next when each run gets its own row
-        /// (RowPerRun). Multiplied by the view scale, so it looks the same at any scale.
-        /// </summary>
-        public double RowSpacingMm { get; set; }
-
-        /// <summary>
-        /// NO LONGER USED. Kept so an existing settings file still loads without complaint.
-        /// It promised an overhang past the last witness line, which cannot be driven from code:
-        /// NewDimension reads the supplied line for position and direction only and then draws the
-        /// dimension between the references itself. That extension is a Dimension Type property in Revit.
-        /// </summary>
-        public double PaddingMm { get; set; }
 
         /// <summary>Dimension type name. Empty means the document default.</summary>
         public string DimensionTypeName { get; set; }
@@ -191,8 +181,6 @@ namespace AJTools.Models.Dimensioning
                 ChainStyle = DimensionChainStyle.SingleString,
                 DimensionBothSides = false,
                 IncludeRunWidth = false,
-                RowSpacingMm = 8.0,
-                PaddingMm = 6.0,
                 DimensionTypeName = string.Empty,
 
                 SearchBandMm = 150.0,
@@ -250,13 +238,6 @@ namespace AJTools.Models.Dimensioning
 
             MinimumRunLengthMm = Clamp(MinimumRunLengthMm, 0.0, 100000.0, 1000.0);
             SearchBandMm = Clamp(SearchBandMm, 1.0, 5000.0, 150.0);
-            PaddingMm = Clamp(PaddingMm, 0.0, 200.0, 6.0);
-            // A settings file written before this option existed has no value at all, which arrives as 0.
-            // Clamping 0 to the 1 mm floor would leave the stacked rows 1 mm apart on paper - they would
-            // print on top of each other. Absent means "use the default", not "use the minimum".
-            RowSpacingMm = RowSpacingMm <= 0.0
-                ? 8.0
-                : Clamp(RowSpacingMm, 1.0, 200.0, 8.0);
 
             DimensionTypeName = DimensionTypeName ?? string.Empty;
         }
@@ -322,8 +303,6 @@ namespace AJTools.Models.Dimensioning
                 ChainStyle = ChainStyle,
                 DimensionBothSides = DimensionBothSides,
                 IncludeRunWidth = IncludeRunWidth,
-                RowSpacingMm = RowSpacingMm,
-                PaddingMm = PaddingMm,
                 DimensionTypeName = DimensionTypeName,
                 SearchBandMm = SearchBandMm,
                 SkipAlreadyDimensioned = SkipAlreadyDimensioned,
