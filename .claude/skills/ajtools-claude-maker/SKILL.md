@@ -1,6 +1,6 @@
 ---
 name: ajtools-claude-maker
-description: Create a NEW skill in this repo's .claude/skills when a recurring, bounded, multi-step AJ Tools task pattern is spotted — either because Ajmal asks ("make this a skill", "save this workflow") or proactively mid-work when the same shape of request keeps coming back. Create it, then report it in the same reply ("created skill X because Y — say delete if you don't want it") — the report is mandatory, silent creation is forbidden. Do NOT use for one-off tasks, for universal habits that must apply to every task regardless of skill (those belong in CLAUDE.md or a knowledge file), or for the AJ AI Brain at D:\Ajmal\AJ AI Brain (the Brain maintains itself via its own brain-self-maintain skill). Deleting or replacing an EXISTING skill always needs Ajmal's explicit OK first.
+description: Create a NEW skill in this repo's .claude/skills when a recurring, bounded, multi-step AJ Tools task pattern is spotted — either because Ajmal asks ("make this a skill", "save this workflow") or proactively mid-work when the same shape of request keeps coming back. Create it, then report it in the same reply ("created skill X because Y — say delete if you don't want it") — the report is mandatory, silent creation is forbidden. Do NOT use for one-off tasks, for universal habits that must apply to every task regardless of skill (those belong in CLAUDE.md or a knowledge file), or for modelling work inside a Revit model (that belongs to the separate Heron AI project, never touched from here). Deleting or replacing an EXISTING skill always needs Ajmal's explicit OK first.
 ---
 
 # AJ Tools Skill Maker
@@ -24,13 +24,13 @@ create-then-report rule Ajmal set on 2026-07-16.
 
 ## Building the skill
 
-1. Create `.claude/skills/<kebab-name>/SKILL.md` — one skill per folder, matching the existing four.
+1. Create `.claude/skills/<kebab-name>/SKILL.md` — one skill per folder, like the existing ones.
 2. Frontmatter: `name` + a deliberately pushy `description` — what it does AND the situations that
    trigger it, including broken-English/dictated phrasings Ajmal actually uses, AND what it must NOT
    fire on, naming the skill that owns that instead.
 3. Bake in plan-split-execute: a short visible plan, one step at a time, each verified before the next —
    never one opaque action.
-4. Point at shared knowledge (`reply-style.md`, `ajtools-conventions.md`) — don't
+4. Point at shared knowledge (`ajtools-conventions.md`, `debug-log.md`) — don't
    duplicate facts into the skill.
 5. Size rule: a SKILL.md stays roughly 60–150 lines — when to trigger and the steps, not reference
    material.
@@ -48,5 +48,5 @@ that created it.
 
 - Never delete or replace an existing skill without Ajmal's explicit OK — create-then-report covers
   NEW skills only.
-- Never create a skill for Brain-side modeling workflows — since the 2026-07-22 split, day-to-day
-  modeling skills live in `D:\Ajmal\AJ AI Brain\skills\`, and that folder maintains itself.
+- Never create a skill for modelling work inside a Revit model — AJ Tools has no live link to Revit;
+  that work belongs to the separate Heron AI project.

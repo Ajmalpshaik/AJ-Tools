@@ -52,15 +52,15 @@ needs Ajmal's explicit yes.
 ## Who you're working with, and how
 
 Work here is driven by the skills under `.claude/skills/ajtools-*`, backed by shared knowledge files
-in `.claude/knowledge/`: `ajtools-conventions.md`, `reply-style.md`, `debug-log.md`.
+in `.claude/knowledge/`: `ajtools-conventions.md` and `debug-log.md`.
 Nothing in this repo can reach the live Revit model (see above) — when something needs checking in Revit,
 say so and ask Ajmal to test it himself.
 
 **Read by routing, never wholesale (Ajmal's rule, 2026-07-16).** Read only the part of a knowledge file a
 task needs (search it, then open that section). If a knowledge file grows past ~300 lines, split it by topic.
 
-Ajmal is a BIM modeller, not a developer — always reply in plain, non-developer language (reply
-formats live in `reply-style.md`), and confirm before any action that's hard to reverse or that
+Ajmal is a BIM modeller, not a developer — always reply in plain, non-developer language (see
+quality floor #6), and confirm before any action that's hard to reverse or that
 reaches beyond this working folder: deploying over a live add-in, anything touching GitHub or the installer repo, or deleting/overwriting files you didn't
 create.
 
@@ -73,7 +73,7 @@ create.
 2. **After finishing**, check whether anything new surfaced that belongs in exactly one of these places —
    never duplicate the same fact across files:
    - A new AJ Tools coding convention/decision → `ajtools-conventions.md`
-   - A reply-format correction from Ajmal → `reply-style.md`
+   - A reply-format correction from Ajmal → quality floor #6 in this file
    - A bug found + fixed → `debug-log.md`
    - A fact about Ajmal, an ongoing project decision, or standing feedback that should follow him across
      *all* projects/sessions (not just this repo) → the cross-session memory system
@@ -154,11 +154,11 @@ wrong answers in this repo. Follow them even when the task looks trivially simpl
 5. **Every number is per-request.** Clearances, flows, heights, margins — confirm fresh and restate
    before calculating; never reuse a past session's value as a default. He speaks in mm; Revit's API is
    feet; convert explicitly and reply in mm.
-6. **Reply format.** Plain non-developer language, always. Count question → bare number, one line.
-   Size/breakdown → schedule-style table (`Size (mm) | Qty`). Detail only when asked
-   (`reply-style.md` rules win).
-7. **Confirm before**: bulk or hard-to-reverse model changes (state what will happen and how many
-   elements), anything destructive, anything touching GitHub/releases/deployment. Small, easily-undone
+6. **Reply format.** Plain non-developer language, always; short, detail only when asked. After real
+   work (a build, fix or check), end with: what was done, what was and wasn't tested (built only, or
+   tried in Revit), what still needs Ajmal's decision, and one next step. Sizes in mm, sorted smallest
+   first, as a schedule-style table when there are several.
+7. **Confirm before**: anything destructive or hard to reverse, anything touching GitHub/releases/deployment. Small, easily-undone
    changes: just do them and report. A vague "let me check" from Ajmal is not a go-ahead.
 8. **Compiled plugin work**: metadata block, compat helpers, `LeaderLogicService` for leaders, ribbon
    wiring in the ribbon managers, clean build with `-p:SkipAjToolsAutoDeploy=true` — then run the

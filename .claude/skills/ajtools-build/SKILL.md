@@ -32,8 +32,6 @@ verify it compiles and behaves as expected → update the log. Use `TaskCreate`/
 steps so progress is visible, and check each step's result before moving to the next rather than firing
 off every step and hoping.
 
-Note: a plain question like "how many VCDs are there right now" is **not** a build task at all — it's a
-one-off query about the live model, answered directly with the Revit API, no new capability involved.
 Don't route ordinary questions through this skill; it's specifically for adding something new to AJ Tools.
 
 **When to actually split work across separate agents, not just separate steps:** if the task is large
