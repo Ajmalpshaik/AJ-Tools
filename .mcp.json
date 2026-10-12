@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "aj-tools-aj-ai": {
-      "command": "node",
-      "args": ["D:\\06_Development\\01_AJ-Tools\\Revit Addins\\mcp-server\\index.js"]
-    }
-  }
-}

@@ -50,7 +50,7 @@ Translate, keeping behaviour identical but the *implementation* native to AJ Too
 1. Build clean with deploy skipped:
    `msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true` —
    zero errors, zero warnings.
-2. If the AJ AI Bridge is connected (`mcp__aj-tools-aj-ai__ping`), verify the ported logic's
+2. If the AJ AI Bridge is connected (`tools\invoke-revit-bridge.ps1 -Ping`), verify the ported logic's
    observable effect against the live model — where practical, compare with what the pyRevit tool itself
    produces on the same elements (Ajmal can run it; the bridge can't click buttons). The cap-end port was
    only trusted after exactly this kind of check caught two real gaps (`IsConnected == true` with wrong

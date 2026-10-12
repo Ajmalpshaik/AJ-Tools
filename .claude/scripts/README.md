@@ -1,7 +1,7 @@
 # AJ Tools — Reusable AJ AI Bridge Scripts (index — start here)
 
 This folder holds **working C# fragments**, not just descriptions of them, for jobs that come up
-repeatedly on the live model via the AJ AI Bridge (`mcp__aj-tools-aj-ai__run_csharp`).
+repeatedly on the live model via the AJ AI Bridge (`tools\invoke-revit-bridge.ps1 -CodeFile`).
 The point: the next session runs code that already worked, instead of re-deriving it from prose and
 risking a small mistake creeping back in.
 
@@ -189,10 +189,9 @@ they're safe to reuse blindly.
    `return sb.ToString();` as the very last line of the whole composed script.
 4. Fill in every `INPUTS` block with today's actual values — nothing pre-filled in these files is a
    default, per the rule below.
-5. Run the composed script via `mcp__aj-tools-aj-ai__run_csharp`.
+5. Run the composed script with the bridge helper (below).
 
-If the native MCP tool is not exposed in the current agent session, do not spend time re-reading
-`mcp-server/index.js` or hand-writing a named-pipe wrapper. Use the checked-in fallback helper:
+Do not hand-write a named-pipe wrapper. Use the checked-in helper:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\invoke-revit-bridge.ps1 -Ping
@@ -202,8 +201,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ..\tools\invoke-aj-ai-bridge
 ```
 
 `tools\invoke-revit-bridge.ps1` is a visible root shortcut for agents that search with plain `rg --files`
-and therefore miss dot folders like `.claude`. These helpers exist only as fallbacks. If
-`mcp__aj-tools-aj-ai__run_csharp` is available, use the native MCP tool directly.
+and therefore miss dot folders like `.claude`.
 
 
 ## Before writing new AJ AI Bridge C#

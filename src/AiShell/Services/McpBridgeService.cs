@@ -223,9 +223,9 @@ namespace AJTools.AiShell.Services
         private static string AjToolsAppDataDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AJTools");
 
-        // Kept, and still written, purely so an OLDER mcp-server build keeps working unchanged: it reads
-        // this one file and knows nothing about instances. It always describes THIS Revit, so with a
-        // single session open the old and new clients behave identically.
+        // Must stay: the PowerShell bridge helper (.claude\tools\invoke-aj-ai-bridge.ps1) finds the pipe
+        // name and token through this one file. It always describes THIS Revit (the Node MCP server that
+        // also read it was removed from the repository 2026-10-12).
         private static string DiscoveryFilePath => Path.Combine(AjToolsAppDataDir, "ajai-bridge.json");
 
         // One file per live Revit, named by process id. A directory rather than one shared file on

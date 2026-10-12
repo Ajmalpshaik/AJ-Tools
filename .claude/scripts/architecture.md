@@ -153,7 +153,7 @@ Typical live request:
 Do this as workflow + modules, not as a new saved script:
 
 ```text
-1. mcp__aj-tools-aj-ai__ping
+1. tools\invoke-revit-bridge.ps1 -Ping
 2. report Revit version + open model, per ../knowledge/live-model/core.md
 3. filters/filter-by-category.cs
    targetCategory = BuiltInCategory.OST_DuctCurves
