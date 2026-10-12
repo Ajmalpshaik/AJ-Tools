@@ -5,10 +5,10 @@
  * Purpose       : Resets category graphics overrides for the categories represented by the selected elements in the active view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-03-30
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,7 @@
  * - ESC during a pick cancels silently (no error dialog).
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  * v1.5.0 (2026-06-30) - Added a missing-selection message; full metadata block.
  * v1.4.4 (2026-05-09) - Reviewed Reset Category Graphics flow, shared validation, and metadata for release.
  *
@@ -110,7 +111,6 @@ namespace AJTools.Commands.GraphicsTools
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(dialogTitle, ex.Message);
                 return Result.Failed;
             }

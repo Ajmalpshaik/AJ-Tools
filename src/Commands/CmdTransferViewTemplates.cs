@@ -38,6 +38,8 @@
  *                       old template was deleted. Those links are now recorded first and re-pointed to the
  *                       new same-named template; any Revit will not accept is left empty and counted in
  *                       the report instead of failing the transfer.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -190,7 +192,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, "Transfer failed:\n\n" + ex.Message);
                 return Result.Failed;
             }

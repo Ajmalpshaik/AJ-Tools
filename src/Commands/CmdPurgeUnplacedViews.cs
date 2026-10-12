@@ -31,7 +31,9 @@
  * v1.0.0 (2026-05-11) - Ported from an earlier AJ Tools script.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block. Purge behaviour unchanged.
  * v1.1.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
- * v1.1.2 (2026-10-12) - Header corrected: the runner serves five commands, not two. No code change.
+ * v1.1.2 (2026-10-12) - Header corrected: the runner serves five commands, not two.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -88,7 +90,6 @@ namespace AJTools.Commands
             }
             catch (System.Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show(toolTitle, "Tool failed:\n" + ex.Message);
                 return Result.Failed;
             }

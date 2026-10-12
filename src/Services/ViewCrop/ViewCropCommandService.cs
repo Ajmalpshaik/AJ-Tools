@@ -37,6 +37,8 @@
  *                       crop now share one outer TransactionGroup, so the run really is the single
  *                       Ctrl+Z the bulk confirmation promises (it was two undo steps). A settings save
  *                       failure is now reported instead of silently swallowed.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.2.0 (2026-06-28) - Merged two commands into one: ExtentSource now read from ViewCropSettings (user sets mode in the dialog).
  * v1.1.0 (2026-06-27) - Refactor/audit pass: bulk-edit confirmation, shared report presenter, ElementId helper, metadata, version coverage notes.
  * v1.0.2 (2026-05-24) - Premium UI redesign with presets and integrated annotation crop.
@@ -180,7 +182,6 @@ namespace AJTools.Services.ViewCrop
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 string logPath = ViewCropReportPresenter.TryWriteErrorLog("ViewCrop", commandTitle, extentSourceLabel, ex);
                 DialogHelper.ShowError(
                     commandTitle,

@@ -40,6 +40,8 @@
  *                       a command that does not succeed - so the colours vanished while the report
  *                       said they were applied. The drift-limit line now counts tags, and "NOTHING
  *                       COULD MOVE" only appears when every stuck tag was stopped by the limit.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.0.0 (2026-08-16) - Initial release.
  *
  * License       : All Rights Reserved
@@ -167,7 +169,6 @@ namespace AJTools.Commands
                         if (transaction.HasStarted() && !transaction.HasEnded())
                             transaction.RollBack();
 
-                        message = ex.Message;
                         DialogHelper.ShowError(ToolTitle, "The run failed and nothing was changed.\n\n" + ex.Message);
                         return Result.Failed;
                     }

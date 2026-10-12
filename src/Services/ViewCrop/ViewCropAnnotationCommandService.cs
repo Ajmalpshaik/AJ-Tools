@@ -30,6 +30,8 @@
  * Changelog     :
  * v1.1.1 (2026-10-12) - Notes corrected: they said scope-box views were skipped, but this tool has no
  *                       scope-box check. Settings save call updated for the tracker's success flag.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.1.0 (2026-06-27) - Refactor/audit pass: bulk-edit confirmation, shared report presenter, metadata, version coverage notes.
  *
  * License       : All Rights Reserved
@@ -136,7 +138,6 @@ namespace AJTools.Services.ViewCrop
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 string logPath = ViewCropReportPresenter.TryWriteErrorLog("AnnotationCrop", commandTitle, null, ex);
                 DialogHelper.ShowError(
                     commandTitle,

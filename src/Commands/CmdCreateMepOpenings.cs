@@ -34,8 +34,10 @@
  *                       where every opening failed returned Failed with an empty message and showed
  *                       nothing, and a partly successful run never said what it left out. Now one
  *                       plain report lists failures and skips (grouped, counted, capped) whenever
- *                       anything failed or was skipped, and the Failed result carries a message.
+ *                       anything failed or was skipped.
  *                       Corrected the stale note that linked hosts need a "later" family mode.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.2.0 (2026-07-21) - Reverted v1.1.0 below - the Opening split button's default face is now permanently
  *                       fixed on "Create Openings" (RibbonManager.cs v1.12.0, IsSynchronizedWithCurrentItem
  *                       = false), so Execute() no longer needs to set CurrentButton itself.
@@ -172,7 +174,6 @@ namespace AJTools.Commands
                 if (result.Failed > 0 && result.OpeningsCreated == 0)
                 {
                     TaskDialog.Show("Create Openings", BuildRunReport(result));
-                    message = "No openings were created (" + result.Failed + " failed).";
                     return Result.Failed;
                 }
 
@@ -192,7 +193,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 TaskDialog.Show("Create Openings", "Openings could not be created:\n\n" + ex.Message);
                 return Result.Failed;
             }

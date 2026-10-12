@@ -6,10 +6,10 @@
  *                 picking datums one-by-one (instant flip) or by window-selecting a batch.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2025-12-07
- * Last Updated  : 2026-06-30
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -35,6 +35,7 @@
  * v1.2.0 (2026-06-30) - Added mandatory metadata block; window-select now flips a whole rectangle in
  *                       one undo step; Family-Editor guard; validation cancels cleanly; graceful
  *                       per-datum skip; cleanup. Flip behaviour unchanged.
+ * v1.2.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -111,7 +112,6 @@ namespace AJTools.Commands
             }
             catch (System.Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(Title, ex.Message);
                 return Result.Failed;
             }

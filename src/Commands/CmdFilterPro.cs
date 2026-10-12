@@ -30,6 +30,8 @@
  * v1.0.0 (2025-12-10) - Initial release.
  * v1.0.1 (2026-07-28) - Audit: window is now owned by the Revit main window (WindowInteropHelper), so it cannot drop behind Revit.
  * v1.0.2 (2026-10-12) - Wrong-view message no longer suggests a detail view - Filter Pro does not open in one.
+ *                       Also: an unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -83,7 +85,6 @@ namespace AJTools.Commands
             }
             catch (Exception ex)
             {
-                message = $"An error occurred: {ex.Message}";
                 TaskDialog.Show("Filter Pro Error", $"An unexpected error occurred:\n\n{ex.Message}");
                 return Result.Failed;
             }
