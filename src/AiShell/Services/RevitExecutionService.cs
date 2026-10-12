@@ -6,10 +6,10 @@
  *                 Revit API thread via ExternalEvent, wrapped in a single-undo TransactionGroup.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.4.0
+ * Version       : 1.4.1
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,12 @@
  *   thread from waiting on it forever, it does not guarantee the runaway work actually stops.
  *
  * Changelog     :
+ * v1.4.1 (2026-10-12) - Removed the "which open project, by title" path (documentTitle parameter,
+ *                       _targetDocumentTitle field and its lookup block) - it existed only for the
+ *                       outside-agent bridge removed in 1.57.0; the C# pane, the only caller, always
+ *                       ran against the active document, which is unchanged. MaxLoopRuntime,
+ *                       HardWaitTimeout and the timeout message are now shared (internal) so Run
+ *                       Pinned / Saved Scripts use the same limits instead of none.
  * v1.4.0 (2026-07-23) - Fixed a misreported-failure bug: RefreshActiveView() ran inside the same
  *                       try as group.Commit() and its own inner catch - if the view refresh threw
  *                       (e.g. the active view became invalid), the script was reported as Failed
@@ -68,8 +74,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
@@ -86,11 +90,6 @@ namespace AJTools.AiShell.Services
 
         // State for execution
         private string _codeToExecute;
-        // Which OPEN project the script should act on, by title. Null = the one in front, which is the
-        // behaviour every existing caller already relies on. Named on purpose rather than defaulting to
-        // the active document: with two projects open in one Revit, the front window changes between
-        // calls, so a multi-step job can start in one project and finish in another.
-        private string _targetDocumentTitle;
         private Action<int, string> _progressCallback;
         private TaskCompletionSource<CodeExecutionResult> _tcs;
 
@@ -107,8 +106,9 @@ namespace AJTools.AiShell.Services
         }
 
         // Loop-based scripts are auto-cancelled after this long even if the user never presses Stop
-        // (backstop against an AI-generated infinite loop). See LoopProtectionRewriter.
-        private static readonly TimeSpan MaxLoopRuntime = TimeSpan.FromSeconds(60);
+        // (backstop against an AI-generated infinite loop). See LoopProtectionRewriter. Internal so
+        // RunPinnedScriptCommand applies the very same limit.
+        internal static readonly TimeSpan MaxLoopRuntime = TimeSpan.FromSeconds(60);
 
         // Hard backstop on the blocking Wait() below, on top of MaxLoopRuntime. Gives a script that
         // DOES respect the CancellationToken (see LoopProtectionRewriter) time to actually unwind
@@ -116,16 +116,16 @@ namespace AJTools.AiShell.Services
         // (a goto-loop, Thread.Sleep, or a single very long Revit API call) cannot be forcibly killed
         // from here - .NET has no safe way to abort a running thread - so this only stops the Revit
         // UI thread from waiting forever; it does not guarantee the runaway work actually stops.
-        private static readonly TimeSpan HardWaitTimeout = MaxLoopRuntime + TimeSpan.FromSeconds(20);
+        internal static readonly TimeSpan HardWaitTimeout = MaxLoopRuntime + TimeSpan.FromSeconds(20);
+
+        /// <summary>What the user is told when HardWaitTimeout runs out (shared with Run Pinned).</summary>
+        internal static string TimeoutMessage =>
+            $"The script did not finish within {HardWaitTimeout.TotalSeconds:0} seconds and did not respond to Stop. " +
+            "It may still be running in the background. Any changes were not committed.";
 
         private CancellationToken _externalCancellationToken;
 
-        /// <param name="documentTitle">
-        /// Title of the open project to run against, e.g. "school". Null or empty keeps the old
-        /// behaviour: whichever document is active in this Revit. A title that is not open is an ERROR,
-        /// never a silent fall back to the active document - see Execute().
-        /// </param>
-        public Task<CodeExecutionResult> ExecuteAsync(string code, Action<int, string> progressCallback = null, CancellationToken cancellationToken = default, string documentTitle = null)
+        public Task<CodeExecutionResult> ExecuteAsync(string code, Action<int, string> progressCallback = null, CancellationToken cancellationToken = default)
         {
             lock (_lock)
             {
@@ -142,7 +142,6 @@ namespace AJTools.AiShell.Services
                 _isRunning = true;
                 _tcs = new TaskCompletionSource<CodeExecutionResult>();
                 _codeToExecute = code;
-                _targetDocumentTitle = documentTitle;
                 _progressCallback = progressCallback;
                 _externalCancellationToken = cancellationToken;
             }
@@ -156,14 +155,12 @@ namespace AJTools.AiShell.Services
         public void Execute(UIApplication app)
         {
             string code;
-            string targetDocumentTitle;
             Action<int, string> progressCallback;
             TaskCompletionSource<CodeExecutionResult> tcs;
             CancellationToken externalToken;
             lock (_lock)
             {
                 code = _codeToExecute;
-                targetDocumentTitle = _targetDocumentTitle;
                 progressCallback = _progressCallback;
                 tcs = _tcs;
                 externalToken = _externalCancellationToken;
@@ -184,42 +181,6 @@ namespace AJTools.AiShell.Services
                     return;
                 }
 
-                // ---- WHICH PROJECT DOES THIS SCRIPT ACT ON? ----------------------------------------
-                // Default stays the active document, so every existing caller is unaffected. When a
-                // title IS given it must match an open project: a name that is not open is an error,
-                // NEVER a quiet fall back to whatever is in front. Falling back is precisely the
-                // "started in one project, finished in another" failure this exists to prevent.
-                Document targetDoc = uidoc.Document;
-                if (!string.IsNullOrWhiteSpace(targetDocumentTitle))
-                {
-                    var openDocs = new List<Document>();
-                    foreach (Document d in app.Application.Documents)
-                        if (!d.IsLinked) openDocs.Add(d);
-
-                    targetDoc = openDocs.FirstOrDefault(d =>
-                        string.Equals(d.Title, targetDocumentTitle, StringComparison.OrdinalIgnoreCase));
-
-                    if (targetDoc == null)
-                    {
-                        string open = openDocs.Count == 0
-                            ? "(none)"
-                            : string.Join(", ", openDocs.Select(d => "\"" + d.Title + "\""));
-                        tcs.TrySetResult(new CodeExecutionResult
-                        {
-                            Success = false,
-                            ErrorMessage = "No open project called \"" + targetDocumentTitle +
-                                           "\" in this Revit. Open here: " + open + ". Nothing was run."
-                        });
-                        return;
-                    }
-
-                    // A UIDocument for a background project is legal, but its ActiveView is the one
-                    // Revit has open for THAT project - so view-scoped work (isolate, colour, crop)
-                    // still lands where Revit says, not where the front window is. Model-level work
-                    // (create, rename, parameters, schedules) is unaffected either way.
-                    if (!ReferenceEquals(targetDoc, uidoc.Document)) uidoc = new UIDocument(targetDoc);
-                }
-
                 using (var timeoutCts = new CancellationTokenSource(MaxLoopRuntime))
                 using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, externalToken))
                 {
@@ -228,7 +189,7 @@ namespace AJTools.AiShell.Services
                         UIApplication = app,
                         Application = app.Application,
                         UIDocument = uidoc,
-                        Document = targetDoc,
+                        Document = uidoc.Document,
                         CancellationToken = linkedCts.Token,
                         ReportProgress = progressCallback
                     };
@@ -257,8 +218,7 @@ namespace AJTools.AiShell.Services
                                 tcs.TrySetResult(new CodeExecutionResult
                                 {
                                     Success = false,
-                                    ErrorMessage = $"The script did not finish within {HardWaitTimeout.TotalSeconds:0} seconds and did not respond to Stop. " +
-                                                   "It may still be running in the background. Any changes were not committed."
+                                    ErrorMessage = TimeoutMessage
                                 });
                                 return;
                             }
@@ -294,8 +254,7 @@ namespace AJTools.AiShell.Services
                             tcs.TrySetResult(new CodeExecutionResult
                             {
                                 Success = false,
-                                ErrorMessage = ex.InnerException?.Message ?? ex.Message,
-                                Exception = ex.InnerException ?? ex
+                                ErrorMessage = ex.InnerException?.Message ?? ex.Message
                             });
                         }
                     }

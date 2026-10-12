@@ -6,10 +6,10 @@
  *                 slot, how many slots there are (4 to 12) and how big the wheel opens.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-19
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,11 +32,17 @@
  *   IsHitTestVisible=false and the canvas hit-tests by angle, exactly as the real wheel does.
  * - Validation is inline (the Set button simply does nothing useful without both a tool and a slot
  *   selected, and both buttons enable/disable with the selection) - never a popup after the fact,
- *   per the house rule.
- * - Visibility values would be fully qualified (System.Windows.Visibility.*) per the house rule -
- *   none are needed in this file.
+ *   per the house rule. A failed save, or a layout file that could not be read, is reported the
+ *   same way in ErrorText, and the window stays open.
+ * - Visibility values are fully qualified (System.Windows.Visibility.*) per the house rule.
  *
  * Changelog     :
+ * v1.2.1 (2026-10-12) - Save checks QuickMenuConfig.Save()'s answer: a failed write now shows an
+ *                       inline message and keeps the window open, instead of closing as if saved.
+ *                       When the saved layout could not be read (QuickMenuConfig.LoadFailed) the
+ *                       window says so and Save is turned off, so the default layout it is showing
+ *                       can never be written over the real one. Removed the Result property
+ *                       (nothing read it).
  * v1.2.0 (2026-08-19) - The slot list is now the wheel itself, and tools are dragged onto it: list
  *                       to slot fills, slot to slot swaps, slot back to the list empties. The Set /
  *                       Clear / Move buttons still work, now driven by the slot picked on the wheel.
@@ -132,8 +138,11 @@ namespace AJTools.UI.QuickMenu
         private Point _dragOrigin;
         private int _dragFromSlot = -1;
 
-        /// <summary>The layout as saved. Only meaningful once ShowDialog returned true.</summary>
-        internal QuickMenuConfig Result { get; private set; }
+        /// <summary>
+        /// True when the saved layout file could not be read: the window is showing the DEFAULT
+        /// layout in its place, and saving would replace Ajmal's real layout with it.
+        /// </summary>
+        private readonly bool _layoutUnreadable;
 
         internal QuickMenuSettingsWindow(IList<QuickToolEntry> allTools, QuickMenuConfig config)
         {
@@ -143,7 +152,7 @@ namespace AJTools.UI.QuickMenu
 
             QuickMenuConfig working = config ?? QuickMenuConfig.Load();
             working.Normalize();
-            Result = working;
+            _layoutUnreadable = working.LoadFailed;
 
             _slotKeys.AddRange(working.Slots);
 
@@ -155,6 +164,21 @@ namespace AJTools.UI.QuickMenu
 
             _loading = false;
             UpdateButtonStates();
+
+            if (_layoutUnreadable)
+            {
+                SaveButton.IsEnabled = false;
+                ShowError("Your saved Quick Menu layout could not be read, so the default layout is shown and " +
+                          "Save is turned off - saving now would replace your layout with these defaults. " +
+                          "Close this window and try again in a moment.");
+            }
+        }
+
+        /// <summary>Inline message under the window body - the house rule is no popup.</summary>
+        private void ShowError(string message)
+        {
+            ErrorText.Text = message;
+            ErrorText.Visibility = System.Windows.Visibility.Visible;
         }
 
         #region Setting up the lists
@@ -701,6 +725,12 @@ namespace AJTools.UI.QuickMenu
 
         private void OnSaveClick(object sender, RoutedEventArgs e)
         {
+            // Belt and braces - the button is already disabled in this case.
+            if (_layoutUnreadable)
+            {
+                return;
+            }
+
             QuickMenuConfig config = QuickMenuConfig.Load();
             config.SlotCount = _slotKeys.Count;
             config.Diameter = ChoiceValue(WheelSizeCombo, QuickMenuConfig.DefaultDiameter);
@@ -711,8 +741,14 @@ namespace AJTools.UI.QuickMenu
                 config.Slots[i] = _slotKeys[i];
             }
 
-            config.Save();
-            Result = config;
+            if (!config.Save())
+            {
+                // Keep the window - and everything arranged in it - open, so nothing is lost.
+                ShowError("The layout could not be saved - the settings file may be locked or read-only. " +
+                          "Your arrangement is still here; try Save again.");
+                return;
+            }
+
             DialogResult = true;
         }
 

@@ -3,22 +3,21 @@
  * Tool Name     : C#
  * File Name     : RunPinnedScriptCommand.cs
  * Purpose       : Standalone "Run Pinned Script" ribbon button - runs whichever saved script the
- *                 modeler last pinned from the C# pane's Saved Scripts History (AiShellConfig.
- *                 PinnedScriptPath), with no code panel needed. This is the safe, C#-native
- *                 equivalent of RevitPythonShell's "deploy script as ribbon button" feature: RPS
- *                 does that by emitting a brand-new compiled type per script at runtime via
- *                 System.Reflection.Emit IL generation (one dynamic assembly per pinned script).
- *                 That has no compiler safety net and cannot be verified without a live Revit +
- *                 Visual Studio test loop, so instead of porting it, this is one single, always-
- *                 present, statically-compiled button that reads whichever script is currently
- *                 pinned and runs it through the exact same RoslynService + safety-validator path
- *                 the C# pane's own Run Code button already uses.
+ *                 modeler pinned with "📌 Pin" in the Saved Scripts window (AiShellConfig.
+ *                 PinnedScriptPath), with no code panel needed. Deliberately ONE always-present,
+ *                 statically-compiled button that reads whichever script is pinned right now,
+ *                 rather than a new button type generated per script at runtime - generated
+ *                 command types have no compiler safety net and cannot be checked without a live
+ *                 Revit test loop. The script goes through the same safety validator, the same
+ *                 RoslynService compile/loop protection and the same 60 s limit with a bounded
+ *                 wait as the C# pane's Run Code button; unlike the pane it runs directly on
+ *                 Revit's command thread (no ExternalEvent) and without the pane's AI auto-fix.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.3.1
+ * Version       : 1.3.2
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -47,6 +46,13 @@
  *   path instead of two copies that could drift.
  *
  * Changelog     :
+ * v1.3.2 (2026-10-12) - Loop protection for Run Pinned / Saved Scripts Run: the script now gets the
+ *                       same 60 s CancellationToken and the same bounded wait (and timeout message)
+ *                       as the C# pane, shared from RevitExecutionService. Before, the token was
+ *                       never set and task.Wait() had no limit, so a script stuck in a loop froze
+ *                       Revit with no way out. Reads the session's shared settings
+ *                       (AiShellConfig.Shared). Purpose text corrected: pinning lives in the Saved
+ *                       Scripts window, and the run path is shared with the pane, not identical.
  * v1.3.1 (2026-07-25) - Merged in the GitHub-side v1.0.1 fix below (TryRefreshActiveView), which
  *                       had been made on the pre-RunScriptFile layout of this file.
  * v1.3.0 (2026-07-21) - Reverted v1.2.0 below - Run Pinned's default face is now permanently fixed
@@ -75,6 +81,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -90,7 +97,7 @@ namespace AJTools.AiShell.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var config = AiShellConfig.Load();
+            var config = AiShellConfig.Shared;
             var path = config.PinnedScriptPath;
 
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -155,43 +162,59 @@ namespace AJTools.AiShell.Commands
                 return Result.Failed;
             }
 
-            var globals = new RevitScriptGlobals
+            // Same loop protection as the C# pane (RevitExecutionService): the script's loop
+            // checkpoints watch this token, which cancels itself after MaxLoopRuntime, and the wait
+            // below gives up after HardWaitTimeout so a script that ignores the token cannot hold
+            // Revit's UI thread forever.
+            using (var timeoutCts = new CancellationTokenSource(RevitExecutionService.MaxLoopRuntime))
             {
-                UIApplication = commandData.Application,
-                Application = commandData.Application.Application,
-                UIDocument = uidoc,
-                Document = uidoc.Document,
-                ReportProgress = null
-            };
-
-            using (var group = new TransactionGroup(globals.Document, "AJ AI Script"))
-            {
-                group.Start();
-
-                try
+                var globals = new RevitScriptGlobals
                 {
-                    var roslynService = new RoslynService();
-                    var task = roslynService.ExecuteAsync(code, globals);
-                    task.Wait();
-                    var result = task.Result;
+                    UIApplication = commandData.Application,
+                    Application = commandData.Application.Application,
+                    UIDocument = uidoc,
+                    Document = uidoc.Document,
+                    CancellationToken = timeoutCts.Token,
+                    ReportProgress = null
+                };
 
-                    if (result.Success)
+                using (var group = new TransactionGroup(globals.Document, "AJ AI Script"))
+                {
+                    group.Start();
+
+                    try
                     {
-                        group.Commit();
-                        TryRefreshActiveView(commandData.Application);
-                        TaskDialog.Show("AJ AI: Script Ran Successfully", result.Output ?? "Done.");
-                        return Result.Succeeded;
-                    }
+                        var roslynService = new RoslynService();
+                        var task = roslynService.ExecuteAsync(code, globals);
+                        if (!task.Wait(RevitExecutionService.HardWaitTimeout))
+                        {
+                            // Same choice as RevitExecutionService: the script may still be running,
+                            // so the group is not touched from here - leaving the using block lets
+                            // Dispose() roll it back.
+                            message = RevitExecutionService.TimeoutMessage;
+                            return Result.Failed;
+                        }
 
-                    group.RollBack();
-                    message = result.ErrorMessage;
-                    return Result.Failed;
-                }
-                catch (Exception ex)
-                {
-                    try { group.RollBack(); } catch { /* group may already be in a terminal state */ }
-                    message = ex.InnerException?.Message ?? ex.Message;
-                    return Result.Failed;
+                        var result = task.Result;
+
+                        if (result.Success)
+                        {
+                            group.Commit();
+                            TryRefreshActiveView(commandData.Application);
+                            TaskDialog.Show("AJ AI: Script Ran Successfully", result.Output ?? "Done.");
+                            return Result.Succeeded;
+                        }
+
+                        group.RollBack();
+                        message = result.ErrorMessage;
+                        return Result.Failed;
+                    }
+                    catch (Exception ex)
+                    {
+                        try { group.RollBack(); } catch { /* group may already be in a terminal state */ }
+                        message = ex.InnerException?.Message ?? ex.Message;
+                        return Result.Failed;
+                    }
                 }
             }
         }

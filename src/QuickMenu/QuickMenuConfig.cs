@@ -7,10 +7,10 @@
  *                 Revit restarts and add-in updates.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-18
- * Last Updated  : 2026-08-18
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,14 +23,19 @@
  *
  * Notes         :
  * - Plain key=value text, same shape as the other AJ Tools config stores. All file IO is
- *   best-effort: a missing, locked or corrupt file falls back to the defaults rather than throwing
- *   in front of Ajmal.
+ *   best-effort: a missing file, or one that exists but cannot be read (locked, no access), falls
+ *   back to the defaults rather than throwing in front of Ajmal; lines that cannot be understood in
+ *   a readable file are skipped. An unreadable file also sets LoadFailed, and the customise window
+ *   then refuses to save - saving would replace Ajmal's real layout with the defaults it is showing.
  * - A slot stores the command CLASS name, not the button label, so renaming a ribbon button keeps
  *   the layout intact. An empty value is an empty slot, which the wheel draws greyed out.
  * - Slots is always exactly SlotCount long after Load() - the wheel and the customise window can
  *   both index it without guarding.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - A layout file that exists but cannot be read now gives the DEFAULT layout,
+ *                       as these Notes always promised - it used to give a wheel of empty slots -
+ *                       and sets LoadFailed so the customise window will not save over it.
  * v1.0.0 (2026-08-18) - Initial release.
  *
  * License       : All Rights Reserved
@@ -91,7 +96,14 @@ namespace AJTools.Services.QuickMenu
         /// <summary>One command class name per slot, "" for an empty slot. Always SlotCount long.</summary>
         public List<string> Slots { get; private set; }
 
-        /// <summary>Reads the saved layout, or hands back the defaults if there is nothing saved.</summary>
+        /// <summary>
+        /// True when a saved layout file exists but could not be read, so this is the DEFAULT layout
+        /// standing in for it. Never save such a config back - it would overwrite the real layout.
+        /// </summary>
+        public bool LoadFailed { get; private set; }
+
+        /// <summary>Reads the saved layout, or hands back the defaults if there is nothing saved
+        /// or the saved file cannot be read (LoadFailed tells the two apart).</summary>
         internal static QuickMenuConfig Load()
         {
             var config = new QuickMenuConfig();
@@ -139,15 +151,19 @@ namespace AJTools.Services.QuickMenu
                 }
                 else
                 {
-                    for (int i = 0; i < DefaultSlotKeys.Length; i++)
-                    {
-                        readSlots[i + 1] = DefaultSlotKeys[i];
-                    }
+                    FillDefaultSlots(readSlots);
                 }
             }
             catch (Exception)
             {
-                // Unreadable file - fall through with whatever was gathered plus the defaults below.
+                // The file is there but could not be read (locked, no access, ...). Show the default
+                // layout - not a half-read one, and not a wheel of empty slots - and flag it so the
+                // customise window does not save the defaults over the real file.
+                config.LoadFailed = true;
+                config.SlotCount = DefaultSlotCount;
+                config.Diameter = DefaultDiameter;
+                readSlots.Clear();
+                FillDefaultSlots(readSlots);
             }
 
             config.SlotCount = Clamp(config.SlotCount, MinSlotCount, MaxSlotCount);
@@ -161,6 +177,14 @@ namespace AJTools.Services.QuickMenu
             }
 
             return config;
+        }
+
+        private static void FillDefaultSlots(Dictionary<int, string> slots)
+        {
+            for (int i = 0; i < DefaultSlotKeys.Length; i++)
+            {
+                slots[i + 1] = DefaultSlotKeys[i];
+            }
         }
 
         /// <summary>Writes the layout back. Best-effort - returns false if the file could not be written.</summary>

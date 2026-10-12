@@ -44,7 +44,7 @@ namespace AJTools.Services.GameMode
                 }
                 else
                 {
-                    hud.Toast("Aim at something first, then press T");
+                    hud.Toast("Aim at something first, then press " + _session.Keys.Label(GameKeyBindings.Teleport));
                 }
             }
 
@@ -58,7 +58,7 @@ namespace AJTools.Services.GameMode
                 _session.BookmarksVersion++;
                 hud.Toast(slot <= 9
                     ? "Saved position " + slot + " - press " + slot + " to come back"
-                    : "Saved position " + slot + " - the tour (O) visits it");
+                    : "Saved position " + slot + " - the tour (" + _session.Keys.Label(GameKeyBindings.Tour) + ") visits it");
             }
 
             // 1..9 - jump to a saved position (restores the saved look direction too).
@@ -79,7 +79,7 @@ namespace AJTools.Services.GameMode
                 }
                 else
                 {
-                    hud.Toast("No saved position " + slot + " yet - press B to save one");
+                    hud.Toast("No saved position " + slot + " yet - press " + _session.Keys.Label(GameKeyBindings.SavePosition) + " to save one");
                 }
             }
 
@@ -98,7 +98,7 @@ namespace AJTools.Services.GameMode
                 }
                 else if (TryTemporaryHide(uidoc.Document, gameView, victim.ResolvedElement.Id))
                 {
-                    hud.Toast("Hidden: " + GameCollisionService.Describe(victim, false) + "   (U brings everything back)");
+                    hud.Toast("Hidden: " + GameCollisionService.Describe(victim, false) + "   (" + _session.Keys.Label(GameKeyBindings.UnhideAll) + " brings everything back)");
                     _collision.Refresh();
                 }
                 else
@@ -238,7 +238,6 @@ namespace AJTools.Services.GameMode
                     view.SetElementOverrides(elementId, overrides);
                     t.Commit();
                 }
-                _snagIds.Add(elementId);
                 return true;
             }
             catch (Exception)
@@ -276,7 +275,6 @@ namespace AJTools.Services.GameMode
                     t.Commit();
                 }
 
-                _snagIds.Clear();
                 _snagReportLines.Clear();
                 hud.SnagCount = 0;
                 hud.Toast("All element colors in the game view reset (" + applied.ToString("N0") + " elements)");
@@ -308,7 +306,8 @@ namespace AJTools.Services.GameMode
 
                     if (_tourSlots.Count < 1)
                     {
-                        hud.Toast("Save positions with B first - then O plays the tour");
+                        hud.Toast("Save positions with " + _session.Keys.Label(GameKeyBindings.SavePosition) +
+                                  " first - then " + _session.Keys.Label(GameKeyBindings.Tour) + " plays the tour");
                     }
                     else
                     {

@@ -70,26 +70,60 @@ namespace AJTools.AiShell.Services
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
                 request.Content = jsonContent;
 
-                var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                
-                if (!response.IsSuccessStatusCode)
+                HttpResponseMessage response;
+                try
                 {
-                    var err = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    throw new Exception($"OpenAI API Error ({response.StatusCode}): {err}");
+                    response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // HttpClient reports its own timeout as TaskCanceledException - without this
+                    // check it read as if the user had pressed Stop.
+                    throw new Exception(
+                        $"The AI service did not answer in time ({ProviderName}, {_httpClient.Timeout.TotalSeconds:0} seconds). " +
+                        "Try again, or ask for something shorter.");
                 }
 
-                var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                
-                // Dynamic parsing with null safety
-                dynamic result = JsonConvert.DeserializeObject(responseJson);
-                
-                if (result?.choices != null && result.choices.Count > 0)
+                using (response)
                 {
-                    string reply = result.choices[0]?.message?.content?.ToString();
-                    return reply ?? string.Empty;
-                }
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var err = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        throw new Exception($"OpenAI API Error ({response.StatusCode}): {err}");
+                    }
 
-                return string.Empty;
+                    var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                    // Dynamic parsing with null safety
+                    dynamic result = JsonConvert.DeserializeObject(responseJson);
+
+                    string reply = null;
+                    string refusal = null;
+                    string finishReason = null;
+                    if (result?.choices != null && result.choices.Count > 0)
+                    {
+                        reply = result.choices[0]?.message?.content?.ToString();
+                        refusal = result.choices[0]?.message?.refusal?.ToString();
+                        finishReason = result.choices[0]?.finish_reason?.ToString();
+                    }
+
+                    if (string.IsNullOrWhiteSpace(reply))
+                    {
+                        // Say WHY when OpenAI says why - a refusal or a filtered answer comes back
+                        // with no content, which used to be handed on as an empty reply.
+                        if (!string.IsNullOrWhiteSpace(refusal))
+                        {
+                            throw new AiEmptyReplyException($"OpenAI declined: {refusal}");
+                        }
+                        if (!string.IsNullOrWhiteSpace(finishReason) && !string.Equals(finishReason, "stop", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new AiEmptyReplyException($"OpenAI stopped without writing anything (finish reason: {finishReason}).");
+                        }
+                        throw new AiEmptyReplyException("OpenAI sent back an empty reply.");
+                    }
+
+                    return reply;
+                }
             }
         }
     }

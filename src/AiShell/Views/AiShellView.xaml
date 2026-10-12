@@ -4,30 +4,33 @@ Purpose   : Dockable pane view for the AJ Tools interactive AI-assisted C# shell
             code -> review/run/save against the live Revit document). Soft Revit UI style (Neumorphism +
             Claymorphism, Neon Blue primary, dark theme).
 Author    : Ajmal P.S.
-Version   : 2.5.0
-Last Updated : 2026-07-21
+Version   : 2.5.1
+Last Updated : 2026-10-12
 Changelog :
+  v2.5.1 - Audit, no behaviour change: removed the empty "Settings Panel" grid row (nothing had used
+           it since Settings became its own window in v2.1.0) and renumbered the rows below it; the
+           "Send Last Line" tooltip now says the Code Editor is ABOVE the console (it is); comments
+           and this changelog reworded without naming outside tools (project rule).
   v2.5.0 - Removed the "Saved Scripts History" expander entirely - moved to its own standalone
            "Saved Scripts" ribbon button/window (ShowSavedScriptsCommand/SavedScriptsWindow) per
            Ajmal's request, same reasoning as "Run Pinned": reachable whether or not this pane is
            open. Live Console (now the only expander left) moved up to Grid.Row 7.
-  v2.4.0 - Two more RevitPythonShell-parity pieces: (1) Ctrl+Space in the Code Editor opens a
-           curated Revit API completion list (RevitApiCompletionData) - RPS's "autocompletion
-           (press CTRL+SPACE after a period)", scaled to a static list instead of a live semantic
-           model (see that file's notes for why). (2) "📋 Send Last Line to Code Editor" button in
-           Live Console - appends the last-run console line to the editor (never overwrites), and
-           if it failed, pre-fills Prompt with the error so Generate C# Code can ask AI to fix it.
+  v2.4.0 - Two more scripting-shell conveniences: (1) Ctrl+Space in the Code Editor opens a
+           curated Revit API completion list (RevitApiCompletionData), a static list instead of a
+           live semantic model (see that file's notes for why). (2) "📋 Send Last Line to Code
+           Editor" button in Live Console - appends the last-run console line to the editor (never
+           overwrites), and if it failed, pre-fills Prompt with the error so Generate C# Code can ask
+           AI to fix it.
   v2.3.0 - Saved Scripts History rows now also have a "📌 Pin" button (PinScriptCommand) next to
            "▶ Run", plus a status line showing which script (if any) is currently pinned. Pinning
            writes AiShellConfig.PinnedScriptPath, which the new standalone "Run Pinned" ribbon
            button (RunPinnedScriptCommand, AI Assistant panel) reads to run that one script with a
-           single click, no code panel needed - the safe, statically-compiled alternative to
-           RevitPythonShell's runtime-IL-emission "deploy script as ribbon button" feature.
+           single click, no code panel needed - one statically-compiled button rather than a new
+           button type generated at runtime for each script.
   v2.2.0 - Added a "Snoop Selection" button (dumps every parameter of the current selection to the
            Output panel, read-only) and a "Live Console" expander below Saved Scripts History - type
            one C# line, press Enter, it runs immediately with variables kept alive for the next line.
-           Both are RevitPythonShell-equivalent pieces (lookup()/RevitLookup and the interactive
-           IronPython console) ported to sit alongside the existing AI Generate/Run workflow.
+           Both sit alongside the existing AI Generate/Run workflow.
   v2.1.0 - Settings moved out of this pane's inline collapsible panel into its own popup
            (SettingsWindow.xaml, opened from code-behind) per Ajmal's request. Shared brush/style
            resources extracted to SoftUiStyles.xaml (merged dictionary) so the pane and the new
@@ -66,7 +69,6 @@ Changelog :
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Top Bar -->
-            <RowDefinition Height="Auto"/> <!-- Settings Panel -->
             <RowDefinition Height="1.5*"/> <!-- Chat / Prompt -->
             <RowDefinition Height="Auto"/> <!-- Generate Button -->
             <RowDefinition Height="2.5*"/> <!-- Code Editor -->
@@ -87,7 +89,7 @@ Changelog :
         </StackPanel>
 
         <!-- Prompt Input -->
-        <Border Grid.Row="2" Style="{StaticResource SoftCardStyle}">
+        <Border Grid.Row="1" Style="{StaticResource SoftCardStyle}">
             <DockPanel>
                 <TextBlock Text="Prompt" Style="{StaticResource SectionHeaderStyle}" DockPanel.Dock="Top"/>
                 <TextBox Text="{Binding PromptInput, UpdateSourceTrigger=PropertyChanged}"
@@ -98,7 +100,7 @@ Changelog :
 
         <!-- Generate - normal-sized (was a big full-width bar), Stop sits right beside it so there's
              a way to cancel while the AI is generating, not just while the code is running below. -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,10">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,10">
             <Button Content="Generate C# Code" Command="{Binding GenerateCodeCommand}"
                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                     Style="{StaticResource PrimaryButtonStyle}" Padding="14,8"/>
@@ -108,7 +110,7 @@ Changelog :
         </StackPanel>
 
         <!-- Code Editor -->
-        <Border Grid.Row="4" Style="{StaticResource SoftCardStyle}">
+        <Border Grid.Row="3" Style="{StaticResource SoftCardStyle}">
             <DockPanel>
                 <TextBlock Text="C# Code" Style="{StaticResource SectionHeaderStyle}" DockPanel.Dock="Top"/>
                 <avalonEdit:TextEditor x:Name="CodeEditor"
@@ -126,7 +128,7 @@ Changelog :
         </Border>
 
         <!-- Execution Controls & Progress -->
-        <StackPanel Grid.Row="5" Margin="0,10,0,10">
+        <StackPanel Grid.Row="4" Margin="0,10,0,10">
             <!-- Auto-sized (no fixed Width) so button text is never clipped, regardless of label
                  length - a fixed-width row previously cut off "Review Code"/"Format Code". -->
             <StackPanel Orientation="Horizontal">
@@ -158,7 +160,7 @@ Changelog :
         </StackPanel>
 
         <!-- Execution Results -->
-        <Border Grid.Row="6" Style="{StaticResource SoftCardStyle}">
+        <Border Grid.Row="5" Style="{StaticResource SoftCardStyle}">
             <DockPanel>
                 <TextBlock Text="Output" Style="{StaticResource SectionHeaderStyle}" DockPanel.Dock="Top"/>
                 <TextBox Text="{Binding ExecutionResults}" IsReadOnly="True" Style="{StaticResource SoftMonoTextBoxStyle}"
@@ -168,11 +170,11 @@ Changelog :
         </Border>
 
         <!-- Live Console: type one line of C#, press Enter, it runs immediately and variables stay
-             alive for the next line - the actual "interactive shell" (same idea as RevitPythonShell's
-             IronPython console), sitting next to the AI Generate/Run workflow above.
+             alive for the next line - the actual "interactive shell", sitting next to the AI
+             Generate/Run workflow above.
              (Saved Scripts History moved to its own "Saved Scripts" ribbon button/window per
              Ajmal's 2026-07-21 request - see ShowSavedScriptsCommand/SavedScriptsWindow.) -->
-        <Expander Grid.Row="7" Header="Live Console (Interactive Shell)" Foreground="{StaticResource TextBrush}"
+        <Expander Grid.Row="6" Header="Live Console (Interactive Shell)" Foreground="{StaticResource TextBrush}"
                   BorderBrush="{StaticResource BorderBrush}" Background="{StaticResource CardBrush}"
                   Margin="0,12,0,0" Padding="4" IsExpanded="False">
             <StackPanel Margin="0,8,0,0">
@@ -203,7 +205,7 @@ Changelog :
                 </Grid>
                 <Button Content="📋 Send Last Line to Code Editor" Command="{Binding SendReplToEditorCommand}"
                         HorizontalAlignment="Left"
-                        ToolTip="Appends the last console line to the Code Editor below (keeps existing content). If it failed, also fills the Prompt with the error so Generate C# Code can ask AI to fix it."
+                        ToolTip="Appends the last console line to the Code Editor above (keeps existing content). If it failed, also fills the Prompt with the error so Generate C# Code can ask AI to fix it."
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                         Style="{StaticResource SecondaryButtonStyle}" Padding="10,6" Margin="0,8,0,0" FontSize="11"/>
             </StackPanel>

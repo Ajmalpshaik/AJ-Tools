@@ -8,10 +8,10 @@
  *                 auto-retries a failed run with the AI's help up to a fixed attempt limit.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.13.0
+ * Version       : 1.13.1
  *
  * Created Date  : 2026-01-01
- * Last Updated  : 2026-08-05
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,17 +25,39 @@
  * Output        : Generated/edited C# script, execution results, saved .cs script files
  *
  * Notes         :
- * - Single system prompt constant (previously duplicated in two methods) constrains the AI to
- *   Revit 2020-safe C#, no external I/O, and a required Execute()-returns-summary structure.
+ * - Single system prompt (previously duplicated in two methods) constrains the AI to C# for the
+ *   Revit version actually running (its API rule - units in particular - is built from that
+ *   version at construction), no external I/O, and a required Execute()-returns-summary structure.
  * - Every run is scanned by GeneratedCodeSafetyValidator before execution: outright-dangerous
  *   patterns (Process.Start, registry, network, reflection/unsafe, raw file I/O) are blocked;
- *   destructive-but-legitimate ones (Delete/Purge) require a Yes/No confirmation once per run.
+ *   destructive-but-legitimate ones (Delete/Purge/file writes) require a Yes/No confirmation -
+ *   asked again whenever an auto-fix attempt adds one that was not confirmed yet.
  * - The auto-fix retry loop stops early if the AI returns the same error twice in a row, instead
  *   of burning all remaining attempts on a fix that isn't working.
  * - IsBusy is checked at the top of every command method as a defensive re-entrancy guard, in
  *   addition to the XAML now disabling the action buttons while a request is in flight.
  *
  * Changelog     :
+ * v1.13.1 (2026-10-12) - Audit fixes. (1) A reply with no code no longer wipes the editor: the
+ *                       providers now raise AiEmptyReplyException (with their stated reason) and a
+ *                       blank extracted script is refused - the existing code, its undo history and
+ *                       the recovery file stay as they were, and the status says "The AI returned
+ *                       no code". (2) The Delete/Purge/file-write confirmation is asked again when
+ *                       an auto-fix attempt adds a finding not confirmed yet (it was attempt 1
+ *                       only). (3) Save Script reports a failed save in the status line and always
+ *                       clears IsBusy (an exception used to leave every pane button disabled).
+ *                       (4) Settings come from the session-wide AiShellConfig.Shared and the
+ *                       scripts folder is read through from it, so a pin/folder set in Saved
+ *                       Scripts is no longer written back to its old value. (5) The constructor no
+ *                       longer saves the settings file on every Revit start, and an unreadable
+ *                       settings file is reported once in the status line. (6) The system prompt
+ *                       and the auto-fix prompt name the running Revit version: 2020-2021 legacy
+ *                       units, 2022+ ForgeTypeId units (Revit 2020's prompt is word for word as
+ *                       before). (7) No API key: a failed Run stops with "No API key - auto-fix
+ *                       skipped" instead of re-running the same script; Review Code says why it did
+ *                       nothing. (8) RevertUnsavedSettings for the Settings window's Close.
+ *                       (9) Removed an always-true context check and stale comments; reworded the
+ *                       changelog below without naming outside tools (project rule).
  * v1.13.0 (2026-08-05) - Added NVIDIA as a FOURTH provider (NvidiaApiService), giving the pane the
  *                       ~130-model NIM catalog on build.nvidia.com's free tier - Ajmal asked for it
  *                       to cut API cost and to try specific open models. Same additive shape as the
@@ -63,8 +85,8 @@
  *                       (AnthropicApiService, IsAnthropicSelected/AnthropicApiKeyInput/
  *                       AnthropicModel settings properties, same IAiProviderService pattern as the
  *                       other two) - the in-Revit chat pane can now use the same model family as
- *                       the external "AJ AI Bridge" MCP connection (McpBridgeService) that Claude
- *                       Code already drives. Purely additive: SelectedProvider still defaults to
+ *                       the outside coding agent that drove the "AJ AI Bridge" MCP connection
+ *                       (McpBridgeService, removed in 1.57.0). Purely additive: SelectedProvider still defaults to
  *                       "Gemini", so nothing changes until Ajmal opens Settings and picks Claude.
  * v1.10.0 (2026-07-21) - Two more Live Console additions: (1) console command history now persists
  *                       to ajai-console-history.json (same best-effort pattern as the crash-
@@ -77,18 +99,17 @@
  * v1.9.0 (2026-07-21) - Added PinScriptCommand + PinnedScriptDisplayText: a "📌 Pin" button on each
  *                       Saved Scripts History row writes AiShellConfig.PinnedScriptPath, which the
  *                       new standalone RunPinnedScriptCommand ribbon button reads to run that one
- *                       script with a single click - the safe, statically-compiled alternative to
- *                       RevitPythonShell's runtime-IL-emission "deploy script as ribbon button".
- * v1.8.0 (2026-07-21) - Added the two most useful RevitPythonShell-style pieces this tool was still
- *                       missing, ported and adapted to the AI-powered workflow already here rather
- *                       than replacing it: (1) a Live Console - type one raw C# line, press Enter,
- *                       it runs immediately with variables persisted to the next line (the actual
- *                       "interactive shell" RevitPythonShell is named for; backed by the new
+ *                       script with a single click - one statically-compiled button, rather than a
+ *                       new button type generated at runtime for every script.
+ * v1.8.0 (2026-07-21) - Added the two most useful scripting-shell pieces this tool was still
+ *                       missing, adapted to the AI-powered workflow already here rather than
+ *                       replacing it: (1) a Live Console - type one raw C# line, press Enter,
+ *                       it runs immediately with variables persisted to the next line (a true
+ *                       interactive shell; backed by the new
  *                       ReplSessionService/RoslynService.ExecuteReplLineAsync, which continue a
  *                       Roslyn ScriptState across lines instead of compiling each run standalone).
  *                       (2) Snoop Selection - a one-click, no-code dump of every instance/type
- *                       parameter on the current selection (ElementSnoopService), the same job
- *                       RevitPythonShell's lookup()/RevitLookup integration does. Deliberately
+ *                       parameter on the current selection (ElementSnoopService). Deliberately
  *                       skipped: full Roslyn IntelliSense (too much workspace/completion-service
  *                       plumbing to get right without a local Revit+Visual Studio test loop),
  *                       startup scripts and macro-to-ribbon-button deployment (both run arbitrary
@@ -190,12 +211,15 @@ namespace AJTools.AiShell.ViewModels
     {
         // The one and only system prompt sent to the AI for both code generation and auto-fix
         // requests. Previously this exact text was duplicated in GenerateCodeAsync and
-        // RunCodeAsync — kept in sync manually. Now there is exactly one copy.
-        private const string SystemPrompt = @"You are generating C# code for a live Revit automation assistant, acting as an expert Revit API developer. Think like a BIM Modeler and a Coding Agent — write clean, concise, and efficient code.
+        // RunCodeAsync — kept in sync manually. Now there is exactly one copy; only its rule 2
+        // (which Revit API) is filled in per running Revit version - see BuildSystemPrompt.
+        private const string RevitVersionRuleToken = "%%REVIT_VERSION_RULE%%";
+
+        private const string SystemPromptTemplate = @"You are generating C# code for a live Revit automation assistant, acting as an expert Revit API developer. Think like a BIM Modeler and a Coding Agent — write clean, concise, and efficient code.
 
 HARD RULES:
 1. Generate raw C# script only. Do not create a full add-in project. Do not generate Python, Dynamo, PowerShell, or external application code. Do not use external NuGet packages.
-2. Target the Revit 2020 API strictly. Do NOT use ForgeTypeId, UnitTypeId, SpecTypeId, Parameter.GetElementId(), or any other Revit 2021+ API. Use only APIs compatible with Revit 2020 and .NET Framework 4.7.2.
+" + RevitVersionRuleToken + @"
 3. Use only the provided globals: Document Document, UIDocument UIDocument, Application Application, Action<int,string> ReportProgress. Do not access the network, the registry, or external processes, and do not launch other programs.
 4. Do not delete, purge, or bulk-modify elements unless the user's request clearly asked for that.
 5. Validate before you use: check elements are not null and IsValidObject, check a Category exists before assuming it, check a Parameter is not null and not read-only before setting it. Never guess a parameter name.
@@ -217,6 +241,36 @@ REQUIRED STRUCTURE (read carefully — this prevents a common mistake):
 
 If the user's request is unsafe, destructive without being explicitly asked for, or unclear, generate safe validation/reporting code instead of risky modification code, and explain in the summary what additional confirmation would be needed.";
 
+        /// <summary>The system prompt with rule 2 written for the Revit version this add-in is
+        /// running in. A script is compiled against THAT version's API, and the unit API changed
+        /// under it: Revit 2020 has only DisplayUnitType (no ForgeTypeId/UnitTypeId/SpecTypeId);
+        /// Revit 2024 has no DisplayUnitType at all (both checked against the installed
+        /// RevitAPI.dll); 2021 still has DisplayUnitType and 2022+ does not. The old fixed "Revit
+        /// 2020 API strictly" rule therefore made every unit script fail to compile on 2022+.
+        /// Revit 2020 keeps its original rule word for word.</summary>
+        private static string BuildSystemPrompt(int revitVersion)
+        {
+            string rule;
+            if (revitVersion <= 2020)
+            {
+                rule = "2. Target the Revit 2020 API strictly. Do NOT use ForgeTypeId, UnitTypeId, SpecTypeId, Parameter.GetElementId(), or any other Revit 2021+ API. Use only APIs compatible with Revit 2020 and .NET Framework 4.7.2.";
+            }
+            else
+            {
+                string framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+                string units = revitVersion <= 2021
+                    ? "For units use the DisplayUnitType API (e.g. UnitUtils.ConvertFromInternalUnits(value, DisplayUnitType.DUT_MILLIMETERS)) - do NOT use ForgeTypeId, UnitTypeId or SpecTypeId."
+                    : $"For units use ForgeTypeId through UnitTypeId / SpecTypeId (e.g. UnitUtils.ConvertFromInternalUnits(value, UnitTypeId.Millimeters)) - DisplayUnitType and the DUT_ values do not exist in Revit {revitVersion}.";
+                rule = $"2. Target the Revit {revitVersion} API (the Revit this script runs in). {units} Use only APIs that exist in Revit {revitVersion} and {framework}.";
+            }
+
+            return SystemPromptTemplate.Replace(RevitVersionRuleToken, rule);
+        }
+
+        // The Revit version this add-in runs in, and the system prompt built for it.
+        private readonly int _revitVersion;
+        private readonly string _systemPrompt;
+
         private readonly AiShellConfig _config;
         private readonly IAiProviderService _geminiService;
         private readonly IAiProviderService _openAiService;
@@ -227,8 +281,8 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         private readonly ReplSessionService _replService;
         private readonly ElementSnoopService _snoopService;
         // Captured at construction on Revit's UI thread — System.Windows.Application.Current is
-        // null inside Revit, so it can never be used to reach the UI dispatcher (same root cause
-        // as the AiTaskWarningBarService v1.2.0 fix).
+        // always null inside Revit (Revit hosts WPF without creating a WPF Application object), so
+        // it can never be used to reach the UI dispatcher.
         private readonly Dispatcher _uiDispatcher;
         private CancellationTokenSource _cts;
 
@@ -247,7 +301,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
 
         // Live Console command history, persisted the same best-effort way as the recovery snapshot
         // above, so Up/Down recall still has something to recall after Revit is closed and reopened
-        // (matches a terminal/REPL's own history file, e.g. bash's .bash_history).
+        // (the way a command-line shell keeps its own history file).
         private static readonly string ReplHistoryFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AJTools", "ajai-console-history.json");
         private const int MaxReplHistoryEntries = 200;
@@ -261,7 +315,8 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             RevitExecutionService executionService,
             RevitContextExtractionService contextService,
             ReplSessionService replService,
-            ElementSnoopService snoopService)
+            ElementSnoopService snoopService,
+            int revitVersion)
         {
             _config = config;
             _geminiService = geminiService;
@@ -273,11 +328,16 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             _replService = replService;
             _snoopService = snoopService;
             _uiDispatcher = Dispatcher.CurrentDispatcher;
+            _revitVersion = revitVersion;
+            _systemPrompt = BuildSystemPrompt(revitVersion);
 
             History = new ObservableCollection<ChatMessage>();
 
-            // Load settings
-            SelectedProvider = _config.SelectedProvider;
+            // Load settings. The provider goes straight into its backing field: its setter saves
+            // the settings file, and nothing has changed yet - saving here rewrote the file on
+            // every Revit start, over a file that may just have failed to load. The scripts
+            // folder is read through from _config (see ScriptsFolderPath), so it needs no copy.
+            _selectedProvider = _config.SelectedProvider;
             GeminiApiKeyInput = _config.GetGeminiApiKey();
             OpenAiApiKeyInput = _config.GetOpenAiApiKey();
             OpenAiModel = _config.OpenAiModel;
@@ -285,7 +345,6 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             AnthropicModel = _config.AnthropicModel;
             NvidiaApiKeyInput = _config.GetNvidiaApiKey();
             NvidiaModel = _config.NvidiaModel;
-            ScriptsFolderPath = _config.ScriptsFolderPath;
 
             SaveSettingsCommand = new RelayCommand(SaveSettings);
             GenerateCodeCommand = new AsyncRelayCommand(GenerateCodeAsync);
@@ -304,6 +363,13 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             _autoSaveTimer.Tick += (s, e) => { _autoSaveTimer.Stop(); SaveRecoverySnapshot(); };
             LoadRecoverySnapshotIfAny();
             LoadReplHistoryIfAny();
+
+            // An unreadable settings file means the defaults (no API keys) are in use - say so once
+            // rather than letting the keys silently vanish. Set last so it is the message shown.
+            if (!string.IsNullOrWhiteSpace(_config.LoadWarning))
+            {
+                StatusText = _config.LoadWarning;
+            }
         }
 
         private IAiProviderService GetActiveService()
@@ -448,7 +514,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             get => _selectedProvider;
             set
             {
-                SetProperty(ref _selectedProvider, value);
+                // Nothing to save when nothing changed (the Settings dropdown pushes the current
+                // value back every time the window opens).
+                if (!SetProperty(ref _selectedProvider, value)) return;
                 _config.SelectedProvider = value;
                 _config.Save();
                 OnPropertyChanged(nameof(IsGeminiSelected));
@@ -510,8 +578,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             set => SetProperty(ref _nvidiaApiKeyInput, value);
         }
 
-        /// <summary>Bound to an EDITABLE dropdown, unlike the OpenAI/Claude model pickers - NVIDIA's
-        /// catalog is ~130 models, so the list is a shortlist and any other id can be pasted in.</summary>
+        /// <summary>Bound to TWO controls in Settings, unlike the OpenAI/Claude model pickers: a fixed
+        /// (non-editable) shortlist dropdown and a plain text box, both TwoWay - NVIDIA's catalog is
+        /// ~130 models, so any other id can be pasted into the text box.</summary>
         private string _nvidiaModel;
         public string NvidiaModel
         {
@@ -519,17 +588,18 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             set => SetProperty(ref _nvidiaModel, value);
         }
 
-        private string _scriptsFolderPath;
+        /// <summary>Read straight through from the shared settings rather than kept as a second
+        /// copy here: the Saved Scripts window can change the folder too, and Save Script must use
+        /// the folder the settings actually hold.</summary>
         public string ScriptsFolderPath
         {
-            get => _scriptsFolderPath;
+            get => _config.ScriptsFolderPath;
             set
             {
-                if (SetProperty(ref _scriptsFolderPath, value))
-                {
-                    _config.ScriptsFolderPath = value;
-                    _config.Save();
-                }
+                if (string.Equals(_config.ScriptsFolderPath, value, StringComparison.Ordinal)) return;
+                _config.ScriptsFolderPath = value;
+                _config.Save();
+                OnPropertyChanged();
             }
         }
 
@@ -561,8 +631,8 @@ If the user's request is unsafe, destructive without being explicitly asked for,
         /// <summary>Fired with (previousCode, newCode) whenever the AI itself rewrites the editor's
         /// code - a successful GenerateCodeAsync, or an auto-fix in RunCodeAsync - so the View can
         /// diff-highlight which lines actually changed. Deliberately NOT raised from FormatCode or
-        /// RunFromHistory - those replace the code for reasons unrelated to "what did the AI change",
-        /// where a diff highlight would be noisy or meaningless.</summary>
+        /// SendReplToEditor - those change the code for reasons unrelated to "what did the AI
+        /// change", where a diff highlight would be noisy or meaningless.</summary>
         public event Action<string, string> CodeGenerated;
 
         public ICommand SaveSettingsCommand { get; }
@@ -601,49 +671,61 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 return;
             }
 
-            if (!Directory.Exists(ScriptsFolderPath))
-            {
-                Directory.CreateDirectory(ScriptsFolderPath);
-            }
-
             IsBusy = true;
             StatusText = "Saving script...";
 
-            string fileName = "GeneratedScript.cs";
-
-            // Extract the name from the first line of the code to save API tokens
-            if (!string.IsNullOrWhiteSpace(CodeEditorContent))
+            // A read-only, offline or locked folder throws here. Uncaught, that escaped the WPF
+            // command and left IsBusy stuck on true - every pane button disabled until Revit restarted.
+            try
             {
-                var firstLine = CodeEditorContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                if (firstLine != null && firstLine.StartsWith("// Name:"))
+                if (!Directory.Exists(ScriptsFolderPath))
                 {
-                    string cleanName = firstLine.Substring(8).Trim().Replace(" ", "").Replace(".cs", "").Replace("`", "").Replace("\"", "").Replace("'", "");
-                    foreach (var c in System.IO.Path.GetInvalidFileNameChars())
+                    Directory.CreateDirectory(ScriptsFolderPath);
+                }
+
+                string fileName = "GeneratedScript.cs";
+
+                // Extract the name from the first line of the code to save API tokens
+                if (!string.IsNullOrWhiteSpace(CodeEditorContent))
+                {
+                    var firstLine = CodeEditorContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                    if (firstLine != null && firstLine.StartsWith("// Name:"))
                     {
-                        cleanName = cleanName.Replace(c.ToString(), "");
-                    }
-                    if (!string.IsNullOrWhiteSpace(cleanName))
-                    {
-                        fileName = cleanName + ".cs";
+                        string cleanName = firstLine.Substring(8).Trim().Replace(" ", "").Replace(".cs", "").Replace("`", "").Replace("\"", "").Replace("'", "");
+                        foreach (var c in System.IO.Path.GetInvalidFileNameChars())
+                        {
+                            cleanName = cleanName.Replace(c.ToString(), "");
+                        }
+                        if (!string.IsNullOrWhiteSpace(cleanName))
+                        {
+                            fileName = cleanName + ".cs";
+                        }
                     }
                 }
-            }
 
-            string filePath = Path.Combine(ScriptsFolderPath, fileName);
-            int counter = 1;
-            while (File.Exists(filePath))
+                string filePath = Path.Combine(ScriptsFolderPath, fileName);
+                int counter = 1;
+                while (File.Exists(filePath))
+                {
+                    filePath = Path.Combine(ScriptsFolderPath, $"{Path.GetFileNameWithoutExtension(fileName)}_{counter}.cs");
+                    counter++;
+                }
+
+                string promptHeader = $"// Prompt: {PromptInput?.Replace("\n", " ")}";
+                string providerHeader = $"// Provider: {SelectedProvider} (Revit {_revitVersion} target)";
+                string fileContent = $"{promptHeader}\n{providerHeader}\n\n{CodeEditorContent}";
+                File.WriteAllText(filePath, fileContent);
+
+                StatusText = $"Script saved to {filePath}";
+            }
+            catch (Exception ex)
             {
-                filePath = Path.Combine(ScriptsFolderPath, $"{Path.GetFileNameWithoutExtension(fileName)}_{counter}.cs");
-                counter++;
+                StatusText = $"Could not save the script: {ex.Message}";
             }
-
-            string promptHeader = $"// Prompt: {PromptInput?.Replace("\n", " ")}";
-            string providerHeader = $"// Provider: {SelectedProvider} (Revit 2020 target)";
-            string fileContent = $"{promptHeader}\n{providerHeader}\n\n{CodeEditorContent}";
-            File.WriteAllText(filePath, fileContent);
-
-            StatusText = $"Script saved to {filePath}";
-            IsBusy = false;
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private void StopProcess()
@@ -686,6 +768,22 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             OnPropertyChanged(nameof(ProviderStatusText));
         }
 
+        /// <summary>Called when the Settings window closes WITHOUT Save: puts the typed-but-unsaved
+        /// API keys and model choices back to what the settings file holds. Without this they stayed
+        /// in these fields, showed up again next time Settings opened, and were written by whatever
+        /// Save came next. The provider and the scripts folder are not touched - both are saved the
+        /// moment they change, so they already match the file.</summary>
+        public void RevertUnsavedSettings()
+        {
+            GeminiApiKeyInput = _config.GetGeminiApiKey();
+            OpenAiApiKeyInput = _config.GetOpenAiApiKey();
+            AnthropicApiKeyInput = _config.GetAnthropicApiKey();
+            NvidiaApiKeyInput = _config.GetNvidiaApiKey();
+            OpenAiModel = _config.OpenAiModel;
+            AnthropicModel = _config.AnthropicModel;
+            NvidiaModel = _config.NvidiaModel;
+        }
+
         private async Task GenerateCodeAsync()
         {
             if (IsBusy) return;
@@ -715,7 +813,9 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 StatusText = $"Generating code using {activeService.ProviderName}...";
 
                 var messages = new System.Collections.Generic.List<ChatMessage>();
-                if (!string.IsNullOrWhiteSpace(contextString) && contextString != "No active document." && contextString != "No elements currently selected.")
+                // "No active document." is the only reply that is the whole context string; with no
+                // selection the summary still carries the document and active view, and is sent.
+                if (!string.IsNullOrWhiteSpace(contextString) && contextString != "No active document.")
                 {
                     messages.Add(new ChatMessage { Role = "user", Content = $"[SYSTEM CONTEXT INJECTION]\n{contextString}\nPlease consider this current context if my request implies operating on selected elements." });
                 }
@@ -736,8 +836,19 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 messages.Add(new ChatMessage { Role = "user", Content = PromptInput });
 
                 string previousCode = CodeEditorContent;
-                string response = await activeService.SendMessageAsync(messages, SystemPrompt, _cts.Token);
-                CodeEditorContent = Helpers.CodeExtractionHelper.ExtractCSharpCode(response);
+                string response = await activeService.SendMessageAsync(messages, _systemPrompt, _cts.Token);
+                string generatedCode = Helpers.CodeExtractionHelper.ExtractCSharpCode(response);
+
+                // A reply with no code must never replace the script in the editor: the editor's
+                // Text setter wipes its undo history and the recovery file follows 2 s later, so
+                // the old script would be gone for good - while the status still said success.
+                if (string.IsNullOrWhiteSpace(generatedCode))
+                {
+                    StatusText = "The AI returned no code (its reply held an empty code block) - the editor was left as it was.";
+                    return;
+                }
+
+                CodeEditorContent = generatedCode;
                 CodeGenerated?.Invoke(previousCode, CodeEditorContent);
 
                 var safety = GeneratedCodeSafetyValidator.Validate(CodeEditorContent);
@@ -752,6 +863,12 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             catch (OperationCanceledException)
             {
                 StatusText = "Stopped.";
+            }
+            catch (AiEmptyReplyException ex)
+            {
+                // The provider sent no text at all; its reason (block / refusal / stop) is in the
+                // message. The editor was not touched.
+                StatusText = $"The AI returned no code - {ex.Message}";
             }
             catch (Exception ex)
             {
@@ -783,7 +900,13 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                 bool success = false;
                 bool blocked = false;
                 bool userCancelledConfirmation = false;
+                bool autoFixSkipped = false;
                 string previousErrorMessage = null;
+
+                // Every risky finding (Delete / Purge / file write) the user has already said Yes to
+                // during this run. An auto-fix rewrite can ADD one that the first answer never
+                // covered, so the question is asked again whenever a finding is not in here yet.
+                var confirmedFindings = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
 
                 Action<int, string> progressCallback = (percent, message) =>
                 {
@@ -825,7 +948,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                         break;
                     }
 
-                    if (safety.RequiresConfirmation && attempt == 1)
+                    if (safety.RequiresConfirmation && safety.Findings.Any(f => !confirmedFindings.Contains(f.Reason)))
                     {
                         string reasons = string.Join("\n - ", safety.Findings.Select(f => f.Reason));
                         var confirm = System.Windows.MessageBox.Show(
@@ -840,6 +963,11 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                             ExecutionResults += "\n\nRun cancelled — destructive operation not confirmed.";
                             StatusText = "Cancelled: destructive operation not confirmed.";
                             break;
+                        }
+
+                        foreach (var finding in safety.Findings)
+                        {
+                            confirmedFindings.Add(finding.Reason);
                         }
                     }
 
@@ -866,14 +994,35 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                         }
                         previousErrorMessage = currentError;
 
+                        var activeService = GetActiveService();
+                        if (!activeService.IsConfigured())
+                        {
+                            // No key = nobody to ask for a fix. Looping on would only re-run the
+                            // unchanged script, fail the same way, and then blame the auto-fix.
+                            autoFixSkipped = true;
+                            ExecutionResults += $"\n\nNo API key - auto-fix skipped. Add a {activeService.ProviderName} API key in Settings to let AJ AI fix a failed script.";
+                            StatusText = "Execution failed. No API key - auto-fix skipped.";
+                            break;
+                        }
+
                         StatusText = $"Execution failed (Attempt {attempt}/{maxAttempts}). Requesting fix...";
 
-                        var activeService = GetActiveService();
-                        if (activeService.IsConfigured() && attempt < maxAttempts && !_cts.IsCancellationRequested)
+                        if (attempt < maxAttempts && !_cts.IsCancellationRequested)
                         {
-                            var errorService = new ErrorCorrectionService(activeService);
+                            var errorService = new ErrorCorrectionService(activeService, _revitVersion);
                             string codeBeforeFix = CodeEditorContent;
-                            var fixedCode = await errorService.RequestFixAsync(CodeEditorContent, result.ErrorMessage, new System.Collections.Generic.List<ChatMessage>(History), SystemPrompt, _cts.Token);
+                            string fixedCode;
+                            try
+                            {
+                                fixedCode = await errorService.RequestFixAsync(CodeEditorContent, result.ErrorMessage, new System.Collections.Generic.List<ChatMessage>(History), _systemPrompt, _cts.Token);
+                            }
+                            catch (AiEmptyReplyException ex)
+                            {
+                                // Same outcome as an empty fix before (stop retrying), now with the
+                                // provider's reason instead of nothing.
+                                ExecutionResults += $"\nThe AI returned no fix - {ex.Message}";
+                                break;
+                            }
 
                             if (!string.IsNullOrWhiteSpace(fixedCode))
                             {
@@ -894,7 +1043,7 @@ If the user's request is unsafe, destructive without being explicitly asked for,
                     ExecutionResults += "\n\nProcess was stopped by the user.";
                     StatusText = "Stopped.";
                 }
-                else if (!success && !blocked && !userCancelledConfirmation)
+                else if (!success && !blocked && !userCancelledConfirmation && !autoFixSkipped)
                 {
                     StatusText = "Max auto-fix attempts reached.";
                     ExecutionResults += "\n\nCould not get this script working after several attempts. Try rephrasing your request, or simplify what you're asking for.";
@@ -929,7 +1078,12 @@ If the user's request is unsafe, destructive without being explicitly asked for,
             if (IsBusy) return;
 
             var activeService = GetActiveService();
-            if (!activeService.IsConfigured()) return;
+            if (!activeService.IsConfigured())
+            {
+                // Same message as Generate - this used to return without a word.
+                StatusText = $"Please configure API Key for {activeService.ProviderName} in Settings.";
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(CodeEditorContent)) return;
 

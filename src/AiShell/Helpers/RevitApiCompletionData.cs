@@ -4,19 +4,19 @@
  * File Name     : RevitApiCompletionData.cs
  * Purpose       : Ctrl+Space autocomplete for the C# Code Editor - a curated, static list of the
  *                 Revit API types/members/snippets a modeler is most likely to need, shown in an
- *                 AvalonEdit CompletionWindow. This is RevitPythonShell's "autocompletion (press
- *                 CTRL+SPACE after a period)" feature, scaled down on purpose: full semantic
- *                 IntelliSense needs a live Roslyn Workspace/CompletionService wired to the editor's
- *                 text on every keystroke - real plumbing that cannot be verified without a local
- *                 Revit + Visual Studio build/test loop. A fixed list needs no workspace at all, so
+ *                 AvalonEdit CompletionWindow - press Ctrl+Space for a pick-list of what to type.
+ *                 Kept to a fixed list on purpose: full semantic IntelliSense needs a live Roslyn
+ *                 Workspace/CompletionService wired to the editor's text on every keystroke - real
+ *                 plumbing that cannot be verified without a local Revit + Visual Studio
+ *                 build/test loop. A fixed list needs no workspace at all, so
  *                 it carries none of that risk while still answering "what do I type" for the
  *                 globals, types, and patterns used constantly in this tool's own generated scripts.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-21
- * Last Updated  : 2026-07-21
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -36,6 +36,8 @@
  *   the type/member name.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Purpose reworded in this project's own words - it no longer names an
+ *                       outside tool (project rule). No code change.
  * v1.0.0 (2026-07-21) - Initial release.
  *
  * License       : All Rights Reserved

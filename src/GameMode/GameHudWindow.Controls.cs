@@ -443,6 +443,10 @@ namespace AJTools.UI.GameMode
             {
                 var window = new GameKeySettingsWindow(_keys) { Owner = this };
                 window.ShowDialog();
+
+                // The help card and the weapon line name keys - show the ones now bound.
+                HelpText.Text = BuildHelpText();
+                UpdateWeaponText(_session.Input.WeaponSelect);
             }
             catch (Exception)
             {
