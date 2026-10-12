@@ -14,6 +14,13 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 - **Removed from the repository:** the Node MCP server, the code-map helper, the Codex copy of the AI
   instructions and leftover one-off query files. None of these shipped in the add-in.
 
+## [1.56.3] - 2026-10-12
+
+- **Fixed: Location Data Assigner now reads HVAC zones the Revit 2027 way.** Revit 2027 retires a
+  space's own zone property and turns old HVAC zones into system zones. On 2027 the tool now finds each
+  space's zone from the zones that list it; Revit 2020–2026 behave exactly as before. This clears the
+  last build warning on the Revit 2027 build. Compile-checked only, not yet run in Revit 2027.
+
 ## [1.56.2] - 2026-08-26
 
 - **Fixed: Smart MEP Tag said "No elements to tag in this view" in views full of untagged ducts.** The

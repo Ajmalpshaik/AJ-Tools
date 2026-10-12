@@ -1082,10 +1082,16 @@ API migration needing Ajmal's sign-off, same class as the pending `ElementIdHelp
   `DisplayUnitType`, `UnitType`, `UnitUtils.Convert*(…, DisplayUnitType)`,
   `Units.GetFormatOptions(UnitType)`, `LabelUtils.GetLabelFor(DisplayUnitType)`,
   `FormatOptions.DisplayUnits`. Obsolete but still functional.
-- `Release R27` (Revit 2027): 1 `CS0618` — `Space.Zone` is deprecated in 2027 in favour of
-  `GenericZone`. One call site: `src/UI/LocationDataAssignerWindow.xaml.cs`.
+- ~~`Release R27`: `Space.Zone` CS0618~~ — **fixed in 1.56.3** (2026-10-12), see `debug-log.md`.
+  In 2027 old HVAC zones are upgraded to space-based system zones (`Analysis.GenericZone` with
+  `HVACZoneData` domain data, new in 2027; plain system zones carry `SystemZoneData`). There is no
+  space-side replacement property: go the other way, `GenericZone.GetSpaceIds()` on zones whose
+  `GeometricDefinition == ZoneGeometricDefinition.Spaces`, behind `#if REVIT2027_OR_GREATER`.
 
-`Release` (2020 baseline) and `Release R25` both build **0 warnings / 0 errors** and must stay that way.
+`Release` (2020 baseline), `Release R24`, `Release R25` and `Release R27` all build **0 warnings /
+0 errors** and must stay that way. (On this PC, checked 2026-10-12, the system `dotnet` SDK 10.0.401
+works and `dotnet build "AJ Tools.sln" -c "Release R27" -p:Platform=x64` builds the R-configs through
+the `.sln` directly — traps 1–3 above describe the old PC.)
 
 **Every AJ Tools UI surface, and the two a `.xaml` sweep MISSES (enumerated 2026-08-05, v1.40.5)**
 - **35 XAML `<Window>` files** under `src/` — 33 carry `AttachStandardEntrance` + `AttachStandardExit`;

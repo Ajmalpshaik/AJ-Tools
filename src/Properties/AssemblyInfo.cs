@@ -30,6 +30,12 @@
  *                       from App (RibbonManager 1.15.0, App 1.17.0) and AiShellPaneProvider. The C# pane,
  *                       Run Pinned / Saved Scripts, Game Mode and Quick Menu are unchanged. Minor bump,
  *                       same as the v1.44.0 Web Panel removal.
+ * v1.56.3 (2026-10-12) - LOCATION DATA ASSIGNER READS HVAC ZONES THE REVIT 2027 WAY. Revit 2027 retires
+ *                       a space's own Zone property (old HVAC zones are upgraded to space-based system
+ *                       zones). On 2027+ the tool now finds a space's zone from the zones that list it
+ *                       (an upgraded HVAC zone wins over a plain system zone); 2020-2026 still read the
+ *                       space's Zone exactly as before. The zone lookup is now built once per run
+ *                       instead of per element. Clears the last Release R27 build warning.
  * v1.56.2 (2026-08-26) - SMART MEP TAG STOPPED TAGGING ENTIRE VIEWS. Its crop-region filter made an
  *                       element prove it overlapped the crop box on DEPTH as well as across the view.
  *                       A crop region only bounds the view plane; depth is the view range, and Revit

@@ -1255,3 +1255,21 @@ AutoDebugger, or code-review only) -> date.
   **Lesson**: the useful question was not "who else touches the crop box" but "who compares an element
   against the view on an axis the view does not bound" — three of the six crop users turned out to be
   doing something else entirely, and the one genuine sibling was already correct. -> 2026-08-26.
+
+### 2026-10-12 (Location Data Assigner: Revit 2027 build warning on Space.Zone — FIXED, suite 1.56.3)
+- **Symptom**: `Release R27` built with 2 `CS0618` warnings (one call, reported by both the WPF temp
+  project and the real one): `'Space.Zone' is obsolete ... use the GenericZone object`. All other
+  configs clean.
+- **Root cause**: Revit 2027 upgrades old HVAC zones into space-based system zones (`GenericZone` with
+  `HVACZoneData`) and deprecates `Space.Zone`. There is no replacement property on `Space` — the link
+  only exists on the zone side (`GenericZone.GetSpaceIds()`). Checked in the real installed
+  `C:\Program Files\Autodesk\Revit 2027\RevitAPI.xml`, not from memory.
+- **Fix**: `LocationDataAssignerWindow.xaml.cs` v1.0.1 — new `BuildSpaceZoneMap` builds a space→zone map
+  once per run. 2020–2026: `space.Zone` per space, same try/catch as before. 2027+
+  (`#if REVIT2027_OR_GREATER`): space-based `GenericZone`s with `HVACZoneData` or `SystemZoneData`;
+  an upgraded HVAC zone wins if a space is in both. Name/number still read via the "Name"/"Number"
+  parameters.
+- **Verified how**: compile only — `Release`, `Release R24`, `Release R27` all 0 errors / 0 warnings.
+  **Not run in Revit.** Open questions for the first live 2027 test: does an upgraded zone still carry a
+  "Number" parameter, and does the old "Default" zone (which `Space.Zone` returned for unzoned spaces)
+  survive the upgrade? If not, 2027 reports "No HVAC zone" where 2020 wrote "Default".
