@@ -5,10 +5,10 @@
  * Purpose       : Provides the Pipe Sizing WPF window, fixture rows, state persistence, calculation refresh, and CSV export.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,11 +20,18 @@
  * Output        : Fixture-unit total, GPM, minimum ID, selected pipe size, velocity, friction loss, and CSV report.
  *
  * Notes         :
- * - Ported from the original pyRevit pipe sizing UI.
+ * - Ported from the UI of Ajmal's earlier pipe sizing script.
  * - This window does not read from or write to the Revit model.
  * - ESC/cancel handling is not required because this tool does not use PickObject/PickPoint.
+ * - A max velocity of 0 or less has no pipe size: the window says so in the status line (red) and
+ *   clears the result fields, so no stale figures stay next to a limit they do not belong to.
+ * - Settings are saved while the window closes, which the shared exit animation makes run 2-3 times;
+ *   a failed save is reported ONCE with a warning (a status line would vanish with the window).
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Velocity limit <= 0 now shows a plain inline message and clears the results (it showed
+ *                       developer text and left the old results on screen). A failed settings save is reported
+ *                       once instead of being silent.
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  *
  * License       : All Rights Reserved
@@ -51,10 +58,13 @@ namespace AJTools.UI.PipeSizing
     {
         private const double DefaultVelocityMs = 2.4;
         private const double FeetPerMeter = 3.28084;
+        private const string VelocityLimitMessage =
+            "Max velocity must be more than 0 m/s - enter a velocity limit to see the pipe size.";
 
         private readonly IReadOnlyList<string> _fixtureNames;
         private bool _isUpdatingVelocity;
         private bool _isLoading;
+        private bool _saveFailureReported;
 
         public PipeSizingWindow()
         {
@@ -141,7 +151,21 @@ namespace AJTools.UI.PipeSizing
                 });
             }
 
-            PipeSizingStateService.Save(state);
+            string saveError;
+            if (PipeSizingStateService.Save(state, out saveError) || _saveFailureReported)
+            {
+                return;
+            }
+
+            // This runs while the window is closing, so a status line would never be seen - and Closing
+            // fires 2-3 times (the shared exit animation re-issues the close), so warn only the first time.
+            _saveFailureReported = true;
+            MessageBox.Show(
+                this,
+                "Your fixture rows and settings could not be saved for next time.\n\n" + saveError,
+                "Pipe Sizing",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
 
         private void BtnAddFixture_Click(object sender, RoutedEventArgs e)
@@ -577,6 +601,13 @@ namespace AJTools.UI.PipeSizing
                     velocityLimitMs = DefaultVelocityMs;
                 }
 
+                // A limit of 0 or less (or not a real number) has no pipe size - the calculator refuses it.
+                if (double.IsNaN(velocityLimitMs) || double.IsInfinity(velocityLimitMs) || velocityLimitMs <= 0)
+                {
+                    ShowCalculationProblem(VelocityLimitMessage);
+                    return;
+                }
+
                 bool isFlushValve = ComboSystemType.SelectedIndex == 0;
                 int materialIndex = ComboPipeMaterial.SelectedIndex >= 0 ? ComboPipeMaterial.SelectedIndex : 0;
                 PipeSizingResult result = PipeSizingCalculator.Calculate(
@@ -597,14 +628,40 @@ namespace AJTools.UI.PipeSizing
                 TxtFrictionLoss.Text = FormatPythonNumber(result.FrictionLossPsiPer100Ft, 2) + " psi/100ft";
                 TxtStatus.Text = string.Empty;
             }
-            catch (ArgumentOutOfRangeException ex)
+            catch (ArgumentOutOfRangeException)
             {
-                SetStatusText(ex.Message);
+                // Only the calculator's velocity check throws this, and the limit is validated above;
+                // kept as a guard so the user still gets the plain message, not the developer text.
+                ShowCalculationProblem(VelocityLimitMessage);
             }
             catch (Exception ex)
             {
-                SetStatusText("Calculation error: " + ex.Message);
+                ShowCalculationProblem("The pipe size could not be calculated: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Says in plain words why there is no result, and clears the result fields so figures from an
+        /// earlier calculation do not stay on screen next to inputs they no longer match.
+        /// </summary>
+        private void ShowCalculationProblem(string message)
+        {
+            const string noResult = "--";
+            TxtFlowRate.Text = noResult;
+            TxtCalcID.Text = noResult;
+            TxtPipeSize.Text = noResult;
+            TxtVelocity.Text = noResult;
+            TxtFrictionLoss.Text = noResult;
+
+            // The status line is only ever used for these messages, so it can simply stay in the
+            // danger colour; it is emptied again by the next successful calculation.
+            Brush danger = TryFindResource("AccentDanger") as Brush;
+            if (danger != null)
+            {
+                TxtStatus.Foreground = danger;
+            }
+
+            SetStatusText(message);
         }
 
         private bool IsCalculationUiReady()

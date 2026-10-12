@@ -5,10 +5,10 @@
  * Purpose       : Stores last-used Pipe Sizing window settings and fixture rows.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -17,13 +17,14 @@
  * Dependencies  : Newtonsoft.Json through PipeSizingStateService
  *
  * Input         : System type, material, velocity limit, and fixture rows.
- * Output        : Serializable state matching the Python tool's state shape.
+ * Output        : Serializable state matching the state shape of Ajmal's earlier pipe sizing script.
  *
  * Notes         :
- * - JSON property names match the original pyRevit pipe sizing state file.
+ * - JSON property names match the state file of Ajmal's earlier pipe sizing script.
  * - The C# add-in stores the file in the user's AJ Tools AppData folder.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Notes reworded only (port source described as Ajmal's earlier script). No code change.
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  *
  * License       : All Rights Reserved

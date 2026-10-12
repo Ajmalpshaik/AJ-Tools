@@ -10,7 +10,26 @@ namespace AJTools.Services.DuctStandards
         /// Finds the matching rule for the given shape, pressure class, and governing size.
         /// Returns null if no rule matches.
         /// </summary>
+        /// <remarks>
+        /// Rule bands are whole millimetres (e.g. 0-400 then 401-550), but duct sizes come from Revit's
+        /// feet x 304.8 and are rarely whole: 16" is 406.4 mm, 48" is 1219.2 mm, and even a metric
+        /// 400 mm duct can read back as 400.0000001. Such sizes fall in the 1 mm gap between two bands.
+        /// So the exact size is tried first (nothing that matched before changes), and only when no band
+        /// holds it is it retried rounded to the nearest whole mm (0.5 rounds up, to the larger band).
+        /// </remarks>
         public static DuctRule FindRule(List<DuctRule> rules, string shape, string pressureClass, double sizeMm)
+        {
+            DuctRule rule = FindRuleForSize(rules, shape, pressureClass, sizeMm);
+            if (rule != null)
+                return rule;
+
+            double roundedMm = Math.Round(sizeMm, MidpointRounding.AwayFromZero);
+            return roundedMm != sizeMm
+                ? FindRuleForSize(rules, shape, pressureClass, roundedMm)
+                : null;
+        }
+
+        private static DuctRule FindRuleForSize(List<DuctRule> rules, string shape, string pressureClass, double sizeMm)
         {
             if (rules == null || string.IsNullOrEmpty(shape) || string.IsNullOrEmpty(pressureClass))
                 return null;
@@ -44,18 +63,26 @@ namespace AJTools.Services.DuctStandards
 
         /// <summary>
         /// Reads the pressure class from the duct parameter or returns the config default.
+        /// inputValue is what the duct's own parameter holds (null when it has none), so the caller can
+        /// tell "empty, default used" apart from "filled in, but not low/medium/high".
         /// </summary>
-        public static string GetPressureClass(Autodesk.Revit.DB.Element duct, DuctStandardsConfig config)
+        public static string GetPressureClass(Autodesk.Revit.DB.Element duct, DuctStandardsConfig config, out string inputValue)
         {
             string paramName = config.ParameterMap?.PressureClass ?? "Duct Pressure Class";
-            string value = ReadStringParam(duct, paramName);
-            if (!string.IsNullOrEmpty(value))
-            {
-                string lower = value.Trim().ToLowerInvariant();
-                if (lower == "low" || lower == "medium" || lower == "high")
-                    return lower;
-            }
+            inputValue = ReadStringParam(duct, paramName);
+            if (IsKnownPressureClass(inputValue))
+                return inputValue.Trim().ToLowerInvariant();
             return (config.DefaultPressureClass ?? "low").ToLowerInvariant();
+        }
+
+        /// <summary>True for low / medium / high (any case, surrounding spaces ignored).</summary>
+        public static bool IsKnownPressureClass(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return false;
+
+            string lower = value.Trim().ToLowerInvariant();
+            return lower == "low" || lower == "medium" || lower == "high";
         }
 
         /// <summary>
