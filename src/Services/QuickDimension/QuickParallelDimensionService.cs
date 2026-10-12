@@ -26,7 +26,7 @@ namespace AJTools.Services.QuickDimension
     }
 
     /// <summary>
-    /// Service that mirrors the pyRevit quick dimension workflow for parallel elements.
+    /// Service that mirrors an earlier AJ Tools script's quick dimension workflow for parallel elements.
     /// </summary>
     internal static class QuickParallelDimensionService
     {
@@ -58,70 +58,89 @@ namespace AJTools.Services.QuickDimension
                 if (view == null || view.IsTemplate)
                     return Fail(title, "Please run this tool in a normal project view.");
 
-                if (!EnsureSketchPlane(doc, view))
-                    return Fail(title, "Could not prepare the active view for point picking.");
-
-                IList<Element> selected = GetOrPickElements(uidoc, doc, mode);
-                if (selected == null || selected.Count == 0)
-                    return Result.Cancelled;
-
-                if (mode == QuickDimensionReferenceMode.Centerline && selected.Count < 2)
-                    return Fail(title, "Select at least two parallel elements.");
-
-                if (mode == QuickDimensionReferenceMode.FaceEdge && selected.Count < 1)
-                    return Fail(title, "Select at least one element.");
-
-                if (!TryResolveLeadDirection(uidoc, doc, selected, out XYZ leadDirection))
-                    return Result.Cancelled;
-
-                XYZ placementPoint = uidoc.Selection.PickPoint(
-                    ObjectSnapTypes.None,
-                    "Pick a point to place the quick dimension line");
-
-                if (!TryBuildDimensionLine(
-                    view,
-                    placementPoint,
-                    selected,
-                    leadDirection,
-                    out Line dimLine,
-                    out XYZ sortDirection))
+                // The work-plane setup and the dimension share one TransactionGroup, so a finished run
+                // is a single undo step, and Esc or a refusal part-way rolls the work-plane change back
+                // instead of leaving a stray "Set Sketch Plane" step with nothing dimensioned.
+                using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
-                    return Fail(title, "Failed to create a valid dimension line from the picked point.");
-                }
+                    group.Start();
+                    try
+                    {
+                        if (!EnsureSketchPlane(doc, view))
+                            return Fail(title, "Could not prepare the active view for point picking.");
 
-                if (!TryBuildReferenceArray(
-                    doc,
-                    view,
-                    selected,
-                    leadDirection,
-                    sortDirection,
-                    placementPoint,
-                    mode,
-                    out ReferenceArray referenceArray,
-                    out int skippedCount))
-                {
-                    return Fail(
-                        title,
-                        mode == QuickDimensionReferenceMode.FaceEdge
-                            ? "Could not find two opposite face/edge references on enough elements. Try straight ducts/pipes or simpler linear geometry."
-                            : "Could not extract valid references. Try selecting simple parallel line-based elements.");
-                }
+                        IList<Element> selected = GetOrPickElements(uidoc, doc, mode);
+                        if (selected == null || selected.Count == 0)
+                            return Result.Cancelled;
 
-                using (Transaction tx = new Transaction(doc, title))
-                {
-                    tx.Start();
-                    doc.Create.NewDimension(view, dimLine, referenceArray);
-                    tx.Commit();
-                }
+                        if (mode == QuickDimensionReferenceMode.Centerline && selected.Count < 2)
+                            return Fail(title, "Select at least two parallel elements.");
 
-                if (skippedCount > 0)
-                {
-                    DialogHelper.ShowInfo(
-                        title,
-                        $"Dimension created. {skippedCount} selected element(s) were skipped because valid references were not found for {GetModeLabel(mode)}.");
-                }
+                        if (mode == QuickDimensionReferenceMode.FaceEdge && selected.Count < 1)
+                            return Fail(title, "Select at least one element.");
 
-                return Result.Succeeded;
+                        if (!TryResolveLeadDirection(uidoc, doc, selected, out XYZ leadDirection))
+                            return Result.Cancelled;
+
+                        XYZ placementPoint = uidoc.Selection.PickPoint(
+                            ObjectSnapTypes.None,
+                            "Pick a point to place the quick dimension line");
+
+                        if (!TryBuildDimensionLine(
+                            view,
+                            placementPoint,
+                            selected,
+                            leadDirection,
+                            out Line dimLine,
+                            out XYZ sortDirection))
+                        {
+                            return Fail(title, "Failed to create a valid dimension line from the picked point.");
+                        }
+
+                        if (!TryBuildReferenceArray(
+                            doc,
+                            view,
+                            selected,
+                            leadDirection,
+                            sortDirection,
+                            placementPoint,
+                            mode,
+                            out ReferenceArray referenceArray,
+                            out int skippedCount))
+                        {
+                            return Fail(
+                                title,
+                                mode == QuickDimensionReferenceMode.FaceEdge
+                                    ? "Could not find two opposite face/edge references on enough elements. Try straight ducts/pipes or simpler linear geometry."
+                                    : "Could not extract valid references. Try selecting simple parallel line-based elements.");
+                        }
+
+                        using (Transaction tx = new Transaction(doc, title))
+                        {
+                            tx.Start();
+                            doc.Create.NewDimension(view, dimLine, referenceArray);
+                            tx.Commit();
+                        }
+
+                        group.Assimilate();
+
+                        if (skippedCount > 0)
+                        {
+                            DialogHelper.ShowInfo(
+                                title,
+                                $"Dimension created. {skippedCount} selected element(s) were skipped because valid references were not found for {GetModeLabel(mode)}.");
+                        }
+
+                        return Result.Succeeded;
+                    }
+                    finally
+                    {
+                        // Every exit that did not assimilate - Esc during a pick, a refusal above, or an
+                        // error - undoes the work-plane change explicitly rather than relying on disposal.
+                        if (group.HasStarted() && !group.HasEnded())
+                            group.RollBack();
+                    }
+                }
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
@@ -473,6 +492,16 @@ namespace AJTools.Services.QuickDimension
                 TryGetFamilyInstanceReference(familyInstance, leadDirection, out reference))
             {
                 return true;
+            }
+
+            // Last resort, datums only. NewDimension accepts a whole-element reference for a grid,
+            // level or reference plane (all DatumPlane), but for a wall, pipe or duct it throws
+            // "the references are not geometric references" - and that one bad reference fails the
+            // whole string, good references included. Any other element is skipped here instead,
+            // so it is counted and reported with the other skipped elements.
+            if (!(element is DatumPlane))
+            {
+                return false;
             }
 
             try

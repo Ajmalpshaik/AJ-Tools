@@ -3,14 +3,14 @@
  * Tool Name     : Revision Clouds by Elements
  * File Name     : CmdRevisionCloudByElements.cs
  * Purpose       : Creates orthogonal, stepped revision-cloud boundaries around selected elements, aligned
- *                 to the dominant selection angle, using the latest project revision. Continuous - keeps
- *                 prompting for the next selection until Esc.
+ *                 to the dominant selection angle, using the latest project revision that is not issued
+ *                 yet. Continuous - keeps prompting for the next selection until Esc.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-05-02
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,14 +23,21 @@
  *
  * Notes         :
  * - Targets Revit 2020 through latest. Supports plan, ceiling, section, elevation, detail, and drafting views.
- * - Needs at least one project revision. All selection passes are grouped into one undo step.
- * - Esc ends the continuous session; a small/invalid geometry is skipped and reported.
+ * - Needs at least one revision that is not issued yet - RevisionCloud.Create refuses an issued
+ *   revision. All selection passes are grouped into one undo step.
+ * - Esc ends the continuous session; a small/invalid geometry is skipped and reported, and a cloud Revit
+ *   refuses is reported with Revit's own reason.
  * - Production-ready implementation.
  *
  * Changelog     :
  * v1.0.0 (2026-05-02) - Initial release (continuous cloud creation by elements).
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block; all selection passes now assimilate
  *                       into a single undo step. Cloud behaviour unchanged.
+ * v1.1.1 (2026-10-12) - Clouds now go on the newest revision that is NOT issued; if every revision is
+ *                       issued the tool stops with "All revisions are issued - add a new revision
+ *                       first". Before, it took the newest revision even when issued, every cloud
+ *                       failed, and the error was swallowed and reported as a geometry problem. Failed
+ *                       clouds now report the real reason. Angle/tilt logic unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -39,6 +46,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
@@ -54,6 +63,7 @@ namespace AJTools.Commands
         private const string ToolDisplayName = "Revision Cloud By Elements";
         private const string TransactionName = "AJ Tools - Revision Cloud By Elements";
         private const double DefaultCellSizeFeet = 10.0 * Constants.MM_TO_FEET; // 10 mm
+        private const string TooSmallOutlineReason = "The outline around the selection was too small to draw a cloud.";
 
         private static readonly HashSet<ViewType> SupportedViewTypes = new HashSet<ViewType>
         {
@@ -93,12 +103,17 @@ namespace AJTools.Commands
                     return Result.Failed;
                 }
 
-                Revision latestRevision = GetLatestRevision(doc);
+                // RevisionCloud.Create refuses an issued revision (it throws), so the clouds go on the
+                // newest revision that is not issued yet. Taking the newest one regardless used to make
+                // every cloud fail once that revision was issued, reported as a geometry problem.
+                Revision latestRevision = GetLatestUnissuedRevision(doc, out bool anyRevisionExists);
                 if (latestRevision == null)
                 {
                     TaskDialog.Show(
                         ToolDisplayName,
-                        "No revisions found in the project. Please create a revision first.");
+                        anyRevisionExists
+                            ? "All revisions are issued - add a new revision first."
+                            : "No revisions found in the project. Please create a revision first.");
                     return Result.Failed;
                 }
 
@@ -117,6 +132,7 @@ namespace AJTools.Commands
                 int totalCloudsCreated = 0;
                 int totalSkipped = 0;
                 int totalFailures = 0;
+                var failureReasons = new List<string>();
 
                 // Pass 1: use current selection if available; otherwise prompt.
                 var selectedIds = GetSelectedElements(uidoc, true);
@@ -139,6 +155,7 @@ namespace AJTools.Commands
                             latestRevision.Id,
                             settings,
                             selectedIds,
+                            failureReasons,
                             out int elementsProcessed,
                             out int skippedCount,
                             out int cloudsCreated,
@@ -159,6 +176,8 @@ namespace AJTools.Commands
                         group.RollBack();
                 }
 
+                string reasonLines = FormatFailureReasons(failureReasons);
+
                 if (totalCloudsCreated > 0)
                 {
                     TaskDialog.Show(
@@ -167,13 +186,18 @@ namespace AJTools.Commands
                         $"Elements processed: {totalElementsProcessed}\n" +
                         $"Clouds created: {totalCloudsCreated}" +
                         (totalFailures > 0 ? $"\nCloud creation failures: {totalFailures}" : "") +
-                        (totalSkipped > 0 ? $"\nSkipped (no geometry): {totalSkipped}" : ""));
+                        (totalSkipped > 0 ? $"\nSkipped (no geometry): {totalSkipped}" : "") +
+                        reasonLines);
                     return Result.Succeeded;
                 }
 
+                // Say what actually went wrong when Revit refused a cloud; the geometry wording is
+                // only right when no cloud was ever attempted (nothing usable to outline).
                 TaskDialog.Show(
                     ToolDisplayName,
-                    "No revision clouds could be created. The geometry may be too small, not visible in this view, or invalid for cloud creation.");
+                    reasonLines.Length > 0
+                        ? "No revision clouds could be created." + reasonLines
+                        : "No revision clouds could be created. The geometry may be too small, not visible in this view, or invalid for cloud creation.");
                 return Result.Failed;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -194,6 +218,7 @@ namespace AJTools.Commands
             ElementId revisionId,
             RevisionCloudSettings settings,
             IList<ElementId> selectedIds,
+            IList<string> failureReasons,
             out int elementsProcessed,
             out int skippedCount,
             out int cloudsCreated,
@@ -264,6 +289,7 @@ namespace AJTools.Commands
                     if (polygon == null || polygon.Count < 4)
                     {
                         failedClouds++;
+                        failureReasons.Add(TooSmallOutlineReason);
                         continue;
                     }
 
@@ -272,13 +298,20 @@ namespace AJTools.Commands
                         var polygonInViewFrame = RotatePolygonIfNeeded(polygon, dominantAxisAngle);
                         var cloud = RevisionCloudCreator.Create(doc, activeView, viewPlane, polygonInViewFrame, revisionId);
                         if (cloud != null)
+                        {
                             cloudsCreated++;
+                        }
                         else
+                        {
                             failedClouds++;
+                            failureReasons.Add(TooSmallOutlineReason);
+                        }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        // Keep Revit's own reason: it is what the final report shows the user.
                         failedClouds++;
+                        failureReasons.Add(ex.Message);
                     }
                 }
 
@@ -391,8 +424,13 @@ namespace AJTools.Commands
             return result;
         }
 
-        private Revision GetLatestRevision(Document doc)
+        /// <summary>
+        /// Returns the newest revision (highest sequence number) that is not issued yet, or null.
+        /// <paramref name="anyRevisionExists"/> tells "no revisions at all" apart from "all issued".
+        /// </summary>
+        private Revision GetLatestUnissuedRevision(Document doc, out bool anyRevisionExists)
         {
+            anyRevisionExists = false;
             Revision latest = null;
             var collector = new FilteredElementCollector(doc).OfClass(typeof(Revision));
 
@@ -400,12 +438,45 @@ namespace AJTools.Commands
             {
                 if (elem is Revision rev)
                 {
+                    anyRevisionExists = true;
+                    if (rev.Issued)
+                        continue;
+
                     if (latest == null || rev.SequenceNumber > latest.SequenceNumber)
                         latest = rev;
                 }
             }
 
             return latest;
+        }
+
+        /// <summary>
+        /// Groups identical failure reasons with a count, at most five lines, for the final report.
+        /// Returns an empty string when there is nothing to report.
+        /// </summary>
+        private static string FormatFailureReasons(IList<string> failureReasons)
+        {
+            if (failureReasons == null || failureReasons.Count == 0)
+                return string.Empty;
+
+            const int maxLines = 5;
+            var groups = failureReasons
+                .Where(reason => !string.IsNullOrWhiteSpace(reason))
+                .GroupBy(reason => reason.Trim())
+                .OrderByDescending(group => group.Count())
+                .ToList();
+
+            if (groups.Count == 0)
+                return string.Empty;
+
+            var text = new StringBuilder("\n\nReasons:");
+            foreach (var group in groups.Take(maxLines))
+                text.Append("\n - ").Append(group.Key).Append(" (").Append(group.Count()).Append(')');
+
+            if (groups.Count > maxLines)
+                text.Append("\n - ...and ").Append(groups.Count - maxLines).Append(" more");
+
+            return text.ToString();
         }
     }
 

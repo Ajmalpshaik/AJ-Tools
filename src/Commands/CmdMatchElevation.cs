@@ -6,10 +6,10 @@
  *                 more picked target elements, moving each target vertically only (X/Y unchanged).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.2.0
+ * Version       : 1.2.1
  *
  * Created Date  : 2026-03-20
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -33,6 +33,10 @@
  * v1.1.0 (2026-04-11) - Added top/bottom match modes sharing one base command.
  * v1.2.0 (2026-07-01) - Refactor/audit: full metadata block; whole pick session now assimilated into a
  *                       single undo step; per-target skip on failure. Match behaviour unchanged.
+ * v1.2.1 (2026-10-12) - Top/Bottom match now knows a conduit's size (Outside Diameter, falling back to
+ *                       Diameter(Trade Size)). The picker accepted conduits but the size lookup did
+ *                       not, so a conduit's top/bottom was treated as its centre - off by half the
+ *                       conduit diameter. Pipe and duct sizes unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -331,6 +335,20 @@ namespace AJTools.Commands
             if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM, out double curveDiameter))
             {
                 return curveDiameter / 2.0;
+            }
+
+            // Conduit reports its size through its own parameters - the ones above are the cable tray,
+            // duct and pipe ones - so it used to fall through to 0 and a Top/Bottom match on a conduit
+            // landed half its diameter off. Its physical size is the "Outside Diameter"; the
+            // "Diameter(Trade Size)" value is only the fallback (same order Create Openings reads).
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_CONDUIT_OUTER_DIAM_PARAM, out double conduitOuterDiameter))
+            {
+                return conduitOuterDiameter / 2.0;
+            }
+
+            if (TryGetPositiveDouble(elem, BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM, out double conduitTradeDiameter))
+            {
+                return conduitTradeDiameter / 2.0;
             }
 
             return 0.0;
