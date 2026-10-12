@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.57.1
+ * Version       : 1.57.2
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-10-12
@@ -24,6 +24,17 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.57.2 (2026-10-12) - AJMAL'S THREE DECISIONS FROM THE AUDIT. (1) WALL OPENINGS: every host used the
+ *                       floor box rule (X widened by the width, Y by the HEIGHT), so on a wall running
+ *                       along Y a duct taller than it is wide got an opening as wide as its height
+ *                       (300 x 600, 25 mm buffer: 650 instead of 350). Walls are now sized along the
+ *                       wall and upright from the run's real footprint (MepOpeningService 1.0.5).
+ *                       (2) NO "DONE" POPUPS after a clean run in Transfer View Templates / Views,
+ *                       Revision Clouds by Elements, Unhide All, Match Elevation, Duct Standards (now a
+ *                       footer status line) and Run Pinned; HVAC Schematic opens its new drafting view
+ *                       instead. Reports stay for anything skipped or failed. (3) SMART MEP TAGS: the
+ *                       tag gap is measured from every element's edge, not its centre - tags move out
+ *                       by half the element's size. Builds clean 2020-2027; NOT run in Revit.
  * v1.57.1 (2026-10-12) - FULL AUDIT OF EVERY FILE, with the mistakes it found fixed (about 100 fixes).
  *                       Wrong results: Pipe Sizing friction loss 100x too small; Filter Pro wiped most
  *                       of a filter's graphics when applying a colour; L-Shape Leader did nothing on
@@ -2354,8 +2365,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.57.1.0")]
-[assembly: AssemblyFileVersion("1.57.1.0")]
+[assembly: AssemblyVersion("1.57.2.0")]
+[assembly: AssemblyFileVersion("1.57.2.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

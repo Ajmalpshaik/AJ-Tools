@@ -1198,7 +1198,31 @@ Revit, or code-review only) -> date.
 - **Held back, not shipped**: measuring Smart MEP Tag's gap from every element's EDGE (today only ducts)
   would move tags out by half the element's size — the 150 mm no-leader gap was tuned live with Ajmal
   while it measured from the centre. Kept on local branch `audit/smart-tag-edge-gap` for his decision.
+  *(Ajmal chose it the same day — shipped in 1.57.2, see the entry below.)*
 - **Lesson**: most of these were one of five shapes — a value that should be checked was assumed (a
   commit, a parameter's kind or unit, an issued revision), a reference cleared on delete was invisible
   to the safety check, a failure path returned silently, a second copy of shared state, or a fix lost in
   a later sync. Check those five first when a tool "does nothing" or "does the wrong thing". -> 2026-10-12.
+
+### 2026-10-12 (Wall openings as wide as the duct is tall; the last "done" popups — FIXED, suite 1.57.2)
+- **Symptom**: found by the audit, confirmed with Ajmal: "fix the wall openings". A duct taller than it
+  is wide got a wall opening as wide as its height — 300 x 600 duct with a 25 mm buffer: 650 wide
+  instead of 350 — on walls running along project Y.
+- **Root cause**: every host used the FLOOR rule for its candidate box — widened along project X by the
+  width and along project Y by the HEIGHT. `CreateWallOpening` takes the box's range along the wall, so
+  on a wall along Y the height became the opening width. Walls along X looked right by coincidence, but
+  their box was pushed through the wall by the height, so an existing opening of the right size never
+  counted as "already covered" and was replaced on every re-run.
+- **Fix** (`MepOpeningService` v1.0.5): `BuildHostCandidateBox` — walls grow their box only along the
+  wall (to the opening width) and upright (to the height); `GetWallOpeningMinimums` reads a
+  rectangular run's real footprint on the wall face (laid on its side, sloping, crossing at an angle)
+  using the same run-axis / width-axis reading as the 1.57.1 floor fix. Round runs, fittings and runs
+  lying almost along the wall keep width-along / height-upright. Checked by hand: upright 300 x 600 ->
+  350 x 650; laid on its side -> 650 x 350; 30 degrees off square -> 404 x 650.
+- **Same release**: the "done" popups went from Transfer View Templates, Transfer Views, Revision Clouds
+  by Elements, Unhide All, Match Elevation, Duct Standards (Save / Import / Export / Create-Rebind now
+  write a footer status line) and Run Pinned's bare "Done."; HVAC Schematic now opens the drafting view
+  it made instead of a popup naming it. Kept on purpose: Reassign Level and Shared Parameter to Family
+  Parameter — their result cannot be seen on screen, so the report is the only proof it worked.
+  Smart MEP Tags' gap is now measured from every element's edge (Ajmal's choice).
+- **Verified how**: code review + clean builds; **not run in Revit**. -> 2026-10-12.
