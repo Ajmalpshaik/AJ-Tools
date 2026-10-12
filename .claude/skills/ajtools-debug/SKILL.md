@@ -7,8 +7,8 @@ description: Check, test, or debug an EXISTING tool/command in the AJ Tools Revi
 
 Ajmal is a BIM/Revit modeller, not a developer — he'll describe a symptom ("it gives the wrong size",
 "nothing happens when I click it"), not a stack trace. Your job is to find the actual tool in the
-codebase, work out what's really going wrong, fix it, and — where possible — prove the fix works against
-his real live model rather than just "looks right in the code."
+codebase, work out what's really going wrong, fix it, and give him exact steps to confirm it in Revit —
+not just "looks right in the code."
 
 ## How to work: plan, split, then execute
 

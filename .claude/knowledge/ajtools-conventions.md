@@ -85,10 +85,10 @@ place rather than leaving stale info sitting next to the new truth.
     *warnings from the files you touched* rather than by the total. **That no longer reproduces.** A
     clean `msbuild "src\AJ Tools.csproj" -t:Rebuild -p:Configuration="Release R25" -p:Platform=x64`
     on 2026-08-17 reported **0 errors and 0 warnings**, same as `Release` (2020).
-  - **The cause is NOT "the WinForms is gone"** — four real source files still reference
-    `System.Windows.Forms` (`AiShell/Helpers/BridgeStatusToast.cs`,
-    `AiShell/Services/AiTaskWarningBarService.cs`, `AiShell/ViewModels/AiShellViewModel.cs`,
-    `AiShell/Views/SavedScriptsWindow.xaml.cs`), and there is **no** `NoWarn`, `AnalysisLevel` or
+  - **The cause is NOT "the WinForms is gone"** — real source files still reference
+    `System.Windows.Forms` (`AiShell/ViewModels/AiShellViewModel.cs`,
+    `AiShell/Views/SavedScriptsWindow.xaml.cs`, `UI/GraphicsTools/GraphicsOverrideWindow.xaml.cs` —
+    grep-checked 2026-10-12), and there is **no** `NoWarn`, `AnalysisLevel` or
     analyzer suppression anywhere in `Directory.Build.props` or the csproj (checked). So the platform
     analyzer simply is not firing in this configuration any more. **Why is not established — do not
     write a cause into this file until someone verifies one.**
@@ -172,7 +172,7 @@ place rather than leaving stale info sitting next to the new truth.
   angular or radial type is a guaranteed failure.
 - **Dimensioning to a LINKED element: `Reference.CreateLinkReference(linkInstance)` is NOT enough.**
   Its result is accepted for face-based family placement but `NewDimension` rejects it with *"the
-  references are not geometric references"* — the same wall Dynamo's `Dimension.ByElements` hits. The
+  references are not geometric references"*. The
   reference must be rebuilt from its stable representation with the `RVTLINK/<linkTypeUniqueId>` segment
   reduced to a bare `RVTLINK`:
   `<linkInstanceUniqueId>:0:RVTLINK/<linkTypeUniqueId>:<idInLink>:<i>:SURFACE`
@@ -223,22 +223,19 @@ place rather than leaving stale info sitting next to the new truth.
 - **Which tag family to use, when not told a specific one (Ajmal, 2026-07-13)**: use whatever Revit
   itself would use tagging manually — `Document.GetDefaultFamilyTypeId(category.Id)` — not a guessed
   generic name like "M_Duct Size Tag", and not AJ Tools' own Smart MEP Tag Settings (a separate,
-  AJ-Tools-specific enable/priority setting, not the same thing). Full technical detail + a related
-  `IndependentTag.Create()` type-argument gotcha found while fixing this in the old tagging notes (deleted 2026-10-12, in git history) §
-  Finding the RIGHT tag family.
+  AJ-Tools-specific enable/priority setting, not the same thing).
 - **Duct tag SIDE must be consistent by orientation, not alternated (Ajmal, 2026-07-13,
   "documentation looking quality")**: same-pattern ducts (e.g. two mirrored branches of the same size)
   must have their tags on the SAME side — never one above and one below just because of placement
   order. Rule confirmed via two reference screenshots: **horizontal-in-view duct runs always tag
   below; vertical-in-view runs always tag to the right.** Any resulting overlap gets resolved by
-  pushing tags apart afterward (see the tag-vs-tag/tag-vs-duct resolution notes below), never by
+  pushing tags apart afterward, never by
   varying which side a tag starts on. Applies generally to duct tagging, not just the request it came
   from — same status as the horizontal/1000mm scope rule above.
 - **Which LEFT/RIGHT the leader extends toward = real flow direction, not position (Ajmal, 2026-07-13,
   confirmed directly)**: for horizontal ducts, the leader/text must extend toward the downstream side —
   read from the duct's own `Connector.Direction` (In/Out), not a geometric guess (nearest riser,
-  group centroid, etc. were all tried first and superseded — see the old tagging notes (deleted 2026-10-12, in git history) § Leader side
-  should follow REAL flow direction for the full progression and why each earlier version broke).
+  group centroid, etc. were all tried first and superseded).
   **Exception confirmed 2026-07-14**: Supply Air ducts specifically must point the OPPOSITE of their
   real flow direction; Return Air and Exhaust Air keep the real flow direction as-is. Standard drafting
   convention (draw supply/return as visual opposites for quick distinction at a glance), identified via
@@ -249,14 +246,10 @@ place rather than leaving stale info sitting next to the new truth.
   standing rule)**: every mm-based clearance (elbow push, resolver margins, base offset) must scale
   with the view's current scale, computed as one shared ratio right at the start, not hardcoded. A
   clearance measured/tuned at one scale silently breaks the moment the view scale changes — this
-  already caused a real regression (546 own-leader-clashes) once. Full detail in the old tagging notes (deleted 2026-10-12, in git history)
-  § Check view.Scale FIRST.
+  already caused a real regression (546 own-leader-clashes) once.
 - **Duct tagging scope rule (Ajmal, 2026-07-13)**: when tagging ducts, only tag **horizontal runs** —
   skip vertical risers — and only runs **1000mm or longer**; shorter stubs don't get tagged. Applies
-  generally to duct tagging, not just the one request it came from. Default in
-  the old tag-elements script (deleted 2026-10-12, in git history) (`onlyHorizontalRuns = true`,
-  `minLengthMm = 1000.0`) — still restate/confirm before running per "every number is per-request", in
-  case a future request explicitly overrides it.
+  generally to duct tagging, not just the one request it came from.
 - **Create Tags' vertical-run skip is deliberately WIDER than Smart MEP Tag's own (Ajmal, 2026-07-28)**:
   Smart MEP Tag only excludes vertical *ducts* (`IsVerticalDuct` in `SmartMepTagService.cs`, duct
   category only); Create Tags excludes vertical ducts, pipes, AND cable trays (`IsVerticalMepCurve` in
@@ -292,11 +285,9 @@ place rather than leaving stale info sitting next to the new truth.
   candidates land on the duct and it escapes above/below; in a **vertical** duct the sides are across
   the run and clear, so it goes beside. Net effect reads as "beside a vertical run, above/below a
   horizontal one", matching the existing duct-tag convention by accident of the maths.
-- **Tuned live, not guessed** (the method worth repeating): tags were placed on 32 real accessories
-  through the AJ AI Bridge, looked at, and corrected — three rounds before Ajmal approved it. The
-  compiled tool itself cannot be driven from a script (`internal`), so the loop is: script the *rule*,
-  let him judge it on screen, then port the agreed numbers into the tool. Verify by fresh read-back
-  (leaders, tag-on-model, tag-on-tag), never by eye.
+- **Tuned live, not guessed**: the numbers were tried on 32 real accessories and corrected over three
+  rounds before Ajmal approved them. Verify placement by fresh read-back (leaders, tag-on-model,
+  tag-on-tag), never by eye.
 
 **The long-run confirm: which tools ask, and which deliberately do NOT (v1.49.5, 2026-08-17)**
 - One shared call, `DialogHelper.ConfirmLongRun(title, count, whatWillHappen)`, which also owns the
@@ -326,22 +317,13 @@ place rather than leaving stale info sitting next to the new truth.
   collector shape as `ClearAll`** so the number quoted is the number acted on — if you ever change one,
   change both.
 
-**The AJ AI Brain's tag-clash pass is WEAKER than `TagClashEngine` — don't import it (settled 2026-08-17)**
-- Ajmal asked directly whether the Brain's clash work was better and should replace this one. It was
-  compared file-by-file. **It is not, and it was not adopted.** Recorded so nobody re-runs this
-  comparison or "upgrades" the compiled engine to the script version later.
-- The Brain's version (the old tagging notes (deleted 2026-10-12, in git history), § *Tag-vs-tag overlap resolution*) sees
-  **tag against tag only**; `TagClashEngine` also sees text notes, dimensions, detail components,
-  detail lines, generic annotations, keynote tags, spot elevations/coordinates and revision clouds. The
-  Brain splits every move **50/50 across both tags**, where this engine decides *who* moves by leader
-  length and then **freezes the winner**. The Brain has **no drift limit**, no pinned-tag handling, and
-  no stable re-run ordering.
-- **The decisive part is the Brain's own text**: it calls itself *"NOT full clash-free placement"* and
-  says the compiled tool *"remains the actual clash-free tool"*. It was written because
-  `SmartTagPlacementEngine` is `internal` and unreachable from a `run_csharp` script — a **workaround
-  for a missing reference, not a better algorithm.** Treat any Brain fragment that reimplements a
-  compiled AJ Tools service the same way: it is the fallback, this is the real thing.
-- **The one idea worth taking, and it was taken (v1.49.6)**: measure how far two boxes ACTUALLY overlap
+**`TagClashEngine` — what it sees, and why it is not swapped for a simpler pass (settled 2026-08-17)**
+- It checks a tag against other tags AND text notes, dimensions, detail components, detail lines,
+  generic annotations, keynote tags, spot elevations/coordinates and revision clouds; decides *who*
+  moves by leader length, then **freezes the winner**, with a drift limit, pinned-tag handling and
+  stable re-run order. A simpler tag-vs-tag-only pass that split every move 50/50 was compared and
+  rejected.
+- **Move by the measured overlap, not a fixed quantum (v1.49.6)**: measure how far two boxes ACTUALLY overlap
   and move by exactly that plus the gap, instead of by a fixed quantum. Every other candidate in
   `BuildCandidateOffsets` is a whole tag height or width, so a hair-width overlap still shoved a tag a
   full height (measured: 0.20 overlap → 2.50 move before, 0.70 after). `BuildOverlapEscapeOffsets` adds
@@ -349,8 +331,8 @@ place rather than leaving stale info sitting next to the new truth.
   ends up genuinely clear" selector is untouched and a measured escape only wins when it truly clears.
 - **Two traps if this is ever reworked.** Clearance must be `minGap + tolerance`, never bare `minGap`:
   a pair landing exactly on the boundary still satisfies `IsClashing`'s "closer than the minimum gap"
-  test next pass, so the tag oscillates instead of settling. And do **not** also copy the Brain's 50/50
-  split — moving both tags contradicts the who-moves rule and would move a frozen winner.
+  test next pass, so the tag oscillates instead of settling. And do **not** split a move 50/50 across
+  both tags — that contradicts the who-moves rule and would move a frozen winner.
 
 **Credit line — every window carries it (Ajmal's rule, 2026-07-27)**
 - Exact text, no variations: **`Created & All Rights Reserved @ Ajmal P.S.`**
@@ -463,8 +445,8 @@ place rather than leaving stale info sitting next to the new truth.
 - **Never use `System.Windows.Application.Current` — it is always null inside Revit** (Revit hosts WPF
   without creating a WPF `Application` object). Capture `Dispatcher.CurrentDispatcher` in the
   constructor of whatever is created on Revit's UI thread and use that captured dispatcher for all UI
-  marshalling (pattern: `AiTaskWarningBarService`, `AiShellViewModel`). This has caused two real
-  bugs (invisible activity banner 2026-07-12, frozen AJ AI progress bar 2026-07-16) — as of 2026-07-16
+  marshalling (pattern: `AiShellViewModel`). This has caused real bugs (e.g. the frozen C#-pane
+  progress bar, 2026-07-16) — as of 2026-07-16
   no live `Application.Current` call remains in `src/`; don't reintroduce one.
 - **AJ AI provider naming (fixed 2026-07-25, v1.25.0 merge):** the provider-key string stored in
   `AiShellConfig.SelectedProvider` and shown in the Settings dropdown is `"Claude"` (alongside
@@ -630,7 +612,7 @@ place rather than leaving stale info sitting next to the new truth.
   2–3 times, so any existing handler runs that many times. As of 2026-08-05 only `PipeSizingWindow` has
   one (`SaveState()`, a full overwrite — idempotent, so repeats are harmless). A handler that appends,
   prompts, or counts would break. Also check nothing outside the window calls `Close()` on it and then
-  depends on it being gone (only the AI toast/banner do that, and neither carries this helper).
+  depends on it being gone.
 - `tools\verify-exit-motion.ps1` runs the **real** helper against real dialogs and asserts the returned
   result matches a no-animation control for Run(true), Cancel(false), plain `Close()`, and the
   Click+`IsCancel` double-close. Run it after ANY change to `WindowMotionHelper`.
@@ -644,7 +626,7 @@ place rather than leaving stale info sitting next to the new truth.
   reveal there reads as waiting, not polish. This distinction is the whole point of the split — if a
   future pass "unifies" the two it will make the everyday tools feel slower.
 - **Excluded**: `GameHudWindow` (real-time overlay with its own code-behind animation, frame budget
-  matters) and the AiShell warning bar (already animated).
+  matters).
 - **`Window.Opacity` only has a visual effect when `AllowsTransparency="True"`** — WPF needs a layered
   window for it. Only 7 of 35 AJ Tools windows set that, so the helper animates the window's **root
   content element** instead, which works on every window regardless of chrome style. Don't "simplify"
@@ -898,6 +880,17 @@ place rather than leaving stale info sitting next to the new truth.
   without the `PickObjects` fallback (not needed once the window can simply tell the user to select
   first and reopen).
 
+**Graphic overrides — how to tell one is really set (found 2026-07-14)**
+- `OverrideGraphicSettings.IsSurfaceForegroundPatternVisible` / `IsCutForegroundPatternVisible` are
+  `true` even when nothing is overridden — they say whether a pattern *would* show, not that an
+  override exists. Detect a real override from colour `.IsValid` (`ProjectionLineColor`,
+  `SurfaceForegroundPatternColor`, …) plus real pattern Ids.
+
+**Revisions — an unattached revision can vanish (seen 2026-07-13)**
+- A revision attached to no sheet and no cloud can be auto-purged by Revit the next time the revision
+  sequence recomputes (e.g. while other revisions are being attached to sheets). Read revisions back
+  after any revision change, and match them by date/description, never by sequence number.
+
 **Ribbon & shared helpers**
 - Ribbon is built in `Core/RibbonManager.cs` (+ `Core/AnnotationRibbonManager.cs`), not in `App.cs`.
 - **A split button with a permanent default face and a secondary action tucked in the dropdown**
@@ -926,13 +919,11 @@ place rather than leaving stale info sitting next to the new truth.
   button name changes. The reliable way: every Revit API `RibbonItem` carries a **non-public instance
   method `getRibbonItem()`** returning the underlying `Autodesk.Windows` item, whose **`Id` property is
   exactly that string** — reached by plain reflection, so no `AdWindows.dll` package reference is needed
-  in a project that builds eight Revit versions. This is the same route pyRevit has shipped since Revit
-  2019 (`coreutils/ribbon.py`, `get_adwindows_object` / `get_control_id`). `QuickMenuCatalog` does the
+  in a project that builds eight Revit versions. `QuickMenuCatalog` does the
   read; `QuickMenuLauncher` keeps the composed strings only as a fallback.
 - **Running one of REVIT'S OWN commands from an add-in (established 2026-08-19, the Quick Menu).**
   Same `PostCommand` route, but the id comes free: `RevitCommandId.LookupPostableCommandId(PostableCommand.X)`
-  — no `CustomCtrl_%...` string involved at all. (Already proven live through the AJ AI Bridge for
-  `PostableCommand.Undo` — see the old undo notes (deleted 2026-10-12, in git history).) **The version trap, and the fix:**
+  — no `CustomCtrl_%...` string involved at all. **The version trap, and the fix:**
   `PostableCommand` gains and loses members every Revit release, so writing *any* member name in
   compiled source breaks the build on the versions that never had it — fatal in a project that builds
   2020 → 2027 from one file. Walk the enum **by name at run time** instead —
@@ -963,6 +954,11 @@ place rather than leaving stale info sitting next to the new truth.
   changes the icon for both tools at once — if Ajmal wants them visually distinct, that needs a new filename
   wired into whichever `RibbonManager.cs`/`AnnotationRibbonManager.cs` call currently points at the shared
   file, not just a new image.
+- **No image editor needed for a placeholder icon** (2026-07-18): a 32x32 transparent PNG can be drawn
+  from PowerShell with `System.Drawing` (`Bitmap`, `Graphics`, `LinearGradientBrush`, `GraphicsPath`).
+  Render the draft and actually look at it at 32 and 16 px before wiring it in — a shape that reads
+  fine as an idea can read as something else once anti-aliased that small. `IconLoader.Load` decodes
+  to the target size, so any reasonably sized square PNG works.
 
 **Shared mode-enum tool families — reach for this when a 3rd/4th near-identical tool variant is asked for**
 - Established shape (Purge Unplaced Views was first; Purge Unused Elements and Transfer Views now follow
@@ -996,13 +992,6 @@ place rather than leaving stale info sitting next to the new truth.
   installed Revit 2020 `RevitAPI.dll` (2026-07-28) before use — none of them are in this file's known
   version-gap list above, so no `#if` branching was needed for any of them.
 
-**AJ AI Bridge (live Revit session testing) — REMOVED in v1.57.0 (2026-10-12); history only below**
-- The bridge used to let Claude run C# directly against Ajmal's live, open Revit document — only works from a session running locally on Ajmal's PC (not a remote/cloud sandbox).
-- The bridge **blocks reflection and assembly-loading** as a safety guard — you cannot use it to reach into an AJTools internal (non-public) class to test its private logic directly. Only plain Revit API calls are allowed. If you need to exercise a command's real internal logic, either replicate the behavior with plain Revit API calls, or ask Ajmal to click the button himself once you've set up the preconditions.
-- Posting one of AJ Tools' own ribbon buttons programmatically (`RevitCommandId.LookupCommandId(...)` + `UIApplication.PostCommand(...)`) does **not** reliably work for commands nested inside a `PulldownButton` — `PushButton.GetCommandId()` doesn't exist in this API version, and manually constructed `CustomCtrl_%...` lookup strings didn't resolve in testing. Don't spend time re-guessing this; treat it as unsolved.
-- Destructive ops (Delete/Purge/file writes) are refused by the bridge unless explicitly allowed — this is intentional, don't try to route around it.
-
-
 **Reaching AJ Tools from outside Revit — lessons from the Web Panel (built v1.43.0 2026-08-12, REMOVED
 v1.44.0 2026-08-13 at Ajmal's instruction — code deleted, not disabled)**
 
@@ -1014,14 +1003,13 @@ v1.44.0 2026-08-13 at Ajmal's instruction — code deleted, not disabled)**
 > `WebPanelToolRunner`, `WebPanelService` and `src/WebPanel/` no longer exist.
 - **A localhost `HttpListener` needs NO admin rights and NO URL ACL — only the wildcard does.** Measured
   on Ajmal's machine as a standard non-admin user: `http://localhost:5599/` starts fine; `http://+:5599/`
-  throws `Access is denied`; a raw `TcpListener` on 127.0.0.1 also works. `McpBridgeService`'s header note
-  used to state the opposite as the reason the AJ AI bridge chose a named pipe — **corrected in place**.
-  The pipe is still right for the AI bridge (no port to pick, unreachable from a browser by construction),
-  but never repeat the old claim as a reason to rule out a loopback HTTP server. A localhost-only prefix
+  throws `Access is denied`; a raw `TcpListener` on 127.0.0.1 also works. An older service header in
+  this repo stated the opposite; never repeat that claim as a reason to rule out a loopback HTTP
+  server. A localhost-only prefix
   also raises no Windows Firewall prompt, because it is not reachable from another machine.
 - **Names, not code.** The browser sent a tool **id** from a fixed registry compiled into the add-in —
   never C#, a path, or a script. So the worst a hostile page could do was press a button already on the
-  ribbon. That was deliberately narrower than the AJ AI bridge, which *does* accept code (guarded by
+  ribbon. That was deliberately narrower than the C# pane, which *does* run code (guarded by
   `GeneratedCodeSafetyValidator`). **The rule to carry forward: if the download-tools-from-a-website idea
   is ever built, do not let the far end run whatever was sent** — that step needs a signature check
   (Ajmal signs each tool, the connector verifies before running) designed first, or a hacked website
@@ -1029,7 +1017,7 @@ v1.44.0 2026-08-13 at Ajmal's instruction — code deleted, not disabled)**
 - **Two defences, because each alone has a hole**: a per-session token injected into the served page, AND
   an `Origin` header check. A hostile page in another tab cannot read the token (CORS blocks it reading
   the response) but could otherwise fire blind requests — the Origin check stops exactly that. Neither
-  stops another *program* running as Ajmal; nothing can, and the named pipe has the same property.
+  stops another *program* running as Ajmal; nothing can.
 - **Serve the page from the listener itself.** Same origin means no CORS and no mixed-content fight — the
   problem an https website would hit trying to reach `http://localhost`. The page asked `/api/tools`
   for its buttons rather than hardcoding them, so adding a registry entry made a button appear with no
@@ -1075,38 +1063,40 @@ build is broken:
    `NETSDK1045` under msbuild even though SDK 10 is installed. Not a code error. Build R27 through
    `package.ps1` or the local dotnet directly.
 
-**Known non-clean configurations** (both pre-existing, deliberately NOT fixed — each is a project-wide
+**Known non-clean configurations** (pre-existing, deliberately NOT fixed — each is a project-wide
 API migration needing Ajmal's sign-off, same class as the pending `ElementIdHelper` migration):
 
-- `Release R21` (Revit 2021+): 76 `CS0618` warnings, all the pre-ForgeTypeId unit API —
+- `Release R21` (Revit 2021): 38 `CS0618` warnings reported (17 distinct spots, measured 2026-10-12),
+  all the pre-ForgeTypeId unit API in `RevitCompat.cs` and `FlowDirectionSettingsWindow.xaml.cs` —
   `DisplayUnitType`, `UnitType`, `UnitUtils.Convert*(…, DisplayUnitType)`,
   `Units.GetFormatOptions(UnitType)`, `LabelUtils.GetLabelFor(DisplayUnitType)`,
   `FormatOptions.DisplayUnits`. Obsolete but still functional.
+- `Release R22` (Revit 2022): 8 `CS0618` warnings reported (4 distinct spots), all in `TagCompat.cs` —
+  the single-reference tag API (`LeaderEnd`, `LeaderElbow`, `GetTaggedReference()`,
+  `TaggedLocalElementId`), deprecated in 2022 but still functional; `TagCompat` only switches to the
+  multi-reference API at 2023. First recorded 2026-10-12, the first time all eight configurations
+  were built in one pass.
 - ~~`Release R27`: `Space.Zone` CS0618~~ — **fixed in 1.56.3** (2026-10-12), see `debug-log.md`.
   In 2027 old HVAC zones are upgraded to space-based system zones (`Analysis.GenericZone` with
   `HVACZoneData` domain data, new in 2027; plain system zones carry `SystemZoneData`). There is no
   space-side replacement property: go the other way, `GenericZone.GetSpaceIds()` on zones whose
   `GeometricDefinition == ZoneGeometricDefinition.Spaces`, behind `#if REVIT2027_OR_GREATER`.
 
-`Release` (2020 baseline), `Release R24`, `Release R25` and `Release R27` all build **0 warnings /
+`Release` (2020 baseline) and `Release R23` through `Release R27` all build **0 warnings /
 0 errors** and must stay that way. (On this PC, checked 2026-10-12, the system `dotnet` SDK 10.0.401
 works and `dotnet build "AJ Tools.sln" -c "Release R27" -p:Platform=x64` builds the R-configs through
 the `.sln` directly — traps 1–3 above describe the old PC.)
 
-**Every AJ Tools UI surface, and the two a `.xaml` sweep MISSES (enumerated 2026-08-05, v1.40.5)**
+**Every AJ Tools UI surface, and the kind a `.xaml` sweep MISSES (enumerated 2026-08-05, v1.40.5)**
 - **35 XAML `<Window>` files** under `src/` — 33 carry `AttachStandardEntrance` + `AttachStandardExit`;
   `AboutWindow` has its own staged pair; `GameHudWindow` is excluded (real-time overlay, frame budget).
 - **1 dockable `UserControl`** — `AiShell/Views/AiShellView.xaml`. Styled via `SoftUiStyles`, no entrance
   motion by design (it is constructed during Revit's `OnStartup`; a fault there kills the whole add-in).
-- **2 windows built entirely in C# with NO `.xaml`** — `AiShell/Helpers/BridgeStatusToast.cs` and
-  `AiShell/Services/AiTaskWarningBarService.cs`. **These are the blind spot**: every sweep that finds
-  windows by globbing `*.xaml` misses them, which is exactly how `BridgeStatusToast` went through the
-  whole motion pass with no animation at all. When auditing UI coverage, search for `new Window` /
-  `: Window` in `.cs` files that have no matching `.xaml`, not just the XAML.
+- **Windows built entirely in C# with NO `.xaml` are the blind spot** — a `*.xaml` glob misses them
+  (one went through the whole v1.39 motion pass unanimated that way). None remain since v1.57.0
+  (grep-checked 2026-10-12), but when auditing UI coverage still search `.cs` files for `new Window` /
+  `: Window` with no matching `.xaml`.
 - **Zero WinForms UI remains** anywhere in `src/` (confirmed 2026-08-05).
-- `BridgeStatusToast` animates `Window.Opacity` **directly** — correct there because it sets
-  `AllowsTransparency = true`. Do not copy that to a normal window: most AJ Tools windows do not set it,
-  which is the whole reason `WindowMotionHelper` animates the root content element instead.
 
 **Adding an AI provider to the "C#" shell — the five places (done 4x: Gemini, OpenAI, Claude, NVIDIA)**
 `IAiProviderService` is a 3-member contract (`ProviderName`, `SendMessageAsync`, `IsConfigured`), so a new
@@ -1339,73 +1329,3 @@ whole-list `Evaluate(...)` entry point so the per-item version cannot be called 
 **Also worth knowing about `ildasm` in Git Bash**: MSYS rewrites a `/item=...` argument into a
 Windows path, so ildasm reports `MULTIPLE INPUT FILES SPECIFIED`. Use `-item=` with a dash, and copy
 the DLL somewhere without spaces in the path first.
-
-## One Revit per pipe: the bridge was single-instance by construction (2026-08-20, v1.55.0)
-
-`McpBridgeService` hosted a **fixed** pipe name, `AJTools.AjAi`, with `maxNumberOfServerInstances: 2`.
-Those two are not spare capacity — a single Revit needs BOTH: one instance servicing the connected chat
-and one already listening, which is what makes preemption instant. So a second Revit had no slot at all.
-
-**Measured before changing anything** (a standalone test creating four servers on one name): instances 1
-and 2 created, instances 3 and 4 threw `IOException: All pipe instances are busy.` So the second Revit's
-bridge could not start, and if it ever had won a slot the outcome would have been worse than failing —
-the single discovery file holds one token, so a client could connect to Revit A while presenting Revit
-B's token and simply be told "Unauthorized".
-
-The fix is the named-pipe equivalent of pyRevit's one-port-per-instance: **the pipe name carries the
-process id**. Alongside it, each session writes `%APPDATA%\AJTools\bridges\<pid>.json` with its pipe,
-token, Revit version and window title, so a client can name the sessions rather than number them. Dead
-files are swept in `Start()`, because a crash or task-kill never runs `Stop()`.
-
-**`ajai-bridge.json` was written so the bridge's callers could find the pipe and token** (all removed in v1.57.0). It is deleted on `Stop()` only if it still
-points at THIS Revit — otherwise closing one session would disconnect another that is still running.
-
-**The choosing rule is Ajmal's, and he was asked:** *ask, don't guess.* One Revit open behaves exactly as
-it always did, no prompt. Two or more and nothing is sent until he names one. It mirrors his existing
-rule about pinning the document when two projects are open, where the danger is the same — a multi-step
-job quietly finishing in the wrong project.
-
-### The distinction that makes it safe, found by a failing test
-
-Auto-picking the only session and being told which session to use are **not the same thing**, and the
-client must track which happened:
-
-| What happened | Correct behaviour |
-|---|---|
-| Auto-picked, then a second Revit opens | **Ask** — he never chose this one |
-| Auto-picked, and it closes | Quietly take the remaining one |
-| He chose it, and more Revits open | Keep his choice, don't nag |
-| He chose it, and it closes | **Stop and say so** — never slide onto another project |
-
-The first draft had no such flag, so opening a second Revit mid-chat left every later command silently
-going to the first one — exactly the failure the feature exists to prevent. The test caught it, not
-review.
-
-
-## Two halves of "which model am I writing to" (2026-08-20, v1.55.0 + v1.56.0)
-
-They are separate problems and needed separate fixes. Solving one does NOT solve the other:
-
-| Question | Fix | Where |
-|---|---|---|
-| Which **Revit session**? | one named pipe per process id | `McpBridgeService` (v1.55.0) |
-| Which **project inside it**? | optional `document` title on the request | `RevitExecutionService` (v1.56.0) |
-
-`RevitExecutionService.Execute()` has always built its globals from `app.ActiveUIDocument`, so
-`Document` means *the front window* — which moves when Ajmal clicks another project, between two calls
-of the same job. The request now carries an optional `Document` title, resolved against
-`app.Application.Documents` skipping links.
-
-**The rule both halves share: a name that does not resolve is an ERROR, never a fall back.** An unknown
-Revit pid, or a project title that is not open, stops and lists the real choices. Falling back to
-"whatever is in front" is precisely the failure being prevented, so it must never be the recovery path.
-
-**Backward compatibility is by OMISSION, not by empty value.** The client leaves `document` out of the
-JSON entirely when nothing is pinned, so an older AJ Tools sees the exact payload it always saw. There
-is a test asserting the field is *absent* rather than empty, because "" and missing are different
-things to a deserialiser.
-
-**Known limit, deliberately not papered over:** `new UIDocument(backgroundDoc)` is legal, but its
-`ActiveView` is that project's own active view. So view-scoped work (isolate, colour, crop) follows what
-Revit has open in that project, not the caller. Model-level work — create, rename, parameters,
-schedules — is unaffected. Say so rather than pretending the targeting is total.

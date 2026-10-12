@@ -1,11 +1,11 @@
 ---
 name: ajtools-port-pyrevit
-description: Convert one of Ajmal's existing pyRevit tools (from D:\Ajmal\AutoCAD APP\Pyrevit\AJ-Tools.extension) into a proper AJ Tools C# command — same behaviour, house conventions, ribbon button and all. Use whenever Ajmal points at a pyRevit pushbutton/script and wants it in AJ Tools: "convert this tool to C#", "this is my pyRevit tool, make it in AJ Tools", "using this script build the same in the plugin", "study how I achieve this" (with a .py path or a .pushbutton folder), or broken-English/dictated versions ("convert this pyrevit tool", "make this in c sharp"). Also use when a paste of IronPython/pyRevit code arrives with intent to port it. His pyRevit scripts encode hard-won, WORKING logic — the port must reproduce it exactly, not "improve" it silently. Do NOT use this for writing new pyRevit/Python tools (that's the revit-pyrevit-python skill) or for brand-new C# capability with no existing script to port (that's ajtools-build). Do NOT use this for debugging an already-ported tool — that's ajtools-debug.
+description: Convert one of Ajmal's existing pyRevit tools (his AJ-Tools.extension) into a proper AJ Tools C# command — same behaviour, house conventions, ribbon button and all. Use whenever Ajmal points at a pyRevit pushbutton/script and wants it in AJ Tools: "convert this tool to C#", "this is my pyRevit tool, make it in AJ Tools", "using this script build the same in the plugin", "study how I achieve this" (with a .py path or a .pushbutton folder), or broken-English/dictated versions ("convert this pyrevit tool", "make this in c sharp"). Also use when a paste of IronPython/pyRevit code arrives with intent to port it. His pyRevit scripts encode hard-won, WORKING logic — the port must reproduce it exactly, not "improve" it silently. Do NOT use this for writing new pyRevit/Python tools (that's the revit-pyrevit-python skill) or for brand-new C# capability with no existing script to port (that's ajtools-build). Do NOT use this for debugging an already-ported tool — that's ajtools-debug.
 ---
 
 # AJ Tools — Port a pyRevit Tool to C#
 
-Ajmal has a working pyRevit extension (`D:\Ajmal\AutoCAD APP\Pyrevit\AJ-Tools.extension`) that predates
+Ajmal has a working pyRevit extension (`AJ-Tools.extension`) that predates
 AJ Tools, and he migrates tools from it one at a time ("Colorize" and a Debug-panel tool were both done by
 hand before this skill existed). The key mindset: **the pyRevit script is the specification.** It already
 works in production — its logic came from real trial and error (the duct end-cap recipe, ported from his
@@ -21,8 +21,8 @@ must follow); ask about any ambiguous term in the request.
 
 ### Step 2 — Locate and study the source tool
 
-Find the pushbutton bundle (`script.py`, `icon.png`, any `bundle.yaml`/`lib` files) — under
-`D:\Ajmal\AutoCAD APP\Pyrevit\AJ-Tools.extension` unless Ajmal gives a different path. Read the whole
+Find the pushbutton bundle (`script.py`, `icon.png`, any `bundle.yaml`/`lib` files). Ask Ajmal where
+the extension is on this PC (on the old PC it was `D:\Ajmal\AutoCAD APP\Pyrevit\AJ-Tools.extension`). Read the whole
 script, then **play the behaviour back to Ajmal in plain modeller words before writing any C#**: what the
 tool asks the user, what it collects, what it changes, what it shows at the end. This is the cheap moment
 to catch a misread — not after 300 lines of C#. If the script has dead code or commented-out experiments,

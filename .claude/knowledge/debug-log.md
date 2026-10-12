@@ -3,8 +3,8 @@
 Bugs found and fixed, separate from `ajtools-conventions.md` (which is coding rules, not bug history).
 Read this before investigating a new symptom - it may be a repeat. Append a short entry after every fix.
 
-Format per entry: **Symptom (Ajmal's words)** -> **Root cause** -> **Fix** -> **Verified how** (live via
-AutoDebugger, or code-review only) -> date.
+Format per entry: **Symptom (Ajmal's words)** -> **Root cause** -> **Fix** -> **Verified how** (live in
+Revit, or code-review only) -> date.
 
 ## Log
 
@@ -54,8 +54,8 @@ AutoDebugger, or code-review only) -> date.
 - **Verified how**: code-review only, plus clean rebuilds at `Release` (2020/net472) and `Release R25`
   (.NET 8), zero errors / zero warnings, and `tools\verify-version-consistency.ps1` clean on all six
   references (it caught CHANGELOG.md and README.md still at 1.48.1). Deployed to the 2020 AppData payload
-  `AJ Tools.20260816173635439`, manifest and DLL read back at **1.48.2.0**. **The AJ AI Bridge was NOT
-  connected this session (ping refused), so nothing was checked against the live model, and Revit was open
+  `AJ Tools.20260816173635439`, manifest and DLL read back at **1.48.2.0**. **Nothing was
+  checked against the live model, and Revit was open
   during the deploy — the running session is still on 1.48.1.** Ajmal restarts Revit and re-tests the
   two-duct case both ways round. **Not click-tested by me.** → 2026-08-16.
 - **Released publicly the same session, at Ajmal's explicit choice** (asked test-first vs release-now; he
@@ -64,7 +64,7 @@ AutoDebugger, or code-review only) -> date.
   matched, Actions published in well under a minute, and the **published asset was downloaded and
   re-hashed — byte-for-byte identical** to the local zip and to the published `SHA256SUMS.txt`
   (`3180be14…59e`). Release notes came through non-empty and correct. Source tag `v1.48.2`, installer tag
-  `v1.48.2`, all three repos clean and in sync (AJ AI Brain needed nothing).
+  `v1.48.2`, both repos clean and in sync.
 - **Deploy gotcha worth keeping — `Release R27` cannot be built from this shell with VS MSBuild.** It
   fails `NETSDK1045: The current .NET SDK does not support targeting .NET 10.0` because the machine-wide
   SDK on PATH is 9.0.317. `package.ps1` already knows this and routes the 2027 build through the
@@ -122,7 +122,7 @@ AutoDebugger, or code-review only) -> date.
   Ran clean end to end: package.ps1 built all 8 years (~9 min, `SkipAjToolsAutoDeploy` is built into
   it, so Revit staying open did not matter), all 9 payloads read back at 1.48.1.0, checksum matched,
   Actions published in 14s, and the **published asset was downloaded and re-hashed** — identical to
-  the local zip. Source tag `v1.48.1`, installer tag `v1.48.1`, all three repos clean and in sync.
+  the local zip. Source tag `v1.48.1`, installer tag `v1.48.1`, both repos clean and in sync.
 - **Process gotcha**: the shell's working directory persists between commands, so a `cd` into
   `AJ-Tools-Installer` earlier in the session made `.\dist\create-tag.ps1` fail with "does not exist".
   `Set-Location` back to the repo root before the source-repo steps in `RELEASE_PROCESS.md`.
@@ -374,7 +374,7 @@ AutoDebugger, or code-review only) -> date.
   are shared by construction. It could not be measured: **neither open model contains a single legend view,
   and the Revit API cannot create one** (there is no `Legend.Create`), so there was nothing to test against.
   Ajmal re-tests on a model that has legends.
-- **Verified how**: live via AJ AI Bridge as above (both the broken behaviour and the fixed two-pass
+- **Verified how**: live in Revit as above (both the broken behaviour and the fixed two-pass
   sequence), then `Release` (2020/net472) and `Release R25` (.NET 8) both rebuilt 0 errors / 0 warnings, and
   deployed to the 2020 AppData payload `AJ Tools.20260811190129404`, manifest + DLL read back at 1.42.1.0.
   **Every live test was reversed with Revit's native Undo** and both models confirmed back at their exact
@@ -478,7 +478,7 @@ AutoDebugger, or code-review only) -> date.
   — even though it isn't a duct at all. Because one `dominantAxisAngle` is shared across the whole pass,
   this would tilt ALL clouds built in that pass by the same amount — a falsifiable detail to check against
   what Ajmal actually sees (are all 6 clouds tilted by the same angle, or different amounts per group?).
-- **Not confirmed live** — AJ AI Bridge not connected this session (`ping` failed twice, Revit not open),
+- **Not confirmed live** — Revit was not open this session,
   so the actual selected elements' real `Location` type/angle were not read back. Asked Ajmal to confirm
   the "same angle on all 6" detail and what exactly was selected (just the box/arrow symbols, or also
   duct/pipe/trunk elements) before proposing a fix.
@@ -495,9 +495,9 @@ AutoDebugger, or code-review only) -> date.
   transaction (confirmed: no drafting view exists in the project afterwards; model untouched).
 - **Reproduced live**: yes — clicking the real ribbon button in Revit 2020, Project1, 45 selected
   elements (6 air terminals, ducts, duct fittings, FCU-01 equipment) shows the error every time.
-- **Ruled out (all verified live via AJ AI Bridge in the same session that crashes)**:
+- **Ruled out (all verified live in the same Revit session that crashes)**:
   - `UnitFormatUtils.Format(UT_HVAC_Airflow)` on this doc — works ("1342.2 L/s").
-  - Whole analysis+layout pipeline replicated line-by-line in bridge scripts (traversal, edge
+  - Whole analysis+layout pipeline replicated line-by-line in test scripts run in that session (traversal, edge
     evidence/votes, level ladder, AssignNetworks BFS, band indices, ChooseRoot, Dijkstra, children map,
     depths, subtree scores, continuation choice, tree positions, band lookup) — PASSES with both
     all-model seeding (37 nodes/33 edges/6 networks) and his exact 45-element selection
@@ -734,7 +734,7 @@ AutoDebugger, or code-review only) -> date.
   every single `Execute()` call (Revit creates a new command instance per click), and
   `GraphicsOverrideBuilder.Clone()` does a real deep copy (`new OverrideGraphicSettings(source)`), never a
   shared reference. So Ajmal's literal "stored forever" theory does not match what the code actually does.
-- **Most likely real explanation instead (unconfirmed live - bridge wasn't connected this session)**: Match
+- **Most likely real explanation instead (unconfirmed live - Revit was not open this session)**: Match
   Element/Category Graphics is a paint-picker - it copies the source's *current* override onto the target,
   which **overwrites the target's own original value**. In a 2-element back-and-forth test like Ajmal's,
   run 1 (source=gray -> target=red) destroys the red duct's real override the moment it's applied, replacing
@@ -747,10 +747,9 @@ AutoDebugger, or code-review only) -> date.
   with **3 distinct elements** (don't reuse the same 2 elements' roles back-to-back) - e.g. gray A -> red B
   in run 1, then a still-untouched red C -> gray A in run 2. If that still fails to recolor A, this
   diagnosis is wrong and needs live tracing instead.
-- **Verified how**: code-review only - AJ AI Bridge was not connected this session (Revit not open), so the
+- **Verified how**: code-review only - Revit was not open this session, so the
   actual live override values on Ajmal's real gray/red ducts were not read back to confirm. Flagged to
-  Ajmal to re-test with 3 elements, or reconnect the bridge so this can be confirmed against live element
-  state rather than staying theoretical. -> 2026-07-20.
+  Ajmal to re-test with 3 elements. -> 2026-07-20.
 
 ### 2026-07-19 (Highlight Selection: insulation left gray instead of red)
 - **Symptom ("if the duct i selected or pipe for this is there insulation that insulation olso i need to
@@ -760,7 +759,7 @@ AutoDebugger, or code-review only) -> date.
   hosted on the duct/pipe but never part of Revit's own selection when you pick the duct/pipe itself. The
   tool's highlight set was built strictly from `UIDocument.Selection.GetElementIds()`, so the insulation
   fell into the "everything else" gray bucket by default. **Verified against the real API, not memory**:
-  bridge wasn't connected this session, so reflected directly over the installed `RevitAPI.dll` (2020,
+  reflected directly over the installed `RevitAPI.dll` (2020,
   2024, and 2027 - all three identical) instead of guessing: `Autodesk.Revit.DB.InsulationLiningBase`
   has a public static `GetInsulationIds(Document document, ElementId elemId) -> ICollection<ElementId>`
   - exactly the lookup needed, same signature across all three installed versions, so no version-safe
@@ -779,9 +778,9 @@ AutoDebugger, or code-review only) -> date.
   insulated duct/pipe and clicking Highlight Selection again. -> 2026-07-19.
   **Same-day follow-up**: Ajmal pushed back that insulation isn't only on ducts/pipes themselves - he
   recalled Duct Accessories, Pipe Accessories, and Mechanical Equipment can carry it too, and asked to
-  check rather than assume. AJ AI Bridge was still not connected, so checked via `WebSearch`/`WebFetch`
+  check rather than assume. Checked
   against Autodesk's own Revit API docs instead of memory: the `DuctInsulation`/`PipeInsulation` class
-  remarks (revitapidocs.com) literally say "*represents insulation applied to the outside of a given
+  remarks literally say "*represents insulation applied to the outside of a given
   duct/pipe, **fitting**, or **accessory/content***" - confirming Duct/Pipe Accessories are official,
   documented insulation hosts, not an edge case Ajmal misremembered. Also found (same source): calling
   `GetInsulationIds` on an id that isn't a valid insulation host throws `ArgumentException` ("This id
@@ -795,78 +794,18 @@ AutoDebugger, or code-review only) -> date.
   doesn't "simplify" it into a hardcoded Duct/Pipe-only check. No version bump (doc-comment only, no
   behavior change); compile-verified clean afterward regardless. -> 2026-07-19.
 
-### 2026-07-16 (AutoDebugger bridge: second chat window can't connect after first one goes idle)
-- **Symptom ("i will chat in one window and if i finish i did not tell that i finished and i move to
-  another chat for another work its not coming")**: pinging from a second chat window times out
-  ("semaphore timeout period has expired") while a first chat window is still technically connected,
-  even though Ajmal stopped using it and never explicitly disconnected. **Root cause**:
-  `McpBridgeService` creates the named pipe with `maxNumberOfServerInstances = 1` (one slot, total) and
-  (since v1.1.0) keeps a connected session's pipe open indefinitely between requests rather than
-  reconnecting per call — see the `project_autodebugger_mcp` cross-session memory for the full
-  architecture. Whoever connects first holds the only slot for their entire session; a
-  forgotten-but-not-closed chat window blocks every other chat indefinitely. **Fix**
-  (`McpBridgeService.cs` v1.4.0, suite 1.13.4): `HandleConnectionAsync`'s read loop now races
-  `ReadLineAsync()` against a 3-minute `Task.Delay` (`IdleReleaseTimeout`); if the delay wins, the
-  connection is dropped and the slot frees up for the next chat window. Confirmed safe for the idle
-  session too — the Node MCP client (`mcp-server/index.js`, `getConnection()`) already detects a
-  closed/destroyed socket and transparently reconnects on its own next call, so the idle chat sees no
-  error, just a fresh connection next time it's used. **Verified how**: `Release` (2020) compile-only
-  build (`-p:SkipAjToolsAutoDeploy=true`) — 0 errors, 0 warnings. Not version-sensitive API, so no
-  additional newer-config build done. Not yet deployed/live-tested — Revit was live-connected to the
-  bridge during this fix (mid-session), so deploy was held pending Ajmal's go-ahead (would overwrite a
-  loaded add-in DLL).
-  **Follow-up same day**: Ajmal clarified his real workflow is strictly sequential (finish everything
-  in one chat, then move to the next - never two at once) and asked whether a new connection could
-  just immediately take over instead of waiting out the 3-minute idle timer. Confirmed possible and
-  built as `McpBridgeService.cs` v1.5.0 (suite 1.13.5): pipe instance count raised 1 -> 2 so
-  `ListenLoopAsync` can keep one instance always listening for the next connect while another
-  services the active chat; the moment a new client connects, the previous active pipe is disposed
-  immediately (preempted, no wait) and the new one takes over. The 3-minute idle release from v1.4.0
-  stays in place as a secondary fallback (covers an abandoned session with no one else trying to
-  connect). Risk noted to Ajmal and accepted: if the preempted chat was genuinely still mid-script
-  (not just idle), it loses its result and must retry - acceptable since he never runs two at once.
-  Also confirmed via `RevitExecutionService.cs`'s `_isRunning` re-entrancy guard that Revit itself
-  only ever runs one script at a time regardless, so true concurrent execution was never available to
-  offer. **Verified how**: `Release` (2020) compile-only build, 0 errors, 0 warnings. Not yet
-  deployed/live-tested - same live-bridge-in-use situation as v1.4.0. -> 2026-07-16.
-
-### 2026-07-16 (AJ AI activity popup progress bar frozen — different bar from the one below)
-- **Symptom (clarified after the first fix)**: Ajmal specified he meant the small floating popup that
-  appears over Revit while AJ AI is working ("AJ AI is working" card, top-of-screen, non-modal) — its
-  own thin progress bar never moves. Not the same as the AJ AI pane's execution bar (previous entry).
-  **Root cause**: `AiTaskWarningBarService.EnsureBanner()` built the bar as a plain `Border` with a
-  **hardcoded fixed `Width = 238`** — pure decoration, never bound to any value or animated in any way.
-  Unlike the pane's bug, this one had no crash hiding it; it was simply never wired up in the first
-  place. Also relevant: `BeginTask()`/`EndTask()` (called from `McpBridgeService` around every bridge
-  call, ping or script) carry no real percentage — there's nothing genuine to bind a normal progress
-  value to. **Fix** (`AiTaskWarningBarService` v1.4.0, suite 1.13.3): replaced the static fill with an
-  indeterminate sweeping-highlight `Storyboard` (a short bright segment inside a `Canvas`, animating
-  `Canvas.Left` from off-left to off-right, `RepeatBehavior.Forever`) — honest signal of "something is
-  happening" rather than a fake percentage. Storyboard starts right after `_banner.Show()` and is
-  explicitly `.Stop()`ped in the banner's `Closed` handler (mirrors the existing `_closeTimer` stop
-  pattern) so a forever-repeating clock doesn't keep ticking after the popup closes. **Verified how**:
-  `Release` (2020) rebuilt with deploy — 0 errors, 0 warnings, deployed to
-  `AppData\...\Addins\2020\AJ Tools.20260716163009845\`. `Release R25` (.NET 8) force-rebuilt — 0
-  errors; the only 4 warnings touching this file are pre-existing CA1416 `Screen.FromHandle`/
-  `WorkingArea` platform-compat noise on the unchanged window-positioning line, not from the new
-  animation code. Not yet live-tested — needs a Revit restart (Ajmal was actively modeling live during
-  this fix; the running session and open model were not touched, only files on disk + a fresh
-  timestamped Addins deploy folder). After restart: trigger any AutoDebugger bridge call and watch the
-  popup's bottom edge — a bright segment should sweep left-to-right on a loop while it's visible.
-  -> 2026-07-16.
-
 ### 2026-07-16 (AJ AI execution progress bar frozen)
 - **Symptom ("in the ai aj progrss bar updae. not its static")**: the progress bar in the AJ AI pane
   never moves during a script run — sits at "Initializing... 0%" then jumps to "Done 100%".
-  **Root cause (two layers)**: (1) `GeminiShellViewModel`'s `ReportProgress` callback marshalled UI
+  **Root cause (two layers)**: (1) `AiShellViewModel`'s `ReportProgress` callback marshalled UI
   updates via `System.Windows.Application.Current.Dispatcher` — but `Application.Current` is always
-  null inside Revit (the exact root cause already found in `AiTaskWarningBarService` on 2026-07-12;
+  null inside Revit (the same root cause already found in another window on 2026-07-12;
   this second call site was missed then). Worse than cosmetic: any AI-generated script that actually
   called `ReportProgress(...)` threw a NullReferenceException and failed/rolled back, so the auto-fix
   loop tended to regenerate scripts *without* progress calls — hiding the crash and leaving the bar
   static. (2) Even with a valid dispatcher, the script runs ON Revit's UI thread
   (`RevitExecutionService` blocks it in `task.Wait()`), so WPF never repaints mid-run — values can
-  update but nothing visibly moves. **Fix** (`GeminiShellViewModel` v1.2.1, suite 1.13.2): capture
+  update but nothing visibly moves. **Fix** (`AiShellViewModel` v1.2.1, suite 1.13.2): capture
   `Dispatcher.CurrentDispatcher` at ViewModel construction, use it in the callback, and after setting
   the values pump an empty `Invoke` at `DispatcherPriority.Render` so the bar visibly repaints while
   the thread is otherwise blocked (Render priority doesn't process user input — no re-entrancy risk).
@@ -876,60 +815,11 @@ AutoDebugger, or code-review only) -> date.
   noise (10 in this file are the old FolderBrowserDialog lines, untouched). Deployed as next-start
   payload 1.13.2 (AppData manifest updated; live session untouched). NOT yet live-tested — needs a
   Revit restart, then run any script that calls ReportProgress and watch the bar move. The null
-  `Application.Current` root cause itself was live-verified 2026-07-12; the AutoDebugger bridge was
-  unreachable during this fix (Revit busy/disconnected), so no fresh live check this session.
+  `Application.Current` root cause itself was live-verified 2026-07-12;
+  no fresh live check this session.
   Note: the small indeterminate spinner next to the status text will still freeze during script
   execution — inherent to the blocked UI thread, only ticks when ReportProgress pumps a repaint —
   flagged here so it isn't re-reported as a new bug. -> 2026-07-16.
-
-### 2026-07-16 (MEP Color Data Standard rollout — 2 real bugs caught, not just cosmetic renames)
-- **Symptom**: none reported by Ajmal — both bugs below were caught by AI cross-checking data instead of
-  trusting names, while syncing `MEP Color Data Standard.xlsx` into the live model's Duct/Pipe System
-  Types, Materials, and View Filters (full technique in `live-model/mep-color-standard.md`).
-- **Bug 1 — Kitchen Exhaust (KED) duct system silently shared its Material with Return Air (RAD)**.
-  **Root cause**: both system types' `Material` parameter resolved to the exact same `ElementId`
-  (`HVAC_AC_Return Air Duct System_RAD`'s material) — invisible unless you compare resolved Material
-  `ElementId`s across the whole set rather than trusting each type's own name. **Fix**: held the rename
-  back and asked; Ajmal created a proper dedicated material and confirmed. **Verified how**: fresh
-  read-back showed KED now resolves to its own distinct `ElementId` (1101895), matching its own name.
-- **Bug 2 — filter graphic overrides had Projection Line/Pattern colors set but Cut Line/Pattern colors
-  completely unset, on all 26 filters in "GROUND FLOOR HVAC"**. Plus 2 small RGB typos found in the same
-  pass (Soil Pipe 166→165, Refrigerant Vapor 211→221 — one-digit manual entry mistakes). **Root cause**:
-  whoever originally set these filter overrides only touched the Projection side; Revit does not default
-  Cut colors from Projection colors, so any duct/pipe segment actually sliced by the plan view's cut
-  plane would show default/black instead of its standard color. **Fix**: set `CutLineColor` and
-  `CutForegroundPatternColor` (+ pattern Id + visibility) explicitly for all 26 filters, corrected the 2
-  RGB typos. **Verified how**: fresh read-back, all 4 color slots (Projection Line, Cut Line, Surface
-  Pattern, Cut Pattern) confirmed matching the Excel standard, 0 mismatches out of 26. -> 2026-07-16.
-
-### 2026-07-13 (Duct tag leader clashing with its own tag)
-- **Symptom ("look at the tags leader its clashing with own tag chek each and every tag")**: after
-  live-tagging 38 ducts via `tag-elements-in-active-view.cs`, Ajmal reported the leader lines visually
-  ran into their own tag's text. **Root cause**: the script reused `LeaderLogicService`'s default
-  `minHorizontalStub` (152mm) as the elbow-push distance for the "same-X" guard case, but that constant
-  is only a straight-line-risk threshold, not a real clearance distance — the project's actual duct tag
-  family measures 395mm half-width around the head, well past 152mm. **Verified systemically, not
-  assumed**: measured all 38 tags' real `get_BoundingBox(view)` against `TagHeadPosition`/`LeaderElbow`
-  — 26 of 38 were genuinely clashing (a defect affecting most axis-aligned duct runs, not a rare edge
-  case). **Fix**: deleted and recreated all 38 tags with the elbow push set to a measured-safe 550mm
-  instead of the borrowed 152mm guard constant. **Verified how**: re-ran the identical clash check after
-  the fix — 0 of 38 clashing. Recipe and `live-model/tagging.md` updated with the measurement technique so
-  a different tag family/project gets re-measured instead of reusing this number blindly. -> 2026-07-13.
-
-### 2026-07-13 (Revision auto-purge near-miss, sheet-date revision assignment)
-- **Symptom**: while attaching the 8 newly-created "IFI" revisions to their matching sheets via
-  `ViewSheet.SetAdditionalRevisionIds`, a fresh read-back showed the project's 2 pre-existing revisions
-  (Seq 1 "2020/12/26, Rev. 01, by Alessio Orlando" and a blank Seq 2) had disappeared entirely — gone
-  even from a raw `FilteredElementCollector(doc).OfClass(typeof(Revision))`, not just filtered out of a
-  summary. **Root cause**: neither old revision was attached to any sheet or cloud; Revit appears to
-  auto-purge such "orphan" revisions the next time something forces the revision sequence to recompute
-  (see full technical detail in `live-model/revisions.md` § Revision sequence auto-purges unused revisions).
-  **Handled per house rule**: stopped immediately, did not guess or silently recreate anything, reported
-  the exact lost values to Ajmal and asked how to proceed before taking any further action. **Resolved**:
-  Ajmal confirmed those 2 revisions were already stale/unwanted from his own earlier cleanup — no
-  recovery needed, nothing further done. **Verified how**: live read-back confirmed the 8 real revisions
-  remain correctly attached to their matching sheets; no code fix needed, this was model-data behavior,
-  not an AJ Tools bug — captured as a knowledge gotcha instead. -> 2026-07-13.
 
 ### 2026-07-13 (Pin Elements scroll)
 
@@ -984,58 +874,18 @@ AutoDebugger, or code-review only) -> date.
 
 ### 2026-07-12
 
-- **Symptom ("can you make this warning beautiful")** -> **Root cause**: the working activity banner
-  still used a plain yellow WarningBar-like surface, visually disconnected from AJ Tools. **Fix**:
-  restyled it as a compact dark AJ Tools card with blue AI badge, live status dot, soft shadow, and blue
-  progress accent; behavior stays non-blocking and model-safe. **Verified how**: `Release|x64` built and
-  deployed with zero warnings/errors; the next-start payload is version 1.10.5. -> 2026-07-12.
-
-- **Symptom ("small codes taking from this is time consuming")** -> **Root cause**: the visible
-  `tools/invoke-revit-bridge.ps1` wrapper spawned a second `powershell.exe -File` process, which split
-  multi-line C# passed through `-Code` into positional arguments. **Fix**: invoke the underlying helper
-  directly and splat its parameters, preserving the complete code string in memory. **Verified how**:
-  direct multi-line duct query returned `Count: 88` with no temporary `.cs` file. -> 2026-07-12.
-
-- **Symptom ("forms.WarningBar same like this, AI working time only")** -> **Root cause**: AutoDebugger
-  tasks had no visible Revit-wide indication, so work was only apparent in the AJ AI pane. **Fix**: added
-  `AiTaskWarningBarService`, a non-modal yellow top-of-Revit banner, and bracketed each authenticated,
-  validated non-ping bridge task in `McpBridgeService` with `BeginTask()` / `EndTask()` in a `finally`
-  block. It closes automatically after success or failure and does not alter the model. **Root cause of
-  the first fix failing**: Revit returns `null` for `System.Windows.Application.Current`, so the service
-  silently skipped UI work. **Fix**: capture `Dispatcher.CurrentDispatcher` when `McpBridgeService` is
-  created on Revit's UI thread and use that dispatcher for all banner work; fast requests remain visible
-  for 0.8 seconds without delaying Revit work. **Verified how**: a live AutoDebugger diagnostic returned
-  `WPF Application.Current is null`; `Release|x64` built/deployed with zero warnings/errors and the
-  current-user manifest points to the unlocked 1.10.4 payload. Revit restart is required for live UI test.
-  -> 2026-07-12.
-
-- **Symptom ("check my AI tool, i changed a lot, any mistake, how to improve speed")** -> **Root cause**:
-  no bug found in the 2026-07-11 AutoDebugger speed pass (`McpBridgeService.cs`, `RoslynService.cs`,
-  `mcp-server/index.js`) — thread-marshalling to the Revit UI thread via `RevitExecutionService`'s
-  `ExternalEvent`, the compiled-script cache, and the persistent pipe connection are all wired correctly.
-  Only gap found was documentation drift: `AssemblyInfo.cs` was already bumped to 1.10.1.0 but
-  `CHANGELOG.md`'s Unreleased section never got a line for the perf work. **Fix**: added the missing
-  CHANGELOG bullet; no source change needed. **Verified how**: clean `Release` (2020) and `Release R25`
-  builds, zero errors on both (R25's 99 warnings are pre-existing CA1416 platform-compat noise in
-  unrelated WinForms files — `CmdReassignLevel.cs`, `CmdIntelligentTagArrangerSettings.cs`,
-  `GraphicsOverrideWindow.xaml.cs` — not from this change); `node --check` on `index.js` passed;
-  `.claude/tools/verify-knowledge-consistency.ps1` passed clean. -> 2026-07-12.
 - Noted for a future speed pass (not applied, just an idea, flagged to Ajmal): the compiled-script cache
-  in `RoslynService` is keyed on exact source text, so it mainly helps repeated/templated calls (`ping`,
-  `model_summary`) — AI-authored one-off scripts differ in text almost every time and rarely hit it.
-  A bigger win for those would be pre-warming Roslyn (compiling one trivial dummy script) right when
-  "Connect AutoDebugger" is clicked, so the first real query of a session doesn't pay Roslyn's one-time
-  JIT/assembly-load cost. Not implemented — ask before adding, since it changes `McpBridgeService.Start()`
-  behavior and needs its own rebuild + live check.
+  in `RoslynService` is keyed on exact source text, so it mainly helps repeated runs — AI-authored
+  one-off scripts rarely hit it. A bigger win would be pre-warming Roslyn (compile one trivial dummy
+  script) when the C# pane first opens, so the first real run doesn't pay Roslyn's one-time
+  JIT/assembly-load cost. Not implemented — ask before adding; needs its own rebuild + live check.
 
 ### 2026-07-11
 
-- **Symptom ("speed up program")** -> **Root cause**: each MCP call created a new named-pipe connection,
-  and repeated Roslyn scripts rebuilt their options, syntax tree, and compilation every time. **Fix**:
-  persist the authenticated pipe session, cache up to 64 safe compiled scripts, and retain live document
-  reads on every call. **Verified how**: Release build completed with zero warnings/errors; a local pipe
-  simulator confirmed two sequential MCP pings used one connection. Deployment/live add-in reload is still
-  required before testing the new Revit-side loop in Revit. -> 2026-07-11.
+- **Symptom ("speed up program")** -> **Root cause**: repeated Roslyn scripts rebuilt their options,
+  syntax tree and compilation every time. **Fix**: `RoslynService` caches up to 64 safe compiled
+  scripts; live document reads still happen on every call. **Verified how**: Release build, zero
+  warnings/errors. -> 2026-07-11.
 
 ### 2026-08-04
 
@@ -1171,8 +1021,8 @@ AutoDebugger, or code-review only) -> date.
   installed. `verify-wpf-styles.ps1`, `verify-window-styles.ps1` and `verify-version-consistency.ps1`
   all pass. API facts (`PushButton.AvailabilityClassName`, `IExternalCommandAvailability`'s single
   method, `UIApplication.CanPostCommand`) were read from the installed Revit 2020 **and** 2027
-  `RevitAPIUI.dll` with `ildasm`. **NOT tested inside Revit** — the AJ AI Bridge was not connected, so
-  no live check of the greying or the launch was possible. **Lessons**: (a) a silent API no-op is the
+  `RevitAPIUI.dll` with `ildasm`. **NOT tested inside Revit** —
+  no live check of the greying or the launch was done. **Lessons**: (a) a silent API no-op is the
   worst failure mode there is — `PostCommand` returning normally means nothing about whether the
   command ran; (b) the first review pass of the fix introduced a *new* slow path — the `CategorySet`
   passed to an availability class costs a full selection walk and was being rebuilt per slot, which
@@ -1205,7 +1055,7 @@ AutoDebugger, or code-review only) -> date.
   caller). A null bounding box now means "unmeasurable, keep it" instead of "outside the crop" - the
   midpoint fallback further down can still place the tag. (2) the zero-candidate dialog now names every
   filter separately and quotes the commonest `Note` verbatim ("Main reason: 507 x ...").
-  **Verified how**: live via AJ AI Bridge, replaying both crop tests over the real view - old test
+  **Verified how**: live in Revit, replaying both crop tests over the real view - old test
   rejects 1000/1001 (Z-only 1000), new test rejects 0/1001. `Release` (2020) and `Release R25` both
   build 0 errors 0 warnings. **Not yet run from the ribbon inside Revit** - needs a deploy and a click.
   With the crop fix in, 339 of those 1001 are still dropped by the size filter at its defaults

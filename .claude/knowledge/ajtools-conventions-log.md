@@ -74,7 +74,7 @@ constructed, so calling another command's `Execute` directly is impossible; `Pus
 method. That single constraint shaped the design: the wheel is **modal** (`ShowDialog`) because the
 posting command must still be inside its own `Execute()` when the choice comes back.
 
-**The id string is READ, not composed.** Verified against pyRevit's production source rather than
+**The id string is READ, not composed.** Not
 guessed: `RibbonItem` carries a non-public `getRibbonItem()` that returns the `Autodesk.Windows` item,
 whose `Id` is the `CustomCtrl_%...` string. Reflection, so no `AdWindows.dll` reference is added to an
 eight-configuration build. Composed strings are kept only as a fallback. Rule written up in
@@ -123,8 +123,8 @@ Kept deliberately:
   still applies to any future non-UI caller.
 - **The measured findings**, reframed in `ajtools-conventions.md` as history rather than live design.
   One of them — that a localhost `HttpListener` needs **no** admin rights and no URL ACL, only the
-  wildcard prefix does — had corrected a claim this repo had written down wrongly in `McpBridgeService`'s
-  own header. That finding is worth more than the code was, so it outlived it.
+  wildcard prefix does — had corrected a claim this repo had written down wrongly in an older service
+  header. That finding is worth more than the code was, so it outlived it.
 
 **Two sweep hazards found while removing it, both worth more than this feature:**
 
@@ -217,7 +217,7 @@ slightly different words, the disagreement is usually about what was heard, not 
 Built this session as the proof: `src/WebPanel/` (service, tool runner, page, ribbon command), plus
 `Services/UnhideAll/UnhideAllService.cs` extracted out of `CmdUnhideAll`. Rules that came out of it are
 in `ajtools-conventions.md` § "Reaching AJ Tools from outside Revit" — localhost `HttpListener` needs no
-admin (measured, and it **corrected a wrong claim in `McpBridgeService`'s own header** that had been
+admin (measured, and it **corrected a wrong claim written earlier in this repo** that had been
 used as the reason to rule HTTP out); names-not-code; token + Origin; serve the page from the listener;
 one-logic-two-front-doors; `UseShellExecute` on .NET 8; bind-to-find-a-free-port.
 
@@ -225,7 +225,7 @@ Deliberately NOT built yet, and each for a reason:
 - **Downloading tool code from a website.** This is the actual goal, but it turns a hostile/hacked
   website into code execution on every colleague's machine. Needs signing designed first. The registry
   approach shipped here is the safe half, and is genuinely useful on its own.
-- **Its own icon.** Borrows the AJ AI pair with a TODO in `RibbonManager.AddWebPanelTool`.
+- **Its own icon.** Borrowed an existing icon pair with a TODO in `RibbonManager.AddWebPanelTool`.
 - **Any tool beyond Unhide All.** Each needs the service split first, which is the real per-tool cost.
 
 Status: **live-verified the same day.** Builds clean on Release (2020) and R25, all six version
@@ -273,47 +273,9 @@ same release in place, so the URL never changed. **A hand-made release that bypa
 shortcut; it is a release with no record behind it and a red X on the repo.**
 
 **Also worth knowing:** `dist\package.ps1` reads `${env:ProgramFiles(x86)}` to find `vswhere`. That
-variable is absent in some non-interactive shells (an MCP/automation shell here), and the script dies in
+variable is absent in some non-interactive shells (an automation shell here), and the script dies in
 under a second with a null-argument error on `Join-Path`. The script is fine — set the variable before
 launching rather than "fixing" it.
-
-### 2026-08-11 (AJ AI Voice — v1.42.0, added and DELETED the same day)
-- **Final state: `AiVoiceService.cs` is deleted**, `McpBridgeService` v1.10.0 no longer calls it, and
-  nothing in AJ Tools speaks any more. Ajmal: *"totally remove that female voice feature, only men
-  voice ... remove everything, even the code also related to this."*
-- **A toggle was built first and it was the wrong answer.** The entry below describes an off-by-default
-  switch file, delivered an hour before he asked for outright removal. **A feature nobody wants is not
-  improved by making it optional** — it leaves dead code, a switch to document, and a second thing that
-  can break. When the ask is "I don't want this", offer removal first and the toggle only if he wants it
-  back later. The switch-file design notes below are kept because the *reasoning* is reusable (an
-  unwanted output defaults to OFF; "cannot tell" also means OFF), not because that code still exists.
-
-### 2026-08-11 (superseded — the off-by-default toggle, kept for its reasoning)
-- **A whole capability reached the ribbon with no changelog entry and no version bump.**
-  `AiVoiceService` shipped 2026-08-11 (speaks each bridge result aloud) and `AssemblyInfo.cs` had no
-  mention of it — grepping for "voice" returned nothing at all. Found while making a small change to
-  it. Recorded now as v1.42.0 rather than quietly backfilled. **When adding a service that changes what
-  the add-in DOES at runtime, the changelog entry is part of the work, not paperwork after it** — this
-  one was invisible to any later session reading the version history to find out what exists.
-- **Ajmal asked for the voice off the same day he first heard it work**: *"the man is saying that this
-  work is done, that is notifying, so we can remove that female feature, this is unwanted."* The AJ AI
-  Brain already announces each job and reads the answer at the end, so this was a second speaker
-  confirming news he had just been given. General rule that came out of it: **a second voice earns its
-  place only when it says something the first one cannot.**
-- **New convention — an unwanted output defaults to OFF, and "I cannot tell" also means OFF.**
-  `AiVoiceService` v1.1.0 checks for the PRESENCE of `%LOCALAPPDATA%\AJTools\voice\revit-voice-on`
-  before every line: present = speaks, absent = silent, and an exception reading it returns silent too.
-  Deliberately an *enable* flag, not a *disable* flag — a wrong colour override waits until you look at
-  it, an unwanted voice interrupts you, so a fresh install or a corrupt profile must resolve to quiet.
-- **Why the switch had to be a FILE, and had to live in this repo.** The Brain first tried to mute the
-  voice from its own side by dropping those lines out of the shared queue. That cannot work:
-  `TryEnqueue` falls back to speaking directly through Windows whenever no drainer is running, and the
-  Brain cannot influence that state — its own processes are sandboxed and cannot write the lock file
-  that would signal one. The mute passed its unit test and silenced nothing, because the test never
-  covered the path the voice actually takes. **Lesson for any cross-repo control: verify against the
-  fallback path, not just the happy path — the fallback is where an "off" switch goes to die.** A file
-  (not a config entry) because it must be togglable while Revit is open, from anything, with nothing to
-  parse and no restart; checked per call so on/off lands on the next answer.
 
 ### 2026-07-29 (Game Mode round 20 — v1.38.3, Ajmal's final weapon color scheme)
 - Ajmal's fixed color mapping, applied everywhere the weapon color appears (crosshair, laser beam/
@@ -603,7 +565,7 @@ launching rather than "fixing" it.
   navigation (zero undo entries); ReferenceIntersector works on perspective views (+ link resolution
   + visibility-respect); UIView.GetWindowRectangle's Rectangle namespace is a 2020 version gap
   (declare with `var`).
-- Method note: the risky APIs were verified through the AJ AI Bridge on live Revit 2020 BEFORE any
+- Method note: the risky APIs were verified live on Revit 2020 BEFORE any
   code was written (camera-write persistence with IsModifiable=false proving no wrapper transaction,
   perspective-vs-ortho raycast parity, timings) — the whole design stood on measured facts, not docs.
 - Sandbox reality check that shaped the design: the open test model (Project1) has NO walls/floors/
@@ -667,8 +629,8 @@ launching rather than "fixing" it.
   warnings from any touched file (R25's pre-existing ~650 CA1416 AiShell-era warnings are unrelated
   noise, documented earlier in this log). Revit 2027 not separately compiled — none of the APIs used
   here appear in this project's known version-gap list, so this was judged low-risk, but it's an honest
-  gap Ajmal should know about. **Not yet click-tested in Revit** — the AJ AI Bridge wasn't connected this
-  session (Revit wasn't open), so nothing here has been exercised against a live document yet. Still to
+  gap Ajmal should know about. **Not yet click-tested in Revit** — Revit wasn't open this session, so
+  nothing here has been exercised against a live document yet. Still to
   try live: a two-project Transfer for all 3 new kinds (with and without override, watching the
   sheet-placement restore, especially a Legend placed on more than one sheet), and all 6 new Purge
   previews/deletes, especially Purge Unused Groups' kind filter.
@@ -845,27 +807,6 @@ launching rather than "fixing" it.
   dual-manifest watch-item). Still pending: Ajmal's live click-test of Highlight Selection with
   insulation/lining, and his decision on deleting the stale loose files at each ProgramData year root.
 
-### 2026-07-22 (mcp-server/ split into one-file-per-tool, 822-line index.js broken up)
-- Same day as the 14-native-tool addition below, `mcp-server/index.js` had grown to 822 lines mixing 3
-  unrelated concerns (pipe plumbing, shared generator, 17 tool registrations). Split to mirror the
-  `scripts/` fragment convention exactly: `bridge-connection.js`, `shared/tool-result.js` +
-  `shared/element-filter.js`, `tools/*.js` (one file per tool, 17 total), `tools/README.md` as the
-  routing index, `index.js` down to ~40 lines (just imports + registers + connects).
-- Verification went beyond `node --check` this time: wrote a throwaway smoke test importing every tool
-  module against a fake `server.tool()` recorder (confirms all 17 register with correct names/schemas),
-  then a second test that actually calls every handler with representative args — no live Revit, so each
-  one hits "bridge not connected" cleanly, which is exactly the proof the C# generation path itself never
-  throws before reaching the pipe.
-- **Real bug caught by that extra scrutiny, not by `node --check` alone**: rewriting `connectionKey()`
-  into the new file corrupted its `\0` separator into a literal raw NUL byte. `node --check` passed
-  anyway (a NUL byte is legal inside a JS template literal) — `grep` flagging the file as "binary" was
-  the tell. Fixed with a byte-level buffer replace. **Lesson for any future refactor of this scale**:
-  `node --check` (or a clean compile) proves syntax validity, not byte-for-byte fidelity to the original —
-  do a smoke test that actually exercises the code path when refactoring something this size.
-- Also had to fix the knowledge-consistency checker itself: a first attempt to scan `mcp-server/`'s new
-  README recursively broke on `node_modules`' own bundled README files (hundreds of false "broken link"
-  reports). Scoped it to just the one file that matters instead.
-
 ### 2026-08-20 (release v1.56.0 — first public download since 1.52.0)
 
 - Four source versions had piled up unreleased (1.53.0 Quick Menu drag-to-arrange, 1.54.0 the
@@ -890,9 +831,9 @@ launching rather than "fixing" it.
 ### 2026-08-20 (history scrub: every outside name removed from the repo AND its git history)
 
 - Ajmal's instruction: *"do not mention any thing that we took from this web site or repo... the words
-  also remove... remove his name and do not use like that."* Working files were cleaned first (11
-  fragment headers, `.claude/scripts/history.md` deleted in full, nine passages in this log, the
-  sourcing note in `verify-knowledge-consistency.ps1`, the v1.3.0 note in `McpBridgeService.cs`).
+  also remove... remove his name and do not use like that."* Working files were cleaned first (script
+  headers, one sourcing-history file deleted in full, nine passages in this log, and notes in two
+  tool/source files).
 - **Then the git history, on his explicit go-ahead.** The trigger for doing it at all: this repo is
   **PUBLIC**, not private — `CLAUDE.md` had said "private" since 2026-08-05 and that was wrong, so the
   old commits were readable by anyone. `git filter-repo` purged `history.md` from every tree and
@@ -903,30 +844,11 @@ launching rather than "fixing" it.
   ordinary English word "canonical"**, which appears in this repo too — a plain search-and-replace
   would have silently mangled it. The rules were word-boundary regexes, unit-tested against
   "canonical" before being run. Do the same if this is ever repeated: write the test first.
-- Zero forks on this repo, `AJ-AI-Brain` or `AJ-Tools-Installer`, and the installer repo never
+- Zero forks on this repo or `AJ-Tools-Installer`, and the installer repo never
   contained any of it. The stale `AJ Tools\` clone was scrubbed too (182 commits) — it is a full copy
   on disk, even though it stays gitignored and must never be pushed from.
 - Still outstanding: GitHub keeps unreferenced commits reachable by direct SHA until it
   garbage-collects. Ask GitHub Support to purge if that matters.
-
-### 2026-07-22 (mcp-server/index.js: 14 native MCP tools added, McpBridgeService.cs untouched)
-- Goal was to make the AJ AI Bridge fast and accurate for common daily actions, without losing the
-  flexible run_csharp/composed-script path that handles genuinely complex work.
-- Key finding, worth remembering: the Revit-side listener (`src/AiShell/Services/McpBridgeService.cs`)
-  already accepts any C# generically via `{token, code, allowDestructive}` — it has no per-tool logic at
-  all. So registering new "native" MCP tools with real typed/validated schemas needed **zero add-in
-  changes** — the whole thing is a `mcp-server/index.js` addition, proven out already by `model_summary`
-  (which does exactly this: typed inputs → generates C# → same pipe). No build/deploy/version-bump of the
-  compiled plugin was needed for this.
-- Added 14 tools (list/count/hide/unhide/isolate/reset-isolation/set-color/reset-overrides/transparency/
-  select/set-parameter/report-parameters/move/delete elements), each generating the same proven C# as its
-  matching `scripts/` fragment, off one shared `buildElementsClause()` generator. `delete_elements` uses
-  a zod `z.literal(true)` on its `confirm` field — the MCP schema itself refuses the call without explicit
-  confirmation, a real protocol-level safety improvement over composed code.
-- Bumped `mcp-server/package.json` + the server's own version string to 1.3.0. `node --check` passed;
-  **not live-tested** — no Revit connection this session. Mirrored into `D:\Ajmal\AJ AI Brain`'s copy
-  (that Brain now has its own git history — see cross-session memory `project_aj_ai_brain.md` for the
-  GitHub repo details if this needs pushing there too).
 
 ### 2026-07-21 (Correction: split buttons should have a FIXED default, not last-used tracking)
 - Right after building the Run Pinned/Saved Scripts split button (entry below), launched Revit
@@ -1002,8 +924,8 @@ launching rather than "fixing" it.
   configureSplitButton` parameter (new overload, existing 3 callers unaffected); `AddMepOpeningsTool()`
   uses it to capture the SplitButton + explicitly set `IsSynchronizedWithCurrentItem = true`, and
   captures each child `PushButton` via the existing per-child `afterCreate` hook - all three go into new
-  `App.MepOpeningSplitButton` / `CreateOpeningsButton` / `OpeningSettingsButton` statics (same pattern as
-  the pre-existing `App.AiBridgeButton`, cleared on `OnShutdown` the same way). `CmdCreateMepOpenings`
+  `App.MepOpeningSplitButton` / `CreateOpeningsButton` / `OpeningSettingsButton` statics (cleared on
+  `OnShutdown`). `CmdCreateMepOpenings`
   and `CmdMepOpeningSettings` each set `SplitButton.CurrentButton = <themselves>` as the very first line
   of `Execute()` - runs before any validation/cancellation path, so the ribbon face updates even on a
   cancelled pick. "Create Openings" was also reordered to be added first, so a fresh Revit session opens
@@ -1019,7 +941,7 @@ launching rather than "fixing" it.
   "reserve a version ahead of time" convention.
 - Verified: clean build on Release (2020) and Release R25, 0 errors/0 warnings in every file touched by
   this change (R25 has pre-existing CA1416/SYSLIB0023 platform-compat warnings in unrelated files -
-  `CmdIntelligentTagArrangerSettings.cs`, `GraphicsOverrideWindow.xaml.cs`, `McpBridgeService.cs`,
+  `CmdIntelligentTagArrangerSettings.cs`, `GraphicsOverrideWindow.xaml.cs`,
   `TextMarkerService.cs`, `SavedScriptsWindow.xaml.cs` - none of them touched here). Not yet tested live
   in Revit - Ajmal needs to open Revit and confirm the ribbon looks and behaves as intended.
 
@@ -1146,8 +1068,8 @@ launching rather than "fixing" it.
   config — the multi-version configs are csproj-level, not in `AJ Tools.sln`). Zero warnings from either
   touched file at both configs (grepped explicitly); R25 does show ~648 pre-existing warnings but they're
   all in the unrelated AiShell subsystem (CA1416/SYSLIB0023 analyzer noise specific to the .NET 8
-  target), not introduced by this change. AJ AI Bridge was not connected this session, and this tool's
-  interactive PickObjects/PickPoint flow needs real mouse input in Revit either way — not yet live-tested
+  target), not introduced by this change. This tool's interactive PickObjects/PickPoint flow needs
+  real mouse input in Revit — not yet live-tested
   by launching Revit; report this honestly until Ajmal tries it.
 
 ### 2026-07-19 (About button icon swap)
@@ -1163,9 +1085,8 @@ launching rather than "fixing" it.
   was closed (confirmed via `tasklist` before touching the locked DLL).
 
 ### 2026-07-19 (New tool: Highlight Selection)
-- Followed straight on from a live-model request ("make it all gray, keep selected red" via the AJ AI
-  Bridge — see `live-model/views.md` for the selection-vs-active-view gotcha found doing that live run).
-  Ajmal then asked for the same effect as a permanent ribbon tool.
+- Ajmal asked for a permanent ribbon tool that turns everything in the active view gray and keeps the
+  selection red.
 - New command `CmdHighlightSelection` (`src/Commands/GraphicsTools/CmdHighlightSelection.cs`, View
   panel, button "Highlight Selection"): colors the current selection red and every other element in the
   active view gray, in one undo step. Deliberately built on the *existing* Graphics command
@@ -1177,8 +1098,8 @@ launching rather than "fixing" it.
 - No new "reset" button added — the existing Reset Graphics pulldown (Graphics panel) already clears
   both category- and element-level overrides, so undoing this tool's effect doesn't need new capability.
 - New guard specific to this tool: if the current Revit selection includes elements not present in the
-  active view (e.g. tags that belong to a different open view — confirmed live the same day, see
-  `live-model/views.md`), only the in-view subset gets colored red; if the *entire* selection turns out
+  active view (e.g. tags that belong to a different open view — confirmed live the same day), only the
+  in-view subset gets colored red; if the *entire* selection turns out
   to be outside the active view, that's reported as an error rather than silently doing nothing.
 - New icon `Resources/Highlight Selection.png` — generated programmatically (PowerShell +
   System.Drawing: 3 flat gray rounded squares + 1 red one), matching the existing flat-icon style since
@@ -1309,8 +1230,8 @@ launching rather than "fixing" it.
 - Built `SettingsWindow.xaml`/`.xaml.cs` (new files, `src/AiShell/Views/`) with `DataContext =
   AiShellView's DataContext` - reuses the SAME `AiShellViewModel` instance and every existing Settings
   property/command as-is, no new ViewModel needed. Owned via `WindowInteropHelper` +
-  `Process.GetCurrentProcess().MainWindowHandle` (same pattern `AiTaskWarningBarService`/
-  `BridgeStatusToast` already use for a pane-hosted popup with no normal WPF owner Window available).
+  `Process.GetCurrentProcess().MainWindowHandle` (the owner pattern for a pane-hosted popup with no
+  normal WPF owner Window available).
 - **New pattern worth reusing**: extracted the Soft Revit UI brush/style resources (added earlier the
   same day for the pane restyle) out of `AiShellView.xaml` into `SoftUiStyles.xaml`, a standalone
   `ResourceDictionary` with no `x:Class`/code-behind, merged into both `AiShellView.xaml` and the new
@@ -1357,139 +1278,34 @@ launching rather than "fixing" it.
   (BAML/XAML compiles, which catches resource-key typos and malformed markup) and deployed; visual
   result not yet confirmed live in Revit - only Ajmal can see the real rendered pane.
 
-### 2026-07-18 (Same-day follow-up: fixed icon background, shortened "C# with AI" to "C#")
-- Ajmal caught his own AJ AI ON/OFF source images had a solid background box (JPG can't hold
-  transparency) - re-exported both as PNG at the same `Y:\Ajmal Ps\icon\` path, asked to re-use them.
-  Copied in as `AJ_AI_ON.png` / `AJ_AI_OFF.png` (renamed from `.jpg`, all references updated: 
-  `RibbonManager`, `ToggleAiBridgeCommand`, `App.AiBridgeButton`'s doc comment).
-- Also shortened the chat/code-generation tool's label from "C# with AI" to just **"C#"** everywhere
+### 2026-07-18 (Same-day follow-up: shortened "C# with AI" to "C#")
+- Shortened the chat/code-generation tool's label from "C# with AI" to just **"C#"** everywhere
   live (ribbon button text, dockable pane title in `App.cs`, `ShowAiShellCommand`'s error message,
   every AiShell chat-file's "Tool Name" metadata, Purpose/Notes lines) - left every dated changelog
   entry that already said "C# with AI" untouched, same historical-record reasoning as always.
 - Suite bumped 1.15.0 → 1.15.1 (patch: same-day fix on an unreleased/untested change, not a new
   capability). Build-verified clean, deployed, superseded deploy folder cleaned up. Not yet tested live.
 
-### 2026-07-18 (Rebranded the AI Assistant panel: "C# with AI" + "AJ AI" with ON/OFF icon art)
-- Same-day follow-up to the ribbon-button-move entry directly below. Ajmal (dictating): swap which
-  name goes on which button — the chat/C#-generation panel becomes **"C# with AI"** (was "AJ AI"), and
-  the bridge toggle becomes just **"AJ AI"** (was "AJ AI Bridge"). Supplied 3 source images at
-  `Y:\Ajmal Ps\icon\`: `C#.png`, `AJ AI ON.jpg`, `AJ AI OFF.jpg`.
-- Copied into `src/Resources/` as `CSharp_with_AI.png`, `AJ_AI_ON.jpg`, `AJ_AI_OFF.jpg` — deliberately
+### 2026-07-18 (Renamed the chat pane to "C# with AI")
+- Ajmal (dictating) renamed the chat/C#-generation panel **"C# with AI"** (was "AJ AI") and supplied
+  its icon `C#.png` at `Y:\Ajmal Ps\icon\`.
+- Copied into `src/Resources/` as `CSharp_with_AI.png` — deliberately
   NOT kept as `C#.png`: `IconLoader.Load` builds a `Uri` from the file path, and `#` is a URI fragment
   delimiter, so a literal `#` in a resource filename would silently break icon loading (empty/garbled
   path after the `#`). Worth remembering for any future icon file Ajmal supplies with a symbol in the
   name — rename before wiring in, don't just copy verbatim.
-- Deleted the two in-house placeholder icons from the earlier entry (`AJ_AI.png` sparkle,
-  `AJ_AI_Bridge.png` chain-link) as orphaned once superseded — confirmed via grep they were the only
-  two `CreatePushToolSpec` calls referencing those filenames before removing.
-- **New capability — a ribbon PushButton with real on/off icon state**: `ToggleAiBridgeCommand` now
-  swaps the AJ AI button's own `LargeImage`/`Image` between `AJ_AI_ON.jpg`/`AJ_AI_OFF.jpg` after every
-  connect/disconnect, via a new `App.AiBridgeButton` static `PushButton` reference (captured by
-  `RibbonManager`'s `afterCreate` callback when the button is first built) and a fresh `IconLoader`
-  instance inside the command (`IconLoader` is `internal`, so any file in the assembly can use it, not
-  just `RibbonManager`). This is a genuinely reusable pattern for any future toggle-style ribbon tool
-  in this project — previously every ribbon button was stateless/one-shot.
 - Renamed the dockable pane title itself (`App.cs`'s `RegisterDockablePane` call) from "AJ AI" to
   "C# with AI" to match, plus the matching Purpose/Notes lines and `ShowAiShellCommand`'s error message
   text. Swept the "Tool Name" metadata header across every AiShell chat-feature file (ViewModel,
   Constants, ActivityLogger, ErrorCorrectionService, GeneratedCodeSafetyValidator,
-  RevitContextExtractionService, RevitExecutionService) to "C# with AI", and McpBridgeService's to
-  "AJ AI (MCP Bridge)". Left dated changelog entries everywhere untouched (same historical-record
+  RevitContextExtractionService, RevitExecutionService) to "C# with AI". Left dated changelog entries
+  everywhere untouched (same historical-record
   reasoning as every other rename this session).
-- Found and fixed a stray inconsistency while touching `McpBridgeService.cs`: its `Version` field still
-  said 1.6.0 while the changelog's newest entry already said v1.7.0 — a missed bump from earlier the
-  same day. Now 1.8.0, both in sync.
 - Suite bumped 1.14.0 → 1.15.0. Build-verified clean and deployed; not yet clicked in Revit. Also
   proactively cleaned the immediately-superseded prior deploy folder in
   `AppData\Roaming\Autodesk\Revit\Addins\2020\` after this deploy, matching the cleanup Ajmal asked for
   earlier this session (see the "AJ Tools.<timestamp>" folder buildup — not re-documented here, ask
   found it, not this file, if it needs re-explaining later).
-
-### 2026-07-18 (AJ AI Bridge connect/disconnect moved from the AJ AI panel to its own ribbon button)
-- Ajmal (dictating): "the icon inside the ai ai need to move like a tool" — wanted the Connect/
-  Disconnect AJ AI Bridge control (the same feature just renamed from "AutoDebugger" to "AJ AI Bridge"
-  earlier the same day) pulled out of the AJ AI chat panel entirely and given its own ribbon button.
-  Confirmed via a clarifying question: move it out completely, don't leave a duplicate in the panel.
-- Built `ToggleAiBridgeCommand` (new file, `src/AiShell/Commands/`) as a standalone push button on the
-  "AI Assistant" panel next to "AJ AI" (`RibbonManager.AddAiBridgeTool`). It reaches the SAME
-  running `McpBridgeService` instance the AJ AI pane already owns via a new static
-  `AJTools.App.App.AiBridge` property (set in `OnStartup` from `AiShellPaneProvider`'s new public
-  `Bridge` property, cleared in `OnShutdown`) — deliberately not a second bridge/pipe.
-- **New pattern worth reusing**: a plain Revit `PushButton` has no persistent on/off visual state the
-  way a WPF-bound panel button did (no live color/text swap on click). Added `BridgeStatusToast`
-  (`src/AiShell/Helpers/`) — a small, self-contained, auto-closing non-blocking toast, deliberately NOT
-  built by generalizing `AiTaskWarningBarService` (that class's `BeginTask`/`EndTask` pair + spinner
-  animation is a different lifecycle — concurrent-task tracking, not a one-shot click confirmation).
-  This is not a "success popup" the project normally avoids on bulk-edit tools (where the model itself
-  shows the result) — here there's otherwise zero visible confirmation a connectivity toggle worked.
-- Removed `IsMcpConnected`/`McpStatusText`/`McpToggleButtonText`/`ToggleMcpBridgeCommand` and the
-  `McpBridgeService` constructor param entirely from `AiShellViewModel` (and the matching XAML block
-  from `AiShellView.xaml`) rather than leaving them dead — `AiShellPaneProvider` still owns and starts/
-  stops the bridge, the ViewModel just no longer needs a reference to it.
-- Suite bumped 1.13.11 → 1.14.0 (minor: new ribbon tool). Build-verified clean (Release/2020, zero
-  errors/warnings) and deployed; not yet clicked in Revit.
-- **New reusable technique — generating a ribbon icon with no image-editing tool available**: drew
-  `Resources/AJ_AI_Bridge.png` (32x32, transparent RGBA, a chain-link glyph in the same purple/blue/
-  pink gradient as `AJ_AI.png`) entirely from a PowerShell script using `System.Drawing`
-  (`Add-Type -AssemblyName System.Drawing`, `Bitmap`/`Graphics`/`LinearGradientBrush`/`GraphicsPath`
-  for rounded-rect shapes) — no external image tool or asset needed. First attempt (an arc over two
-  node-circles meant to read as "bridge") looked like headphones at ribbon size once rendered and
-  viewed back; switched to a plainer, more universally-recognizable chain-link glyph instead. General
-  lesson: render small-icon drafts to a temp file and actually view them (Read tool renders PNGs)
-  before wiring one in — a shape that reads fine as a concept on paper can read completely differently
-  once anti-aliased down to 32x32 or 16x16. `IconLoader.Load` decodes to the target pixel size via
-  `DecodePixelWidth/Height` regardless of the source file's actual resolution, so any reasonably-sized
-  square source PNG works — no need to match 32x32 exactly.
-
-### 2026-07-17 (near-equipment split also saved as its own small recipe)
-- Ajmal asked whether the near-FCU 200mm split (done live earlier this session) was saved too — it wasn't,
-  only the trunk-slicing recipe was. Created `scripts/recipes/split-duct-near-equipment.cs`: same
-  `BreakCurve` + explicit-reconnect pattern as the trunk-slicing recipe, but simpler — one fixed-offset cut
-  from a given equipment connector, no grouping/clustering. Added to `scripts/README.md`'s recipes table
-  and linked from `ajtools-hvac-duct-routing/SKILL.md`'s existing "no split near the FCU unless asked again"
-  note. Kept the standing-default warning intact in both places — this is an on-request script, not new
-  automatic behaviour.
-
-### 2026-07-17 (trunk-slicing recipe saved — the one HVAC duct-routing stage that had no script yet)
-- Ajmal asked to save the trunk-slicing-for-sizing technique now that it worked live end-to-end for the
-  first time (previous 2026-07-09 attempts caused real damage; Ajmal had asked to hold off since). Created
-  `scripts/recipes/slice-trunk-for-sizing.cs` — generalized from this session's specific run (any trunk
-  axis via direction vector + dot-product projection, not hardcoded to one axis; margin/tolerance are
-  per-request INPUTS, not this session's 500mm/50mm baked in as defaults) — added to the recipes table in
-  `scripts/README.md`, and `ajtools-hvac-duct-routing/SKILL.md`'s existing trunk-slicing paragraph now
-  points at it instead of only the knowledge-file description. Still flagged high risk in all three places;
-  the skill still says test on one room and verify via full BFS trace before rolling out further.
-
-### 2026-07-17 (harvested two external AutoDebugger scripts from `.agents/skills/` — mostly rejected)
-- Ajmal pointed at `D:\Ajmal\Revit Addins\.agents\skills\` (a separate, not-yet-integrated folder outside
-  `.claude`) holding two scripts: `auto_route_terminals\scripts\route-L-shape.cs` (terminal-to-main-duct
-  L-shape connection) and `auto_split_ducts\scripts\split-downstream.cs` (splits main duct 500mm downstream
-  of takeoffs, inserts Union fittings). Asked whether the terminal one was good enough to adopt, and said
-  the split one wasn't good but to bring it in anyway to edit together. Verdict after review: **neither
-  adopted as-is** — we already have proven, working recipes for both jobs
-  (`scripts/recipes/connect-terminal-branch.cs`, live-verified this same session — 8/8 terminals traced
-  reaching an FCU) and the split job is the already-documented high-risk trunk-slicing recipe in
-  `hvac-ducts.md`, which Ajmal previously asked to hold off on. Real problems found in the two scripts:
-  `route-L-shape.cs` blindly deletes every non-horizontal/non-vertical duct in the whole model with no
-  confirmation; has no Supply/Return system-type filtering when matching a terminal to its nearest main
-  duct; never sets the new branch duct's Width/Height from the source connector (already-known bug,
-  reintroduced); and reports success with no real connectivity check. `split-downstream.cs` has a startup
-  step that deletes every duct fitting named "Union" anywhere in the model if there happen to be more than
-  5, mislabeled as "Undo Safety" — unrelated, indiscriminate, and dangerous; its upstream/downstream
-  direction detection leans on `Connector.Flow`, which is typically 0/uncalculated without a real system
-  analysis; and its 2.0ft takeoff-clustering distance is hardcoded, not per-request. One genuine finding
-  kept: live-tested that calling `Connector.ConnectTo()` before `Document.Create.NewElbowFitting()` on the
-  same connector pair does NOT break anything (contrary to a stricter reading of the existing hvac-ducts.md
-  note) — `NewElbowFitting` trims back both ducts and inserts correctly regardless; added as a
-  clarification in `hvac-ducts.md`. No new skill or fragment created — nothing else in either script adds a
-  capability we don't already have working.
-
-### 2026-07-16 (ping rule extended: full session snapshot, not just version+model)
-- Ajmal extended his standing ping rule: a successful ping must now also report the **active view**, not
-  just Revit version + model title. Implemented by extending `scripts/context/context-active-view.cs`
-  into a full session snapshot (Revit version, model title, family vs project, worksharing, open
-  documents — plus the existing view/scale/level/open-views/selection lines) and pointing the ping rule
-  in `knowledge/live-model/core.md` at that one fragment. Verified live against Revit 2020 / MODEL PROJECT.
 
 ### 2026-07-16 (rule change: skill creation is now create-then-report, not ask-first)
 - **Ajmal explicitly changed his own 2026-07-08 rule.** Old: flag a skill idea, wait for his yes, never
@@ -1504,10 +1320,10 @@ launching rather than "fixing" it.
   explicit OK**. Because creation is ungated now, the pre-creation **overlap check is load-bearing**:
   colliding descriptions make the wrong skill fire (the exact failure that forced deleting
   `ajtools-skill-maker` earlier today). Updated in the same pass: CLAUDE.md discipline #3 + quality
-  floor #10, `ajtools-claude-maker` (description + trigger 2), `ajtools-harvest-script` step 5,
+  floor #10, `ajtools-claude-maker` (description + trigger 2),
   `ajtools-knowledge-sync` step 4, and the cross-session memory.
 
-### 2026-07-16 (two skill changes: claude-maker replaces skill-maker, new harvest-script skill)
+### 2026-07-16 (claude-maker replaces skill-maker)
 - **`ajtools-skill-maker` → `ajtools-claude-maker`** (old one deleted, content fully absorbed). Ajmal
   wanted one skill that creates/modifies *anything* in `.claude` — skills, knowledge files, script
   fragments, and the indexes — not just skills. Decided to **replace, not add alongside**: two skills both
@@ -1518,164 +1334,17 @@ launching rather than "fixing" it.
   checker). Refined the size rule while writing it: past ~300 lines is a *candidate* to split, not a
   mandate — review it, and if it's one coherent job (like `tagging.md`), leave it. Retargeted the 5 live
   references (CLAUDE.md ×2, `ajtools-knowledge-sync`, 2 memory files); historical log mentions left as-is.
-- **New skill `ajtools-harvest-script`** — Ajmal hands over a script and wants it *studied*, not run or
-  ported: extract any reusable technique / fragment / skill-seed, drop the one-off scaffolding. Distinct
-  from `ajtools-port-pyrevit` (that turns a pyRevit tool into a ribbon button; this mines any script for
-  ideas). It only **decides** what's worth keeping and hands the writing to `claude-maker` — the
-  decide/write split keeps the "where does this go" rules in one place. Verifies a technique live before
-  saving it as fact; saves unverifiable ones marked unverified.
-- **pyRevit/Python confirmed absent from the C# repo** — zero `.py` files in `D:\Ajmal\Revit Addins`, the
-  bridge runs C# (`run_csharp`), the plugin is 100% C#. The only Python left is 10 unported tools in the
+- **pyRevit/Python confirmed absent from the C# repo** — zero `.py` files in `D:\Ajmal\Revit Addins`;
+  the plugin is 100% C#. The only Python left is 10 unported tools in the
   separate old extension (`D:\Ajmal\AutoCAD APP\Pyrevit\AJ-Tools.extension`), which Ajmal is keeping there.
   `ajtools-port-pyrevit` stays useful only until those are ported; revisit retiring it once they are.
 
 ### 2026-07-16 (knowledge restructure: split big files, route through an index — Ajmal's idea)
-- **Ajmal's rule: "long file it will be harde — split it, index it, chain it."** The AI should read a small
-  entry file, get routed to the one relevant file, and stop — not read a wall of text to find one section.
-  He asked whether the *skills* needed splitting. **Measurement said no, and said where the real cost was:**
-  all 13 skills were already 61–140 lines (fine), while `live-model-notes.md` was **1,325 lines** and
-  `ajtools-conventions.md` **618**. Worse, 12 of 13 skills said "check `live-model-notes.md`" with **no
-  section pointer** — so every HVAC/live-model task read 1,325 lines to use ~40. Right instinct, wrong
-  target: the fat was in `knowledge/`, never in the skills. Lesson worth keeping — **measure before
-  restructuring; the file everyone points at is the one that costs, not the one that looks big.**
-- **Split 1:** `live-model-notes.md` → `knowledge/live-model/` — 11 topic files (`core` bridge+units,
-  `views`, `mep-trace`, `undo`, `hvac-terminals`, `hvac-ducts`, `mep-color-standard`, `tagging`,
-  `revisions`, `families`, `log`) + a `README.md` index that routes **by request shape**, not by noun. Cut
-  mechanically at the `##` section seams (`sed`), never retyped — then proved lossless by sorted diff
-  against a backup: all 1,325 lines present, nothing added or dropped.
-- **Split 2:** `ajtools-conventions.md` 618 → **98** (the rules, what a build/debug actually needs) +
-  `ajtools-conventions-log.md` (529 lines of dated history). Rules and history are different concerns;
-  only the rules are needed per-task. Same lossless proof.
-- **Split 3:** `scripts/README.md` 478 → **173** (index) + `architecture.md` (the filter+action idea,
-  Ajmal's worked example, the AJ Adaptive AI-Local Workflow, how the library grows). The routing
-  tables now sit **at the top**, not behind ~370 lines of background —
-  the reason the file was slow wasn't its length, it was that the useful part was last. **The integrity
-  check earned its keep here**: rewriting the intro silently dropped 4 lines stating the folder's actual
-  purpose ("working C# fragments, not just descriptions of them — the next session runs code that already
-  worked"). Restored. Lesson: when splitting, *move* text; the moment you rewrite a section instead, diff
-  it — a summary quietly loses things.
-- **Every pointer retargeted to the topic file, not the stub** — 14 script `// SOURCE:` comments, the
-  recipes table's Source column, and the live cross-refs in `ajtools-conventions.md`, `glossary.md` and
-  `debug-log.md`. The *historical* mentions inside `ajtools-conventions-log.md` were deliberately left
-  naming `live-model-notes.md`: they describe what was true on those dates, and rewriting history to match
-  today's filenames makes a log lie. They still resolve via the signpost.
-- **The move that avoided breaking 20+ links:** the old `live-model-notes.md` filename stays as a short
-  **signpost** pointing at the index, so every existing reference still resolves. Skills were then
-  retargeted to the *specific* topic file (e.g. `ajtools-hvac-duct-routing` → `live-model/hvac-ducts.md`)
-  — one hop, not three. `CLAUDE.md` routed to the index and given the standing "read by routing, never
-  wholesale" rule; `ajtools-skill-maker` given a **Size rule** section so new skills inherit the pattern
-  (SKILL.md 60–150 lines; knowledge file past ~300 lines = split candidate; point at the file, not the
-  folder). Also fixed: skill-maker had two steps numbered "6".
-- **`verify-knowledge-consistency.ps1` earned its keep** — it caught 12 links the split broke (moving files
-  one folder deeper invalidated every `../scripts/...` path) that a visual check would have missed. Run it
-  after any file move. It also surfaced a pre-existing gap: `creators/create-material.cs` was never listed
-  in the scripts README (now added). Final state: 209 links across 33 files, all resolving, no drift.
-- **Reviewed a 2026 "restructure your .claude folder" guide Ajmal supplied; adopted little of it, on
-  purpose.** Its core advice (progressive disclosure, split+index, one-job skills, trigger-phrased
-  descriptions) we already did — `.claude/scripts/` has been exactly this since 2026-07-09, Ajmal's own
-  idea. Rejected, with reasons worth not re-litigating: **subagent fleets** (its own figures say 4–7×/15×
-  the tokens — the opposite of Ajmal's goal — and they'd contend over one live Revit session, which can't
-  be parallelised); **git-worktree isolation** (impossible — root `.git` is hollow, per CLAUDE.md);
-  **pyRevit-Routes MCP security advice** (we run our own AutoDebugger bridge, not a public server);
-  test-harness/CI/Dependabot (out of scope for a solo modeller on the 2020 baseline). General lesson: a
-  generic guide describes someone else's setup — check it against measured reality here before adopting.
-
-### 2026-07-16 (new skill: ajtools-family-creation)
-- Created `.claude/skills/ajtools-family-creation/` — Ajmal asked to formalize Family Editor authoring
-  (building .rfa families from scratch via the bridge) as its own skill after the second family build in
-  one session (air terminal, then an in-progress electric motor). Points at `live-model-notes.md`'s
-  family-creation sections and `.claude/scripts/recipes/create-parametric-box-family-with-duct-connector.cs`
-  rather than duplicating content; flags the unresolved void-cut problem explicitly so it isn't silently
-  re-discovered next time.
-
-### 2026-07-16 (second Family Editor build — electric motor Cooling Bar sub-family, new gotchas + one unresolved)
-- Building a nested face-based fin sub-family (part of a larger 6-family electric motor build) surfaced:
-  `SetFormula` needs a current type to already exist (else "There is no valid family type"); extrusion
-  face `.Reference` only populates reliably on a HORIZONTAL sketch plane, not a vertical one (silently
-  drops references on 5/6 faces otherwise); and an **unresolved** problem — void-form cuts
-  (`NewExtrusion(isSolid:false,...)`) don't show any effect on the solid's volume across 5 different
-  verification methods, including the explicit `SolidSolidCutUtils.AddCutBetweenSolids` API (which itself
-  refuses to run on a plain Generic Model family document). Full detail in `live-model-notes.md` §
-  "Second build — electric motor Cooling Bar sub-family."
-- Ajmal asked to formalize family-creation work as its own skill — see `ajtools-skill-maker` invocation
-  this same session.
-
-### 2026-07-16 (first Family Editor build via the bridge — parametric air terminal family)
-- New capability, not just a new fragment: built a complete parametric family (square ceiling air
-  terminal, Generic Model template → category switched to Air Terminals) entirely via
-  `run_csharp` against the open family document — body extrusion, reference-plane-driven parametric
-  resize (EQ-centered), a rectangular duct neck, and a working duct connector, all live-verified with
-  a real multi-parameter resize + geometry read-back. Saved as
-  `.claude/scripts/recipes/create-parametric-box-family-with-duct-connector.cs`; full gotcha writeup
-  in `live-model-notes.md` § Building a parametric family from scratch.
-- Confirmed the bridge works identically against a family document as a project document
-  (`Document.IsFamilyDocument` distinguishes them) — no separate connection/setup needed.
-
-### 2026-07-14 (cleared the full backlog of not-yet-live-tested script fragments)
-- Ajmal delegated "you decide whatever" for the next step; used it to clear every fragment flagged
-  "not yet live-tested" in the two log entries below. All 10 pending fragments now confirmed working
-  against the real open model, each applied to 1 real test element, verified with a fresh read-back,
-  then reversed with Revit's native Undo and re-verified restored to original state — nothing left
-  changed in the model: `action-move-elements.cs`, `action-copy-elements.cs`, `action-rotate-elements.cs`,
-  `creators/create-sheet.cs`, `action-place-viewport-on-sheet.cs`, `action-place-schedule-on-sheet.cs`,
-  `action-duplicate-views.cs`, `creators/create-material.cs`, `action-set-view-crop.cs`,
-  `action-change-element-type.cs`.
-- `action-change-element-type.cs` needed a twist: no family in this model currently has 2+ types with a
-  placed instance, so a positive swap couldn't be tested as-is. Temporarily duplicated the test element's
-  own type (`ElementType.Duplicate`) to create a real second type, ran the swap against it, verified, then
-  undid both the swap and the temporary type duplication. Not a change to the fragment itself — just how
-  the test was staged.
-- `recipes/ray-trace-to-ceiling.cs` re-checked but still unverified for the positive case — this model
-  still has 0 Ceiling elements (same as 2026-07-14 earlier entry). Nothing to test until a real Ceiling
-  exists; status unchanged.
-- One incidental finding, not a bug: placing a schedule on a brand-new sheet showed 2
-  `ScheduleSheetInstance` elements on that sheet afterward, not 1 — the title block itself auto-places its
-  own embedded revision-schedule instance on every new sheet. `action-place-schedule-on-sheet.cs` already
-  filters `IsTitleblockRevisionSchedule` correctly on input, so this doesn't affect the fragment; only a
-  raw unfiltered collector query (used for this test's verification, not the fragment) would double-count.
-- `PostableCommand.Undo` can only be posted one at a time per bridge call ("Revit does not support more
-  than one command are posted") — for a multi-transaction test (sheet+viewport+schedule needed 3 undos),
-  post one, let it process, then post the next in a separate call. Worth remembering for any future
-  multi-step live test.
-
-### 2026-07-14 (recipe fix: tag-vs-tag/tag-vs-duct cleanup pass actually added to the file)
-- Ran `recipes/tag-elements-in-active-view.cs` to tag all 1812 ducts in "1 - Mech" (1092 eligible after
-  the horizontal/≥1000mm filter). `live-model-notes.md`'s own log claimed the combined tag-vs-tag +
-  tag-vs-duct cleanup resolver was "now the standard PASS 2" in that recipe — it wasn't actually in the
-  saved file, only the registry-based placement and the own-leader elbow-correction pass were. Wrote it
-  fresh, verified it live (7/36 residual clashes down to 2/4, confined to one dense pocket), then appended
-  it to the recipe file itself as "PASS D" so it's genuinely there next time, not just described in prose.
-  See `live-model-notes.md`'s 2026-07-14 entry for the full detail.
-
-### 2026-07-13 (Revision API, new recipe: create-revisions-from-sheet-dates)
-- Ajmal wanted a project-level Revision (Manage > Revisions) created for each unique date pulled from
-  sheet TextNotes ([[filter-by-sheets]]/[[action-extract-dates-from-textnotes]] above), NOT tied to any
-  one sheet — description "IFI - ISSUED FOR INFORMATION", Issued To A.Rahmani, Issued By M.Sagheer,
-  for all 8 dates found (his answer to "which date?" was "all of them"). API verified live via
-  reflection before writing anything (rule #2): `Revision.Create(Document)` is a static factory that
-  appends a new revision to the project sequence; `RevisionDate` is a plain free-text `string`
-  (NOT a DateTime, no project date-format coupling) — set it to whatever text you want, e.g.
-  `"22-Jul-2025"`. Other settable string/bool properties: `Description`, `IssuedTo`, `IssuedBy`,
-  `Issued` (bool, left at its default/false — wasn't asked for), `NumberType`, `Visibility`.
-  Creating in ascending chronological order in one Transaction makes `SequenceNumber` land in date
-  order automatically — no separate `ReorderRevisionSequence` call needed. **Verified how**: fresh
-  read-back via `Revision.GetAllRevisionIds(doc)` after commit showed all 10 project revisions (2
-  pre-existing + the 8 just created) with matching Seq/Date/Description/To/By. Saved as
-  `.claude/scripts/recipes/create-revisions-from-sheet-dates.cs` (order-dependent creation loop, not a
-  plain filter+action shape).
-
-### 2026-07-13 (new script fragments: sheet text-note date extraction)
-- New request shape: "go to every sheet, read the text notes, pull out the dates, keep only unique
-  ones, remember which sheet(s) each came from." No existing filter/action covered sheets (all prior
-  filters target model-element categories like ducts/pipes), so added
-  `.claude/scripts/filters/filter-by-sheets.cs` (produces `elements` = every ViewSheet, optional
-  sheet-number substring) and `.claude/scripts/actions/action-extract-dates-from-textnotes.cs`
-  (regex-matches "DD-Mon-YYYY"-shaped text inside each sheet's TextNotes, validates it's a real
-  calendar date and a real month abbreviation before accepting it, dedupes case-insensitively so
-  "21-May-2025" and "21-MAY-2025" collapse to one entry, sorts chronologically, reports source
-  sheet(s) per date). Read-only, no Transaction. Verified live against Ajmal's open model: 8 sheets,
-  8 distinct dates after case-insensitive dedupe (initial un-deduped pass showed 10, two of which were
-  pure casing duplicates of already-found dates).
+- `ajtools-conventions.md` was split 618 → 98 lines of rules + `ajtools-conventions-log.md` for dated
+  history, cut at section seams and proved lossless by sorted diff. Lessons: measure before
+  restructuring (the file everyone points at is the one that costs); when splitting, *move* text — if
+  you rewrite a section, diff it, because a summary quietly loses things; run
+  `.claude/tools/verify-knowledge-consistency.ps1` after any file move.
 
 ### 2026-07-13 (build, Transfer View Templates memory)
 - Added Copy From/Copy To memory to Transfer View Templates, scoped to exactly those two fields per
@@ -1700,29 +1369,13 @@ launching rather than "fixing" it.
   bumped to 1.11.1.
 
 ### 2026-07-12
-- One-time AutoDebugger C# query files belong in `.claude/scratch/`, never at the repository root or in
-  `src/`; run and delete them. Save only repeated or substantial verified workflows in `.claude/scripts/`
-  as reusable filter/action/creator/recipe modules.
-- Prefer `tools/invoke-revit-bridge.ps1 -Code` for ordinary multi-line read-only queries: it now splats
-  parameters directly to the underlying helper, so code stays in memory. Use `.claude/scratch/` only when
-  a temporary file is genuinely more practical; do not create it at the repository root.
-- AutoDebugger has a temporary, non-modal Revit activity indicator: `AiTaskWarningBarService` shows a
-  dark top-of-window card only while an authenticated, validated non-ping bridge task is executing. It
-  uses the AJ Tools theme: blue AI badge/progress accent, green live state, muted status copy, and soft
-  shadow. `McpBridgeService` always calls `EndTask()` in `finally`, so the banner closes after success or
-  failure. It must use `Dispatcher.CurrentDispatcher` captured while `McpBridgeService` is constructed on
-  Revit's UI thread: `System.Windows.Application.Current` is null in Revit. Fast tasks keep it visible for
-  0.8 seconds so WPF can paint it; this does not delay Revit work. It is UI-only and makes no model changes.
 - Auto-deploy writes each build to a timestamped AppData payload folder and updates the root `AJ Tools.addin`
   manifest to the new DLL. Never overwrite a loaded add-in DLL directly; Revit loads the new payload after
   the next restart. Old payload folders are intentionally left alone while a running Revit process may use them.
 
 ### 2026-07-11
-- Performance pass for the AutoDebugger: the Node MCP client now keeps its authenticated named-pipe
-  connection open between serialized requests and reconnects only after Revit changes its discovery
-  details or closes the pipe. `McpBridgeService` now accepts multiple newline-delimited requests on that
-  connection, while `RoslynService` reuses a bounded cache of 64 compiled safe scripts. Revit model data
-  is deliberately never cached, so every query still sees current document state.
+- `RoslynService` (the C# pane's runner) reuses a bounded cache of 64 compiled safe scripts. Revit model
+  data is deliberately never cached, so every run still sees current document state.
 
 Add a new dated entry each time `ajtools-build` or `ajtools-debug` finishes a piece of work. Keep entries
 short — a sentence or two is enough. The goal is "what would the next session need to know," not a full
@@ -1738,28 +1391,13 @@ changelog.
   discipline applies to model-changing tasks (e.g. drawing a wall), not just queries. For genuinely large
   or independent chunks of work, split across separate `Agent` calls like a small team; for normal-sized
   tasks, do it directly with visible step tracking — don't spin up agents for something small.
-- Split the shared knowledge log into focused files: `glossary.md` (Ajmal's terms → Revit terms — fixed
-  that "fitting" isn't always Duct Fitting, pipe fittings exist too), `debug-log.md` (bugs-only history,
-  separate from coding conventions), and `reply-style.md` (how to format answers, e.g. quantity questions
-  get a bare-number one-liner by default). This file stays focused on coding conventions/decisions only.
+- Split the shared knowledge log into focused files: `debug-log.md` (bugs-only history, separate from
+  coding conventions). This file stays focused on coding conventions/decisions only.
 - Created **`ajtools-skill-maker`** — a skill that scaffolds new AJ Tools skills (one folder per skill,
   plan-split-execute baked in, pointing at the shared knowledge files instead of duplicating them). It
   triggers both when Ajmal asks directly and proactively when a recurring task pattern is noticed during
   other work (see the always-on memory backing this, since a skill can't retroactively notice things it
   wasn't consulted for).
-- Created **`ajtools-live-model`**, proactively suggested (per `ajtools-skill-maker`'s mandate) after
-  noticing most of a long session's actual work — counts, sizes, schedules, view isolation, creating
-  levels/elements via AutoDebugger — wasn't covered by `ajtools-build` or `ajtools-debug` at all, since
-  those are both about the plugin's *source code*, not the live model. Comes with its own
-  `live-model-notes.md` for AutoDebugger-script-specific technical gotchas (unit conversion, view-isolation
-  API patterns, what the bridge blocks), kept separate from this file since that's a different code
-  context (ad-hoc script vs. compiled plugin project) than what belongs here.
-- Created **`ajtools-mep-trace`** (Ajmal-confirmed, not just Claude-suggested) after successfully tracing
-  all 4 CRAC refrigerant systems geometrically (Revit's connector graph was fully disconnected end to end).
-  Handles "what actually connects to what" questions specifically — distinct from `ajtools-live-model`'s
-  general queries/isolation/creation scope. The reusable trace algorithm itself lives in
-  `live-model-notes.md`; this skill is the workflow wrapper (try real connectors first, fall back to
-  geometric trace, verify before reporting, color-code on request).
 - Ajmal asked for an "always check and auto-save new knowledge, this is like a loop" habit. Ran it past
   `ajtools-skill-maker`'s own decision rule first: a universal habit that must apply to *every* task,
   regardless of which skill (if any) is running, doesn't belong in a skill (skills only activate when
@@ -1767,105 +1405,19 @@ changelog.
   (check knowledge files before starting, capture new knowledge after finishing, propose-don't-silently-
   build new skills). Also created **`ajtools-knowledge-sync`** as a lightweight on-demand companion, for
   when Ajmal wants a deliberate full-session sweep rather than relying on the per-task habit alone.
-  Trigger for this: this session, right before the CLAUDE.md gap was found, Claude nearly re-derived the
-  CRAC A↔B trace from scratch mid-task without first re-reading `glossary.md`/`live-model-notes.md`, even
-  though both already fully documented it from earlier the same day — a concrete case of the check-first
-  half of the habit not being followed.
+  Trigger for this: this session, right before the CLAUDE.md gap was found, Claude nearly re-derived an
+  already-documented finding from scratch mid-task without first re-reading the knowledge files — a
+  concrete case of the check-first half of the habit not being followed.
 - Added a "modeler mindset" principle to `CLAUDE.md` — don't trust Revit's API/naming at face value
   (proof case: CRAC trace, where both the tag names AND the `IsConnected` flag were wrong), and keep
   growing a library of "tricks" in the knowledge files whenever a new one is found, rather than
   re-discovering the same workaround each time.
-- Refined `ajtools-mep-trace`'s method (Ajmal-confirmed, 2026-07-08): trace by **bulk clustering** the
-  whole filtered pipe/fitting set at once (group by touching ends → find each group's open ends → match to
-  nearest equipment) instead of walking one named path at a time. The pipe/system type to filter on is
-  always a variable input (refrigerant, CDP, water supply, ...) — never hardcode it. Also corrected
-  `glossary.md`: "refrigerant" = anything with system name containing `DXS` broadly (found `DXS-C`/`DXS-S`
-  variants in addition to the originally-assumed `DXS-SL`/`DXS-LL` pair).
-- Created **`ajtools-hvac-terminal-layout`** (Ajmal-confirmed) after doing a full AC sizing-and-placement
-  job live: room area → matching MEP Space → thumb-rule supply/return airflow onto the Space's real
-  parameters → terminal count (corrected mid-session so supply/return counts must match, not differ) →
-  checkerboard-alternated placement → each terminal's own Flow parameter set to its individual share. All
-  the sizing constants (CFM/ton, ton size, return fraction, max L/s/terminal, min count, wall clearance) are
-  per-request inputs from Ajmal, never fixed defaults. The reusable API recipe (Space airflow BuiltInParams,
-  the 2-row checkerboard trick, the duplicate-"Flow"-parameter gotcha) lives in `live-model-notes.md`; this
-  skill is the workflow wrapper. Also reused the native-Undo convention already established for "mistake"/
-  "undo" corrections during this same job.
-- **Split off `ajtools-hvac-space-airflow`** from `ajtools-hvac-terminal-layout` (Ajmal explicitly asked for
-  this as a separate skill): "update the space for the HVAC" with no mention of physical terminals should
-  trigger a skill scoped to just Room→Space→Supply/Return Airflow, not the terminal-placement one. The two
-  are companions — `ajtools-hvac-terminal-layout` now assumes Space airflow is already current and points
-  back to `ajtools-hvac-space-airflow` to (re)do it if it isn't — but they trigger independently, since
-  Ajmal sometimes wants only one half of the job.
-- Clarified `ajtools-hvac-space-airflow` further (same day, Ajmal's fuller phrasing: "update the space as
-  per the HVAC and air terminal"): recalculating a Space's airflow must also **cascade to any air terminals
-  already placed in that room** — refresh each existing terminal's own Flow parameter to
-  `newRoomTotal / existingCount`, without changing their count or position (that's still
-  `ajtools-hvac-terminal-layout`'s job, only for a genuine re-layout). So this skill now owns both "update
-  the Space" and "keep already-placed terminals in sync with it"; the other skill owns only "place brand
-  new terminals."
 - Full skill audit ("chek all the skills", 2026-07-08): found `ajtools-knowledge-sync` was the one skill
   missing YAML frontmatter (`name`/`description`) — it showed up in the skill list with just its heading
   text as the description instead of a real trigger phrase, which would have hurt auto-triggering. Fixed by
   adding frontmatter built from its existing "When to use this" section. Everything else (frontmatter on
-  all other skills, cross-references between the two split HVAC skills, knowledge-file links) checked out
+  all other skills, knowledge-file links) checked out
   consistent.
-- Ajmal asked to "name this process as a skill" for the near-square terminal-grid row-count technique.
-  Judgment call: **not** a new skill — it's a refinement of one step (row-count selection) inside the
-  already-existing `ajtools-hvac-terminal-layout` skill, not an independently-triggerable task on its own
-  (Ajmal would never ask for "the near-square grid skill" by itself, only ever as part of placing
-  terminals). Folded it into that skill's Placement step as the new default, and recorded the formula in
-  `live-model-notes.md`. General rule for next time this comes up: a technique that only ever fires as
-  *part of* an existing skill's workflow belongs inside that skill, not as a sibling skill file.
-- Created **`ajtools-hvac-duct-routing`** (Ajmal-confirmed, "save this to the skills") after building the
-  full FCU-placement → main-duct → branch-duct chain live for the first time: FCU placement (height, door-
-  side inset, rotation to face terminals), main duct (sized to the FCU connector, split near the FCU,
-  multi-FCU zone-splitting when a room gets a 2nd FCU by hand), and branch ducts (vertical riser + real
-  elbow + takeoff tee per terminal, filtering by system type since terminals are checkerboard-laid-out).
-  Unlike the near-square-grid case above, this genuinely is its own independently-triggerable, multi-step
-  task — Ajmal asks for "place the FCU" or "draw the main duct" as standalone requests across different
-  turns, distinct from both `ajtools-hvac-terminal-layout` (terminal count/placement only) and
-  `ajtools-hvac-space-airflow` (Space airflow calc only), neither of which touches FCUs or ductwork. Added
-  cross-reference "do NOT use this" lines to both of those skills pointing at the new one. All the
-  underlying Revit API technique detail stays in `live-model-notes.md`, not duplicated into the skill file.
-- Updated `ajtools-hvac-terminal-layout`'s Placement step (Ajmal-confirmed, "as per this update the skill")
-  after finding the "continuous index" alternation (added earlier for King Room's 3-row grid) was actually
-  a bug: it only alternates correctly between rows when the per-row count is odd, so 4 of 7 rooms ended up
-  with two supply terminals directly across from each other. Fixed by switching back to `(row + col) % 2`,
-  which gives true checkerboard adjacency in every direction regardless of row/column parity. Also baked in
-  a verification step (check actual position+type after placing, not a distance-based "nearest terminal"
-  check — distance-based checks can miss the exact violation this bug caused).
-- Updated `ajtools-hvac-duct-routing`'s cap-end step after Ajmal supplied his own working pyRevit tool as a
-  reference ("study how I achieve"). The original C# cap technique (place at open connector, `ConnectTo`)
-  reported `IsConnected == true` but was genuinely wrong — size mismatched, and even after fixing size, the
-  cap wasn't actually rotated to face the duct correctly. Ajmal's script's key extra steps: pull the cap
-  type from the duct type's Routing Preferences instead of a hardcoded family name, duplicate a precisely
-  named+sized type, set the cap's connector Width/Height directly (not just an instance parameter), and
-  explicitly move+rotate the cap to mate with the duct's connector before calling `ConnectTo` — re-fetching
-  the connector reference after every transform. Translated to C# and confirmed working (3 of 6 open ends
-  in this project genuinely needed a real rotation to seat correctly). Lesson worth generalizing: a
-  successful `ConnectTo`/`IsConnected == true` is not proof of correct geometry — verify size, position, and
-  facing direction as separate, explicit checks whenever placing MEP fittings this way.
-- Folded cap-end into the main-duct step itself in `ajtools-hvac-duct-routing` ("remember this when we are
-  adding the main duct it's need to come with this also") — no longer a separate, ask-first, deferred stage.
-  Every open trunk end now gets the full sized+rotated cap treatment (see the note above) automatically as
-  soon as that trunk is drawn, same turn. Branch-duct taps (step 3) are unaffected since they connect to the
-  trunk's interior via a takeoff, not its end connectors.
-- Simplified `ajtools-hvac-duct-routing`'s main duct step ("your slicing is not good... no need to slize
-  that 200mm from the FCU"): removed the 200mm FCU-side split entirely — the main duct is now always one
-  single piece from the FCU connector onward. This followed a difficult session trying to slice the trunk
-  into progressively smaller segments after each takeoff for duct sizing, which repeatedly caused real
-  damage (a takeoff fitting silently deleted mid-fix). That trunk-sizing technique is now flagged in the
-  skill as a separate, higher-risk, ask-first request rather than part of the standard flow — the corrected
-  (but still only lightly-tested) recipe is preserved in `live-model-notes.md` in case it's asked for again.
-- Created **`ajtools-mep-connectivity-verify`** (Ajmal-confirmed, "yes add" after being offered a choice
-  between this and building out the return-air duct network — he picked this one). Directly motivated by
-  the same session's recurring failure mode: a terminal's own `IsConnected` showed true while its actual
-  path to the FCU was silently broken further along the chain (most dramatically, a takeoff fitting
-  silently deleted, orphaning its whole branch, with no local signal anything was wrong). Turns the manual
-  connector-by-connector trace technique (already documented in `live-model-notes.md`) into a reusable,
-  read-only, on-demand check — companion to `ajtools-hvac-duct-routing` (builds the ductwork this checks)
-  and distinct from `ajtools-mep-trace` (figures out genuinely unknown physical wiring, not a known,
-  already-built system for a break that crept in). Added cross-reference lines to both of those skills.
 
 ### 2026-07-09
 - Rewrote root `CLAUDE.md` (Ajmal-requested audit+upgrade): added the project identity/stack section,
@@ -1875,9 +1427,8 @@ changelog.
   "Quality floor" block of non-negotiables so smaller models hold the same standard. Also found (not
   yet fixed, awaiting Ajmal): suite-version drift — root src 1.10.0 (header 1.8.0, changelog 1.9.0) vs
   the `AJ Tools\` repo's v1.11.3; README/CHANGELOG stale at 1.8.0/2020-only.
-- Full skills audit (Ajmal-requested systems pass): all 10 existing repo skills judged keep; one
-  consistency fix — `ajtools-mep-trace` was the only skill missing the "Before running anything"
-  (ping/glossary/notes) and "Reply format" sections, both added. Created two new skills from the most
+- Full skills audit (Ajmal-requested systems pass): all 10 existing repo skills judged keep. Created
+  two new skills from the most
   repeated by-hand workflows in session history: **`ajtools-panel-audit`** (the behaviour-preserving
   panel refactor/audit pass that produced v1.5.2→1.8.0, six-plus sessions) and **`ajtools-port-pyrevit`**
   (converting tools from `D:\Ajmal\AutoCAD APP\Pyrevit\AJ-Tools.extension` into AJ Tools C# — Colorize
@@ -1885,92 +1436,10 @@ changelog.
   Cloud-side skills (revit-csharp-plugin, aj-tools-github, etc.) can't be edited from this repo — noted
   in the audit report that revit-csharp-plugin's trigger lacks a "not for the AJ Tools repo" exclusion
   and aj-tools-github doesn't know about the hollow root git.
-- Created **`.claude/scripts/`** (Ajmal's idea, confirmed correct): a folder of real, runnable
-  AutoDebugger `.cs` scripts — not just prose recipes — for jobs that repeat in the same shape session
-  to session. Seeded 10 scripts from everything already documented in `live-model-notes.md`:
-  `count-elements-by-size.cs`, `isolate-view-elements.cs`, `native-undo.cs`, `trace-mep-circuits.cs`,
-  `set-space-airflow.cs`, `place-terminals-checkerboard.cs`, `place-fcu.cs`,
-  `draw-main-duct-with-cap.cs`, `connect-terminal-branch.cs`, `verify-duct-connectivity.cs`. Explicit
-  design choice, same as the skills themselves: **living files, updated/refactored in place, never
-  forked into a v2** — each has an `INPUTS` block clearly separated from the logic so per-request
-  numbers get edited every run rather than trusted as defaults (the same "every number is per-request"
-  rule as everywhere else). `CLAUDE.md`'s always-on discipline, `live-model-notes.md`'s intro, and every
-  live-model-touching skill (`ajtools-live-model`, `ajtools-debug`, the three HVAC skills, both MEP
-  skills, `ajtools-skill-maker`, `ajtools-knowledge-sync`) now point at this folder — check it before
-  writing new C#, update the matching script (not just the prose) after a fix or improvement.
-- **Re-architected `.claude/scripts/` into filter+action fragments (Ajmal's idea, same day, confirmed
-  correct — the original flat one-script-per-job layout would have meant rewriting the same filtering
-  logic for every new element type).** Split into `filters/` (produce a shared `elements` list — by
-  category, category+family, category+numeric parameter in mm, room, MEP system type, or current
-  selection) and `actions/` (consume `elements` — set/reset color override incl. per-group distinct
-  colors, isolate, hide, select, count/breakdown report, bulk-set a parameter). Composed per request by
-  pasting a filter + one or more actions into one script sharing the `elements`/`sb` variable names, no
-  glue code needed; only the final composed script gets a `return sb.ToString();`. Retired the two old
-  flat monolithic scripts (`count-elements-by-size.cs`, `isolate-view-elements.cs`) since they're now
-  covered by fragment compositions. The genuinely bespoke, order-dependent, multi-stage build scripts
-  (everything that creates new elements — HVAC placement/routing, MEP trace) moved into
-  `.claude/scripts/recipes/` unchanged, since they don't fit the filter+action shape. `native-undo.cs`
-  moved to `.claude/scripts/commands/` (no element set at all). Added `examples/` with one fully
-  assembled composition matching Ajmal's own worked scenario (500mm-height duct → color → isolate →
-  select). Adopted an "explorer → arguments → invoker" discipline, now documented in the scripts
-  README as "run the filter alone first for anything bulk/hard-to-reverse, confirm the count, then
-  append the action(s)."
-  Updated every skill that referenced the old flat paths (`ajtools-live-model`, `ajtools-debug`, all
-  three HVAC skills, both MEP skills, `ajtools-skill-maker`, `ajtools-knowledge-sync`) plus `CLAUDE.md`
-  and `live-model-notes.md`'s cross-references.
-- **Stability/upgrade pass on `.claude/scripts/`, same day.** Real, concrete upgrades made:
-  - **Transaction safety, the main stability win**: every `actions/` fragment now wraps its
-    `Transaction` in try/catch/`RollBack()` with a clear reason appended to the report instead of a bare
-    unhandled exception. `recipes/draw-main-duct-with-cap.cs` (already flagged as the recipe that once
-    caused real damage) now runs its whole draw+connect+cap sequence inside one `TransactionGroup` —
-    `Assimilate()` only on full success, `RollBack()` on any failure — so a mid-sequence error can never
-    again leave an uncapped/half-connected duct behind. This pattern should be applied to the other 6
-    recipes next time each is touched (documented as a standing rule in the scripts README, not
-    retrofitted to all of them today to keep this pass scoped).
-  - `action-isolate-elements.cs` now uses `View.CanUseTemporaryVisibilityModes()` instead of a
-    hand-maintained ViewType list — asks Revit directly rather than guessing which view types qualify.
-  - `action-color-by-group.cs` rewritten to group by any named parameter's actual value (storage-type-
-    aware: Double/ElementId/Integer-boolean/String) instead of a hardcoded system-name lambda, plus
-    palette/gradient/random color-assignment modes.
-  - `action-hide-elements.cs` gained a `permanent` toggle (default false, matching the established
-    temporary-by-default house convention); added `action-unhide-elements.cs` as its pair for reversing
-    a permanent hide.
-  - Two new actions for gaps this project didn't have yet: `action-set-transparency.cs`,
-    `action-section-box-and-zoom.cs` (build a bbox around `elements`, section-box a 3D view, zoom to
-    them — for "show me these in 3D" requests distinct from isolate/select in the current 2D view).
-  - `filter-by-category.cs`'s level-matching upgraded to a multi-property fallback chain (Wall.LevelId,
-    FAMILY_LEVEL_PARAM→SCHEDULE_LEVEL_PARAM→LEVEL_PARAM→INSTANCE_REFERENCE_LEVEL_PARAM) since there's no
-    single universal "get this element's level" API. Two new filters: `filter-by-category-name.cs`
-    (resolve a category by its plain display name — more dictation-friendly than requiring the exact
-    BuiltInCategory enum member) and `filter-by-region.cs` (BoundingBoxIntersectsFilter over an mm
-    region, for "elements in this area" with no Room involved). `filter-by-category-and-family.cs`
-    gained an optional exact-FamilySymbol-id fast path via `FamilyInstanceFilter` alongside its existing
-    string-match fallback.
-  - `examples/color-isolate-select-by-size.cs` re-synced to match the upgraded action fragments.
-  - README gained a "Transaction safety" standing rule.
-- **Second review pass, same day.** Two real, evidence-backed additions and one process upgrade:
-  - Created **`.claude/scripts/creators/`** — a new fragment type alongside filters/actions, for
-    element-creation jobs matching Ajmal's own past request shape ("create levels up to N", "add N of X
-    on level Y") that were previously always handled ad hoc: `create-levels.cs`,
-    `create-point-based-element.cs`, `create-room.cs`. Creators produce `elements` exactly like filters
-    do, so actions chain onto them the same way. Also added `actions/action-material-takeoff.cs`
-    (material area/volume by category).
-    Deliberately NOT added: generic wall/floor/roof/grid/
-    structural-framing/sheet creation (no evidence Ajmal's ever asked for these live) and a generic
-    delete action (conflicts with the existing destructive-ops-blocked + native-Undo house rule).
-  - Created **[`.claude/tools/verify-knowledge-consistency.ps1`](../tools/verify-knowledge-consistency.ps1)**
-    — a QA/QC pass over this repo's own docs. Checks every SKILL.md
-    has name+description frontmatter, every markdown relative link across skills/knowledge/scripts/
-    CLAUDE.md resolves to a real file, and the scripts README table matches the actual folder contents
-    in both directions. Written independently for this repo's own layout, not copied. First real run
-    immediately caught genuine drift (the 4 new files above not yet in the README table) — fixed, then
-    reran clean. Wired into `ajtools-knowledge-sync`'s pass as a standard step. Note: the first version
-    of this script had a parse error from em-dash characters in its comments confusing Windows
-    PowerShell 5.1's encoding handling — .ps1 files in this project must stay plain ASCII in comments/
-    strings, unlike the project's markdown files where em-dashes are fine.
-  - Confirmed AutoDebugger's `run_csharp` already handles the Revit-main-thread/ExternalEvent
-    thread-safety concern that an ExternalEvent manager would otherwise exist to solve — reviewed
-    and ruled out as "nothing to add," not silently skipped.
+- Created [`.claude/tools/verify-knowledge-consistency.ps1`](../tools/verify-knowledge-consistency.ps1) —
+  a QA pass over this repo's docs (SKILL.md name+description frontmatter; every relative markdown link
+  resolves); wired into `ajtools-knowledge-sync`. Its first version failed to parse because of em-dashes
+  in comments under Windows PowerShell 5.1 — .ps1 files here must stay plain ASCII in comments/strings.
 - Doc refresh pass ("improve everything", same session): brought `README.md`, `INSTALL.md`,
   `docs/USAGE.md`, and `CHANGELOG.md` in line with verified reality — multi-version 2020–2027 build
   facts (NuGet Revit API, no local Revit needed to compile, auto-deploy warning), README suite version
@@ -1978,136 +1447,10 @@ changelog.
   release repo is at v1.11.3), backfilled the missing CHANGELOG 1.9.0 entry (Arrange Text in Box) and a
   factual Unreleased list, rewrote USAGE.md's ribbon map from `RibbonManager.cs`/
   `AnnotationRibbonManager.cs` source truth (it still described the old single-tab layout), and added
-  the missing Text panel to README's ribbon list. Also added a contents list to the top of
-  `live-model-notes.md` for navigation. `package.ps1` verified as genuinely 2020-only (`Release`
+  the missing Text panel to README's ribbon list. `package.ps1` verified as genuinely 2020-only (`Release`
   config), so installer-facing claims were left as 2020 deliberately. NOT touched, still open with
   Ajmal: reconciling suite version numbering with the `AJ Tools\` release repo, and the hollow root
   `.git`.
-- Safety pass on `.claude/scripts/` after Ajmal asked whether skills and scripts work hand in hand:
-  preserved existing view overrides when adding color/transparency, guarded invalid room ids, split
-  existing terminal Flow refresh by supply vs return, made branch ducts inherit the main duct type/system,
-  fixed ceiling lookup to use bounding-box centers instead of nonexistent ceiling LocationPoint data, made
-  the connectivity verifier branch-aware, and removed stale hardcoded entries from `settings.local.json`.
-- Ajmal clarified the reusable-script principle with a pipe-count example: direct one-off AutoDebugger
-  snippets are fine for live testing, but anything saved in `.claude/scripts/` should be modular by
-  default. Convert "collect pipes and return count" into `filter-by-category.cs` plus
-  `action-count-and-report.cs`, not a dedicated `count-pipes.cs`; swap filters/actions for new
-  combinations instead of creating one script per combination.
-- Ajmal clarified the normal live-model query shape with "ping the model, count ducts, and show their
-  height": ping/report model context first, then compose `filter-by-category.cs` (`OST_DuctCurves`) with
-  `action-count-and-report.cs` (`wantBreakdownTable = true`, `preferredParamName = "Height"`). This is a
-  workflow example, not a new saved `count-duct-height.cs` script.
-- Ajmal showed the failure mode this rule is meant to prevent: Claude searched `.claude/scripts/**/*duct*`,
-  found only duct-routing recipes, then wrote a fresh one-off duct count/height query; the follow-up pipe
-  count did the same with a one-off collector. Correct behavior is to route by request shape, not by
-  element-name file search: category filter + count/report action for both ducts and pipes.
-- Ajmal named the broader direction as an adaptive AI-local workflow (his "50/50" wording was only an
-  example ratio, not a fixed percentage). AI handles language understanding, routing, parameter/input
-  selection, and verification judgment; local `.claude/scripts`, `.claude/knowledge`, and the AutoDebugger
-  bridge do the reusable execution. The split changes by task: common tasks should be mostly local reuse,
-  new/unclear tasks may be mostly AI reasoning first. The loop is request -> route by shape -> compose
-  local modules -> run -> verify -> answer -> improve the library, so repeated tasks take less time
-  instead of being rewritten from scratch.
-- Clarified the fallback branch of the adaptive AI-local workflow: if no existing local module fits, AI still solves
-  the task with the smallest correct one-off AutoDebugger script, verifies it, answers Ajmal, then saves
-  the reusable part only if the shape is likely to repeat. Missing modules are how the local library grows;
-  they are not a reason to stop or force everything into existing fragments.
-- Ajmal restated the operating order simply: if there is a reusable local module, use it; if not, do the
-  task normally with AI; after each checked result, decide whether the new script/pattern should become
-  reusable, and save it only when yes.
-- Added a third reusable-module expansion pass after Ajmal asked to grow the local library from internet
-  research plus AJ Tools' own existing tools. Checked official Autodesk API guidance for collectors,
-  parameters, transactions, and the AJ Tools source patterns for Filter Pro, Pin Elements, Workset views,
-  Linked Search show/zoom, and Unhide All. Added generic fragments rather than element-specific scripts:
-  `filter-by-multiple-categories.cs`, `filter-by-parameter-text.cs`, `filter-by-workset.cs`,
-  `action-set-pin-state.cs`, `action-report-parameters.cs`, `action-show-elements.cs`, and
-  `commands/unhide-all-active-view.cs`.
-- Added `.claude/tools/invoke-autodebugger.ps1` as a fast fallback when the native AutoDebugger MCP tools
-  are not exposed in the current agent session. This prevents simple live-model count/size checks from
-  wasting time by re-reading memory, inspecting `mcp-server/index.js`, and rebuilding a named-pipe
-  PowerShell wrapper by hand.
-- Added visible root shortcut `tools/invoke-revit-bridge.ps1` because a later live duct-count test still
-  took nearly four minutes: the agent searched with plain `rg --files`, which ignores dot folders like
-  `.claude`, missed `.claude/tools/invoke-autodebugger.ps1`, then rebuilt the named-pipe wrapper by hand
-  and produced an over-detailed query. Future fallback calls should use the visible shortcut when native
-  MCP tools are not exposed.
-- Added the read-only `model_summary` MCP tool for common category counts and a single optional parameter
-  breakdown. It returns model context in the same bridge call, avoiding a separate ping and ad-hoc C#
-  composition for ordinary questions such as duct count by Height; complex or model-changing work still
-  uses the existing generic script route.
-- 2026-07-14 — Added `.claude/scripts/context/` (6 fragments: active view, project units, warnings,
-  worksets, model categories, used families) after Ajmal asked whether a "zero-parameter context tools"
-  idea from an external Revit MCP catalog was worth having. Kept the capability, not the architecture —
-  these are plain `run_csharp` fragments (same shape as `commands/`), not a second MCP server. Two items
-  from that source list were skipped as duplicates/not-applicable; see `scripts/README.md`'s "Where these
-  ideas came from" section for the full reasoning.
-- 2026-07-14 — Added 7 more fragments after Ajmal reviewed a generic CRUD-style verb list against this
-  project's real architecture: `filters/filter-by-phase.cs`, `actions/action-copy-parameter-value.cs`,
-  `actions/action-renumber-sequential.cs`, `actions/action-find-duplicates.cs`, and the three "Transform"
-  actions `action-move-elements.cs`, `action-copy-elements.cs`, `action-rotate-elements.cs`. Deliberately
-  did NOT add a generic Delete action (standing house rule), or Export/Import/Group/Ungroup/Serialize
-  (no evidenced need — Ajmal agreed to defer Export/Import until an actual use arises). Live-tested:
-  `filter-by-phase.cs` (1812 ducts, "New Construction" phase) and `action-find-duplicates.cs` (720 real
-  duct terminals, 0 false positives, plus a forced-positive clustering check). NOT yet live-tested:
-  `action-copy-parameter-value.cs`, `action-renumber-sequential.cs`, and the three Transform actions — a
-  self-initiated live write-test on a real element was correctly blocked by the permission system as an
-  unrequested model change; these five follow proven patterns from already-verified fragments
-  (`action-set-parameter-value.cs`, `action-color-by-group.cs`) but need Ajmal's explicit go-ahead before
-  the first live write-test, per CLAUDE.md's confirm-before-destructive-change rule.
-- 2026-07-14 — Added `filters/filter-by-id-list.cs` — Ajmal wanted "give element Ids, tell me what they
-  are and their parameter values." Read-only, live-tested immediately (2 real Ids + 1 deliberately
-  invalid one, composed with `action-report-parameters.cs`). Pairs an explicit Id list with the existing
-  parameter-report action instead of needing a new report format.
-- 2026-07-14 — Added `actions/action-report-graphic-overrides.cs` — a read-back counterpart to the
-  existing Set-only override actions. **Live-tested and caught a real bug before it shipped**:
-  `OverrideGraphicSettings.IsSurfaceForegroundPatternVisible`/`IsCutForegroundPatternVisible` default to
-  `true` even with nothing overridden — they signal whether a pattern would show if one were set, not
-  that an override exists. First version used them as the "has an override" signal and produced false
-  positives on genuinely clean elements. Fixed to key off actual color validity
-  (`ProjectionLineColor.IsValid`, `SurfaceForegroundPatternColor.IsValid`, etc.) and real pattern Ids
-  instead; confirmed correct "no overrides" on 5 real untouched duct terminals. Also confirmed via
-  reflection (not memory): the correct getters are `IsSurfaceForegroundPatternVisible`/
-  `IsCutForegroundPatternVisible` (methods exposed as properties), not `SurfaceForegroundPatternVisible`.
-- 2026-07-14 — Full session audit at Ajmal's request ("check everything... balance... tell me what we
-  will do next"): confirmed clean `Release` (2020) build, zero errors/warnings, before adding more script
-  surface area. Live-tested 2 of the 5 pending write-actions successfully (`action-copy-parameter-value.cs`,
-  `action-renumber-sequential.cs` — both verified on real elements and restored). The remaining 3
-  (move/copy/rotate) were blocked by the permission system even under a general "you decide" delegation —
-  confirms CLAUDE.md's rule that vague delegation does not authorize a specific destructive/hard-to-reverse
-  live-model write; each needs its own explicit named confirmation. Added 4 more fragments:
-  `creators/create-sheet.cs`, `actions/action-place-viewport-on-sheet.cs`,
-  `actions/action-place-schedule-on-sheet.cs`, `actions/action-duplicate-views.cs` — not yet live-tested,
-  same reason as the three Transform actions. Also added `creators/create-material.cs` (not yet
-  live-tested — new-element creation, same caution) and `actions/action-set-view-crop.cs` (crops the
-  active view to a filtered element set — distinct from both the 3D-only section-box action and AJ
-  Tools' own compiled View Crop tool, which crops to a manually picked region, not a filtered set; not
-  yet live-tested). `actions/action-report-location.cs` and `actions/action-report-bounding-box.cs` ARE
-  live-tested — read-only, verified on 3 real duct terminals with correct mm coordinates/sizes/combined
-  extents. Added `recipes/ray-trace-to-ceiling.cs` (Ajmal's own idea — `ReferenceIntersector` ray-cast
-  straight up to the nearest Ceiling, snap element height to the hit). A live test attempt was blocked by
-  the permission system: it was scoped across all 720 real duct terminals at once, which is bulk scope
-  regardless of the fact this model currently has 0 Ceilings so the transaction would have been a no-op —
-  confirms bulk/blast-radius is judged by scope of the write attempt, not by the agent's confidence in the
-  outcome. Lesson for next time: bound a live write-test to 1-3 elements even when a no-op is expected.
-  Positive "actually snaps to a ceiling" case remains unverified until a real Ceiling exists in the model.
-- 2026-07-14 — Added `actions/action-change-element-type.cs` (bulk swap to a named type within the same
-  family) after checking the compiled plugin first — confirmed the existing "Purge Unused Family
-  Parameters" tool is scoped only to family parameters, not a general project purge, and confirmed no
-  bulk type-swap exists anywhere yet. Deliberately did NOT propose a general purge script — Delete/Purge
-  are already kept out of scripts on purpose (bridge blocks them by design; see `project_autodebugger_mcp`
-  memory and this file's own "not adopted" list). Not yet live-tested.
-- 2026-07-19 — No new skill created for the in-progress bifurcation (Y-split) duct fitting family build —
-  it's the same job `ajtools-family-creation` already owns, just a harder shape than the box+neck pattern
-  built so far. Instead added a new gotcha to `knowledge/live-model/families-parameters.md` (§ "Third build —
-  ReplaceParameter/RenameParameter rollback corruption"): using `FamilyManager.ReplaceParameter` +
-  `RenameParameter` together to move a parameter to a different group corrupted parameter names, values,
-  AND geometry (3 duplicate Extrusions from nowhere) even though the transaction that caused it never
-  committed — contradicts this project's own earlier "uncommitted Transaction rolls back cleanly"
-  assumption for this specific API pair. Documented the working corruption-free alternative
-  (`RemoveParameter` + fresh `AddParameter`) for parameters with no geometry association, and flagged that
-  no safe technique was found yet for parameters that already drive geometry (dimension labels/
-  associations). No `.cs` recipe harvested — the bifurcation build itself is still mid-recovery from this
-  bug, so there's no proven working script yet to save.
 - 2026-07-28: v1.25.6 full-project UI audit pass (mechanical: resources, grids, owners, caps, popups, ribbon). 18 fixes / 22 files, behaviour preserved; all checks now clean. New rule applied everywhere: every modal window gets a Revit owner; borderless+maximize windows get the AboutWindow MaxWidth/MaxHeight caps.
 - 2026-08-05: v1.39.2 About window motion pass + project-wide rounded-corner audit. Motion: staggered
   entrance/exit/section-swap/ambient storyboards on AboutWindow (motion-design skill; entrances
@@ -2264,15 +1607,3 @@ changelog.
   windows declare MotionEaseOut" claim (Game HUD does not), inconsistent style counts, and a README stuck
   at 1.39.1. LESSON: exact counts in prose rot fast — let the scripts report them.
   Clean on Release + R25, all verification scripts pass. Not loaded in Revit by the assistant.
-- 2026-08-05: v1.40.5 — closed the last uncovered UI surface, found by ENUMERATING every surface instead
-  of trusting the running list. Full tally now recorded in ajtools-conventions.md: 35 XAML windows (33
-  with motion, About own, GameHud excluded), 1 dockable UserControl, and 2 windows built purely in C#
-  with no .xaml. Those last two are the blind spot — any sweep that globs *.xaml misses them, which is
-  exactly how BridgeStatusToast passed through the entire motion pass with zero animation while
-  AiTaskWarningBarService's banner already had its own. The toast now fades in 180ms / out 220ms,
-  animating Window.Opacity DIRECTLY (valid there because it sets AllowsTransparency=true — not valid for
-  normal windows, hence WindowMotionHelper's root-content approach), with a backstop timer armed before
-  the fade so it definitely disappears. Simpler than the window exit on purpose: nothing else owns its
-  lifetime and it cannot be clicked, so there is no DialogResult or veto to preserve. Also confirmed zero
-  WinForms UI left in src/. Clean on Release + R25, all five verification scripts pass. Not loaded in
-  Revit by the assistant.
