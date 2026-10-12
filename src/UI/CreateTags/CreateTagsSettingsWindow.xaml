@@ -67,7 +67,7 @@
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Tick the categories you can pick from with Create Tags. An element is skipped automatically if it already has a tag in the view, if it's a vertical run, or if it's shorter than the minimum length below."
+                        <TextBlock Text="Tick the categories you can pick from with Create Tags. An element is skipped automatically if it already has a tag in the view or if it's shorter than the minimum length below. Vertical runs are skipped when the tick box below is on."
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondary}"
                                    TextWrapping="Wrap"
@@ -231,7 +231,7 @@
                                 Style="{StaticResource CompactSecondaryButton}"
                                 MinWidth="128"
                                 Click="OnReset"
-                                ToolTip="Tick every category, put the minimum length back to its default, and switch vertical-run skipping back on."/>
+                                ToolTip="Tick every category, put the distance from the element and the minimum length back to their defaults, and switch vertical-run skipping back on."/>
 
                         <Button Grid.Column="2"
                                 x:Name="SaveButton"
