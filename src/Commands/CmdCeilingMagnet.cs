@@ -12,10 +12,10 @@
  *                 by side, neither replaces the other.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.0
+ * Version       : 1.5.1
  *
  * Created Date  : 2026-04-12
- * Last Updated  : 2026-07-20
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -66,6 +66,7 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.5.1 (2026-10-12) - Notes reworded only (port source described as an earlier AJ Tools script). No code change.
  * v1.5.0 (2026-07-20) - Ajmal tried the v1.4.0 rework and asked to keep BOTH workflows in the same
  *                       tool rather than replace one with the other - the original one-at-a-time flow
  *                       ("before was good") plus the new window-select-then-loop flow ("this also I
@@ -92,7 +93,7 @@
  *                       math into Services/CeilingMagnet/CeilingMagnetService.cs (code review cleanup
  *                       pass) - no behavior change. CeilingGridDefinition, CeilingSelection, and
  *                       SnapSummary moved with it since both Command and Service read/build them.
- * v1.0.0 (2026-04-12) - Initial C# port of the pyRevit ceiling-snap logic.
+ * v1.0.0 (2026-04-12) - Initial C# port of the ceiling-snap logic from an earlier AJ Tools script.
  * v1.1.0 (2026-07-01) - Refactor/audit: standardized metadata block; ceiling selection, grid resolution
  *                       and transaction flow reviewed. Snap behaviour unchanged.
  * v1.2.0 (2026-07-07) - Added a Revit 2025.3+ real-grid detection path (Ceiling.GetCeilingGridLines):
@@ -115,7 +116,7 @@ using AJTools.Utils;
 namespace AJTools.Commands
 {
     /// <summary>
-    /// Direct C# port of working pyRevit logic.
+    /// Direct C# port of the working logic from an earlier AJ Tools script.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class CmdCeilingMagnet : IExternalCommand

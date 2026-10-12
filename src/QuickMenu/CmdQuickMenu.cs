@@ -48,6 +48,8 @@
  *                       (CountAjToolsEntries). Revit's own commands are always added to the catalog
  *                       since v1.1.0 of QuickMenuCatalog, so the old whole-list check could never
  *                       fire and an unreadable ribbon went unreported.
+ *                       An unexpected error now shows one message, not the same text twice
+ *                       (Revit's own error box is no longer given it).
  * v1.1.0 (2026-08-20) - Works out each slot's availability before opening the wheel, so a tool the
  *                       ribbon would grey out is shown greyed out here too.
  * v1.0.0 (2026-08-18) - Initial release.
@@ -139,7 +141,6 @@ namespace AJTools.Commands.QuickMenu
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 DialogHelper.ShowError(ToolTitle, "The Quick Menu could not open:\n\n" + ex.Message);
                 return Result.Failed;
             }
