@@ -53,6 +53,8 @@
  *                       Revit with no way out. Reads the session's shared settings
  *                       (AiShellConfig.Shared). Purpose text corrected: pinning lives in the Saved
  *                       Scripts window, and the run path is shared with the pane, not identical.
+ *                       Also: a pinned script that ran cleanly shows its own output (what it printed)
+ *                       only when it printed something; no bare "Done." box.
  * v1.3.1 (2026-07-25) - Merged in the GitHub-side v1.0.1 fix below (TryRefreshActiveView), which
  *                       had been made on the pre-RunScriptFile layout of this file.
  * v1.3.0 (2026-07-21) - Reverted v1.2.0 below - Run Pinned's default face is now permanently fixed
@@ -201,7 +203,13 @@ namespace AJTools.AiShell.Commands
                         {
                             group.Commit();
                             TryRefreshActiveView(commandData.Application);
-                            TaskDialog.Show("AJ AI: Script Ran Successfully", result.Output ?? "Done.");
+                            // Show what the script printed - that is its answer. A script that printed
+                            // nothing ends quietly (house rule: no bare "Done." box).
+                            if (!string.IsNullOrWhiteSpace(result.Output))
+                            {
+                                TaskDialog.Show("AJ AI: Script Ran Successfully", result.Output);
+                            }
+
                             return Result.Succeeded;
                         }
 

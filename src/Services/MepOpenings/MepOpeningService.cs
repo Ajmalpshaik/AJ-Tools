@@ -5,7 +5,7 @@
  * Purpose       : Finds selected current or linked MEP crossings and creates direct openings in current-model hosts.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.4
+ * Version       : 1.0.5
  *
  * Created Date  : 2026-07-03
  * Last Updated  : 2026-10-12
@@ -48,6 +48,13 @@
  *                        drawn with width along X are unchanged. Dead code removed: an unused
  *                        CreateOpenings overload, an unreachable box fallback, write-only fields and
  *                        a failure handler that did nothing.
+ * v1.0.5 (2026-10-12) - Wall openings are sized along the wall and upright, whatever way the wall
+ *                        runs. The box was widened along project X by the width and along project Y
+ *                        by the HEIGHT for every host, so on a wall running along Y a duct taller
+ *                        than it is wide got an opening as wide as its height (300 x 600 duct, 25 mm
+ *                        buffer: 650 wide instead of 350). A rectangular duct laid on its side, a
+ *                        sloping run and a run crossing at an angle now get the footprint they
+ *                        really leave on the wall face. Round runs keep their sizes.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -82,6 +89,11 @@ namespace AJTools.Services.MepOpenings
 
         // How far a face normal may lean off square to the run and still count as a side face.
         private const double SideFaceAlignmentTolerance = 1e-3;
+
+        // How squarely a run must cross a wall (the part of its direction pointing through the wall)
+        // for its opening to be laid out from its real footprint on the wall face. A run lying almost
+        // along the wall keeps the plain width-along / height-upright sizes.
+        private const double WallRunMinimumCrossing = 0.1;
 
         public MepOpeningRunResult CreateOpenings(
             Document doc,
@@ -1909,16 +1921,19 @@ namespace AJTools.Services.MepOpenings
                         continue;
                     }
 
-                    // Floors and slabs are cut along project X and Y, so a rising run's width and
-                    // height have to go along whichever plan direction its cross-section faces.
-                    double minimumX = openingSize.WidthInternal;
-                    double minimumY = openingSize.HeightInternal;
-                    if (hostKind == MepOpeningHostKind.FloorSlab)
-                    {
-                        GetFloorPlanMinimums(mepElement, sourceTransform, openingSize, out minimumX, out minimumY);
-                    }
-
-                    OpeningBox candidateBox = BuildCandidateBox(intersectionBox, minimumX, minimumY, openingSize.HeightInternal);
+                    // Each host is cut in its own directions: floors and slabs along project X and Y,
+                    // walls along the wall and upright, beams as before.
+                    double minimumX;
+                    double minimumY;
+                    OpeningBox candidateBox = BuildHostCandidateBox(
+                        host,
+                        hostKind,
+                        mepElement,
+                        sourceTransform,
+                        openingSize,
+                        intersectionBox,
+                        out minimumX,
+                        out minimumY);
                     List<ExistingOpeningInfo> existingForHost = GetExistingOpeningsForHost(existingOpeningsByHost, host.Id);
                     bool coveredByExisting = existingForHost.Any(existing => existing.Box.Contains(candidateBox, GeometryTolerance));
 
@@ -2081,16 +2096,19 @@ namespace AJTools.Services.MepOpenings
                         continue;
                     }
 
-                    // Floors and slabs are cut along project X and Y, so a rising run's width and
-                    // height have to go along whichever plan direction its cross-section faces.
-                    double minimumX = openingSize.WidthInternal;
-                    double minimumY = openingSize.HeightInternal;
-                    if (hostKind == MepOpeningHostKind.FloorSlab)
-                    {
-                        GetFloorPlanMinimums(mepElement, sourceTransform, openingSize, out minimumX, out minimumY);
-                    }
-
-                    OpeningBox candidateBox = BuildCandidateBox(intersectionBox, minimumX, minimumY, openingSize.HeightInternal);
+                    // Each host is cut in its own directions: floors and slabs along project X and Y,
+                    // walls along the wall and upright, beams as before.
+                    double minimumX;
+                    double minimumY;
+                    OpeningBox candidateBox = BuildHostCandidateBox(
+                        host,
+                        hostKind,
+                        mepElement,
+                        sourceTransform,
+                        openingSize,
+                        intersectionBox,
+                        out minimumX,
+                        out minimumY);
                     List<ExistingOpeningInfo> existingForHost = GetExistingOpeningsForHost(existingOpeningsByHost, host.Id);
                     bool coveredByExisting = existingForHost.Any(existing => existing.Box.Contains(candidateBox, GeometryTolerance));
 
@@ -2824,6 +2842,121 @@ namespace AJTools.Services.MepOpenings
         }
 
         /// <summary>
+        /// The candidate box and the smallest opening for one run crossing one host, laid out in the
+        /// directions that host is cut in.
+        /// </summary>
+        /// <remarks>
+        /// Floors and slabs: project X and Y (GetFloorPlanMinimums). Walls: along the wall and upright
+        /// (GetWallOpeningMinimums). Every host used to get the floor rule - box widened along project X
+        /// by the width and along project Y by the HEIGHT - so on a wall running along Y a duct taller
+        /// than it is wide got an opening as wide as its height. Beams keep the original rule.
+        /// </remarks>
+        private static OpeningBox BuildHostCandidateBox(
+            Element host,
+            MepOpeningHostKind hostKind,
+            Element mepElement,
+            Transform sourceTransform,
+            OpeningSize openingSize,
+            OpeningBox intersectionBox,
+            out double minimumProfileWidth,
+            out double minimumProfileHeight)
+        {
+            Wall wall = host as Wall;
+            if (hostKind == MepOpeningHostKind.Wall && wall != null)
+            {
+                XYZ wallDirection = GetWallDirection(wall);
+                GetWallOpeningMinimums(
+                    wallDirection,
+                    mepElement,
+                    sourceTransform,
+                    openingSize,
+                    out minimumProfileWidth,
+                    out minimumProfileHeight);
+
+                return BuildWallCandidateBox(intersectionBox, wallDirection, minimumProfileWidth, minimumProfileHeight);
+            }
+
+            minimumProfileWidth = openingSize.WidthInternal;
+            minimumProfileHeight = openingSize.HeightInternal;
+            if (hostKind == MepOpeningHostKind.FloorSlab)
+            {
+                GetFloorPlanMinimums(mepElement, sourceTransform, openingSize, out minimumProfileWidth, out minimumProfileHeight);
+            }
+
+            return BuildCandidateBox(intersectionBox, minimumProfileWidth, minimumProfileHeight, openingSize.HeightInternal);
+        }
+
+        /// <summary>
+        /// A wall opening's box: the crossing itself, grown along the wall to the opening width and up
+        /// and down to the opening height - never through the wall, and never along project X/Y.
+        /// </summary>
+        private static OpeningBox BuildWallCandidateBox(
+            OpeningBox intersectionBox,
+            XYZ wallDirection,
+            double widthAlongWall,
+            double heightUpright)
+        {
+            OpeningBox box = intersectionBox.Clone();
+            XYZ center = box.Center;
+            XYZ halfAlong = wallDirection.Multiply(Math.Max(widthAlongWall, MinimumOpeningInternal) / 2.0);
+            box = box.Union(OpeningBox.FromPoints(new List<XYZ> { center - halfAlong, center + halfAlong }));
+            box.EnsureMinimumSize(center, 0, 0, heightUpright);
+            return box;
+        }
+
+        /// <summary>
+        /// The smallest opening a run needs in a wall, buffer and insulation included: along the wall
+        /// face, and upright. A rectangular run is read the way it really sits - a duct laid on its side
+        /// needs its height along the wall and its width upright, and a sloping or skewed run needs the
+        /// footprint its cross-section leaves on the wall face.
+        /// </summary>
+        /// <remarks>
+        /// Round runs, fittings, runs lying almost along the wall and anything whose shape cannot be read
+        /// keep width along the wall and height upright - the sizes a square-on, upright duct always had.
+        /// </remarks>
+        private static void GetWallOpeningMinimums(
+            XYZ wallDirection,
+            Element element,
+            Transform transformToHost,
+            OpeningSize size,
+            out double alongWall,
+            out double upright)
+        {
+            alongWall = size.WidthInternal;
+            upright = size.HeightInternal;
+
+            XYZ runAxis;
+            if (!size.HasRectangularSection || !TryGetRunAxis(element, transformToHost, out runAxis))
+            {
+                return;
+            }
+
+            XYZ wallNormal = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+            double crossing = runAxis.DotProduct(wallNormal);
+            if (Math.Abs(crossing) < WallRunMinimumCrossing)
+            {
+                return;
+            }
+
+            XYZ widthAxis;
+            if (!TryGetCrossSectionWidthAxis(element, transformToHost, size, runAxis, out widthAxis))
+            {
+                return;
+            }
+
+            XYZ heightAxis = runAxis.CrossProduct(widthAxis).Normalize();
+
+            // Where each side of the cross-section lands on the wall face, seen along the run.
+            XYZ widthOnWall = widthAxis - runAxis.Multiply(widthAxis.DotProduct(wallNormal) / crossing);
+            XYZ heightOnWall = heightAxis - runAxis.Multiply(heightAxis.DotProduct(wallNormal) / crossing);
+
+            alongWall = (size.WidthInternal * Math.Abs(widthOnWall.DotProduct(wallDirection))) +
+                        (size.HeightInternal * Math.Abs(heightOnWall.DotProduct(wallDirection)));
+            upright = (size.WidthInternal * Math.Abs(widthOnWall.Z)) +
+                      (size.HeightInternal * Math.Abs(heightOnWall.Z));
+        }
+
+        /// <summary>
         /// The smallest X and Y a floor or slab opening needs for one run, buffer and insulation
         /// included. A floor opening is cut along project X and Y, so a rectangular run rising through
         /// the floor has its width and height laid along whichever plan direction its cross-section
@@ -2874,9 +3007,8 @@ namespace AJTools.Services.MepOpenings
         }
 
         /// <summary>
-        /// The plan direction a straight rectangular run's WIDTH lies along, read from the run's own
-        /// solid: two of its side faces are square to the width and the other two square to the
-        /// height, and whichever pair sits further apart is the larger of the two sizes.
+        /// The plan direction a straight rectangular riser's WIDTH lies along (see
+        /// TryGetCrossSectionWidthAxis for how the width is told apart from the height).
         /// </summary>
         /// <returns>False for a curved or flat-lying run, or when no side face can be read.</returns>
         private static bool TryGetPlanWidthAxis(
@@ -2887,26 +3019,69 @@ namespace AJTools.Services.MepOpenings
         {
             planWidthAxis = null;
 
+            XYZ runAxis;
+            if (!TryGetRunAxis(element, transformToHost, out runAxis) ||
+                Math.Abs(runAxis.Z) < FloorRunMinimumVerticalComponent)
+            {
+                return false;
+            }
+
+            XYZ widthAcross;
+            if (!TryGetCrossSectionWidthAxis(element, transformToHost, size, runAxis, out widthAcross))
+            {
+                return false;
+            }
+
+            XYZ plan = new XYZ(widthAcross.X, widthAcross.Y, 0);
+            if (plan.GetLength() <= MinimumFamilyPlanDirectionLength)
+            {
+                return false;
+            }
+
+            planWidthAxis = plan.Normalize();
+            return true;
+        }
+
+        /// <summary>
+        /// The direction a straight run runs in, in host coordinates. False for a curved run or anything
+        /// that is not a straight MEP curve (fittings included).
+        /// </summary>
+        private static bool TryGetRunAxis(Element element, Transform transformToHost, out XYZ runAxis)
+        {
+            runAxis = null;
+
             Line centreLine = ((element as MEPCurve)?.Location as LocationCurve)?.Curve as Line;
             if (centreLine == null)
             {
                 return false;
             }
 
-            Transform transform = transformToHost ?? Transform.Identity;
-            XYZ runAxis = transform.OfVector(centreLine.Direction);
-            if (runAxis == null || runAxis.GetLength() <= GeometryTolerance)
+            XYZ axis = (transformToHost ?? Transform.Identity).OfVector(centreLine.Direction);
+            if (axis == null || axis.GetLength() <= GeometryTolerance)
             {
                 return false;
             }
 
-            runAxis = runAxis.Normalize();
-            if (Math.Abs(runAxis.Z) < FloorRunMinimumVerticalComponent)
-            {
-                return false;
-            }
+            runAxis = axis.Normalize();
+            return true;
+        }
 
-            IList<Solid> solids = GetSolids(element, transform);
+        /// <summary>
+        /// The direction a straight rectangular run's WIDTH lies across it, read from the run's own
+        /// solid: two of its side faces are square to the width and the other two square to the
+        /// height, and whichever pair sits further apart is the larger of the two sizes.
+        /// </summary>
+        /// <returns>False when no side face or extent can be read.</returns>
+        private static bool TryGetCrossSectionWidthAxis(
+            Element element,
+            Transform transformToHost,
+            OpeningSize size,
+            XYZ runAxis,
+            out XYZ widthAxis)
+        {
+            widthAxis = null;
+
+            IList<Solid> solids = GetSolids(element, transformToHost ?? Transform.Identity);
             XYZ firstAcross = FindSideFaceNormal(solids, runAxis);
             if (firstAcross == null)
             {
@@ -2933,17 +3108,9 @@ namespace AJTools.Services.MepOpenings
             // run's own, and the wider pair of faces belongs to the larger size. A square run can
             // take either - its footprint comes out the same.
             double widthMinusHeight = size.WidthInternal - size.HeightInternal;
-            XYZ widthAcross = (firstExtent - secondExtent) * widthMinusHeight >= 0.0
+            widthAxis = (firstExtent - secondExtent) * widthMinusHeight >= 0.0
                 ? firstAcross
                 : secondAcross;
-
-            XYZ plan = new XYZ(widthAcross.X, widthAcross.Y, 0);
-            if (plan.GetLength() <= MinimumFamilyPlanDirectionLength)
-            {
-                return false;
-            }
-
-            planWidthAxis = plan.Normalize();
             return true;
         }
 

@@ -42,6 +42,8 @@
  *                       (Revit's own error box is no longer given it).
  *                       Also: an unexpected error outside the main transaction (e.g. while the window opens) now gets a plain
  *                       message instead of Revit's own error box.
+ *                       No success popup: a transfer that did everything ends silently; the report appears only when a
+ *                       view type's default template could not be set again.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -212,6 +214,13 @@ namespace AJTools.Commands
             {
                 DialogHelper.ShowError(ToolTitle, "Transfer failed:\n\n" + ex.Message);
                 return Result.Failed;
+            }
+
+            // House rule: a transfer that did everything ends silently - the templates are in the target
+            // project. The report below appears only when something was left undone.
+            if (typeDefaultsNotRestored == 0)
+            {
+                return Result.Succeeded;
             }
 
             int updatedCount = selectedTemplateNames.Count(name => replacedAssignments.ContainsKey(name));

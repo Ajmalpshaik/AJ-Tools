@@ -34,6 +34,8 @@
  *                       method/line (trimmed stack trace), so a live crash pinpoints its source
  *                       instead of showing only a bare message ("key not present" debugging).
  * v1.1.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
+ *                       No success popup: the new drafting view is opened instead (the popup was the only place its name
+ *                       appeared). The summary appears only when part of the selection could not be drawn.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -118,7 +120,25 @@ namespace AJTools.Commands
                     }
                 }
 
-                DialogHelper.ShowInfo(ToolTitle, BuildSuccessSummary(analysis, buildResult));
+                // House rule: no success popup. The new drafting view is opened instead, so the result is
+                // on screen (the popup used to be the only place its name appeared). The summary still
+                // appears when part of the selection could not be drawn, or the view could not be opened.
+                bool viewOpened = false;
+                try
+                {
+                    uiDocument.ActiveView = buildResult.View;
+                    viewOpened = true;
+                }
+                catch (Exception)
+                {
+                    // Not fatal: the view exists; the summary below names it.
+                }
+
+                if (!viewOpened || HasAnalysisIssues(analysis))
+                {
+                    DialogHelper.ShowInfo(ToolTitle, BuildSuccessSummary(analysis, buildResult));
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -229,6 +249,21 @@ namespace AJTools.Commands
             AppendSummarySection(builder, "Connections with unresolved branch hierarchy", analysis.UnresolvedConnections);
 
             return builder.ToString().Trim();
+        }
+
+        /// <summary>True when part of the selection was rejected or could not be fully resolved - the cases
+        /// the summary exists to report.</summary>
+        private static bool HasAnalysisIssues(NetworkAnalysisService.AnalysisResult analysis)
+        {
+            return HasItems(analysis.RejectedSelections) ||
+                   HasItems(analysis.MissingConnectorData) ||
+                   HasItems(analysis.UnresolvedLevels) ||
+                   HasItems(analysis.UnresolvedConnections);
+        }
+
+        private static bool HasItems(IList<string> items)
+        {
+            return items != null && items.Count > 0;
         }
 
         private static void AppendSummarySection(StringBuilder builder, string title, IList<string> items)
