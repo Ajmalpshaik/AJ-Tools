@@ -687,11 +687,28 @@ namespace AJTools.Services.HvacSchematic
                     continue;
                 }
 
-                MEPSystem system = connector.MEPSystem;
-                FamilyInstance baseEquipment = system?.BaseEquipment;
-                if (baseEquipment != null && baseEquipment.Id.IntValue() == familyInstance.Id.IntValue())
+                // Air-side connectors only, the same rule the network traversal follows - being the
+                // base equipment of a pipe or electrical system does not make it the head of an air
+                // system. And each read is guarded: Connector.MEPSystem throws
+                // InvalidOperationException when a connector cannot report its system, which used
+                // to abort the whole analysis over one odd connector.
+                try
                 {
-                    return true;
+                    if (connector.Domain != Domain.DomainHvac)
+                    {
+                        continue;
+                    }
+
+                    MEPSystem system = connector.MEPSystem;
+                    FamilyInstance baseEquipment = system?.BaseEquipment;
+                    if (baseEquipment != null && baseEquipment.Id.IntValue() == familyInstance.Id.IntValue())
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // This connector says nothing about being primary; check the next one.
                 }
             }
 

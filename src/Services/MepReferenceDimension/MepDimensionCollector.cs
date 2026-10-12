@@ -8,10 +8,10 @@
  *                 back to the run.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -35,6 +35,9 @@
  *
  * Changelog     :
  * v1.0.0 (2026-08-15) - Initial release, replacing DuctReferenceDimensionCollector.
+ * v1.0.1 (2026-10-12) - Dead code removed, no behaviour change: BuildPlans' covered-runs parameter
+ *                       (passed in but never read - its doc claimed it prevented double measuring),
+ *                       the always-zero row offset, and the never-read RunFaces.ElementId.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -100,15 +103,15 @@ namespace AJTools.Services.MepReferenceDimension
         }
 
         /// <summary>
-        /// Plans every dimension for one seed run. <paramref name="alreadyCoveredKeys"/> holds runs
-        /// already documented in this command run so they are not measured twice.
+        /// Plans every dimension for one seed run. Planning does not look at what was already
+        /// dimensioned earlier in the command run: the caller skips a seed run that is already covered
+        /// before calling this, and drops or supersedes duplicate dimensions afterwards.
         /// </summary>
         internal DimensionPlanResult BuildPlans(
             Document hostDocument,
             View view,
             DimensionSource seedSource,
-            Element seedRun,
-            ISet<string> alreadyCoveredKeys)
+            Element seedRun)
         {
             DimensionPlanResult result = new DimensionPlanResult
             {
@@ -173,7 +176,7 @@ namespace AJTools.Services.MepReferenceDimension
             {
                 if (TryBuildSide(
                         view, axis, seedRun, seedKey, seedFaces, runFaces, referenceTargets,
-                        side, alreadyCoveredKeys, result))
+                        side, result))
                 {
                     anyPlan = true;
                 }
@@ -512,7 +515,6 @@ namespace AJTools.Services.MepReferenceDimension
                 map[group.Key] = new RunFaces
                 {
                     ElementKey = group.Key,
-                    ElementId = min.ElementId,
                     MinFace = min,
                     MaxFace = max,
                     IsSingleReference = ReferenceEquals(min, max) ||
@@ -552,7 +554,6 @@ namespace AJTools.Services.MepReferenceDimension
             IDictionary<string, RunFaces> runFaces,
             IList<DimensionReferenceCandidate> referenceTargets,
             ChainSide side,
-            ISet<string> alreadyCoveredKeys,
             DimensionPlanResult result)
         {
             bool negative = side == ChainSide.Negative;
@@ -628,7 +629,7 @@ namespace AJTools.Services.MepReferenceDimension
 
             if (_settings.ChainStyle == DimensionChainStyle.SingleString)
             {
-                return AddPlan(result, axis, seedRun, seedKey, ordered, covered, 0.0);
+                return AddPlan(result, axis, seedRun, seedKey, ordered, covered);
             }
 
             bool any = false;
@@ -646,7 +647,7 @@ namespace AJTools.Services.MepReferenceDimension
                     .Distinct(StringComparer.Ordinal)
                     .ToList();
 
-                if (AddPlan(result, axis, seedRun, seedKey, pair, segmentCovered, 0.0))
+                if (AddPlan(result, axis, seedRun, seedKey, pair, segmentCovered))
                     any = true;
             }
 
@@ -665,8 +666,7 @@ namespace AJTools.Services.MepReferenceDimension
             Element seedRun,
             string seedKey,
             IList<DimensionReferenceCandidate> references,
-            IList<string> covered,
-            double rowOffsetFeet)
+            IList<string> covered)
         {
             DimensionPlan plan = new DimensionPlan
             {
@@ -677,7 +677,7 @@ namespace AJTools.Services.MepReferenceDimension
                 CoveredElementKeys = covered
             };
 
-            if (!MepDimensionGeometry.TryCreateDimensionLine(plan, rowOffsetFeet, out string lineReason))
+            if (!MepDimensionGeometry.TryCreateDimensionLine(plan, out string lineReason))
             {
                 result.Failures.Add(Failure(seedRun.Id, lineReason));
                 return false;
@@ -781,7 +781,6 @@ namespace AJTools.Services.MepReferenceDimension
         private sealed class RunFaces
         {
             public string ElementKey { get; set; }
-            public ElementId ElementId { get; set; }
             public DimensionReferenceCandidate MinFace { get; set; }
             public DimensionReferenceCandidate MaxFace { get; set; }
 

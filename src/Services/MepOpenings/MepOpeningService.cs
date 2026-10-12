@@ -5,10 +5,10 @@
  * Purpose       : Finds selected current or linked MEP crossings and creates direct openings in current-model hosts.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.3
+ * Version       : 1.0.4
  *
  * Created Date  : 2026-07-03
- * Last Updated  : 2026-07-23
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -37,6 +37,17 @@
  *                        all versions; version branches belong in helpers per the project rule).
  *                        Full 2020-2027 API surface verified against the per-version reference
  *                        assemblies - see docs/COMPAT-AUDITS.md.
+ * v1.0.4 (2026-10-12) - Opening family sizes (Object Width/Height, Cutout Buffer, Wall Width) are
+ *                        written to the placed opening only. A family that has them as TYPE
+ *                        parameters is now refused with a message naming the family and parameter -
+ *                        writing the type resized every opening of that type, existing ones
+ *                        included, and a later failure left the type edited. Floor/slab openings
+ *                        now lay a rectangular riser's width and height along the directions its
+ *                        cross-section actually faces (width always went on X before, so a 600x300
+ *                        duct turned with 600 along Y got 650 x 600 instead of 350 x 650); risers
+ *                        drawn with width along X are unchanged. Dead code removed: an unused
+ *                        CreateOpenings overload, an unreachable box fallback, write-only fields and
+ *                        a failure handler that did nothing.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -60,20 +71,17 @@ namespace AJTools.Services.MepOpenings
         private const double MinimumOpeningInternal = 0.01;
         private const double MinimumFamilyPlanDirectionLength = 1e-4;
 
-        public MepOpeningRunResult CreateOpenings(
-            Document doc,
-            IList<Element> selectedElements,
-            MepOpeningSettings settings)
-        {
-            IList<MepOpeningSourceElement> sources = selectedElements == null
-                ? new List<MepOpeningSourceElement>()
-                : selectedElements
-                    .Where(element => element != null)
-                    .Select(element => MepOpeningSourceElement.FromCurrent(doc, element))
-                    .ToList();
+        // A floor or slab opening is drawn along project X and Y. A run counts as rising through the
+        // floor - so its cross-section, not its length, is what the opening has to clear - when it is
+        // closer to vertical than to horizontal.
+        private const double FloorRunMinimumVerticalComponent = 0.7071;
 
-            return CreateOpenings(doc, sources, settings);
-        }
+        // A width direction this close to project X or Y is treated as exactly on it, so a riser
+        // drawn square to the grid keeps the identical opening size it always had.
+        private const double PlanAxisSnapTolerance = 1e-6;
+
+        // How far a face normal may lean off square to the run and still count as a side face.
+        private const double SideFaceAlignmentTolerance = 1e-3;
 
         public MepOpeningRunResult CreateOpenings(
             Document doc,
@@ -120,10 +128,6 @@ namespace AJTools.Services.MepOpenings
             using (Transaction transaction = new Transaction(doc, "AJ Tools - Create Openings"))
             {
                 transaction.Start();
-
-                FailureHandlingOptions failureOptions = transaction.GetFailureHandlingOptions();
-                failureOptions.SetFailuresPreprocessor(new MepOpeningFailurePreprocessor());
-                transaction.SetFailureHandlingOptions(failureOptions);
 
                 foreach (OpeningGroup group in groups)
                 {
@@ -188,10 +192,6 @@ namespace AJTools.Services.MepOpenings
             using (Transaction transaction = new Transaction(doc, "AJ Tools - Create Openings"))
             {
                 transaction.Start();
-
-                FailureHandlingOptions failureOptions = transaction.GetFailureHandlingOptions();
-                failureOptions.SetFailuresPreprocessor(new MepOpeningFailurePreprocessor());
-                transaction.SetFailureHandlingOptions(failureOptions);
 
                 foreach (OpeningGroup group in groups)
                 {
@@ -387,7 +387,6 @@ namespace AJTools.Services.MepOpenings
                         doc,
                         source,
                         mepBox,
-                        elementKind,
                         rule,
                         objectSize,
                         cutoutBufferInternal,
@@ -459,7 +458,7 @@ namespace AJTools.Services.MepOpenings
                     continue;
                 }
 
-                var host = FamilyOpeningHost.FromCurrent(doc, selectedHost);
+                var host = FamilyOpeningHost.FromCurrent(selectedHost);
                 List<MepOpeningSourceElement> sourceCandidates = CollectMepSourceCandidates(
                     doc,
                     hostBox.Expand(Math.Max(mergeDistanceInternal, MmToInternal(50))),
@@ -501,7 +500,6 @@ namespace AJTools.Services.MepOpenings
                         doc,
                         source,
                         mepBox,
-                        elementKind,
                         rule,
                         objectSize,
                         cutoutBufferInternal,
@@ -621,7 +619,6 @@ namespace AJTools.Services.MepOpenings
             Document doc,
             MepOpeningSourceElement source,
             OpeningBox mepBox,
-            MepOpeningElementKind elementKind,
             MepOpeningElementRule rule,
             OpeningSize objectSize,
             double cutoutBufferInternal,
@@ -657,11 +654,10 @@ namespace AJTools.Services.MepOpenings
                 host.Element,
                 host.TransformToHost,
                 out intersectionBox);
-            if (intersectionBox == null)
-            {
-                intersectionBox = mepBox.GetOverlap(hostBox);
-            }
 
+            // A family opening needs a real solid crossing. (A bounding-box overlap used to be
+            // computed here as a fallback, but it could never be used - no solid crossing always
+            // returned before it was read.)
             if (intersectionBox == null || !solidIntersection)
             {
                 return false;
@@ -670,8 +666,7 @@ namespace AJTools.Services.MepOpenings
             var cutoutSize = new OpeningSize
             {
                 WidthInternal = objectSize.WidthInternal + (2.0 * cutoutBufferInternal),
-                HeightInternal = objectSize.HeightInternal + (2.0 * cutoutBufferInternal),
-                RequestedShape = MepOpeningShape.Rectangle
+                HeightInternal = objectSize.HeightInternal + (2.0 * cutoutBufferInternal)
             };
 
             OpeningBox candidateBox = BuildCandidateBox(intersectionBox, cutoutSize);
@@ -697,9 +692,6 @@ namespace AJTools.Services.MepOpenings
 
             candidate = new FamilyOpeningCandidate
             {
-                MepElementId = mepElement.Id,
-                ElementKind = elementKind,
-                Host = host,
                 HostKey = host.Key,
                 FamilyDisplayName = rule.VerticalOpeningFamilyName,
                 Box = candidateBox,
@@ -771,12 +763,11 @@ namespace AJTools.Services.MepOpenings
             {
                 if (linkInstance == null)
                 {
-                    hosts.Add(FamilyOpeningHost.FromCurrent(sourceDoc, element));
+                    hosts.Add(FamilyOpeningHost.FromCurrent(element));
                 }
                 else
                 {
                     hosts.Add(FamilyOpeningHost.FromLinked(
-                        sourceDoc,
                         element,
                         linkInstance,
                         transformToHost,
@@ -1082,11 +1073,18 @@ namespace AJTools.Services.MepOpenings
             out string errorMessage)
         {
             errorMessage = string.Empty;
-            Parameter parameter = FindWritableParameter(instance, parameterName) ??
-                                  FindWritableParameter(symbol, parameterName);
+
+            // Instance parameters only - never fall back to the TYPE. Every opening placed with this
+            // family shares one type, so writing a size there resized every opening of that type,
+            // the ones already in the model included (the last opening placed won), and a later
+            // failure that deleted this instance still left the type edited.
+            Parameter parameter = FindWritableParameter(instance, parameterName);
             if (parameter == null)
             {
-                errorMessage = "Opening family parameter is missing or read-only: " + parameterName;
+                errorMessage = FindWritableParameter(symbol, parameterName) != null
+                    ? "Opening family \"" + GetFamilySymbolDisplayName(symbol) + "\": \"" + parameterName +
+                      "\" is a type parameter. Size parameters must be instance parameters, so this opening was skipped."
+                    : "Opening family parameter is missing or read-only: " + parameterName;
                 return false;
             }
 
@@ -1473,8 +1471,7 @@ namespace AJTools.Services.MepOpenings
             objectSize = new OpeningSize
             {
                 WidthInternal = Math.Max(width + (2.0 * insulationThickness), MinimumOpeningInternal),
-                HeightInternal = Math.Max(height + (2.0 * insulationThickness), MinimumOpeningInternal),
-                RequestedShape = MepOpeningShape.Rectangle
+                HeightInternal = Math.Max(height + (2.0 * insulationThickness), MinimumOpeningInternal)
             };
 
             return true;
@@ -1912,7 +1909,16 @@ namespace AJTools.Services.MepOpenings
                         continue;
                     }
 
-                    OpeningBox candidateBox = BuildCandidateBox(intersectionBox, openingSize);
+                    // Floors and slabs are cut along project X and Y, so a rising run's width and
+                    // height have to go along whichever plan direction its cross-section faces.
+                    double minimumX = openingSize.WidthInternal;
+                    double minimumY = openingSize.HeightInternal;
+                    if (hostKind == MepOpeningHostKind.FloorSlab)
+                    {
+                        GetFloorPlanMinimums(mepElement, sourceTransform, openingSize, out minimumX, out minimumY);
+                    }
+
+                    OpeningBox candidateBox = BuildCandidateBox(intersectionBox, minimumX, minimumY, openingSize.HeightInternal);
                     List<ExistingOpeningInfo> existingForHost = GetExistingOpeningsForHost(existingOpeningsByHost, host.Id);
                     bool coveredByExisting = existingForHost.Any(existing => existing.Box.Contains(candidateBox, GeometryTolerance));
 
@@ -1934,13 +1940,12 @@ namespace AJTools.Services.MepOpenings
 
                     candidates.Add(new OpeningCandidate
                     {
-                        MepElementId = mepElement.Id,
                         HostId = host.Id,
                         HostKind = hostKind,
                         RequestedShape = rule.Shape,
                         Box = candidateBox,
-                        MinimumProfileWidth = openingSize.WidthInternal,
-                        MinimumProfileHeight = openingSize.HeightInternal,
+                        MinimumProfileWidth = minimumX,
+                        MinimumProfileHeight = minimumY,
                         ExistingOpeningsToReplace = existingToMerge
                     });
 
@@ -2076,7 +2081,16 @@ namespace AJTools.Services.MepOpenings
                         continue;
                     }
 
-                    OpeningBox candidateBox = BuildCandidateBox(intersectionBox, openingSize);
+                    // Floors and slabs are cut along project X and Y, so a rising run's width and
+                    // height have to go along whichever plan direction its cross-section faces.
+                    double minimumX = openingSize.WidthInternal;
+                    double minimumY = openingSize.HeightInternal;
+                    if (hostKind == MepOpeningHostKind.FloorSlab)
+                    {
+                        GetFloorPlanMinimums(mepElement, sourceTransform, openingSize, out minimumX, out minimumY);
+                    }
+
+                    OpeningBox candidateBox = BuildCandidateBox(intersectionBox, minimumX, minimumY, openingSize.HeightInternal);
                     List<ExistingOpeningInfo> existingForHost = GetExistingOpeningsForHost(existingOpeningsByHost, host.Id);
                     bool coveredByExisting = existingForHost.Any(existing => existing.Box.Contains(candidateBox, GeometryTolerance));
 
@@ -2098,13 +2112,12 @@ namespace AJTools.Services.MepOpenings
 
                     candidates.Add(new OpeningCandidate
                     {
-                        MepElementId = mepElement.Id,
                         HostId = host.Id,
                         HostKind = hostKind,
                         RequestedShape = rule.Shape,
                         Box = candidateBox,
-                        MinimumProfileWidth = openingSize.WidthInternal,
-                        MinimumProfileHeight = openingSize.HeightInternal,
+                        MinimumProfileWidth = minimumX,
+                        MinimumProfileHeight = minimumY,
                         ExistingOpeningsToReplace = existingToMerge
                     });
 
@@ -2572,7 +2585,6 @@ namespace AJTools.Services.MepOpenings
                 list.Add(new ExistingOpeningInfo
                 {
                     OpeningId = opening.Id,
-                    HostId = host.Id,
                     Box = box
                 });
             }
@@ -2607,6 +2619,7 @@ namespace AJTools.Services.MepOpenings
             double width;
             double height;
             double diameter;
+            bool rectangularSection = false;
 
             switch (kind)
             {
@@ -2626,6 +2639,7 @@ namespace AJTools.Services.MepOpenings
                     if (TryGetDoubleParameter(element, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, out width) &&
                         TryGetDoubleParameter(element, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, out height))
                     {
+                        rectangularSection = true;
                         break;
                     }
 
@@ -2644,6 +2658,7 @@ namespace AJTools.Services.MepOpenings
                         return false;
                     }
 
+                    rectangularSection = true;
                     break;
 
                 case MepOpeningElementKind.Conduit:
@@ -2670,14 +2685,12 @@ namespace AJTools.Services.MepOpenings
 
             double finalWidth = Math.Max(width + totalHorizontalExtra, MinimumOpeningInternal);
             double finalHeight = Math.Max(height + totalVerticalExtra, MinimumOpeningInternal);
-            bool circle = rule != null && rule.Shape == MepOpeningShape.Circle &&
-                          (kind == MepOpeningElementKind.Pipe || kind == MepOpeningElementKind.Conduit);
 
             openingSize = new OpeningSize
             {
                 WidthInternal = finalWidth,
                 HeightInternal = finalHeight,
-                RequestedShape = circle ? MepOpeningShape.Circle : MepOpeningShape.Rectangle
+                HasRectangularSection = rectangularSection
             };
 
             return true;
@@ -2791,10 +2804,219 @@ namespace AJTools.Services.MepOpenings
 
         private static OpeningBox BuildCandidateBox(OpeningBox intersectionBox, OpeningSize openingSize)
         {
+            return BuildCandidateBox(
+                intersectionBox,
+                openingSize.WidthInternal,
+                openingSize.HeightInternal,
+                openingSize.HeightInternal);
+        }
+
+        private static OpeningBox BuildCandidateBox(
+            OpeningBox intersectionBox,
+            double minimumX,
+            double minimumY,
+            double minimumZ)
+        {
             OpeningBox box = intersectionBox.Clone();
             XYZ center = box.Center;
-            box.EnsureMinimumSize(center, openingSize.WidthInternal, openingSize.HeightInternal, openingSize.HeightInternal);
+            box.EnsureMinimumSize(center, minimumX, minimumY, minimumZ);
             return box;
+        }
+
+        /// <summary>
+        /// The smallest X and Y a floor or slab opening needs for one run, buffer and insulation
+        /// included. A floor opening is cut along project X and Y, so a rectangular run rising through
+        /// the floor has its width and height laid along whichever plan direction its cross-section
+        /// actually faces. Before this, width always went on X - a 600x300 riser turned with its 600
+        /// side along Y got a 650 x 600 opening instead of 350 x 650.
+        /// </summary>
+        /// <remarks>
+        /// A run whose width already lies along X keeps exactly the old values. Round runs, fittings,
+        /// runs flatter than 45 degrees and anything whose shape cannot be read keep the old values
+        /// too. A riser turned at an angle gets the X/Y footprint of its turned rectangle.
+        /// </remarks>
+        private static void GetFloorPlanMinimums(
+            Element element,
+            Transform transformToHost,
+            OpeningSize size,
+            out double minimumX,
+            out double minimumY)
+        {
+            minimumX = size.WidthInternal;
+            minimumY = size.HeightInternal;
+
+            XYZ widthAxis;
+            if (!size.HasRectangularSection ||
+                !TryGetPlanWidthAxis(element, transformToHost, size, out widthAxis))
+            {
+                return;
+            }
+
+            double alongX = Math.Abs(widthAxis.X);
+            double alongY = Math.Abs(widthAxis.Y);
+
+            if (alongX >= 1.0 - PlanAxisSnapTolerance)
+            {
+                return;
+            }
+
+            if (alongY >= 1.0 - PlanAxisSnapTolerance)
+            {
+                minimumX = size.HeightInternal;
+                minimumY = size.WidthInternal;
+                return;
+            }
+
+            // Turned at an angle: the height runs square to the width in plan, so the turned
+            // rectangle covers this much of X and of Y.
+            minimumX = (size.WidthInternal * alongX) + (size.HeightInternal * alongY);
+            minimumY = (size.WidthInternal * alongY) + (size.HeightInternal * alongX);
+        }
+
+        /// <summary>
+        /// The plan direction a straight rectangular run's WIDTH lies along, read from the run's own
+        /// solid: two of its side faces are square to the width and the other two square to the
+        /// height, and whichever pair sits further apart is the larger of the two sizes.
+        /// </summary>
+        /// <returns>False for a curved or flat-lying run, or when no side face can be read.</returns>
+        private static bool TryGetPlanWidthAxis(
+            Element element,
+            Transform transformToHost,
+            OpeningSize size,
+            out XYZ planWidthAxis)
+        {
+            planWidthAxis = null;
+
+            Line centreLine = ((element as MEPCurve)?.Location as LocationCurve)?.Curve as Line;
+            if (centreLine == null)
+            {
+                return false;
+            }
+
+            Transform transform = transformToHost ?? Transform.Identity;
+            XYZ runAxis = transform.OfVector(centreLine.Direction);
+            if (runAxis == null || runAxis.GetLength() <= GeometryTolerance)
+            {
+                return false;
+            }
+
+            runAxis = runAxis.Normalize();
+            if (Math.Abs(runAxis.Z) < FloorRunMinimumVerticalComponent)
+            {
+                return false;
+            }
+
+            IList<Solid> solids = GetSolids(element, transform);
+            XYZ firstAcross = FindSideFaceNormal(solids, runAxis);
+            if (firstAcross == null)
+            {
+                return false;
+            }
+
+            XYZ secondAcross = runAxis.CrossProduct(firstAcross);
+            if (secondAcross.GetLength() <= GeometryTolerance)
+            {
+                return false;
+            }
+
+            secondAcross = secondAcross.Normalize();
+
+            double firstExtent;
+            double secondExtent;
+            if (!TryGetSolidExtent(solids, firstAcross, out firstExtent) ||
+                !TryGetSolidExtent(solids, secondAcross, out secondExtent))
+            {
+                return false;
+            }
+
+            // Width and height carry the same buffer and insulation, so their difference is the
+            // run's own, and the wider pair of faces belongs to the larger size. A square run can
+            // take either - its footprint comes out the same.
+            double widthMinusHeight = size.WidthInternal - size.HeightInternal;
+            XYZ widthAcross = (firstExtent - secondExtent) * widthMinusHeight >= 0.0
+                ? firstAcross
+                : secondAcross;
+
+            XYZ plan = new XYZ(widthAcross.X, widthAcross.Y, 0);
+            if (plan.GetLength() <= MinimumFamilyPlanDirectionLength)
+            {
+                return false;
+            }
+
+            planWidthAxis = plan.Normalize();
+            return true;
+        }
+
+        private static XYZ FindSideFaceNormal(IList<Solid> solids, XYZ runAxis)
+        {
+            foreach (Solid solid in solids)
+            {
+                try
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        PlanarFace planar = face as PlanarFace;
+                        XYZ normal = planar?.FaceNormal;
+                        if (normal == null || normal.GetLength() <= GeometryTolerance)
+                        {
+                            continue;
+                        }
+
+                        normal = normal.Normalize();
+                        if (Math.Abs(normal.DotProduct(runAxis)) <= SideFaceAlignmentTolerance)
+                        {
+                            return normal;
+                        }
+                    }
+                }
+                catch
+                {
+                    // An unreadable solid just offers no side face; another one may.
+                }
+            }
+
+            return null;
+        }
+
+        private static bool TryGetSolidExtent(IList<Solid> solids, XYZ direction, out double extent)
+        {
+            extent = 0;
+            double min = double.MaxValue;
+            double max = double.MinValue;
+
+            foreach (Solid solid in solids)
+            {
+                try
+                {
+                    foreach (Edge edge in solid.Edges)
+                    {
+                        IList<XYZ> points = edge.Tessellate();
+                        if (points == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (XYZ point in points)
+                        {
+                            double projection = point.DotProduct(direction);
+                            min = Math.Min(min, projection);
+                            max = Math.Max(max, projection);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Measure from whatever edges could be read.
+                }
+            }
+
+            if (min > max)
+            {
+                return false;
+            }
+
+            extent = max - min;
+            return extent > GeometryTolerance;
         }
 
         private static OpeningBox GetElementBox(Element element)
@@ -3016,12 +3238,16 @@ namespace AJTools.Services.MepOpenings
         {
             public double WidthInternal { get; set; }
             public double HeightInternal { get; set; }
-            public MepOpeningShape RequestedShape { get; set; }
+
+            /// <summary>
+            /// True when the size came from a rectangular (or oval) duct's or a cable tray's own
+            /// width and height, so the run has a width direction worth turning a floor opening to.
+            /// </summary>
+            public bool HasRectangularSection { get; set; }
         }
 
         private sealed class OpeningCandidate
         {
-            public ElementId MepElementId { get; set; }
             public ElementId HostId { get; set; }
             public MepOpeningHostKind HostKind { get; set; }
             public MepOpeningShape RequestedShape { get; set; }
@@ -3037,31 +3263,26 @@ namespace AJTools.Services.MepOpenings
             {
             }
 
-            public Document Document { get; private set; }
             public Element Element { get; private set; }
             public Transform TransformToHost { get; private set; }
             public bool IsLinked { get; private set; }
-            public ElementId LinkInstanceId { get; private set; }
             public string Key { get; private set; }
             public string Label { get; private set; }
 
-            public static FamilyOpeningHost FromCurrent(Document doc, Element element)
+            public static FamilyOpeningHost FromCurrent(Element element)
             {
                 string elementId = ElementIdHelper.ToReportString(element?.Id);
                 return new FamilyOpeningHost
                 {
-                    Document = doc,
                     Element = element,
                     TransformToHost = Transform.Identity,
                     IsLinked = false,
-                    LinkInstanceId = ElementId.InvalidElementId,
                     Key = "C:" + elementId,
                     Label = "Current Model Wall [" + elementId + "]"
                 };
             }
 
             public static FamilyOpeningHost FromLinked(
-                Document linkDoc,
                 Element element,
                 RevitLinkInstance linkInstance,
                 Transform linkToHost,
@@ -3072,11 +3293,9 @@ namespace AJTools.Services.MepOpenings
                 string sourceLabel = string.IsNullOrWhiteSpace(linkName) ? "Linked Model" : linkName;
                 return new FamilyOpeningHost
                 {
-                    Document = linkDoc,
                     Element = element,
                     TransformToHost = linkToHost ?? Transform.Identity,
                     IsLinked = true,
-                    LinkInstanceId = linkInstance == null ? ElementId.InvalidElementId : linkInstance.Id,
                     Key = "L:" + linkId + ":" + elementId,
                     Label = sourceLabel + " Wall [" + elementId + "]"
                 };
@@ -3085,9 +3304,6 @@ namespace AJTools.Services.MepOpenings
 
         private sealed class FamilyOpeningCandidate
         {
-            public ElementId MepElementId { get; set; }
-            public MepOpeningElementKind ElementKind { get; set; }
-            public FamilyOpeningHost Host { get; set; }
             public string HostKey { get; set; }
             public string FamilyDisplayName { get; set; }
             public OpeningBox Box { get; set; }
@@ -3212,7 +3428,6 @@ namespace AJTools.Services.MepOpenings
         private sealed class ExistingOpeningInfo
         {
             public ElementId OpeningId { get; set; }
-            public ElementId HostId { get; set; }
             public OpeningBox Box { get; set; }
         }
 
@@ -3552,14 +3767,6 @@ namespace AJTools.Services.MepOpenings
             public int GetHashCode(ElementId obj)
             {
                 return ElementIdHelper.GetIntegerValue(obj).GetHashCode();
-            }
-        }
-
-        private sealed class MepOpeningFailurePreprocessor : IFailuresPreprocessor
-        {
-            public FailureProcessingResult PreprocessFailures(FailuresAccessor failuresAccessor)
-            {
-                return FailureProcessingResult.Continue;
             }
         }
     }

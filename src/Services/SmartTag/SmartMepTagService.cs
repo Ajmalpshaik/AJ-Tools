@@ -16,6 +16,7 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using AJTools.Models.SmartTag;
 using AJTools.Services.CreateTags;
+using AJTools.Services.TagClash;
 using AJTools.Services.ViewCrop;
 using AJTools.Utils;
 
@@ -100,7 +101,6 @@ namespace AJTools.Services.SmartTag
                 {
                     // No crop region — use a very large outline so nothing is excluded.
                     // This is valid: some views legitimately have no crop.
-                    result.CropRegionPoints = null;
                     result.CropOutline = null;
                     result.Warnings.Add("Crop region is not active. All visible elements will be considered for tagging.");
                 }
@@ -115,17 +115,6 @@ namespace AJTools.Services.SmartTag
                         return PreFlightResult.Fail("Crop region is active but its extents could not be resolved.");
 
                     result.CropOutline = cropOutline;
-                    XYZ min = cropOutline.MinimumPoint;
-                    XYZ max = cropOutline.MaximumPoint;
-
-                    // Store the 4 corner points of the crop region for polygon checks if needed.
-                    result.CropRegionPoints = new List<XYZ>
-                    {
-                        new XYZ(min.X, min.Y, min.Z),
-                        new XYZ(max.X, min.Y, min.Z),
-                        new XYZ(max.X, max.Y, min.Z),
-                        new XYZ(min.X, max.Y, min.Z)
-                    };
                 }
             }
             catch (Exception ex)
@@ -187,21 +176,15 @@ namespace AJTools.Services.SmartTag
                 ElementId templateId = activeView.ViewTemplateId;
                 if (templateId != null && templateId != ElementId.InvalidElementId)
                 {
-                    result.HasViewTemplate = true;
                     Element template = doc.GetElement(templateId);
                     string templateName = template != null ? template.Name : "Unknown";
                     result.Warnings.Add(
                         string.Format("View Template \"{0}\" is applied. If tagging categories are hidden by the template, some tags may fail to place.", templateName));
                 }
-                else
-                {
-                    result.HasViewTemplate = false;
-                }
             }
             catch (Exception)
             {
                 // Non-fatal — proceed without template info.
-                result.HasViewTemplate = false;
             }
 
             return result;
@@ -285,11 +268,10 @@ namespace AJTools.Services.SmartTag
 
                     foreach (Element elem in collector)
                     {
-                        // Hard constraint: never tag elements from linked models.
-                        // Elements in the host model have a null GetTypeId check — linked elements
-                        // would come from a RevitLinkInstance collector, which we never use.
-                        // FilteredElementCollector scoped to the view only returns host elements,
-                        // but we add an explicit guard for safety.
+                        // Hard constraint: never tag elements from linked models. Nothing here needs
+                        // to check for that - a collector scoped to the active view only ever returns
+                        // elements of this document, never the contents of a link - so the only guard
+                        // is against a null element.
                         if (elem == null)
                             continue;
 
@@ -385,6 +367,21 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
+                // FILTER 4.2 — MINOR PIPE ACCESSORIES
+                // A name filter, not a size one: it used to run inside the size filter and was
+                // reported as "Below size threshold", which sent the user looking at sizes.
+                string accessorySkipReason;
+                if (IsMinorPipeAccessory(elem, bic, out accessorySkipReason))
+                {
+                    results.Add(new TagPlacementResult
+                    {
+                        ElementId = eid, Category = bic, Success = false,
+                        SkipReason = TagSkipReason.FilteredOutType,
+                        Note = accessorySkipReason
+                    });
+                    continue;
+                }
+
                 // FILTER 4.5 — VERTICAL RUNS
                 // One rule for every tagging tool now. This used to be hard-coded ON and duct-only,
                 // while Create Tags and Stack Tags already skipped duct, pipe AND cable tray - so the
@@ -433,11 +430,13 @@ namespace AJTools.Services.SmartTag
                     elementCurve = locCurve.Curve;
                 }
 
-                double hostWidth = 0;
-                if (bic == BuiltInCategory.OST_DuctCurves && elem is Duct d)
-                {
-                    hostWidth = GetDuctWidth(d);
-                }
+                BoundingBoxXYZ viewBox = elem.get_BoundingBox(activeView);
+
+                // Every category gets a width now, so the placement engine measures each tag's gap
+                // from the element's EDGE ("150 mm from its edge"), not from its centre. Only ducts
+                // had one before; an accessory or a piece of equipment got 0, so its tag sat the gap
+                // from its middle and its own outline could block every side.
+                double hostWidth = GetHostWidth(elem, bic, activeView, viewBox);
 
                 // FILTER 5 — DENSITY PRE-CHECK
                 // Count elements within 500mm radius. Flag but don't skip yet — priority decides later.
@@ -446,7 +445,7 @@ namespace AJTools.Services.SmartTag
                     ElementId = eid,
                     Category = bic,
                     Priority = SmartTagSettingsTracker.ResolvePriority(settingsState, bic),
-                    BoundingBox = elem.get_BoundingBox(activeView),
+                    BoundingBox = viewBox,
                     Midpoint = midpoint,
                     ElementCurve = elementCurve,
                     IsDenseZone = false,
@@ -655,21 +654,8 @@ namespace AJTools.Services.SmartTag
                     }
                 }
 
-                switch (category)
-                {
-                    case BuiltInCategory.OST_PipeAccessory:
-                        // Only tag valves, dampers, and major fittings.
-                        // We check the family name for common accessory types.
-                        if (!IsMajorAccessory(elem))
-                        {
-                            reason = "Minor accessory — not a valve, damper, or major fitting";
-                            return false;
-                        }
-                        break;
-                    case BuiltInCategory.OST_DuctAccessory:
-                        // All duct accessories are tagged, regardless of size or subtype.
-                        break;
-                }
+                // The minor-accessory name check that used to sit here is now its own filter,
+                // IsMinorPipeAccessory, so its skips are no longer reported as a size problem.
             }
             catch (Exception)
             {
@@ -677,6 +663,25 @@ namespace AJTools.Services.SmartTag
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// True for a pipe accessory that is not a valve, damper or other major fitting - those are
+        /// left untagged. All duct accessories are tagged, regardless of size or subtype.
+        /// </summary>
+        private static bool IsMinorPipeAccessory(Element elem, BuiltInCategory category, out string reason)
+        {
+            reason = null;
+
+            // Only tag valves, dampers, and major fittings.
+            // We check the family name for common accessory types.
+            if (category == BuiltInCategory.OST_PipeAccessory && !IsMajorAccessory(elem))
+            {
+                reason = "Minor accessory — not a valve, damper, or major fitting";
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -703,9 +708,6 @@ namespace AJTools.Services.SmartTag
             return -1;
         }
 
-        /// <summary>
-        /// Returns the duct width (or diameter for round ducts) in feet.
-        /// </summary>
         /// <summary>
         /// Reads a run's cross-section in mm. A round section reports its diameter as BOTH width and
         /// height (Ajmal's call, 2026-08-17), so a 150mm pipe clears a 100x100 minimum.
@@ -741,6 +743,15 @@ namespace AJTools.Services.SmartTag
 
                 widthMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_WIDTH_PARAM);
                 heightMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
+
+                // A cable tray keeps its size in its own pair of parameters, not the duct ones.
+                // Without these the width/height minimums the settings window says apply to cable
+                // trays never reached a single tray.
+                if (widthMm <= 0.0 || heightMm <= 0.0)
+                {
+                    widthMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM);
+                    heightMm = ReadParameterMm(mepCurve, BuiltInParameter.RBS_CABLETRAY_HEIGHT_PARAM);
+                }
 
                 return widthMm > 0.0 && heightMm > 0.0;
             }
@@ -788,9 +799,6 @@ namespace AJTools.Services.SmartTag
             return -1;
         }
 
-        /// <summary>
-        /// Returns the pipe diameter in feet.
-        /// </summary>
         // GetPipeDiameter removed v1.49.7 - its only caller was the old hardcoded pipe size filter.
         // Its knowledge is not lost: TryGetCrossSectionMm reads RBS_PIPE_DIAMETER_PARAM as well as
         // RBS_CURVE_DIAMETER_PARAM, which is the whole reason pipes can now be size-filtered at all.
@@ -840,6 +848,160 @@ namespace AJTools.Services.SmartTag
             {
                 return true; // On error, include the element.
             }
+        }
+
+        /// <summary>
+        /// How wide the element is across its run, in feet. The placement engine adds half of this to
+        /// every tag offset, so a tag's gap is measured from the element's EDGE - "150 mm from its
+        /// edge" for a tag with no leader - instead of from its centre.
+        /// </summary>
+        /// <remarks>
+        /// - Duct: exactly the value it always had (GetDuctWidth).
+        /// - Pipe and cable tray: their own size, read the same way - a pipe's outside diameter, a
+        ///   tray's width. Parameters rather than the view box, because a run lying at an angle in the
+        ///   view has a box far wider than the run itself.
+        /// - Duct and pipe accessories: the view box measured ACROSS the run they sit in, the run read
+        ///   from their two end connectors. Across is where a no-leader tag ends up - along the run it
+        ///   would sit on the accessory's own duct or pipe.
+        /// - Equipment, and an accessory whose run is seen end-on (a riser in plan): the narrower side
+        ///   of the view box. The tag then sits the full gap off the narrow sides, and on the long
+        ///   sides a position that would land on the element itself is rejected.
+        /// Anything that cannot be read gives 0, which measures from the centre as before.
+        /// </remarks>
+        private static double GetHostWidth(Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox)
+        {
+            switch (category)
+            {
+                case BuiltInCategory.OST_DuctCurves:
+                    return elem is Duct duct ? GetDuctWidth(duct) : 0.0;
+
+                case BuiltInCategory.OST_PipeCurves:
+                    return ReadFirstLengthFeet(
+                        elem,
+                        BuiltInParameter.RBS_PIPE_OUTER_DIAMETER,
+                        BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+
+                case BuiltInCategory.OST_CableTray:
+                    return ReadFirstLengthFeet(elem, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM);
+
+                default:
+                    return GetViewBoxHostWidth(elem, category, view, viewBox);
+            }
+        }
+
+        /// <summary>
+        /// The first of the given length parameters that holds a positive value, in feet; 0 if none.
+        /// </summary>
+        private static double ReadFirstLengthFeet(Element element, params BuiltInParameter[] parameters)
+        {
+            foreach (BuiltInParameter parameter in parameters)
+            {
+                try
+                {
+                    Parameter found = element.get_Parameter(parameter);
+                    if (found == null || !found.HasValue || found.StorageType != StorageType.Double)
+                        continue;
+
+                    double value = found.AsDouble();
+                    if (value > 0.0)
+                        return value;
+                }
+                catch (Exception)
+                {
+                    // Try the next parameter.
+                }
+            }
+
+            return 0.0;
+        }
+
+        /// <summary>
+        /// HostWidth for an accessory or a piece of equipment, measured from its box in the view -
+        /// see GetHostWidth for which side is used and why.
+        /// </summary>
+        private static double GetViewBoxHostWidth(
+            Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox)
+        {
+            try
+            {
+                XYZ viewRight = TagViewGeometry.GetViewRight(view);
+                XYZ viewUp = TagViewGeometry.GetViewUp(view);
+                AnnotationBox box = TagViewGeometry.ToViewBox(viewBox, viewRight, viewUp);
+                if (box == null)
+                    return 0.0;
+
+                double sizeAlongRight = box.MaxX - box.MinX;
+                double sizeAlongUp = box.MaxY - box.MinY;
+
+                XYZ run;
+                if ((category == BuiltInCategory.OST_DuctAccessory || category == BuiltInCategory.OST_PipeAccessory)
+                    && TryGetInlineRunDirection(elem, out run)
+                    && !IsSeenEndOn(run, view))
+                {
+                    // A run lying left-right in the view is crossed up-down, and the other way round.
+                    return Math.Abs(run.DotProduct(viewRight)) >= Math.Abs(run.DotProduct(viewUp))
+                        ? sizeAlongUp
+                        : sizeAlongRight;
+                }
+
+                return Math.Min(sizeAlongRight, sizeAlongUp);
+            }
+            catch (Exception)
+            {
+                return 0.0;
+            }
+        }
+
+        /// <summary>
+        /// The direction of the run an inline fitting sits in, from its two end connectors. False when
+        /// it does not have exactly two (a three-way valve has no single run to measure across).
+        /// </summary>
+        private static bool TryGetInlineRunDirection(Element elem, out XYZ direction)
+        {
+            direction = null;
+
+            try
+            {
+                ConnectorManager manager = (elem as FamilyInstance)?.MEPModel?.ConnectorManager;
+                if (manager == null)
+                    return false;
+
+                var ends = new List<XYZ>();
+                foreach (Connector connector in manager.Connectors)
+                {
+                    if (connector == null || !connector.IsValidObject || connector.ConnectorType != ConnectorType.End)
+                        continue;
+
+                    ends.Add(connector.Origin);
+                }
+
+                if (ends.Count != 2 || ends[0] == null || ends[1] == null)
+                    return false;
+
+                XYZ between = ends[1] - ends[0];
+                if (between.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
+                    return false;
+
+                direction = between.Normalize();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// True when a run points mostly into or out of the view - the same 0.7 test
+        /// GetElementOrientation uses for a riser.
+        /// </summary>
+        private static bool IsSeenEndOn(XYZ runDirection, View view)
+        {
+            XYZ viewNormal = view?.ViewDirection;
+            if (runDirection == null || viewNormal == null || viewNormal.GetLength() <= Constants.ZERO_LENGTH_TOLERANCE)
+                return false;
+
+            return Math.Abs(runDirection.DotProduct(viewNormal.Normalize())) > 0.7;
         }
 
         /// <summary>
@@ -1395,8 +1557,8 @@ namespace AJTools.Services.SmartTag
         }
 
         /// <summary>
-        /// Maps a tag annotation category to the model category it tags.
-        /// E.g. OST_DuctTags → OST_DuctCurves.
+        /// The tag type Revit is already set up to use for each category: the type most used by tags
+        /// already in this view, otherwise the project's default tag type for that category.
         /// </summary>
         private static Dictionary<BuiltInCategory, ElementId> CollectConfiguredTagTypes(
             Document doc,
@@ -1574,6 +1736,10 @@ namespace AJTools.Services.SmartTag
             }
         }
 
+        /// <summary>
+        /// Maps a tag annotation category to the model category it tags.
+        /// E.g. OST_DuctTags → OST_DuctCurves.
+        /// </summary>
         private static BuiltInCategory MapTagCategoryToModelCategory(int tagCategoryId)
         {
             // Tag category integer IDs for Revit 2020.
@@ -1640,7 +1806,6 @@ namespace AJTools.Services.SmartTag
             return null;
         }
 
-        // ═══════════════════════════════════════════════════════════════
         private static string GetTagDisplayName(FamilySymbol symbol)
         {
             if (symbol == null)
@@ -1651,13 +1816,17 @@ namespace AJTools.Services.SmartTag
             return familyName + " :: " + typeName;
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // MAIN ENTRY POINT
         // Called by the command — orchestrates all phases in sequence.
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Executes the full Smart MEP Tagging pipeline on the active view.
-        /// Returns Result.Succeeded if at least one tag was placed, Result.Cancelled otherwise.
+        /// Returns Result.Succeeded when at least one tag was placed, and also when there was nothing
+        /// to tag (the user is told why); Result.Failed only when Revit gives no command context; and
+        /// Result.Cancelled otherwise - a check that did not pass, the user stopping it, or no tag
+        /// placed.
         /// </summary>
         public static Result Execute(ExternalCommandData commandData, ref string message)
         {

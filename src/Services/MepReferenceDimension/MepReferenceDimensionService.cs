@@ -7,10 +7,10 @@
  *                 creates the dimensions in a single undoable step, and returns the run report.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -28,8 +28,10 @@
  *   reverses everything. The previous tool opened and committed a transaction per dimension, leaving
  *   one undo step per dimension - a batch over a busy view could not be taken back in one go.
  *   An empty session rolls the group back so no undo entry is left at all.
- * - This service does NOT show dialogs. It returns the report and the command decides - shared code
- *   that raises its own TaskDialog blocks Revit when called from anywhere but the ribbon.
+ * - This service returns the report and the command decides what to show - shared code that raises
+ *   its own TaskDialog blocks Revit when called from anywhere but the ribbon. The one exception is
+ *   Pick runs mode, which is interactive anyway: a pick it cannot measure (a non-service element, or
+ *   a linked model) gets a one-line notice before the next pick.
  * - Existing dimensions are matched on (link instance id, element id) pairs, because for a linked
  *   reference Reference.ElementId is the RevitLinkInstance, not the element. Comparing the wrong one
  *   makes one dimension to any linked element look like a dimension to every linked element.
@@ -38,6 +40,12 @@
  *   different lengths sit metres apart along the run even when one chain completely contains the other.
  *
  * Changelog     :
+ * v1.1.1 (2026-10-12) - "Earlier dimensions replaced" counts only dimensions that were actually
+ *                       deleted - a delete Revit refused used to be counted as done. Picking a linked
+ *                       model in Pick runs mode now says linked runs cannot be picked there, instead
+ *                       of "not one of the service categories". Notes corrected: the pick loop does
+ *                       show that one notice. The collector no longer receives a covered-runs set it
+ *                       never read.
  * v1.1.0 (2026-08-16) - Two dimensions measuring the same wall-to-run relationship are no longer left
  *                       stacked. RecordsOverlap dropped the "same station along the run" gate that
  *                       rejected exactly the pairs it was meant to catch, and AddsNothingNew gained an
@@ -105,7 +113,8 @@ namespace AJTools.Services.MepReferenceDimension
         };
 
         /// <summary>
-        /// Runs the workflow. Never shows a dialog; the caller decides what to show.
+        /// Runs the workflow and returns the report; the caller decides what to show. The only
+        /// dialog raised here is Pick runs mode's notice for a pick it cannot measure.
         /// </summary>
         internal static MepDimensionRunResult Execute(
             ExternalCommandData commandData,
@@ -249,6 +258,17 @@ namespace AJTools.Services.MepReferenceDimension
 
                 if (!filter.IsAllowedRun(element))
                 {
+                    // A click on a linked model hands back the link itself - this mode picks whole
+                    // elements, so a run inside a link can never be picked. Say that, rather than the
+                    // misleading "not a service category".
+                    if (element is RevitLinkInstance)
+                    {
+                        DialogHelper.ShowInfo(title,
+                            "Runs inside a linked model cannot be picked in Pick runs mode. Pick a run in this project.");
+                        report.RecordSkipped("Picked a linked model - linked runs cannot be picked in Pick runs mode");
+                        continue;
+                    }
+
                     DialogHelper.ShowInfo(title, "That is not one of the service categories this tool is set to measure.");
                     report.RecordSkipped("Picked element was not a measured service category");
                     continue;
@@ -307,7 +327,7 @@ namespace AJTools.Services.MepReferenceDimension
                 return;
             }
 
-            DimensionPlanResult planResult = collector.BuildPlans(doc, view, source, run, coveredKeys);
+            DimensionPlanResult planResult = collector.BuildPlans(doc, view, source, run);
 
             if (planResult.Failures != null)
             {
@@ -347,6 +367,10 @@ namespace AJTools.Services.MepReferenceDimension
 
                 toDelete.AddRange(FindSupersededOwnedDimensions(doc, view, plan, proposed, toDelete));
 
+                // Only dimensions that were actually removed count as "replaced". A delete Revit
+                // refuses is still skipped quietly, but it no longer shows up in the report as done.
+                int replacedCount = 0;
+
                 using (Transaction transaction = new Transaction(doc, TransactionName))
                 {
                     try
@@ -373,7 +397,11 @@ namespace AJTools.Services.MepReferenceDimension
                         // Only now that the replacement exists is the old one removed.
                         foreach (ElementId oldId in toDelete.Distinct(new ElementIdIntegerComparer()))
                         {
-                            try { doc.Delete(oldId); }
+                            try
+                            {
+                                doc.Delete(oldId);
+                                replacedCount++;
+                            }
                             catch { /* leaving a superseded dimension behind is not worth failing over */ }
                         }
 
@@ -392,8 +420,8 @@ namespace AJTools.Services.MepReferenceDimension
                 foreach (DimensionLineRecord gone in supersededHere)
                     createdRecords.Remove(gone);
 
-                if (toDelete.Count > 0)
-                    report.RecordReplaced(toDelete.Count);
+                if (replacedCount > 0)
+                    report.RecordReplaced(replacedCount);
 
                 createdRecords.Add(proposed);
                 MarkCovered(coveredKeys, plan.CoveredElementKeys);
@@ -584,8 +612,7 @@ namespace AJTools.Services.MepReferenceDimension
                 }
 
                 if (!MepDimensionGeometry.TryGetLineIntervalAlongAxis(
-                        curve, plan.Axis, out double minCoord, out double maxCoord,
-                        out double runCoord, out XYZ direction))
+                        curve, plan.Axis, out double minCoord, out double maxCoord, out XYZ direction))
                 {
                     continue;
                 }
@@ -647,8 +674,7 @@ namespace AJTools.Services.MepReferenceDimension
                 catch { continue; }
 
                 if (!MepDimensionGeometry.TryGetLineIntervalAlongAxis(
-                        curve, plan.Axis, out double minCoord, out double maxCoord,
-                        out double runCoord, out XYZ direction))
+                        curve, plan.Axis, out double minCoord, out double maxCoord, out XYZ direction))
                 {
                     continue;
                 }

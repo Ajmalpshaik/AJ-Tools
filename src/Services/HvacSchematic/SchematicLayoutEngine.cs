@@ -90,7 +90,6 @@ namespace AJTools.Services.HvacSchematic
                 ResetNetworkState(networkNodes);
 
                 SchematicNode root = ChooseRoot(networkNodes, adjacency, edges);
-                root.IsRoot = true;
                 root.ParentElementId = ElementId.InvalidElementId;
 
                 Dictionary<int, int> parentById = BuildDirectedTree(root, adjacency, nodeById, edges);
@@ -154,7 +153,6 @@ namespace AJTools.Services.HvacSchematic
                     double guideY = 0 - (bandIndex * LevelBandSpacing);
                     double trunkY = guideY + TrunkOffsetFromGuide;
                     node.GuideY = guideY;
-                    node.TrunkY = trunkY;
                     double x = componentStartX + (node.ColumnIndex * ColumnSpacing);
                     node.Position = new XYZ(x, GetNodeY(node, trunkY), 0);
                 }
@@ -302,14 +300,11 @@ namespace AJTools.Services.HvacSchematic
             for (int i = 0; i < networkNodes.Count; i++)
             {
                 SchematicNode node = networkNodes[i];
-                node.IsRoot = false;
                 node.Depth = int.MaxValue;
                 node.ColumnIndex = int.MaxValue;
                 node.ParentElementId = ElementId.InvalidElementId;
                 node.BranchTier = 0;
-                node.IsTrunk = false;
                 node.GuideY = 0;
-                node.TrunkY = 0;
                 node.Position = new XYZ();
             }
         }
@@ -375,7 +370,6 @@ namespace AJTools.Services.HvacSchematic
             SchematicNode node = nodeById[nodeId];
             int clampedRow = Math.Max(0, Math.Min(row, MaxBranchRow));
             node.BranchTier = clampedRow;
-            node.IsTrunk = clampedRow == 0;
             node.ColumnIndex = Math.Max(0, startColumn);
 
             List<int> children = childrenByParent[nodeId];

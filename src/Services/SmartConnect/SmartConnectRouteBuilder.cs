@@ -1125,20 +1125,36 @@ namespace AJTools.Services.SmartConnect
                 }
             }
 
-            if (failed > 0 && copied == 0)
+            // Any piece that missed out is worth saying - it used to be reported only when EVERY
+            // piece failed, so one bare piece in an insulated run went unmentioned.
+            if (failed > 0)
             {
-                result.Warnings.Add("Insulation or lining could not be copied onto the new pieces.");
+                result.Warnings.Add(copied == 0
+                    ? "Insulation or lining could not be copied onto the new pieces."
+                    : string.Format(
+                        "Insulation or lining could not be copied onto {0} of the {1} new pieces.",
+                        failed,
+                        copied + failed));
             }
         }
 
+        /// <summary>
+        /// Copies the source run's insulation and lining onto one new piece. False when something
+        /// that should have been copied was not.
+        /// </summary>
+        /// <remarks>
+        /// Revit answers "not a valid host" (an ArgumentException) when asked for the insulation of
+        /// something that cannot carry any - a cable tray, a conduit - or for the lining of anything
+        /// that is not a duct. That means there is nothing to copy, not a failed copy. Every other
+        /// error counts as a failure. It used to be the other way round: any error before the first
+        /// copy counted as success, and a pipe's lining query - which always throws - turned every
+        /// successful pipe insulation copy into a reported failure.
+        /// </remarks>
         private bool TryCopyInsulationAndLining(Element source, Element target)
         {
-            bool anythingAttempted = false;
-
             try
             {
-                ICollection<ElementId> insulationIds = InsulationLiningBase.GetInsulationIds(_document, source.Id);
-                foreach (ElementId insulationId in insulationIds)
+                foreach (ElementId insulationId in GetInsulationOrLiningIds(source, true))
                 {
                     InsulationLiningBase insulation = _document.GetElement(insulationId) as InsulationLiningBase;
                     if (insulation == null)
@@ -1146,7 +1162,6 @@ namespace AJTools.Services.SmartConnect
                         continue;
                     }
 
-                    anythingAttempted = true;
                     if (target is Duct)
                     {
                         DuctInsulation.Create(_document, target.Id, insulation.GetTypeId(), insulation.Thickness);
@@ -1157,8 +1172,7 @@ namespace AJTools.Services.SmartConnect
                     }
                 }
 
-                ICollection<ElementId> liningIds = InsulationLiningBase.GetLiningIds(_document, source.Id);
-                foreach (ElementId liningId in liningIds)
+                foreach (ElementId liningId in GetInsulationOrLiningIds(source, false))
                 {
                     InsulationLiningBase lining = _document.GetElement(liningId) as InsulationLiningBase;
                     if (lining == null || !(target is Duct))
@@ -1166,16 +1180,33 @@ namespace AJTools.Services.SmartConnect
                         continue;
                     }
 
-                    anythingAttempted = true;
                     DuctLining.Create(_document, target.Id, lining.GetTypeId(), lining.Thickness);
                 }
             }
             catch
             {
-                return !anythingAttempted;
+                return false;
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// The source's insulation (or lining) ids - empty when Revit says it cannot carry any.
+        /// </summary>
+        private ICollection<ElementId> GetInsulationOrLiningIds(Element source, bool insulation)
+        {
+            try
+            {
+                return insulation
+                    ? InsulationLiningBase.GetInsulationIds(_document, source.Id)
+                    : InsulationLiningBase.GetLiningIds(_document, source.Id);
+            }
+            catch (Autodesk.Revit.Exceptions.ArgumentException)
+            {
+                // "Not a valid host" - nothing of this kind to copy.
+                return new List<ElementId>();
+            }
         }
 
         private void CheckForClashes(
@@ -1309,7 +1340,14 @@ namespace AJTools.Services.SmartConnect
             SegmentTemplate fromFirst = TryBuildTemplate(firstElement);
             SegmentTemplate fromSecond = TryBuildTemplate(secondElement);
 
-            template = fromFirst ?? fromSecond;
+            // A rigid pick lends its OWN type, whichever order the two were picked in. A flex pick can
+            // only lend the project's first-found rigid type of its discipline, so that is used only
+            // when neither pick is a rigid run. (Picking the flex first used to win and ignore the
+            // rigid run's type entirely.)
+            bool secondIsRigidRun = fromSecond != null && !IsFlexRun(secondElement);
+            template = IsFlexRun(firstElement) && secondIsRigidRun
+                ? fromSecond
+                : fromFirst ?? fromSecond;
             if (template == null)
             {
                 errorMessage = "Pick at least one pipe, duct, cable tray or conduit - two equipment items on their own cannot be joined.";
@@ -1317,6 +1355,11 @@ namespace AJTools.Services.SmartConnect
             }
 
             return true;
+        }
+
+        private static bool IsFlexRun(Element element)
+        {
+            return element is FlexDuct || element is FlexPipe;
         }
 
         private SegmentTemplate TryBuildTemplate(Element element)

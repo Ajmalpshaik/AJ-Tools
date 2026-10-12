@@ -3,13 +3,13 @@
  * Tool Name     : Auto MEP Dimension
  * File Name     : MepRunSelectionFilter.cs
  * Purpose       : Selection filter for picking a service run to dimension - ducts, flex ducts, pipes,
- *                 flex pipes, cable tray and conduit, in the open project or inside a Revit link.
+ *                 flex pipes, cable tray and conduit, in the open project.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-08-15
- * Last Updated  : 2026-08-15
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -21,14 +21,17 @@
  * Output        : Whether each may be picked.
  *
  * Notes         :
- * - AllowReference returns TRUE, unlike the duct-only filter it replaces. With it false, PickObject
- *   can never return a reference inside a RevitLinkInstance, so picking a run in a linked model was
- *   impossible no matter what the settings said.
+ * - AllowReference returns TRUE, unlike the duct-only filter it replaces - but that alone does not
+ *   make a run inside a link pickable. Pick runs mode picks whole elements (ObjectType.Element), and
+ *   for a click on a linked model Revit hands back the RevitLinkInstance itself, never the run inside
+ *   it. The command answers that pick with a message saying linked runs cannot be picked there.
  * - AllowElement stays permissive about non-run elements so the command can say "that is not a run"
  *   and let the user try again, rather than making wrong picks silently unclickable.
  *
  * Changelog     :
  * v1.0.0 (2026-08-15) - Initial release, replacing DuctSelectionFilter.
+ * v1.0.1 (2026-10-12) - Removed AllowedCategoryIds (nothing read it) and corrected the notes: this
+ *                       filter never made runs inside a link pickable.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -44,7 +47,7 @@ using AJTools.Utils;
 namespace AJTools.Services.MepReferenceDimension
 {
     /// <summary>
-    /// Allows service runs to be picked, in the open project or inside a link.
+    /// Allows service runs to be picked, in the open project.
     /// </summary>
     internal sealed class MepRunSelectionFilter : ISelectionFilter
     {
@@ -65,8 +68,8 @@ namespace AJTools.Services.MepReferenceDimension
         }
 
         /// <summary>
-        /// Must be true for linked picks to arrive at all - a reference inside a RevitLinkInstance is
-        /// only offered when the filter accepts references.
+        /// Accepts every reference. This does not make a run inside a link pickable on its own - see
+        /// the notes at the top of this file.
         /// </summary>
         public bool AllowReference(Reference reference, XYZ position)
         {
@@ -81,12 +84,6 @@ namespace AJTools.Services.MepReferenceDimension
                 return false;
 
             return _allowedCategoryIds.Contains(category.Id.IntValue());
-        }
-
-        /// <summary>The categories this filter accepts, for messages.</summary>
-        internal IReadOnlyCollection<int> AllowedCategoryIds
-        {
-            get { return _allowedCategoryIds; }
         }
     }
 }

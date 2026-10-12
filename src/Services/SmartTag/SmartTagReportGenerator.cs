@@ -35,17 +35,23 @@ namespace AJTools.Services.SmartTag
                 return;
             }
 
+            // Every result lands on exactly one line below, so the lines add up to the total. Two
+            // used to go missing or be misfiled: vertical runs and minor accessories (FilteredOutType)
+            // were counted in the total but shown on no line, and a tag Revit refused to create was
+            // filed under "No Clean Space". A failed result with no skip reason is that refusal.
             int totalAnalysed = results.Count;
             int successCount = results.Count(r => r.Success);
             int alreadyTagged = results.Count(r => r.SkipReason == TagSkipReason.AlreadyTagged);
             int filteredSize = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutSize);
+            int filteredType = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutType);
             int filteredVisibility = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutVisibility);
             int outsideCrop = results.Count(r => r.SkipReason == TagSkipReason.OutsideCropRegion);
             int denseSkipped = results.Count(r => r.SkipReason == TagSkipReason.DenseZoneSkipped);
             int groupSkipped = results.Count(r => r.SkipReason == TagSkipReason.PartOfTaggedGroup);
             int noCleanSpace = results.Count(r => r.SkipReason == TagSkipReason.NoCleanSpaceAvailable);
+            int placementRefused = results.Count(IsPlacementRefused);
             int noTagFamily = results.Count(r => r.SkipReason == TagSkipReason.NoTagFamilyAvailable);
-            int filteredTotal = filteredSize + filteredVisibility + outsideCrop;
+            int filteredTotal = filteredSize + filteredType + filteredVisibility + outsideCrop;
 
             var sb = new StringBuilder();
 
@@ -59,9 +65,11 @@ namespace AJTools.Services.SmartTag
             sb.AppendLine(string.Format("Total Elements Analysed:     {0}", totalAnalysed));
             sb.AppendLine(string.Format("Successfully Tagged:         {0}", successCount));
             sb.AppendLine(string.Format("Already Tagged (skipped):    {0}", alreadyTagged));
-            sb.AppendLine(string.Format("Filtered Out (size/vis):     {0}", filteredTotal));
+            sb.AppendLine(string.Format("Filtered Out:                {0}", filteredTotal));
             if (filteredSize > 0)
                 sb.AppendLine(string.Format("    - Below size threshold:  {0}", filteredSize));
+            if (filteredType > 0)
+                sb.AppendLine(string.Format("    - Vertical/minor items:  {0}", filteredType));
             if (filteredVisibility > 0)
                 sb.AppendLine(string.Format("    - Hidden in view:        {0}", filteredVisibility));
             if (outsideCrop > 0)
@@ -69,6 +77,8 @@ namespace AJTools.Services.SmartTag
             sb.AppendLine(string.Format("Skipped (Dense Zone):        {0}", denseSkipped));
             sb.AppendLine(string.Format("Skipped (Tagged Group):      {0}", groupSkipped));
             sb.AppendLine(string.Format("Failed (No Clean Space):     {0}", noCleanSpace));
+            if (placementRefused > 0)
+                sb.AppendLine(string.Format("Failed (Revit Refused Tag):  {0}", placementRefused));
             sb.AppendLine(string.Format("No Tag Family Found:         {0}", noTagFamily));
 
             // ── Tag warnings ──
@@ -82,7 +92,7 @@ namespace AJTools.Services.SmartTag
 
             // ── Manual review list ──
             List<TagPlacementResult> manualReview = results
-                .Where(r => r.SkipReason == TagSkipReason.NoCleanSpaceAvailable)
+                .Where(r => r.SkipReason == TagSkipReason.NoCleanSpaceAvailable || IsPlacementRefused(r))
                 .ToList();
 
             if (manualReview.Count > 0)
@@ -103,20 +113,21 @@ namespace AJTools.Services.SmartTag
                 }
             }
 
-            string telemetrySummary = SmartTagTelemetryTracker.GetSessionSummary();
-            if (!string.IsNullOrWhiteSpace(telemetrySummary))
-            {
-                sb.AppendLine();
-                sb.AppendLine("SESSION TELEMETRY:");
-                sb.AppendLine(telemetrySummary);
-            }
-
             // ── Display ──
             string title = successCount > 0
                 ? string.Format("Smart MEP Tag — {0} Tags Placed", successCount)
                 : "Smart MEP Tag — Complete (No Tags Placed)";
 
             DialogHelper.ShowDialog(title, GetMainInstruction(successCount, totalAnalysed), sb.ToString());
+        }
+
+        /// <summary>
+        /// A tag that had a clean spot but that Revit refused to create there. The placement engine
+        /// records it as failed with no skip reason - TagSkipReason has no value for it.
+        /// </summary>
+        private static bool IsPlacementRefused(TagPlacementResult result)
+        {
+            return result != null && !result.Success && result.SkipReason == TagSkipReason.None;
         }
 
         /// <summary>

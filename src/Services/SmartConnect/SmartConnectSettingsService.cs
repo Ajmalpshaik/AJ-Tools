@@ -60,11 +60,18 @@ namespace AJTools.Services.SmartConnect
             }
         }
 
-        public void Save(SmartConnectSettings settings)
+        /// <summary>
+        /// Writes the settings file. False, with the reason in <paramref name="errorMessage"/>, when
+        /// it could not be written - the caller tells the user, because a save that fails silently
+        /// leaves them believing settings are in force that never reached the file.
+        /// </summary>
+        public bool Save(SmartConnectSettings settings, out string errorMessage)
         {
+            errorMessage = string.Empty;
             if (settings == null)
             {
-                return;
+                errorMessage = "No settings to save.";
+                return false;
             }
 
             try
@@ -79,10 +86,12 @@ namespace AJTools.Services.SmartConnect
                 SmartConnectSettings sanitized = Sanitize(settings);
                 string json = JsonConvert.SerializeObject(sanitized, Formatting.Indented);
                 File.WriteAllText(settingsPath, json);
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Settings persistence failure should never block tool execution.
+                errorMessage = ex.Message;
+                return false;
             }
         }
 
