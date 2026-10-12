@@ -156,12 +156,11 @@ namespace AJTools.Services.SmartTag
         /// how accessory tags ended up under their elements instead of next to them. Here the order
         /// decides, and the checks only say yes or no.
         ///
-        /// The element's OWN box is left out of the model-obstacle check. The gap to its own element
-        /// is set on purpose - HostWidth plus the 150 mm offset puts the tag that far from the
-        /// element's edge - while the clearance used against everything else is paper-based (1.5 mm
-        /// on the sheet, so 150 mm at 1:100 and 300 mm at 1:200) and would otherwise eat that gap
-        /// and block every side. A position that actually lands ON the element is still refused,
-        /// by a direct check against <paramref name="hostBox"/>.
+        /// The element's OWN box is in the obstacle index and is not excluded. For a duct that does
+        /// no harm: its HostWidth puts every position a full offset clear of the duct's own edge.
+        /// Every other category has no HostWidth (0), so its positions are measured from the
+        /// element's centre, and the element's own box - with the paper clearance added - can block
+        /// some or all of its sides.
         /// </remarks>
         private static XYZ FindFirstClearNoLeaderPosition(
             Dictionary<TagDirection, XYZ> positions,
@@ -170,8 +169,6 @@ namespace AJTools.Services.SmartTag
             List<AnnotationBox> annotations,
             AnnotationSpatialIndex annotationIndex,
             AnnotationSpatialIndex modelIndex,
-            AnnotationBox ownModelBox,
-            AnnotationBox hostBox,
             double tagWidth,
             double tagHeight,
             int viewScale,
@@ -198,13 +195,10 @@ namespace AJTools.Services.SmartTag
                 if (proposed == null)
                     continue;
 
-                if (hostBox != null && proposed.Overlaps(hostBox))
-                    continue;
-
                 if (OverlapsAnything(proposed, annotationIndex, annotations, clearanceFeet))
                     continue;
 
-                if (OverlapsAnything(proposed, modelIndex, null, clearanceFeet, ownModelBox))
+                if (OverlapsAnything(proposed, modelIndex, null, clearanceFeet))
                     continue;
 
                 return pos;
@@ -215,14 +209,12 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// True when the box touches anything in the index, within the given clearance.
-        /// <paramref name="ignore"/>, when given, is one box in the index that does not count.
         /// </summary>
         private static bool OverlapsAnything(
             AnnotationBox proposed,
             AnnotationSpatialIndex index,
             List<AnnotationBox> fallbackList,
-            double clearanceFeet,
-            AnnotationBox ignore = null)
+            double clearanceFeet)
         {
             AnnotationBox grown = proposed.Inflated(clearanceFeet);
 
@@ -230,7 +222,7 @@ namespace AJTools.Services.SmartTag
             {
                 foreach (AnnotationBox other in index.Query(grown))
                 {
-                    if (other != null && !ReferenceEquals(other, ignore) && other.Overlaps(grown))
+                    if (other != null && other.Overlaps(grown))
                         return true;
                 }
 
@@ -241,7 +233,7 @@ namespace AJTools.Services.SmartTag
             {
                 foreach (AnnotationBox other in fallbackList)
                 {
-                    if (other != null && !ReferenceEquals(other, ignore) && other.Overlaps(grown))
+                    if (other != null && other.Overlaps(grown))
                         return true;
                 }
             }
@@ -251,8 +243,7 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// Model elements the tag should not be dropped on top of - ducts, fittings, accessories and
-        /// equipment as they appear in this view. <paramref name="boxByElement"/> says which box is
-        /// whose, so a tag's own element can be left out of its own check.
+        /// equipment as they appear in this view.
         /// </summary>
         /// <remarks>
         /// The scorer has never seen model geometry: it weighs a position against other TAGS, text
@@ -262,15 +253,9 @@ namespace AJTools.Services.SmartTag
         /// nothing for it.
         /// </remarks>
         private static AnnotationSpatialIndex BuildModelObstacleIndex(
-            Document doc,
-            View view,
-            XYZ viewRight,
-            XYZ viewUp,
-            int viewScale,
-            out Dictionary<ElementId, AnnotationBox> boxByElement)
+            Document doc, View view, XYZ viewRight, XYZ viewUp, int viewScale)
         {
             var boxes = new List<AnnotationBox>();
-            boxByElement = new Dictionary<ElementId, AnnotationBox>();
 
             var categories = new[]
             {
@@ -303,10 +288,7 @@ namespace AJTools.Services.SmartTag
 
                             AnnotationBox viewBox = TagViewGeometry.ToViewBox(box, viewRight, viewUp);
                             if (viewBox != null)
-                            {
                                 boxes.Add(viewBox);
-                                boxByElement[element.Id] = viewBox;
-                            }
                         }
                         catch (Exception)
                         {
@@ -1017,7 +999,6 @@ namespace AJTools.Services.SmartTag
             PreFlightResult preflight,
             AnnotationBox placementBoundary,
             AnnotationSpatialIndex modelObstacleIndex,
-            Dictionary<ElementId, AnnotationBox> modelObstacleBoxes,
             XYZ viewRight,
             XYZ viewUp,
             out TagSkipReason skipReason)
@@ -1135,13 +1116,9 @@ namespace AJTools.Services.SmartTag
                         // side of the element when there is really no room there.
                         if (leaderDisabledForCategory && modelObstacleIndex != null)
                         {
-                            AnnotationBox ownModelBox = null;
-                            if (modelObstacleBoxes != null && candidate.ElementId != null)
-                                modelObstacleBoxes.TryGetValue(candidate.ElementId, out ownModelBox);
-
                             XYZ clearPos = FindFirstClearNoLeaderPosition(
                                 positions, priority, placementBoundary, annotations,
-                                spatialIndex, modelObstacleIndex, ownModelBox, hostBox,
+                                spatialIndex, modelObstacleIndex,
                                 tagWidth, tagHeight, viewScale, viewRight, viewUp);
 
                             if (clearPos != null)
@@ -1340,13 +1317,11 @@ namespace AJTools.Services.SmartTag
             // Only built when a category actually has its leader switched off - it is the no-leader
             // placement that needs to know where the ducts are, and a normal run should not pay for it.
             AnnotationSpatialIndex modelObstacleIndex = null;
-            Dictionary<ElementId, AnnotationBox> modelObstacleBoxes = null;
             foreach (TagCandidate probe in candidates)
             {
                 if (probe != null && !SmartTagSettingsTracker.ResolveUseLeader(settingsState, probe.Category))
                 {
-                    modelObstacleIndex = BuildModelObstacleIndex(
-                        doc, activeView, viewRight, viewUp, viewScale, out modelObstacleBoxes);
+                    modelObstacleIndex = BuildModelObstacleIndex(doc, activeView, viewRight, viewUp, viewScale);
                     break;
                 }
             }
@@ -1378,7 +1353,7 @@ namespace AJTools.Services.SmartTag
                 XYZ tagPosition = FindBestTagPosition(
                     candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
                     candidates, candidateSpatialIndex, candidateByBox, taggedGroupMembers,
-                    preflight, placementBoundary, modelObstacleIndex, modelObstacleBoxes, viewRight, viewUp,
+                    preflight, placementBoundary, modelObstacleIndex, viewRight, viewUp,
                     out skipReason);
 
                 if (tagPosition == null)
