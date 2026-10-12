@@ -429,6 +429,10 @@
                             IsCancel="True"
                             Height="34"
                             Width="100" Click="BtnClose_Click"/>
+                    <!-- Result of Save / Import / Export / Create-Rebind (house rule: no success popups). -->
+                    <TextBlock x:Name="txtStatus" DockPanel.Dock="Right" Margin="0,0,12,0"
+                               Foreground="{StaticResource DkFg}" FontSize="11" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="AJ Tools - Duct Standards Manager"
                                Foreground="{StaticResource DkFgDim}" FontSize="10" VerticalAlignment="Center"/>
                 </DockPanel>

@@ -5,6 +5,25 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.57.2] - 2026-10-12
+
+Ajmal's three decisions from the 1.57.1 audit. Builds clean for Revit 2020-2027; **not yet run in Revit**.
+
+- **Fixed: wall openings as wide as the duct is tall.** On a wall running along project Y, a duct taller
+  than it is wide got an opening as wide as its height (a 300 x 600 duct with a 25 mm buffer: 650 mm
+  wide instead of 350). Wall openings are now sized along the wall and upright, from where the duct
+  really sits - a duct laid on its side, a sloping duct or one crossing at an angle gets the footprint
+  it actually leaves on the wall. Round ducts and pipes keep their sizes.
+- **Changed: no "done" popup after a clean run** in Transfer View Templates, Transfer Schedules /
+  Legends / Drafting Views, Revision Clouds by Elements, Unhide All and Match Elevation. Duct Standards
+  shows Save / Import / Export / Create-Rebind results in a line at the bottom of its window. Run Pinned
+  only shows something when the script printed something. HVAC Schematic now opens the drafting view it
+  creates. Anything skipped or failed is still reported. Reassign Level and Shared Parameter to Family
+  Parameter keep their report, because their result cannot be seen on screen.
+- **Changed: Smart MEP Tags measure the tag gap from each element's edge**, not its centre (ducts already
+  worked this way). Tags on pipes, cable trays, accessories and equipment move out by half the
+  element's size - for example about 200 mm further on a 400 mm damper.
+
 ## [1.57.1] - 2026-10-12
 
 A full check of every file, with the mistakes it found fixed. About 100 fixes. Everything builds clean

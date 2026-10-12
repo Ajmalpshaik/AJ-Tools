@@ -37,6 +37,8 @@
  *                       Diameter(Trade Size)). The picker accepted conduits but the size lookup did
  *                       not, so a conduit's top/bottom was treated as its centre - off by half the
  *                       conduit diameter. Pipe and duct sizes unchanged.
+ *                       No success popup: moved picks need none. It now speaks only for picks that could not be moved or
+ *                       were already at that elevation; Esc before any pick is quiet.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -135,6 +137,8 @@ namespace AJTools.Commands
                 // 2) Pick TARGETS in a loop until user cancels. The whole session is grouped so a
                 //    single Ctrl+Z reverses every matched target.
                 int updatedCount = 0;
+                int refusedCount = 0;
+                int alreadyCount = 0;
                 using (TransactionGroup group = new TransactionGroup(doc, title))
                 {
                     group.Start();
@@ -178,6 +182,7 @@ namespace AJTools.Commands
                                 else
                                 {
                                     t.RollBack();
+                                    alreadyCount++;
                                 }
                             }
                             catch (Exception)
@@ -186,7 +191,8 @@ namespace AJTools.Commands
                                 {
                                     t.RollBack();
                                 }
-                                // Skip a target that cannot be moved; keep matching the rest.
+                                // Skip a target that cannot be moved; keep matching the rest, and say so at the end.
+                                refusedCount++;
                             }
                         }
                     }
@@ -201,14 +207,22 @@ namespace AJTools.Commands
                     }
                 }
 
-                if (updatedCount > 0)
+                // House rule: picks that moved need no popup - they moved on screen. Speak only for picks
+                // Revit refused, or when every pick was already at that elevation. Esc with no pick is quiet.
+                if (refusedCount > 0)
                 {
-                    DialogHelper.ShowInfo(title, $"Updated {updatedCount} element(s) to match {modeLower} elevation.");
-                    return Result.Succeeded;
+                    DialogHelper.ShowInfo(
+                        title,
+                        updatedCount > 0
+                            ? $"Updated {updatedCount} element(s). {refusedCount} picked element(s) could not be moved (pinned, or Revit refused the change) and were left as they were."
+                            : $"None of the {refusedCount} picked element(s) could be moved (pinned, or Revit refused the change).");
+                }
+                else if (updatedCount == 0 && alreadyCount > 0)
+                {
+                    DialogHelper.ShowInfo(title, $"Nothing to move - the picked element(s) were already at that {modeLower} elevation.");
                 }
 
-                DialogHelper.ShowInfo(title, "No elements were updated.");
-                return Result.Cancelled;
+                return updatedCount > 0 ? Result.Succeeded : Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {

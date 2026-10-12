@@ -38,6 +38,8 @@
  *                       first". Before, it took the newest revision even when issued, every cloud
  *                       failed, and the error was swallowed and reported as a geometry problem. Failed
  *                       clouds now report the real reason. Angle/tilt logic unchanged.
+ *                       No success popup: a session that clouded everything ends silently; the report appears only when
+ *                       something was skipped or a cloud failed.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -177,6 +179,13 @@ namespace AJTools.Commands
                 }
 
                 string reasonLines = FormatFailureReasons(failureReasons);
+
+                // House rule: a session that clouded everything ends silently - the clouds are on screen.
+                // The report appears only when something was skipped or Revit refused a cloud.
+                if (totalCloudsCreated > 0 && totalFailures == 0 && totalSkipped == 0)
+                {
+                    return Result.Succeeded;
+                }
 
                 if (totalCloudsCreated > 0)
                 {

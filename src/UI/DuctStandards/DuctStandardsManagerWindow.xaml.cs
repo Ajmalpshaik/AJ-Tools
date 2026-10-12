@@ -328,11 +328,7 @@ namespace AJTools.UI.DuctStandards
                 var missingAfter = GetMissingMappedParameterNames(_config);
                 if (missingAfter.Count == 0)
                 {
-                    MessageBox.Show(
-                        "Parameters processed: " + processed + "\nAll mapped parameters are now available.",
-                        DialogTitle,
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    SetStatus("Parameters ready on Ducts (" + processed + " created or updated).");
                 }
                 else
                 {
@@ -947,10 +943,20 @@ namespace AJTools.UI.DuctStandards
             {
                 // The file now holds exactly what is on screen - no longer "defaults from an unreadable file".
                 ClearConfigLoadError();
-                MessageBox.Show("Configuration saved.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus("Settings saved.");
             }
             else
                 MessageBox.Show("Failed to save configuration.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        /// <summary>
+        /// One line in the footer for a finished Save / Import / Export / Create-Rebind. These used to be
+        /// "done" popups; the house rule is that a finished action does not stop the user with a dialog.
+        /// </summary>
+        private void SetStatus(string text)
+        {
+            if (txtStatus != null)
+                txtStatus.Text = text ?? string.Empty;
         }
 
         private void BtnLoadConfig_Click(object sender, RoutedEventArgs e)
@@ -974,7 +980,7 @@ namespace AJTools.UI.DuctStandards
                     _config = DuctStandardsConfigService.ImportFromFile(dlg.FileName);
                     _configLoadError = null; // settings the user chose on purpose
                     PopulateUI();
-                    MessageBox.Show("Config imported successfully.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+                    SetStatus("Settings imported from " + Path.GetFileName(dlg.FileName) + ".");
                 }
                 catch (Exception ex)
                 {
@@ -1003,7 +1009,7 @@ namespace AJTools.UI.DuctStandards
             if (dlg.ShowDialog() == true)
             {
                 if (DuctStandardsConfigService.ExportToFile(_config, dlg.FileName))
-                    MessageBox.Show("Config exported.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+                    SetStatus("Settings exported to " + Path.GetFileName(dlg.FileName) + ".");
                 else
                     MessageBox.Show("Export failed.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Error);
             }

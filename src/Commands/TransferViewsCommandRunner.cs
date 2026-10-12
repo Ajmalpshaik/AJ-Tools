@@ -47,6 +47,8 @@
  * v1.1.1 (2026-10-12) - An unexpected error now shows one message: the command no longer also passes the same text to Revit, which showed it a second time in its own error box.
  *                       Also: an unexpected error outside the main transaction (e.g. while the window opens) now gets a plain
  *                       message instead of Revit's own error box.
+ *                       No success popup: a transfer that did everything ends silently; the report appears only when
+ *                       contents or sheet placements could not be copied.
  * v1.1.0 (2026-08-11) - Fixed: transferred legends / drafting views arrived EMPTY. Added the second,
  *                       view-to-view content pass described above, plus content warnings in the report.
  * v1.0.0 (2026-07-28) - Initial release.
@@ -229,6 +231,13 @@ namespace AJTools.Commands
             {
                 DialogHelper.ShowError(toolTitle, "Transfer failed:\n\n" + ex.Message);
                 return Result.Failed;
+            }
+
+            // House rule: a transfer that did everything ends silently - the views are in the target
+            // project. The report appears only when contents or sheet placements could not be copied.
+            if (contentWarnings.Count == 0 && placementWarnings.Count == 0)
+            {
+                return Result.Succeeded;
             }
 
             int updatedCount = selectedNames.Count(name => replacedPlacements.ContainsKey(name));

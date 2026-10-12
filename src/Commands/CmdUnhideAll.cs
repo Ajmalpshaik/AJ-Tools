@@ -30,6 +30,8 @@
  *
  * Changelog     :
  * v1.3.1 (2026-10-12) - An unexpected error now shows one message, with Revit's own reason added to it (it used to show a general hint, then the reason again in a second, Revit-made box).
+ *                       No success popup: a run that unhid something ends silently; it only speaks when there was nothing
+ *                       to unhide or Temporary Hide/Isolate would not clear.
  * v1.3.0 (2026-08-12) - Model work moved out to Services/UnhideAll/UnhideAllService.cs so the Web
  *                       Panel can run the identical code from a browser. This command keeps owning
  *                       validation and the TaskDialog report; behaviour from the ribbon is unchanged
@@ -86,7 +88,15 @@ namespace AJTools.Commands
                 // The model work lives in UnhideAllService, UI-free; this command only presents it.
                 UnhideAllResult result = UnhideAllService.Run(doc, doc.ActiveView);
 
-                TaskDialog.Show(ToolTitle, result.Summary);
+                // House rule: a run that did its job ends silently - the elements are back on screen. It
+                // only speaks when there was nothing to unhide, or Temporary Hide/Isolate would not clear.
+                bool didSomething = result.UnhiddenCount > 0 || result.TemporaryHideIsolateCleared;
+                bool isolateStuck = result.TemporaryHideIsolateWasActive && !result.TemporaryHideIsolateCleared;
+                if (!didSomething || isolateStuck)
+                {
+                    TaskDialog.Show(ToolTitle, result.Summary);
+                }
+
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)

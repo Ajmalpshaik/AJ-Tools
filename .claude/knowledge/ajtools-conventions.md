@@ -288,6 +288,12 @@ place rather than leaving stale info sitting next to the new truth.
 - **Tuned live, not guessed**: the numbers were tried on 32 real accessories and corrected over three
   rounds before Ajmal approved them. Verify placement by fresh read-back (leaders, tag-on-model,
   tag-on-tag), never by eye.
+- **Since 1.57.2 (2026-10-12) the gap really is measured from the EDGE for every category**
+  (`SmartMepTagService.GetHostWidth`: pipe outside diameter, tray width, an accessory's size across
+  its run, equipment's narrower side). Until then only ducts had a width, so everything else was
+  measured from its centre — the 150 mm above was tuned on that. Ajmal chose edge-measuring knowing
+  tags move out by half the element's size (a 3000 × 1000 unit: +500 mm). If tags now look too far
+  out, lower the offset; do not go back to measuring from the centre.
 
 **The long-run confirm: which tools ask, and which deliberately do NOT (v1.49.5, 2026-08-17)**
 - One shared call, `DialogHelper.ConfirmLongRun(title, count, whatWillHappen)`, which also owns the
