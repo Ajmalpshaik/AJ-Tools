@@ -5,10 +5,10 @@
  * Purpose       : Exports the Pipe Sizing fixture rows and summary values to CSV.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.0.2
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,10 +20,11 @@
  * Output        : User-selected CSV report file.
  *
  * Notes         :
- * - Ported from the original pyRevit pipe sizing report export.
+ * - Ported from the report export of Ajmal's earlier pipe sizing script.
  * - Uses proper CSV escaping while keeping the same column order and summary rows.
  *
  * Changelog     :
+ * v1.0.2 (2026-10-12) - Notes reworded only (port source described as Ajmal's earlier script). No code change.
  * v1.0.1 (2026-07-28) - Audit: removed the "Report saved successfully." popup (house rule: silent
  *                       success - the user picked the save path themselves). Failure popup kept.
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.

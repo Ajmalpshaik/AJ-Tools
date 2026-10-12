@@ -3,13 +3,13 @@
 Tool Name    : Pipe Sizing
 Purpose      : Standalone WPF calculator for domestic water pipe sizing by fixture units.
 Author       : Ajmal P.S.
-Version      : 1.0.0
+Version      : 1.0.1
 Created      : 2026-07-01
-Last Updated : 2026-07-01
+Last Updated : 2026-10-12
 Target       : Revit 2020 - latest (verify newest SDK before publishing)
 Framework    : .NET Framework 4.7.2 baseline
 Platform     : C# Revit Add-in WPF UI
-Notes        : Ported from the original pyRevit pipe sizing UI.
+Notes        : Ported from the UI of Ajmal's earlier pipe sizing script.
 License      : All Rights Reserved
 Repo         : AJ-Tools
 ==================================================

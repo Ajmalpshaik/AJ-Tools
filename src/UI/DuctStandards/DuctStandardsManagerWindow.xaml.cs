@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Microsoft.Win32;
@@ -36,6 +39,13 @@ namespace AJTools.UI.DuctStandards
         private ObservableCollection<DuctRule> _allRules;
         private ObservableCollection<DuctRule> _filteredRules;
 
+        // Why the saved settings file could not be read (null = it was read fine). While set, the
+        // settings on screen are the built-in defaults, not rules the user chose.
+        private string _configLoadError;
+
+        // The user has already agreed, in this window, to write values calculated from those defaults.
+        private bool _defaultsRunConfirmed;
+
         public DuctStandardsManagerWindow(UIDocument uidoc)
         {
             _uidoc = uidoc;
@@ -52,6 +62,10 @@ namespace AJTools.UI.DuctStandards
             // Shared tab-change transition (fade + short rise on the panel). Cosmetic only.
             TabMotionHelper.AttachTabTransitions(this);
             LoadConfigAndPopulateUI();
+
+            // An unreadable settings file is reported once the window is on screen, so the warning
+            // sits over the window it is about instead of appearing before it.
+            ContentRendered += (s, e) => ShowConfigLoadWarning();
         }
 
         // -------------------------------------------------------------------
@@ -60,8 +74,44 @@ namespace AJTools.UI.DuctStandards
 
         private void LoadConfigAndPopulateUI()
         {
-            _config = DuctStandardsConfigService.Load();
+            string loadError;
+            _config = DuctStandardsConfigService.Load(out loadError);
+            _configLoadError = loadError;
+            _defaultsRunConfirmed = false;
             PopulateUI();
+        }
+
+        /// <summary>
+        /// Important-warning popup (allowed): the saved settings could not be read, so what is on screen
+        /// - and what Run would calculate with - is the built-in defaults, not the user's rules.
+        /// </summary>
+        private void ShowConfigLoadWarning()
+        {
+            if (string.IsNullOrEmpty(_configLoadError))
+                return;
+
+            MessageBox.Show(
+                "Your saved Duct Standards settings could not be read, so the built-in default rules are shown instead.\n\n" +
+                "File: " + DuctStandardsConfigService.GetConfigFilePath() + "\n" +
+                "Reason: " + _configLoadError + "\n\n" +
+                "The file has not been changed. Check the rules before running, or use Save Config to replace the file with the settings shown here.",
+                DialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        /// <summary>The settings now on screen were chosen by the user (saved, imported, or reset on purpose).</summary>
+        private void ClearConfigLoadError()
+        {
+            _configLoadError = null;
+            UpdateConfigPathText();
+        }
+
+        private void UpdateConfigPathText()
+        {
+            txtConfigPath.Text = "Config: " + DuctStandardsConfigService.GetConfigFilePath();
+            if (!string.IsNullOrEmpty(_configLoadError))
+                txtConfigPath.Text += "\nThis file could not be read (" + _configLoadError + ") - the built-in default rules are loaded. The file has not been changed.";
         }
 
         private void PopulateUI()
@@ -78,14 +128,14 @@ namespace AJTools.UI.DuctStandards
             chkSkipMissing.IsChecked = g.SkipIfMissingRequiredParameter;
 
             // Materials
+            if (_materials != null)
+                _materials.CollectionChanged -= Materials_CollectionChanged;
             _materials = new ObservableCollection<MaterialInfo>(_config.Materials ?? new List<MaterialInfo>());
+            _materials.CollectionChanged += Materials_CollectionChanged;
             dgMaterials.ItemsSource = _materials;
 
             // Default material / pressure combos
-            cboDefaultMaterial.Items.Clear();
-            foreach (var m in _materials)
-                cboDefaultMaterial.Items.Add(m.Name);
-            SetComboText(cboDefaultMaterial, _config.DefaultMaterial);
+            FillDefaultMaterialItems(_config.DefaultMaterial);
 
             cboDefaultPressure.Items.Clear();
             foreach (var pc in _config.PressureClasses ?? new List<string> { "low", "medium", "high" })
@@ -117,7 +167,7 @@ namespace AJTools.UI.DuctStandards
             txtParamMaterialName.Text = pm.MaterialName;
 
             // Config path
-            txtConfigPath.Text = "Config: " + DuctStandardsConfigService.GetConfigFilePath();
+            UpdateConfigPathText();
         }
 
         private DuctStandardsConfig ReadUIToConfig()
@@ -181,7 +231,7 @@ namespace AJTools.UI.DuctStandards
                 if (missing.Count == 0)
                 {
                     MessageBox.Show(
-                        "All mapped parameters are available on this project.",
+                        "All mapped parameters are available on Ducts.",
                         DialogTitle,
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -189,8 +239,8 @@ namespace AJTools.UI.DuctStandards
                 else
                 {
                     MessageBox.Show(
-                        "Missing parameter bindings:\n\n- " + string.Join("\n- ", missing) +
-                        "\n\nUse Create/Rebind Parameters to add them for Ducts.",
+                        "These mapped parameters are not on Ducts:\n\n- " + string.Join("\n- ", missing) +
+                        "\n\nUse Create/Rebind Parameters to add them to Ducts.",
                         DialogTitle,
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
@@ -219,9 +269,38 @@ namespace AJTools.UI.DuctStandards
                     return;
                 }
 
-                string list = string.Join("\n", specs.Select(s => "- " + s.Name + " (" + SharedParamUtils.GetParameterTypeLabel(s.ParameterType) + ")"));
+                // Say exactly what will happen: brand-new parameters are created on Ducts; parameters that
+                // already exist in the project only get Ducts ADDED to what they are bound to.
+                BindingMap bindings = _doc.ParameterBindings;
+                var toCreate = specs.Where(s => FindDefinition(bindings, s.Name) == null).ToList();
+                var toExtend = specs.Where(s => FindDefinition(bindings, s.Name) != null).ToList();
+
+                var prompt = new StringBuilder();
+                if (toCreate.Count > 0)
+                {
+                    prompt.Append("These will be created as new Duct instance parameters (shared parameters, group \"" + SharedParamGroupName + "\"):\n\n");
+                    prompt.Append(string.Join("\n", toCreate.Select(s => "- " + s.Name + " (" + SharedParamUtils.GetParameterTypeLabel(s.ParameterType) + ")")));
+                    prompt.Append("\n\n");
+                }
+
+                if (toExtend.Count > 0)
+                {
+                    prompt.Append("These already exist in the project but are not on Ducts. Ducts will be added to them - the categories they already have, their values and their instance/type setting are kept:\n\n");
+                    prompt.Append(string.Join("\n", toExtend.Select(s =>
+                    {
+                        ElementBinding existingBinding;
+                        FindDefinition(bindings, s.Name, out existingBinding);
+                        return "- " + s.Name + (existingBinding is TypeBinding
+                            ? " (type parameter - Run writes per-duct values only into instance parameters)"
+                            : string.Empty);
+                    })));
+                    prompt.Append("\n\n");
+                }
+
+                prompt.Append("Continue?");
+
                 var confirmation = MessageBox.Show(
-                    "The following parameters will be created or rebound to Ducts:\n\n" + list + "\n\nContinue?",
+                    prompt.ToString(),
                     DialogTitle,
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
@@ -273,14 +352,16 @@ namespace AJTools.UI.DuctStandards
 
         private List<string> GetMissingMappedParameterNames(DuctStandardsConfig config)
         {
-            var existing = GetBoundParamNames(_doc);
+            // Bound to Ducts specifically - a parameter bound only to other categories is not on any
+            // duct, even though its name is in the project (it used to count as present).
+            var boundToDucts = GetDuctBoundParamNames(_doc);
             var required = BuildMappedParameterSpecs(config);
             Element sampleDuct = GetAnyDuctElement();
 
             return required
                 .Where(s =>
                 {
-                    if (existing.Contains(s.Name))
+                    if (boundToDucts.Contains(s.Name))
                         return false;
 
                     return !HasParameterOnElementOrType(sampleDuct, s.Name);
@@ -314,11 +395,13 @@ namespace AJTools.UI.DuctStandards
             if (mapped.Count == 0)
                 return mapped;
 
+            // Only what is actually missing from Ducts. Parameters already on Ducts are left alone: re-binding
+            // them replaced their binding with a Ducts-only one, dropping every other category they were
+            // bound to (and the values there) and turning a type parameter into an instance one.
             var missing = new HashSet<string>(GetMissingMappedParameterNames(config), StringComparer.OrdinalIgnoreCase);
-            BindingMap map = _doc.ParameterBindings;
 
             return mapped
-                .Where(s => missing.Contains(s.Name) || FindDefinition(map, s.Name) != null)
+                .Where(s => missing.Contains(s.Name))
                 .ToList();
         }
 
@@ -361,26 +444,31 @@ namespace AJTools.UI.DuctStandards
                     throw new InvalidOperationException("Shared parameter file could not be opened.");
 
                 var group = GetOrCreateGroup(file, SharedParamGroupName);
-                CategorySet categorySet = BuildDuctCategorySet(app);
+                Category ductCategory = GetDuctCategory();
+                CategorySet categorySet = BuildDuctCategorySet(app, ductCategory);
                 BindingMap map = _doc.ParameterBindings;
 
                 int success = 0;
                 foreach (var spec in specs)
                 {
-                    Definition existing = FindDefinition(map, spec.Name);
-                    Definition definition = existing ?? GetOrCreateDefinition(file, group, spec.Name, spec.ParameterType);
-                    if (definition == null)
-                        continue;
+                    ElementBinding existingBinding;
+                    Definition existing = FindDefinition(map, spec.Name, out existingBinding);
 
-                    Binding binding = app.Create.NewInstanceBinding(categorySet);
-                    bool hasExisting = existing != null;
-                    bool ok = hasExisting
-                        ? RevitCompat.ReInsertBinding(map, definition, binding, spec.ParameterGroup)
-                        : RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
-
-                    if (!ok && hasExisting)
+                    bool ok;
+                    if (existing != null)
                     {
-                        try { map.Remove(definition); } catch (Exception) { }
+                        // Already in the project, just not on Ducts: ADD Ducts to what it is bound to. Never
+                        // re-bind it to Ducts alone (drops its other categories), and never Remove + Insert
+                        // as a fallback - removing a binding deletes every value the parameter holds.
+                        ok = AddDuctsToBinding(app, map, existing, existingBinding, ductCategory);
+                    }
+                    else
+                    {
+                        Definition definition = GetOrCreateDefinition(file, group, spec.Name, spec.ParameterType);
+                        if (definition == null)
+                            continue;
+
+                        Binding binding = app.Create.NewInstanceBinding(categorySet);
                         ok = RevitCompat.InsertBinding(map, definition, binding, spec.ParameterGroup);
                     }
 
@@ -397,29 +485,74 @@ namespace AJTools.UI.DuctStandards
             }
         }
 
-        private CategorySet BuildDuctCategorySet(Autodesk.Revit.ApplicationServices.Application app)
+        private Category GetDuctCategory()
         {
-            var set = app.Create.NewCategorySet();
             Category ductCategory = _doc.Settings.Categories.get_Item(BuiltInCategory.OST_DuctCurves);
 
             if (ductCategory == null || !ductCategory.AllowsBoundParameters)
                 throw new InvalidOperationException("Ducts category is not available for parameter binding.");
 
+            return ductCategory;
+        }
+
+        private static CategorySet BuildDuctCategorySet(Autodesk.Revit.ApplicationServices.Application app, Category ductCategory)
+        {
+            var set = app.Create.NewCategorySet();
             set.Insert(ductCategory);
             return set;
         }
 
-        private static HashSet<string> GetBoundParamNames(Document doc)
+        /// <summary>
+        /// Adds Ducts to an existing parameter's binding: same categories plus Ducts, same instance/type
+        /// kind, same parameter group. ReInsert with the merged set is the API's way to extend a binding.
+        /// </summary>
+        private static bool AddDuctsToBinding(Autodesk.Revit.ApplicationServices.Application app, BindingMap map,
+            Definition definition, ElementBinding existingBinding, Category ductCategory)
+        {
+            if (existingBinding == null || existingBinding.Categories == null)
+                return false;
+
+            CategorySet merged = app.Create.NewCategorySet();
+            foreach (Category category in existingBinding.Categories)
+            {
+                if (category != null)
+                    merged.Insert(category);
+            }
+            merged.Insert(ductCategory);
+
+            Binding binding = existingBinding is TypeBinding
+                ? (Binding)app.Create.NewTypeBinding(merged)
+                : app.Create.NewInstanceBinding(merged);
+
+            return RevitCompat.ReInsertBinding(map, definition, binding, RevitCompat.GetGroup(definition));
+        }
+
+        /// <summary>Names of the project/shared parameters whose binding includes the Ducts category.</summary>
+        private static HashSet<string> GetDuctBoundParamNames(Document doc)
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var it = doc.ParameterBindings.ForwardIterator();
             while (it.MoveNext())
             {
                 var def = it.Key;
-                if (def != null && !string.IsNullOrWhiteSpace(def.Name))
+                if (def != null && !string.IsNullOrWhiteSpace(def.Name) && BindingIncludesDucts(it.Current as ElementBinding))
                     names.Add(def.Name);
             }
             return names;
+        }
+
+        private static bool BindingIncludesDucts(ElementBinding binding)
+        {
+            if (binding == null || binding.Categories == null)
+                return false;
+
+            foreach (Category category in binding.Categories)
+            {
+                if (category != null && category.Id.IntValue() == (int)BuiltInCategory.OST_DuctCurves)
+                    return true;
+            }
+
+            return false;
         }
 
         private Element GetAnyDuctElement()
@@ -492,12 +625,22 @@ namespace AJTools.UI.DuctStandards
 
         private static Definition FindDefinition(BindingMap map, string name)
         {
+            ElementBinding binding;
+            return FindDefinition(map, name, out binding);
+        }
+
+        private static Definition FindDefinition(BindingMap map, string name, out ElementBinding binding)
+        {
+            binding = null;
             var it = map.ForwardIterator();
             while (it.MoveNext())
             {
                 var def = it.Key;
                 if (def != null && string.Equals(def.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    binding = it.Current as ElementBinding;
                     return def;
+                }
             }
             return null;
         }
@@ -520,6 +663,35 @@ namespace AJTools.UI.DuctStandards
         {
             try
             {
+                // Allowance boxes only matter when allowances are included. A box that is not a number of
+                // 0 or more is no longer swapped for a default behind the user's back.
+                string allowanceError;
+                if (chkIncludeAllowances.IsChecked == true && !ValidateAllowances(out allowanceError))
+                {
+                    txtResults.Text = "Not run - fix the allowance percentages first (Allowances tab):\n" + allowanceError;
+                    return;
+                }
+
+                // Settings file unreadable: what would be written comes from rules the user never chose.
+                // Important warning before continuing - asked once per window.
+                if (writeToRevit && !string.IsNullOrEmpty(_configLoadError) && !_defaultsRunConfirmed)
+                {
+                    var answer = MessageBox.Show(
+                        "Your saved settings file could not be read, so these values will be calculated from the built-in default rules, not the rules you saved.\n\n" +
+                        "Write them to the ducts anyway?",
+                        DialogTitle,
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (answer != MessageBoxResult.Yes)
+                    {
+                        txtResults.Text = "Not run - your saved settings file could not be read. Check the rules, or use Save Config to keep the settings shown here.";
+                        return;
+                    }
+
+                    _defaultsRunConfirmed = true;
+                }
+
                 _config = ReadUIToConfig();
 
                 // Override write setting for preview
@@ -573,6 +745,8 @@ namespace AJTools.UI.DuctStandards
 
                 string mode = writeToRevit ? "PROCESSED" : "PREVIEW (no write)";
                 txtResults.Text = string.Format("=== {0} ===\n\n{1}", mode, report.ToSummaryText());
+                if (!string.IsNullOrEmpty(_configLoadError))
+                    txtResults.Text = "Note: your saved settings file could not be read - these results use the built-in default rules.\n\n" + txtResults.Text;
 
                 // Append first few detail lines
                 int showCount = Math.Min(report.Results.Count, 50);
@@ -650,6 +824,51 @@ namespace AJTools.UI.DuctStandards
                 _materials.Remove(selected);
         }
 
+        // The Default Material list on the Process tab used to be filled only when settings loaded, so a
+        // material added, removed or renamed here never reached it until the window was reopened.
+
+        private void Materials_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            FillDefaultMaterialItems(GetComboText(cboDefaultMaterial));
+        }
+
+        private void DgMaterials_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit)
+                return;
+
+            var material = e.Row?.Item as MaterialInfo;
+            if (material == null)
+                return;
+
+            string nameBefore = material.Name;
+
+            // The typed value reaches the MaterialInfo only after this event returns - refresh once it has.
+            // If the renamed row was the default material, the default follows it to the new name.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                string selected = GetComboText(cboDefaultMaterial);
+                if (string.Equals(selected, nameBefore, StringComparison.OrdinalIgnoreCase))
+                    selected = material.Name;
+                FillDefaultMaterialItems(selected);
+            }), DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Lists the current material names and re-selects the given default. A default that is not in
+        /// the list is kept and shown (SetComboText adds it), exactly as when the settings load.
+        /// </summary>
+        private void FillDefaultMaterialItems(string selectedName)
+        {
+            cboDefaultMaterial.Items.Clear();
+            foreach (var m in _materials)
+            {
+                if (m != null && m.Name != null)
+                    cboDefaultMaterial.Items.Add(m.Name);
+            }
+            SetComboText(cboDefaultMaterial, selectedName);
+        }
+
         // -------------------------------------------------------------------
         // Rules Grid
         // -------------------------------------------------------------------
@@ -715,9 +934,21 @@ namespace AJTools.UI.DuctStandards
 
         private void BtnSaveConfig_Click(object sender, RoutedEventArgs e)
         {
+            string allowanceError;
+            if (!ValidateAllowances(out allowanceError))
+            {
+                MessageBox.Show("Not saved - fix the allowance percentages first (Allowances tab):\n\n" + allowanceError,
+                    DialogTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             _config = ReadUIToConfig();
             if (DuctStandardsConfigService.Save(_config))
+            {
+                // The file now holds exactly what is on screen - no longer "defaults from an unreadable file".
+                ClearConfigLoadError();
                 MessageBox.Show("Configuration saved.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
             else
                 MessageBox.Show("Failed to save configuration.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -725,6 +956,7 @@ namespace AJTools.UI.DuctStandards
         private void BtnLoadConfig_Click(object sender, RoutedEventArgs e)
         {
             LoadConfigAndPopulateUI();
+            ShowConfigLoadWarning();
         }
 
         private void BtnImportJson_Click(object sender, RoutedEventArgs e)
@@ -740,6 +972,7 @@ namespace AJTools.UI.DuctStandards
                 try
                 {
                     _config = DuctStandardsConfigService.ImportFromFile(dlg.FileName);
+                    _configLoadError = null; // settings the user chose on purpose
                     PopulateUI();
                     MessageBox.Show("Config imported successfully.", "Duct Standards Manager", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -752,6 +985,14 @@ namespace AJTools.UI.DuctStandards
 
         private void BtnExportJson_Click(object sender, RoutedEventArgs e)
         {
+            string allowanceError;
+            if (!ValidateAllowances(out allowanceError))
+            {
+                MessageBox.Show("Not exported - fix the allowance percentages first (Allowances tab):\n\n" + allowanceError,
+                    DialogTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             _config = ReadUIToConfig();
             var dlg = new SaveFileDialog
             {
@@ -778,6 +1019,7 @@ namespace AJTools.UI.DuctStandards
             if (result == MessageBoxResult.Yes)
             {
                 _config = DuctStandardsConfigService.CreateDefault();
+                _configLoadError = null; // the defaults are now the user's own choice
                 PopulateUI();
             }
         }
@@ -785,13 +1027,27 @@ namespace AJTools.UI.DuctStandards
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             string folder = Path.GetDirectoryName(DuctStandardsConfigService.GetConfigFilePath());
-            if (Directory.Exists(folder))
+            if (!Directory.Exists(folder))
             {
-                try
+                MessageBox.Show("The settings folder does not exist yet:\n\n" + folder,
+                    DialogTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // UseShellExecute must be set: it defaults to false on .NET 8/10 (Revit 2025-2027), where
+                // starting a folder path without the shell throws instead of opening Explorer.
+                var startInfo = new ProcessStartInfo(folder)
                 {
-                    Process.Start(folder);
-                }
-                catch (Exception) { }
+                    UseShellExecute = true
+                };
+                Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not open the settings folder:\n\n" + folder + "\n\n" + ex.Message,
+                    DialogTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -844,6 +1100,55 @@ namespace AJTools.UI.DuctStandards
         {
             double val;
             return double.TryParse(text, out val) ? val : defaultValue;
+        }
+
+        // -------------------------------------------------------------------
+        // Allowance validation
+        // -------------------------------------------------------------------
+
+        private void Allowance_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string error;
+            ValidateAllowances(out error);
+        }
+
+        /// <summary>
+        /// Every allowance must be a number of 0 or more. ReadUIToConfig used to replace anything else with
+        /// the default without a word, and took negatives as they were. Shows the first problem inline on
+        /// the Allowances tab (no popup while typing) and returns false while there is one; Run, Save and
+        /// Export check it before they use the values.
+        /// </summary>
+        private bool ValidateAllowances(out string error)
+        {
+            error = CheckAllowance(txtSeam, "Seam Allowance")
+                 ?? CheckAllowance(txtJoint, "Joint Allowance")
+                 ?? CheckAllowance(txtFlange, "Flange Allowance")
+                 ?? CheckAllowance(txtReinforcement, "Reinforcement")
+                 ?? CheckAllowance(txtFittings, "Fittings Allowance")
+                 ?? CheckAllowance(txtWastage, "Wastage Allowance");
+
+            if (txtAllowanceError != null)
+            {
+                txtAllowanceError.Text = error ?? string.Empty;
+                txtAllowanceError.Visibility = error == null
+                    ? System.Windows.Visibility.Collapsed
+                    : System.Windows.Visibility.Visible;
+            }
+
+            return error == null;
+        }
+
+        private static string CheckAllowance(System.Windows.Controls.TextBox box, string label)
+        {
+            if (box == null)
+                return null;
+
+            double value;
+            if (!double.TryParse(box.Text, out value) || double.IsNaN(value) || double.IsInfinity(value))
+                return label + " (%) must be a number.";
+            if (value < 0)
+                return label + " (%) cannot be negative.";
+            return null;
         }
 
         private sealed class DuctParamSpec

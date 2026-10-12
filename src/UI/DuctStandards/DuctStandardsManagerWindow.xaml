@@ -215,7 +215,8 @@
                         <TextBlock Grid.Row="0" Text="Define materials and their densities. These are used for weight calculations."
                                    Foreground="{StaticResource DkFgDim}" FontSize="11" Margin="4,0,0,8"/>
                         <DataGrid
-                              AutoGenerateColumns="False" x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DuctManagerDataGridStyle}">
+                              AutoGenerateColumns="False" x:Name="dgMaterials" Grid.Row="1" Style="{StaticResource DuctManagerDataGridStyle}"
+                              CellEditEnding="DgMaterials_CellEditEnding">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Material Name" Binding="{Binding Name}" Width="*" MinWidth="150"
                                                     ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
@@ -259,7 +260,11 @@
                                 <ComboBoxItem Content="high"/>
                             </ComboBox>
                         </StackPanel>
-                        <DataGrid x:Name="dgRules" Grid.Row="2" Style="{StaticResource DuctManagerDataGridStyle}">
+                        <!-- The grid shows a FILTERED copy of the rules, so rows added or deleted in the grid
+                             itself never reached the saved list. Add Rule / Remove Selected below edit the
+                             real list; cell edits still go straight to the shared rule objects. -->
+                        <DataGrid x:Name="dgRules" Grid.Row="2" Style="{StaticResource DuctManagerDataGridStyle}"
+                                  CanUserAddRows="False" CanUserDeleteRows="False">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Shape" Binding="{Binding Shape}" Width="100"
                                                     ElementStyle="{StaticResource DgCell}" EditingElementStyle="{StaticResource DgEdit}"/>
@@ -307,19 +312,32 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
                                     <Label Grid.Row="0" Grid.Column="0" Content="Seam Allowance (%):"/>
-                                    <TextBox x:Name="txtSeam" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                    <TextBox x:Name="txtSeam" Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"
+                                             TextChanged="Allowance_TextChanged"/>
                                     <Label Grid.Row="1" Grid.Column="0" Content="Joint Allowance (%):"/>
-                                    <TextBox x:Name="txtJoint" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                    <TextBox x:Name="txtJoint" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"
+                                             TextChanged="Allowance_TextChanged"/>
                                     <Label Grid.Row="2" Grid.Column="0" Content="Flange Allowance (%):"/>
-                                    <TextBox x:Name="txtFlange" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                    <TextBox x:Name="txtFlange" Grid.Row="2" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"
+                                             TextChanged="Allowance_TextChanged"/>
                                     <Label Grid.Row="3" Grid.Column="0" Content="Reinforcement (%):"/>
-                                    <TextBox x:Name="txtReinforcement" Grid.Row="3" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                    <TextBox x:Name="txtReinforcement" Grid.Row="3" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"
+                                             TextChanged="Allowance_TextChanged"/>
                                     <Label Grid.Row="4" Grid.Column="0" Content="Fittings Allowance (%):"/>
-                                    <TextBox x:Name="txtFittings" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                    <TextBox x:Name="txtFittings" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"
+                                             TextChanged="Allowance_TextChanged"/>
                                     <Label Grid.Row="5" Grid.Column="0" Content="Wastage Allowance (%):"/>
-                                    <TextBox x:Name="txtWastage" Grid.Row="5" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"/>
+                                    <TextBox x:Name="txtWastage" Grid.Row="5" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="4"
+                                             TextChanged="Allowance_TextChanged"/>
                                 </Grid>
                             </GroupBox>
+                            <!-- Inline validation message (house pattern: no popup while typing) -->
+                            <TextBlock x:Name="txtAllowanceError"
+                                       Foreground="{StaticResource AccentDanger}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="4,8,4,0"
+                                       Visibility="Collapsed"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -411,7 +429,7 @@
                             IsCancel="True"
                             Height="34"
                             Width="100" Click="BtnClose_Click"/>
-                    <TextBlock Text="AJ Tools - Duct Standards Manager v1.0"
+                    <TextBlock Text="AJ Tools - Duct Standards Manager"
                                Foreground="{StaticResource DkFgDim}" FontSize="10" VerticalAlignment="Center"/>
                 </DockPanel>
             </Border>

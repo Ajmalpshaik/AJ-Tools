@@ -5,10 +5,10 @@
  * Purpose       : Holds the calculated sizing outputs shown in the Pipe Sizing window.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-01
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -20,9 +20,10 @@
  * Output        : Pipe sizing result data for UI and CSV export.
  *
  * Notes         :
- * - Mirrors the values returned by the original pyRevit pipe sizing calculator.
+ * - Mirrors the values returned by the calculator in Ajmal's earlier pipe sizing script.
  *
  * Changelog     :
+ * v1.0.1 (2026-10-12) - Notes reworded only (port source described as Ajmal's earlier script). No code change.
  * v1.0.0 (2026-07-01) - Initial C# port for Pipe Sizing.
  *
  * License       : All Rights Reserved
