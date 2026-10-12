@@ -6,10 +6,10 @@
  *                 active annotation family view.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.1.1
  *
  * Created Date  : 2025-12-14
- * Last Updated  : 2026-07-01
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -28,6 +28,10 @@
  * Changelog     :
  * v1.0.3 (2025-12-14) - Centering across text, labels, symbols, and tag graphics.
  * v1.1.0 (2026-07-01) - Refactor/audit: added full metadata block. Centering behaviour unchanged.
+ * v1.1.1 (2026-10-12) - No success popup: a clean run ends silently, and a run that could not move
+ *                       some of the selection (pinned, or not movable) says how many. Dialog titles
+ *                       now match the ribbon button ("Center Annotation"). An unexpected error now
+ *                       gets a plain message instead of Revit's own box. Centering itself unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -54,10 +58,30 @@ namespace AJTools.Commands
         /// <summary>
         /// Centers supported elements relative to the active family view extents.
         /// </summary>
+        // Matches the ribbon button (it used to say "Center Text/Label", an older name).
+        private const string ToolTitle = "Center Annotation";
+
         public Result Execute(
             ExternalCommandData commandData,
             ref string message,
             ElementSet elements)
+        {
+            try
+            {
+                return Run(commandData, ref message);
+            }
+            catch (Exception ex)
+            {
+                // The move transaction is rolled back before we get here, so nothing was changed.
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "The annotations could not be centered, so nothing was changed.\n\n"
+                    + "What went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message)
         {
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
             Document doc = uidoc?.Document;
@@ -72,7 +96,7 @@ namespace AJTools.Commands
             if (!doc.IsFamilyDocument)
             {
                 DialogHelper.ShowError(
-                    "Center Text/Label",
+                    ToolTitle,
                     "Run this tool inside an annotation family.");
                 return Result.Cancelled;
             }
@@ -80,7 +104,7 @@ namespace AJTools.Commands
             if (doc.IsReadOnly)
             {
                 DialogHelper.ShowError(
-                    "Center Text/Label",
+                    ToolTitle,
                     "The family is read-only. Open an editable copy and try again.");
                 return Result.Cancelled;
             }
@@ -89,7 +113,7 @@ namespace AJTools.Commands
             if (selectedIds == null || selectedIds.Count == 0)
             {
                 DialogHelper.ShowError(
-                    "Center Text/Label",
+                    ToolTitle,
                     "Select one or more movable annotations (text notes, labels, symbols, or tag graphics) in the family view, then run the command.");
                 return Result.Cancelled;
             }
@@ -109,6 +133,7 @@ namespace AJTools.Commands
             }
 
             int centeredCount = 0;
+            int notCenteredCount = 0;
 
             using (Transaction transaction = new Transaction(doc, "Center Text/Label"))
             {
@@ -124,6 +149,10 @@ namespace AJTools.Commands
                     {
                         centeredCount++;
                     }
+                    else
+                    {
+                        notCenteredCount++;
+                    }
                 }
 
                 transaction.Commit();
@@ -132,14 +161,19 @@ namespace AJTools.Commands
             if (centeredCount == 0)
             {
                 DialogHelper.ShowError(
-                    "Center Text/Label",
+                    ToolTitle,
                     "The selection did not contain elements that can be centered in this family view.");
                 return Result.Cancelled;
             }
 
-            DialogHelper.ShowInfo(
-                "Center Text/Label",
-                $"Centered {centeredCount} item(s) in the active family view.");
+            // House rule: a run that did everything ends silently (it used to confirm every run with a
+            // popup); only a run that left something out says so.
+            if (notCenteredCount > 0)
+            {
+                DialogHelper.ShowInfo(
+                    ToolTitle,
+                    $"Centered {centeredCount} item(s). {notCenteredCount} could not be moved (pinned, or not something that can be moved) and were left as they were.");
+            }
 
             return Result.Succeeded;
         }

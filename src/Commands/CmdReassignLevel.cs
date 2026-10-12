@@ -64,6 +64,8 @@
  *                       version) - OffsetHelper is built the same way as before. Selected items with no
  *                       level are now skipped up front by the service instead of being counted as failed,
  *                       so the skip line in the report names that reason too.
+ *                       Also: an unexpected error outside the main transaction (e.g. while the window opens) now gets a plain
+ *                       message instead of Revit's own error box.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -93,6 +95,22 @@ namespace AJTools.Commands
         private const string ToolTitle = "Reassign Level";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                return Run(commandData, ref message);
+            }
+            catch (Exception ex)
+            {
+                // Revit undoes a command that does not succeed, so nothing from this run is kept.
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "Reassign Level could not finish, so nothing was changed.\n\nWhat went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message)
         {
             UIDocument uidoc = commandData?.Application?.ActiveUIDocument;
             Document doc = uidoc?.Document;

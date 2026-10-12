@@ -6,10 +6,10 @@
  *                 will process, showing each category's element count in the model.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.0.0
+ * Version       : 2.0.1
  *
  * Created Date  : 2026-04-20
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -37,6 +37,8 @@
  *                       added Tag all / Tag none buttons; window owned by the Revit main window.
  *                       Dropped the "Settings saved." success popup per the house no-success-popup rule.
  *                       Offset carry-over and saved-state shape unchanged.
+ * v2.0.1 (2026-10-12) - An unexpected error while opening or saving the settings now gets a plain
+ *                       message instead of Revit's own error box. Settings behaviour unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -65,6 +67,22 @@ namespace AJTools.Commands
         private const string ToolTitle = "Smart MEP Tag";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                return Run(commandData, ref message);
+            }
+            catch (Exception ex)
+            {
+                // Nothing in the model is changed by a settings window, so there is nothing to undo.
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "The settings could not be opened or saved.\n\nWhat went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message)
         {
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
             if (!ValidationHelper.ValidateUIDocument(uidoc, out message))

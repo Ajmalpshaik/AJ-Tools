@@ -6,10 +6,10 @@
  *                 LeaderLogicService. Works on pre-selected tags or picked tags (Tab cycles) until Esc.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.2.1
+ * Version       : 2.2.2
  *
  * Created Date  : 2026-02-15
- * Last Updated  : 2026-08-16
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -37,6 +37,8 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v2.2.2 (2026-10-12) - Pick-one-at-a-time mode is now one undo step for the whole session (it was one per
+ *                       tag). An unexpected error now gets a plain message instead of Revit's own box.
  * v2.2.1 (2026-08-16) - Corrected the header and ribbon tooltip, which both promised "run again on the
  *                       same tag flips the elbow side". The code never did that. No behaviour change.
  * v2.2.0 (2026-07-17) - Extracted the non-elbow-math logic (reflection-based tag property access,
@@ -52,6 +54,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -71,6 +74,23 @@ namespace AJTools.Commands
     public class CmdForceTagLeaderLShape : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                return Run(commandData, ref message);
+            }
+            catch (Exception ex)
+            {
+                // Any change from this run is undone with its transaction / group before we get here.
+                DialogHelper.ShowError(
+                    "L-Shape Tag Leaders",
+                    "The tag leaders could not be changed, so nothing from this run was kept.\n\n"
+                    + "What went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message)
         {
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
             Document doc = uidoc?.Document;
@@ -138,42 +158,54 @@ namespace AJTools.Commands
             TagLeaderSelectionFilter filter = new TagLeaderSelectionFilter();
             const string prompt = "Pick tag to force L-shaped leader (Esc to finish)";
 
-            while (true)
+            // The whole pick session is ONE undo step, like the other pick-until-Esc tools - it used to
+            // be one undo step per tag.
+            using (TransactionGroup group = new TransactionGroup(doc, "Force L-Shaped Tag Leaders"))
             {
-                Reference picked;
-                try
-                {
-                    picked = uidoc.Selection.PickObject(ObjectType.Element, filter, prompt);
-                }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
-                {
-                    break;
-                }
+                group.Start();
 
-                hadPick = true;
-                Element tag = doc.GetElement(picked);
-                if (tag == null)
-                    continue;
-
-                bool ok;
-                using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leader"))
+                while (true)
                 {
-                    t.Start();
-                    ok = ForceTagLeaderLShapeService.TryForceLShape(tag, activeView, leaderLogic);
+                    Reference picked;
+                    try
+                    {
+                        picked = uidoc.Selection.PickObject(ObjectType.Element, filter, prompt);
+                    }
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    hadPick = true;
+                    Element tag = doc.GetElement(picked);
+                    if (tag == null)
+                        continue;
+
+                    bool ok;
+                    using (Transaction t = new Transaction(doc, "Force L-Shaped Tag Leader"))
+                    {
+                        t.Start();
+                        ok = ForceTagLeaderLShapeService.TryForceLShape(tag, activeView, leaderLogic);
+                        if (ok)
+                        {
+                            t.Commit();
+                        }
+                        else
+                        {
+                            t.RollBack();
+                        }
+                    }
+
                     if (ok)
-                    {
-                        t.Commit();
-                    }
+                        changedCount++;
                     else
-                    {
-                        t.RollBack();
-                    }
+                        skippedCount++;
                 }
 
-                if (ok)
-                    changedCount++;
+                if (changedCount > 0)
+                    group.Assimilate();
                 else
-                    skippedCount++;
+                    group.RollBack();
             }
 
             if (changedCount == 0)

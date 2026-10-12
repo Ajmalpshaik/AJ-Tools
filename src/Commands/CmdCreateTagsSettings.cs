@@ -6,10 +6,10 @@
  *                 set the minimum element length below which an element is skipped.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.0.1
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-12
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,12 +30,15 @@
  *
  * Changelog     :
  * v1.0.0 (2026-07-28) - Initial release.
+ * v1.0.1 (2026-10-12) - An unexpected error while opening or saving the settings now gets a plain
+ *                       message instead of Revit's own error box. Settings behaviour unchanged.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
@@ -58,6 +61,22 @@ namespace AJTools.Commands
         private const string ToolTitle = "Create Tags";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                return Run(commandData, ref message);
+            }
+            catch (Exception ex)
+            {
+                // Nothing in the model is changed by a settings window, so there is nothing to undo.
+                DialogHelper.ShowError(
+                    ToolTitle,
+                    "The settings could not be opened or saved.\n\nWhat went wrong: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+
+        private static Result Run(ExternalCommandData commandData, ref string message)
         {
             UIDocument uidoc = commandData.Application?.ActiveUIDocument;
             if (!ValidationHelper.ValidateUIDocument(uidoc, out message))

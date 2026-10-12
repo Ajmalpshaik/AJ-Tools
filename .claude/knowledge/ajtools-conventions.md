@@ -369,6 +369,13 @@ place rather than leaving stale info sitting next to the new truth.
   the fix is a report that speaks only when it has something to add.
 - Keep per-item lists out of a routine report. The same v1.45.0 report printed one "Read linked model: X"
   line per link; six links meant six lines of noise on a run that had gone perfectly.
+- **One error, one box.** Revit shows the command's `message` text in its own error box whenever the
+  command returns `Result.Failed` (RevitAPIUI.xml, `IExternalCommand.Execute`). So a catch that already
+  shows an AJ Tools error box (`DialogHelper.ShowError`, `TaskDialog.Show`) must NOT also set `message` —
+  29 such paths showed the same error twice until 2026-10-12. Pick one: our own box (the house default,
+  and it must include `ex.Message` so the real reason is not lost), or `message` alone with no box of our
+  own. Not live-checked: that `Failed` with an empty `message` shows nothing extra — the 12 commands that
+  already worked that way had no complaint against them.
 
 **Settings windows are resizable AND scroll — never fixed-size on an estimated content height (2026-08-16)**
 - The house shape, used by all eight settings windows: `Width`/`Height` for the default size,
