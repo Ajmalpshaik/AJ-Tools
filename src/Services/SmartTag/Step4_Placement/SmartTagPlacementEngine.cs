@@ -34,30 +34,9 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.DB.Plumbing;
 using AJTools.Models.SmartTag;
-using AJTools.Services.CreateTags;
-using AJTools.Services.LeaderLogic;
-using AJTools.Services.TagClash;
-using AJTools.Services.ViewCrop;
-using AJTools.Utils;
-using static AJTools.Services.SmartTag.SmartTagCandidatePositions;
-using static AJTools.Services.SmartTag.SmartTagCreator;
-using static AJTools.Services.SmartTag.SmartTagElementCollector;
-using static AJTools.Services.SmartTag.SmartTagElementFilters;
-using static AJTools.Services.SmartTag.SmartTagElementGeometry;
-using static AJTools.Services.SmartTag.SmartTagPositionFinder;
-using static AJTools.Services.SmartTag.SmartTagPositionScorer;
-using static AJTools.Services.SmartTag.SmartTagSizeHints;
-using static AJTools.Services.SmartTag.SmartTagTypeSelector;
-using static AJTools.Services.SmartTag.SmartTagViewCheck;
-using static AJTools.Services.SmartTag.SmartTagViewObstacles;
-using static AJTools.Services.SmartTag.SmartTagViewPlane;
 
 namespace AJTools.Services.SmartTag
 {
@@ -67,8 +46,8 @@ namespace AJTools.Services.SmartTag
     internal static class SmartTagPlacementEngine
     {
         /// <summary>
-        /// Processes all candidates through the scoring/clash/reposition pipeline
-        /// and places tags. Returns results for each element.
+        /// Places a tag on every candidate it can, in priority order (High first), and adds one result
+        /// line per candidate.
         /// </summary>
         public static void ProcessAndPlaceTags(
             Document doc,
@@ -77,43 +56,10 @@ namespace AJTools.Services.SmartTag
             List<TagCandidate> candidates,
             List<TagPlacementResult> results)
         {
-            View activeView = preflight.ActiveView;
-            int viewScale = preflight.ViewScale;
-            XYZ viewRight = GetViewRightDirection(activeView);
-            XYZ viewUp = GetViewUpDirection(activeView);
-            LeaderLogicService leaderLogic = new LeaderLogicService(activeView);
-
-            // Collect all existing annotations ONCE before the placement loop.
-            List<AnnotationBox> annotations = CollectExistingAnnotations(doc, activeView);
-            AnnotationSpatialIndex annotationSpatialIndex = BuildAnnotationSpatialIndex(annotations, viewScale);
-            Dictionary<BuiltInCategory, TagSizeHint> sizeHints =
-                BuildTagSizeHints(doc, activeView, candidates, viewRight, viewUp, viewScale);
-            AnnotationBox placementBoundary =
-                BuildPlacementBoundaryInViewPlane(preflight, viewRight, viewUp);
-
-            // Index every candidate's own position ONCE too, for the parallel-group check inside
-            // FindBestTagPosition - same reasoning as the annotation index above.
-            Dictionary<AnnotationBox, TagCandidate> candidateByBox;
-            AnnotationSpatialIndex candidateSpatialIndex = BuildCandidateSpatialIndex(candidates, out candidateByBox);
-
-            // Only built when a category actually has its leader switched off - it is the no-leader
-            // placement that needs to know where the ducts are, and a normal run should not pay for it.
-            AnnotationSpatialIndex modelObstacleIndex = null;
-            Dictionary<ElementId, AnnotationBox> modelObstacleBoxes = null;
-            foreach (TagCandidate probe in candidates)
-            {
-                if (probe != null && !SmartTagSettingsTracker.ResolveUseLeader(settingsState, probe.Category))
-                {
-                    modelObstacleIndex = BuildModelObstacleIndex(
-                        doc, activeView, viewRight, viewUp, viewScale, out modelObstacleBoxes);
-                    break;
-                }
-            }
-
-            // Track which elements have been successfully tagged — used for parallel group logic.
-            // Held as the candidates themselves: an ElementId alone cannot tell a linked element from
-            // one of this model's own.
-            var taggedGroupMembers = new HashSet<TagCandidate>();
+            // Work out the picture of the view ONCE: what is already on it, where every element is,
+            // the crop boundary, the expected tag sizes.
+            SmartTagPlacementContext context =
+                SmartTagPlacementContext.Build(doc, preflight, settingsState, candidates);
 
             // Process in priority order (candidates are already sorted HIGH → MEDIUM → LOW).
             foreach (TagCandidate candidate in candidates)
@@ -128,13 +74,9 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // ── Find best position (Phases 3–5) ──
+                // ── Where does this tag go? (SmartTagPositionFinder) ──
                 TagSkipReason skipReason;
-                XYZ tagPosition = FindBestTagPosition(
-                    candidate, annotations, annotationSpatialIndex, viewScale, settingsState, sizeHints,
-                    candidates, candidateSpatialIndex, candidateByBox, taggedGroupMembers,
-                    preflight, placementBoundary, modelObstacleIndex, modelObstacleBoxes, viewRight, viewUp,
-                    out skipReason);
+                XYZ tagPosition = SmartTagPositionFinder.FindBestTagPosition(candidate, context, out skipReason);
 
                 if (tagPosition == null)
                 {
@@ -142,13 +84,14 @@ namespace AJTools.Services.SmartTag
                     continue;
                 }
 
-                // ── Place the tag in its own transaction ──
-                bool placed = PlaceSingleTag(
-                    doc, activeView, candidate, tagPosition, annotations, annotationSpatialIndex, viewScale, viewRight, viewUp, leaderLogic);
+                // ── Place the tag in its own transaction (SmartTagCreator) ──
+                bool placed = SmartTagCreator.PlaceSingleTag(
+                    context.Doc, context.View, candidate, tagPosition, context.Annotations, context.AnnotationIndex,
+                    context.ViewScale, context.ViewRight, context.ViewUp, context.LeaderLogic);
 
                 if (placed)
                 {
-                    taggedGroupMembers.Add(candidate);
+                    context.TaggedCandidates.Add(candidate);
                     results.Add(ResultFor(candidate, true, TagSkipReason.None, null));
                 }
                 else

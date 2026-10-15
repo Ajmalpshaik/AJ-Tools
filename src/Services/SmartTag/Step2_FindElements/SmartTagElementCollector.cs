@@ -39,26 +39,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.DB.Plumbing;
 using AJTools.Models.SmartTag;
 using AJTools.Services.CreateTags;
-using AJTools.Services.LeaderLogic;
-using AJTools.Services.TagClash;
 using AJTools.Services.ViewCrop;
 using AJTools.Utils;
-using static AJTools.Services.SmartTag.SmartTagCandidatePositions;
-using static AJTools.Services.SmartTag.SmartTagCreator;
 using static AJTools.Services.SmartTag.SmartTagElementFilters;
 using static AJTools.Services.SmartTag.SmartTagElementGeometry;
-using static AJTools.Services.SmartTag.SmartTagPlacementEngine;
-using static AJTools.Services.SmartTag.SmartTagPositionFinder;
-using static AJTools.Services.SmartTag.SmartTagPositionScorer;
-using static AJTools.Services.SmartTag.SmartTagSizeHints;
-using static AJTools.Services.SmartTag.SmartTagTypeSelector;
-using static AJTools.Services.SmartTag.SmartTagViewCheck;
-using static AJTools.Services.SmartTag.SmartTagViewObstacles;
-using static AJTools.Services.SmartTag.SmartTagViewPlane;
 
 namespace AJTools.Services.SmartTag
 {
@@ -78,7 +64,7 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// Collects MEP elements from the active view and applies all 5 filters.
-        /// Returns a prioritised list of TagCandidate objects ready for Phase 2.
+        /// Returns a prioritised list of TagCandidate objects ready for step 3 (tag types).
         /// Also populates the results list with skipped elements and their reasons.
         /// </summary>
         /// <param name="linkedScan">

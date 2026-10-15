@@ -45,7 +45,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -63,7 +62,7 @@ namespace AJTools.Services.SmartTag
         private const string ToolTitle = "Smart MEP Tag";
 
         /// <summary>
-        /// Executes the full Smart MEP Tagging pipeline on the active view.
+        /// Runs Smart MEP Tags on the active view, step 1 to step 5.
         /// Returns Result.Succeeded when at least one tag was placed, and also when there was nothing
         /// to tag (the user is told why); Result.Failed only when Revit gives no command context; and
         /// Result.Cancelled otherwise - a check that did not pass, the user stopping it, or no tag
@@ -98,7 +97,7 @@ namespace AJTools.Services.SmartTag
 
             View activeView = doc.ActiveView;
 
-            // ── PHASE 0: Pre-flight checks ──
+            // ── STEP 1: can this view be tagged? (Step1_ViewCheck) ──
             PreFlightResult preflight = SmartTagViewCheck.RunPreFlightChecks(doc, activeView);
             if (!preflight.Passed)
             {
@@ -118,7 +117,7 @@ namespace AJTools.Services.SmartTag
                     return Result.Cancelled;
             }
 
-            // ── PHASE 1: Collect and filter MEP elements ──
+            // ── STEP 2: find the elements and run the skip rules (Step2_FindElements) ──
             var settingsTracker = new SmartTagSettingsTracker(doc);
             SmartTagSettingsState settingsState =
                 SmartTagSettingsTracker.EnsureDefaults(settingsTracker.LastState);
@@ -137,53 +136,12 @@ namespace AJTools.Services.SmartTag
 
             if (candidates.Count == 0)
             {
-                // Build a summary of why no candidates were found. Every skip already carries the
-                // reason that produced it, so name the filter instead of merging four of them into
-                // one "Filtered Out" number - that merged number is what sent Ajmal looking at
-                // already-tagged elements while Already Tagged read zero. Vertical-run skips used to
-                // fall outside the total altogether, so the three lines did not even add up.
-                // Same lesson as the "No grids or levels were found" fix (2026-08-15): a
-                // found-nothing message has to say WHICH check rejected everything.
-                int alreadyTagged = results.Count(r => r.SkipReason == TagSkipReason.AlreadyTagged);
-                int outsideCrop = results.Count(r => r.SkipReason == TagSkipReason.OutsideCropRegion);
-                int belowSize = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutSize);
-                int notVisible = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutVisibility);
-                int excludedType = results.Count(r => r.SkipReason == TagSkipReason.FilteredOutType);
-
-                string topReason = results
-                    .Where(r => !string.IsNullOrEmpty(r.Note))
-                    .GroupBy(r => r.Note)
-                    .OrderByDescending(g => g.Count())
-                    .Select(g => string.Format("{0} x {1}", g.Count(), g.Key))
-                    .FirstOrDefault();
-
-                var summary = new System.Text.StringBuilder();
-                summary.AppendLine("No elements to tag in this view.");
-                summary.AppendLine();
-                summary.AppendLine(string.Format("Analysed: {0}", results.Count));
-                summary.AppendLine(string.Format("Already tagged: {0}", alreadyTagged));
-                summary.AppendLine(string.Format("Outside crop region: {0}", outsideCrop));
-                summary.AppendLine(string.Format("Below size limits: {0}", belowSize));
-                summary.AppendLine(string.Format("Hidden or no position: {0}", notVisible));
-                summary.AppendLine(string.Format("Excluded type: {0}", excludedType));
-                string linkedLine = SmartTagReportGenerator.DescribeLinkedScan(linkedScan, results);
-                if (!string.IsNullOrEmpty(linkedLine))
-                {
-                    summary.AppendLine();
-                    summary.AppendLine(linkedLine);
-                }
-                if (!string.IsNullOrEmpty(topReason))
-                {
-                    summary.AppendLine();
-                    summary.Append(string.Format("Main reason: {0}", topReason));
-                }
-
-                DialogHelper.ShowInfo(ToolTitle, summary.ToString());
+                DialogHelper.ShowInfo(ToolTitle, SmartTagReportGenerator.BuildNothingToTagMessage(results, linkedScan));
                 RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
                 return Result.Succeeded;
             }
 
-            // ── PHASE 2: Select tag families for each candidate ──
+            // ── STEP 3: the tag type for each element (Step3_TagTypes) ──
             List<string> tagWarnings = SmartTagTypeSelector.SelectTagFamilies(doc, preflight, candidates, results);
 
             if (candidates.Count == 0)
@@ -207,7 +165,7 @@ namespace AJTools.Services.SmartTag
                 return Result.Cancelled;
             }
 
-            // ── PHASES 3–6: Score positions, detect clashes, reposition, and place tags ──
+            // ── STEP 4: where each tag goes, and placing it - one Ctrl+Z undoes it all (Step4_Placement) ──
             using (TransactionGroup tg = new TransactionGroup(doc, "Smart MEP Tag All"))
             {
                 tg.Start();
@@ -216,7 +174,7 @@ namespace AJTools.Services.SmartTag
             }
             RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
 
-            // ── PHASE 7: Generate output report ──
+            // ── STEP 5: the report (Step5_Report) ──
             SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings, linkedScan);
 
             int successCount = results.Count(r => r.Success);
