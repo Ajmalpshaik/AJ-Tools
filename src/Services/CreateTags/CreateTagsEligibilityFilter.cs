@@ -114,7 +114,7 @@ namespace AJTools.Services.CreateTags
                 MEPCurve mepCurve = elem as MEPCurve;
                 if (mepCurve != null)
                 {
-                    double length = SmartMepTagService.GetCurveLength(mepCurve);
+                    double length = SmartTagElementGeometry.GetCurveLength(mepCurve);
                     if (length >= 0 && length < minLengthInternal)
                     {
                         tally.Add(string.Format("Shorter than {0:F0}mm", minLengthInternal / Constants.MM_TO_FEET));
@@ -128,7 +128,7 @@ namespace AJTools.Services.CreateTags
                     }
                 }
 
-                XYZ midpoint = SmartMepTagService.GetElementMidpoint(elem, activeView);
+                XYZ midpoint = SmartTagElementGeometry.GetElementMidpoint(elem, activeView);
                 if (midpoint == null)
                 {
                     tally.Add("Position could not be determined");
@@ -143,7 +143,7 @@ namespace AJTools.Services.CreateTags
                 double hostWidth = 0;
                 if (category == BuiltInCategory.OST_DuctCurves && elem is Duct duct)
                 {
-                    hostWidth = SmartMepTagService.GetDuctWidth(duct);
+                    hostWidth = SmartTagElementGeometry.GetDuctWidth(duct);
                 }
 
                 candidates.Add(new TagCandidate
@@ -151,7 +151,7 @@ namespace AJTools.Services.CreateTags
                     ElementId = id,
                     Category = category,
                     Midpoint = midpoint,
-                    Orientation = SmartMepTagService.GetElementOrientation(elem, activeView),
+                    Orientation = SmartTagElementGeometry.GetElementOrientation(elem, activeView),
                     HostWidth = hostWidth
                 });
             }

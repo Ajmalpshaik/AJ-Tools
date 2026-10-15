@@ -23,7 +23,7 @@
  * Platform      : C# Revit Add-in
  *
  * Dependencies  : Autodesk Revit API, AJTools.Services.SmartTag (AnnotationBox, AnnotationSpatialIndex,
- *                 SmartMepTagService), AJTools.Services.LeaderLogic (LeaderLogicService),
+ *                 SmartTagElementGeometry), AJTools.Services.LeaderLogic (LeaderLogicService),
  *                 AJTools.Utils (TagCompat, TagClashSettings, Constants)
  *
  * Input         : A view full of tags, plus the shared TagClashSettingsState.
@@ -1025,7 +1025,7 @@ namespace AJTools.Services.TagClash
 
             if (host != null)
             {
-                XYZ midpoint = SmartMepTagService.GetElementMidpoint(host, view);
+                XYZ midpoint = SmartTagElementGeometry.GetElementMidpoint(host, view);
                 if (midpoint != null)
                     return midpoint;
             }
