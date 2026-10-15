@@ -66,7 +66,7 @@ namespace AJTools.Services.SmartTag
     /// </summary>
     internal static class SmartTagViewObstacles
     {
-        internal const double SpatialIndexCellSizeMm = 20.0;
+        internal const double SpatialIndexCellSizeMm = SmartTagTuning.SpatialIndexCellPaperMm;
 
         /// <summary>
         /// Collects all existing annotation bounding boxes in the view.

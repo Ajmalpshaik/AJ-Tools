@@ -84,8 +84,8 @@ namespace AJTools.Services.SmartTag
         internal static void EstimateFallbackTagSize(int viewScale, out double width, out double height)
         {
             // Typical MEP tag is roughly 15mm wide x 5mm tall at print scale.
-            width = 15.0 * Constants.MM_TO_FEET * viewScale;
-            height = 5.0 * Constants.MM_TO_FEET * viewScale;
+            width = SmartTagTuning.FallbackTagWidthPaperMm * Constants.MM_TO_FEET * viewScale;
+            height = SmartTagTuning.FallbackTagHeightPaperMm * Constants.MM_TO_FEET * viewScale;
         }
 
         internal static Dictionary<BuiltInCategory, TagSizeHint> BuildTagSizeHints(

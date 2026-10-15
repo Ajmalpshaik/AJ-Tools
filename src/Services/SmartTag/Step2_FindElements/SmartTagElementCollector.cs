@@ -72,9 +72,9 @@ namespace AJTools.Services.SmartTag
         // SmartTagSettingsTracker, and PassesSizeFilter reads whatever the user set. The old
         // GetPipeDiameter helper went with them - it had no other caller. GetDuctWidth stayed,
         // because the placement engine still uses it for HostWidth, which is not a filter.
-        internal static readonly double DensityRadius = 500.0 * Constants.MM_TO_FEET;     // 500mm
+        internal static readonly double DensityRadius = SmartTagTuning.DenseZoneRadiusMm * Constants.MM_TO_FEET;
 
-        internal const int DensityThreshold = 5;
+        internal const int DensityThreshold = SmartTagTuning.DenseZoneNeighbourLimit;
 
         /// <summary>
         /// Collects MEP elements from the active view and applies all 5 filters.

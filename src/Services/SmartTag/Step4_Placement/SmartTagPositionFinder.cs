@@ -66,7 +66,7 @@ namespace AJTools.Services.SmartTag
     /// </summary>
     internal static class SmartTagPositionFinder
     {
-        internal static readonly double ParallelGroupDistance = 200.0 * Constants.MM_TO_FEET; // 200mm
+        internal static readonly double ParallelGroupDistance = SmartTagTuning.ParallelGroupDistanceMm * Constants.MM_TO_FEET;
 
         /// <summary>
         /// Attempts to find the best tag position for a candidate.
@@ -143,7 +143,7 @@ namespace AJTools.Services.SmartTag
 
                 // Test sliding positions if curve exists, otherwise just test midpoint.
                 double[] testParams = (candidate.ElementCurve != null) 
-                    ? new double[] { 0.5, 0.25, 0.75 } 
+                    ? SmartTagTuning.SlidePointsAlongRun
                     : new double[] { 0.5 };
 
                 // Normally two passes: try WITH a leader first, and only fall back to a no-leader
@@ -169,7 +169,7 @@ namespace AJTools.Services.SmartTag
                     // when a leader position could not be found at all, keeps the general offset, so
                     // nothing about duct or pipe tagging changes.
                     double baseOff = tryLeader
-                        ? fixedOffsetInternal * 3.0
+                        ? fixedOffsetInternal * SmartTagTuning.LeaderOffsetMultiplier
                         : (leaderDisabledForCategory ? NoLeaderOffsetInternal : fixedOffsetInternal);
 
                     foreach (double tParam in testParams)
@@ -250,7 +250,7 @@ namespace AJTools.Services.SmartTag
                             }
 
                             // Early exit if we find a perfect, non-clashing spot
-                            if (score >= 60)
+                            if (score >= SmartTagTuning.GoodEnoughScore)
                             {
                                 candidate.NeedsLeader = tryLeader;
                                 return bestPos;
@@ -304,7 +304,7 @@ namespace AJTools.Services.SmartTag
                 }
             }
 
-            if (parallelCount >= 2 && groupMemberAlreadyTagged)
+            if (parallelCount >= SmartTagTuning.ParallelGroupMinNeighbours && groupMemberAlreadyTagged)
             {
                 skipReason = TagSkipReason.PartOfTaggedGroup;
                 return null;

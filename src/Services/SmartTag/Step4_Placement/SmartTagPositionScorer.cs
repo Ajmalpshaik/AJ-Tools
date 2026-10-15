@@ -90,16 +90,16 @@ namespace AJTools.Services.SmartTag
 
             // ── CRITERION 1: FREE SPACE (0–40 pts) ──
             // No clash = 40 pts. Any overlap = disqualified.
-            double tolerance = 1.5 * Constants.MM_TO_FEET * viewScale; // 1.5mm at view scale
-            double nearMiss = 2.0 * Constants.MM_TO_FEET * viewScale;  // 2mm at view scale
-            double threshold10mm = 10.0 * Constants.MM_TO_FEET * viewScale;
+            double tolerance = SmartTagTuning.ClashTolerancePaperMm * Constants.MM_TO_FEET * viewScale;
+            double nearMiss = SmartTagTuning.NearMissPaperMm * Constants.MM_TO_FEET * viewScale;
+            double comfortableGap = SmartTagTuning.ComfortableGapPaperMm * Constants.MM_TO_FEET * viewScale;
 
             if (hostBox != null && proposed.Inflated(tolerance).Overlaps(hostBox))
             {
                 return -1; // Disqualified — clashes with its own host element.
             }
 
-            double searchMargin = Math.Max(nearMiss, threshold10mm);
+            double searchMargin = Math.Max(nearMiss, comfortableGap);
             List<AnnotationBox> nearbyAnnotations = QueryNearbyAnnotations(
                 spatialIndex,
                 existingAnnotations,
@@ -123,11 +123,11 @@ namespace AJTools.Services.SmartTag
             if (hasClash)
                 return -1; // Disqualified — hard clash.
 
-            totalScore += hasNearMiss ? 10 : 40;
+            totalScore += hasNearMiss ? SmartTagTuning.NearMissPoints : SmartTagTuning.FreeSpacePoints;
 
             // ── CRITERION 2: DISTANCE FROM OTHER TAGS (0–20 pts) ──
             double minDist = double.MaxValue;
-            double threshold5mm = 5.0 * Constants.MM_TO_FEET * viewScale;
+            double minimumGap = SmartTagTuning.MinimumGapPaperMm * Constants.MM_TO_FEET * viewScale;
 
             foreach (AnnotationBox existing in nearbyAnnotations)
             {
@@ -136,19 +136,19 @@ namespace AJTools.Services.SmartTag
                     minDist = dist;
             }
 
-            if (minDist > threshold10mm)
-                totalScore += 20;
-            else if (minDist >= threshold5mm)
-                totalScore += 10;
+            if (minDist > comfortableGap)
+                totalScore += SmartTagTuning.ComfortableGapPoints;
+            else if (minDist >= minimumGap)
+                totalScore += SmartTagTuning.MinimumGapPoints;
             else
                 return -1; // Too close — disqualified.
 
             // ── CRITERION 3: ALIGNMENT PREFERENCE (0–20 pts) ──
             // Horizontal placement is always preferred for readability.
             if (direction == TagDirection.Top || direction == TagDirection.Bottom)
-                totalScore += 20; // Horizontal — best readability.
+                totalScore += SmartTagTuning.AboveOrBelowPoints; // Horizontal — best readability.
             else
-                totalScore += 10; // Left/Right — acceptable but not ideal.
+                totalScore += SmartTagTuning.BesidePoints; // Left/Right — acceptable but not ideal.
 
             // ── CRITERION 4: LEADER CONSISTENCY (0–20 pts) ──
             // Max-leader filtering is intentionally disabled. Offset value should control placement.
@@ -156,8 +156,8 @@ namespace AJTools.Services.SmartTag
             // out of 80 with 20 free points, and the "score >= 60" early exit in FindBestTagPosition
             // is calibrated against that. Left exactly as-is on purpose: removing the 20 would
             // silently retune every placement decision Smart MEP Tag makes. Only change it together
-            // with that threshold.
-            totalScore += 20;
+            // with that threshold. Both numbers are in SmartTagTuning.
+            totalScore += SmartTagTuning.LeaderConsistencyPoints;
 
             return totalScore;
         }

@@ -203,18 +203,9 @@ namespace AJTools.Services.SmartTag
 
         /// <summary>
         /// Gap between a no-leader tag and the element it belongs to, as a real distance in the model.
+        /// The value and the reason for it are in SmartTagTuning.NoLeaderOffsetMm.
         /// </summary>
-        /// <remarks>
-        /// 150mm, approved by Ajmal on 2026-08-18 after seeing both 300mm and 150mm on 32 live duct
-        /// accessories. A no-leader tag reads as belonging to the thing it sits next to, so it wants
-        /// to be closer than a tag on a leader - the general 300mm offset put it about 6mm off on a
-        /// 1:50 sheet before the tag's own width was even added, and he called it "very far".
-        ///
-        /// Kept separate from SmartTagSettingsTracker's general offset ON PURPOSE: that one is shared
-        /// with every leader-carrying tag, and halving it would have moved every duct tag in the
-        /// suite. He scoped this to accessories.
-        /// </remarks>
-        internal static readonly double NoLeaderOffsetInternal = 150.0 * Constants.MM_TO_FEET;
+        internal static readonly double NoLeaderOffsetInternal = SmartTagTuning.NoLeaderOffsetMm * Constants.MM_TO_FEET;
 
         /// <summary>
         /// Returns the first position in <paramref name="order"/> whose tag box is clear of every
@@ -251,7 +242,7 @@ namespace AJTools.Services.SmartTag
             if (positions == null || order == null)
                 return null;
 
-            double clearanceFeet = 1.5 * Constants.MM_TO_FEET * viewScale;
+            double clearanceFeet = SmartTagTuning.NoLeaderClearancePaperMm * Constants.MM_TO_FEET * viewScale;
 
             foreach (TagDirection direction in order)
             {
