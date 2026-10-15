@@ -277,20 +277,51 @@ place rather than leaving stale info sitting next to the new truth.
 - **Duct tagging scope rule (Ajmal, 2026-07-13)**: when tagging ducts, only tag **horizontal runs** —
   skip vertical risers — and only runs **1000mm or longer**; shorter stubs don't get tagged. Applies
   generally to duct tagging, not just the one request it came from.
-- **Create Tags' vertical-run skip is deliberately WIDER than Smart MEP Tag's own (Ajmal, 2026-07-28)**:
-  Smart MEP Tag only excludes vertical *ducts* (`IsVerticalDuct` in `SmartMepTagService.cs`, duct
-  category only); Create Tags excludes vertical ducts, pipes, AND cable trays (`IsVerticalMepCurve` in
-  `CreateTagsService.cs`, same Z-direction-over-0.95 technique, generalized to any `MEPCurve`). This is
-  intentional, confirmed via AskUserQuestion — not a bug. Don't "fix" one to match the other without
-  checking with Ajmal first. Likewise, Create Tags' minimum-length threshold is a real user-editable
-  setting (`CreateTagsSettingsWindow`, mm field); Smart MEP Tag's own equivalent thresholds
-  (`MinDuctWidth`/`MinPipeDiameter`/`MinCurveLength`) are still hardcoded constants in
-  `SmartMepTagService.cs`, not exposed in its own Settings window — the two tools' settings are
-  independent of each other. Full story in `ajtools-conventions-log.md` 2026-07-28.
+- **Vertical runs and size limits are now settings, shared where they should be** (corrected
+  2026-10-15 — this bullet used to describe the 2026-07-28 state, when Smart MEP Tag skipped vertical
+  ducts only and its size limits were hardcoded). Since v1.49.2 Smart MEP Tags, Create Tags and Stack
+  Tags all read ONE skip-vertical-runs setting covering duct, pipe and tray
+  (`TagClashSettings.ShouldSkipVerticalRuns`, check in `CreateTagsEligibilityFilter.IsVerticalMepCurve`);
+  since v1.49.7 Smart MEP Tag's length/width/height limits are user settings in its own window. Create
+  Tags keeps its own separate minimum length. History in `ajtools-conventions-log.md` 2026-07-28.
+
+**Smart MEP Tags code map — where to change what (restructured 2026-10-15, v1.58.0)**
+Ajmal asked for the algorithm to be easy to find and edit, so `src/Services/SmartTag/` is laid out as
+the run itself. Change behaviour in the file named for that job; do not grow `SmartMepTagService.cs`
+back into a catch-all.
+
+| To change… | Edit |
+|---|---|
+| Any number in the placement (offsets, clash gaps, score points, crowded/group distances, slide points) | `SmartTagTuning.cs` — values only, each explained |
+| The order of the run, the messages before it starts | `SmartMepTagService.cs` (the run, steps 1–5) |
+| Which views are allowed / crop checks | `Step1_ViewCheck/SmartTagViewCheck.cs` |
+| Which elements are collected, priority order, crowded-area flag | `Step2_FindElements/SmartTagElementCollector.cs` |
+| Skip rules (size, minor pipe accessories, crop) | `Step2_FindElements/SmartTagElementFilters.cs` |
+| Midpoint, run direction, width/edge gap, boxes (shared with Create/Stack Tags, Fix Tag Clash) | `Step2_FindElements/SmartTagElementGeometry.cs` |
+| Linked models | `Step2_FindElements/SmartTagLinkedElementCollector.cs` |
+| Which tag type an element gets | `Step3_TagTypes/SmartTagTypeSelector.cs` |
+| **Where a tag goes — the algorithm** (3 stages: around the element → parallel group → crowded area) | `Step4_Placement/SmartTagPositionFinder.cs` |
+| The spots tried and their order, the no-leader first-clear search | `Step4_Placement/SmartTagCandidatePositions.cs` |
+| How a spot is scored | `Step4_Placement/SmartTagPositionScorer.cs` |
+| What a tag must avoid; the crop boundary | `Step4_Placement/SmartTagViewObstacles.cs` |
+| Expected tag size | `Step4_Placement/SmartTagSizeHints.cs` |
+| Creating the tag in Revit (reference, type, leader) | `Step4_Placement/SmartTagCreator.cs` |
+| The report and the "nothing to tag" message | `Step5_Report/SmartTagReportGenerator.cs` |
+
+- The per-run picture of the view is built ONCE in `SmartTagPlacementContext.Build` and handed to every
+  placement routine — add a new per-run input there, not as another parameter.
+- The step files reach each other with `using static AJTools.Services.SmartTag.<Class>;` lines at the
+  top, so a routine can be called unqualified; those lines say exactly which other step files a file
+  uses. Folders do not change the namespace (all `AJTools.Services.SmartTag`).
+- **How the restructure was proven behaviour-neutral without Revit** (reuse for any big split): cut
+  each member out whole by brace-matching (strings and comments blanked first), then compare every
+  routine's code lines old-vs-new by name, after applying an explicit list of intended substitutions
+  (renames, number → tuning name). Anything left over is a real change. Stage-split routines were
+  compared stage by stage. Zero unexplained differences, then all eight configs built.
 
 **No-leader tag placement — the numbers, and the one thing the scorer cannot see (v1.51.0, 2026-08-18)**
 - A category with its Leader tick OFF places the tag **beside** the element, **150mm** from its edge
-  (`SmartTagPlacementEngine.NoLeaderOffsetInternal`), in the order **Right → Left → Below → Above**,
+  (`SmartTagTuning.NoLeaderOffsetMm`), in the order **Right → Left → Below → Above**,
   taking the **first direction that is genuinely clear** — not the best-scoring one.
 - **150mm is separate from the general 300mm offset on purpose.** The shared offset
   (`SmartTagSettingsTracker`) is used by every leader-carrying tag; halving it would move every duct
@@ -316,7 +347,7 @@ place rather than leaving stale info sitting next to the new truth.
   rounds before Ajmal approved them. Verify placement by fresh read-back (leaders, tag-on-model,
   tag-on-tag), never by eye.
 - **Since 1.57.2 (2026-10-12) the gap really is measured from the EDGE for every category**
-  (`SmartMepTagService.GetHostWidth`: pipe outside diameter, tray width, an accessory's size across
+  (`SmartTagElementGeometry.GetHostWidth`: pipe outside diameter, tray width, an accessory's size across
   its run, equipment's narrower side). Until then only ducts had a width, so everything else was
   measured from its centre — the 150 mm above was tuned on that. Ajmal chose edge-measuring knowing
   tags move out by half the element's size (a 3000 × 1000 unit: +500 mm). If tags now look too far
@@ -1366,7 +1397,7 @@ does not catch that, because whole methods were removed cleanly; only re-reading
   saying max-leader filtering is intentionally disabled. It is a 3-criteria score with 20 free points.
 - The clash engine was blind to detail components, detail lines, generic annotations, keynote tags,
   spot elevations/coordinates and revision clouds — `TagClashEngine.CollectStaticObstacles` now covers
-  them; the old `SmartTagPlacementEngine.CollectExistingAnnotations` still only sees tags/text/dims.
+  them; Smart MEP Tags' own `SmartTagViewObstacles.CollectExistingAnnotations` still only sees tags/text/dims.
 
 ### The Linux web container CAN build this project — corrected 2026-10-14
 

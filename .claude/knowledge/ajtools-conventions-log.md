@@ -3,6 +3,21 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-10-15 (Smart MEP Tags restructured — still v1.58.0, same PR)
+
+Ajmal, after the linked-model work: *"you can completely restructure this smart tag tool… the
+algorithm it is very difficult to find and edit. You can make separate code for this algorithm."*
+`SmartMepTagService.cs` (2,100 lines) and `SmartTagPlacementEngine.cs` (1,600) became step folders
+with one job per file, a `SmartTagTuning.cs` holding every placement number, a
+`SmartTagPlacementContext` replacing the 17-value parameter list, and the "where does the tag go"
+routine split into three named stages. Map in `ajtools-conventions.md` ("Smart MEP Tags code map").
+
+**Kept to a pure restructure** — no tag lands anywhere different. Proven by a script comparing every
+routine's code lines old-vs-new after a declared list of intended substitutions; zero unexplained
+differences; all 8 configs built. Folded into 1.58.0 because that version is not released yet.
+"Add more things connected" from the same message was read as permission, not a spec — nothing new
+was added on it; asked Ajmal what he wants next instead of guessing.
+
 ### 2026-10-14 (Smart MEP Tags tags linked models — v1.58.0)
 
 Ajmal's request, dictated: a tick box in Smart Tag so it "searches for the linked element", so

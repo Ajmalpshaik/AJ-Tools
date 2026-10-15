@@ -8,7 +8,7 @@
  * Version       : 1.58.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-10-14
+ * Last Updated  : 2026-10-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -35,8 +35,13 @@
  *                       apart by (link, element), never a bare id. Settings window refreshed: "In links"
  *                       count per category, a live "x of y categories ticked" line, the two run options
  *                       grouped with a help line each, "Advanced" tab renamed "Size limits". Fix Tag
- *                       Clash Settings carries the new value through its save. Builds clean 2020-2027;
- *                       NOT run in Revit.
+ *                       Clash Settings carries the new value through its save. ALSO (2026-10-15, Ajmal:
+ *                       "make separate code for this algorithm"): Smart MEP Tags restructured into step
+ *                       folders (view check / find elements / tag types / placement / report), every
+ *                       placement number in SmartTagTuning.cs, the placement view picture built once in
+ *                       SmartTagPlacementContext, and FindBestTagPosition split into three named stages.
+ *                       Every moved routine machine-checked against the original: tags land exactly
+ *                       where they did. Builds clean 2020-2027; NOT run in Revit.
  * v1.57.2 (2026-10-12) - AJMAL'S THREE DECISIONS FROM THE AUDIT. (1) WALL OPENINGS: every host used the
  *                       floor box rule (X widened by the width, Y by the HEIGHT), so on a wall running
  *                       along Y a duct taller than it is wide got an opening as wide as its height

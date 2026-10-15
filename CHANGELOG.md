@@ -20,6 +20,11 @@ Smart MEP Tags can tag linked models. Builds clean for Revit 2020-2027; **not ye
 - **Changed: Smart MEP Tagging Settings window** - an "In links" count per category, a live "x of y
   categories ticked" line, the two run options grouped with a help line each, and the "Advanced" tab
   renamed "Size limits".
+- **Changed: Smart MEP Tags code restructured** so the placement algorithm is easy to find and edit.
+  The two large files are split into step folders (view check, find elements, tag types, placement,
+  report), every placement number (offsets, clash gaps, score points) is in one file,
+  `SmartTagTuning.cs`, and the "where does the tag go" routine reads as three stages. Tags land exactly
+  where they did before - every moved routine was machine-checked against the original.
 
 ## [1.57.2] - 2026-10-12
 
