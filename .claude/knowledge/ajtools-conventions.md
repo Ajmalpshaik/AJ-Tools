@@ -210,10 +210,18 @@ place rather than leaving stale info sitting next to the new truth.
   `PlanViewRange.Unlimited` / `LevelAbove` / `LevelBelow` / `Current` — resolve Above/Below against the
   host levels sorted by `ProjectElevation`. Leave anything unreadable OPEN so the estimate never drops
   everything. Implemented in `Services/SmartTag/SmartTagLinkedElementCollector.cs`.
+- **Reading a selection that includes linked elements**: `Selection.GetElementIds()` (every version)
+  returns this model's elements and, for a link, only the `RevitLinkInstance`. `Selection.GetReferences()`
+  — **Revit 2023+ only** (checked in the API files: absent in 2020 and 2022) — also returns elements
+  Tab-picked INSIDE a link, as link references (`ElementId` = link instance, `LinkedElementId` =
+  element). House rule used by Smart MEP Tags' "Selected elements only": a selected LINK means "tag
+  inside this link"; on 2023+ a single picked linked element counts too. An empty selection with the
+  option on stops with a message — never quietly falls back to the whole view.
 - **Every new key in `TagClash.config` must also be carried through `FixTagClashSettingsWindow.OnSave`.**
   That window builds a brand-new `TagClashSettingsState` and `Save` rewrites the whole file, so a key it
   does not copy from `TagClashSettings.Load()` is silently reset whenever Fix Tag Clash Settings is saved.
-  Happened once already (v1.49.7's five Smart Tag values); `smarttag_include_linked` was added there too.
+  Happened once already (v1.49.7's five Smart Tag values); `smarttag_include_linked` and
+  `smarttag_selected_only` were added there too.
 - **A Coarse view returns no solids.** Revit draws ducts/pipes as single lines there, so `get_Geometry`
   with `Options.View = <coarse view>` gives a valid, non-null `GeometryElement` containing `Line`s and no
   `Solid`. A fallback gated on `geometry != null` therefore never runs. Gate it on "did I actually get a
@@ -299,6 +307,7 @@ back into a catch-all.
 | Skip rules (size, minor pipe accessories, crop) | `Step2_FindElements/SmartTagElementFilters.cs` |
 | Midpoint, run direction, width/edge gap, boxes (shared with Create/Stack Tags, Fix Tag Clash) | `Step2_FindElements/SmartTagElementGeometry.cs` |
 | Linked models | `Step2_FindElements/SmartTagLinkedElementCollector.cs` |
+| "Selected elements only" | `Step2_FindElements/SmartTagSelectionFilter.cs` |
 | Which tag type an element gets | `Step3_TagTypes/SmartTagTypeSelector.cs` |
 | **Where a tag goes — the algorithm** (3 stages: around the element → parallel group → crowded area) | `Step4_Placement/SmartTagPositionFinder.cs` |
 | The spots tried and their order, the no-leader first-clear search | `Step4_Placement/SmartTagCandidatePositions.cs` |

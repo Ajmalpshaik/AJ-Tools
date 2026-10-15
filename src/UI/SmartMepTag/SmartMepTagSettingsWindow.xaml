@@ -1,11 +1,11 @@
 <!--
   Tool Name: Smart MEP Tagging - Settings
-  Description: Choose and prioritise the MEP categories Smart MEP Tags will tag, whether linked models are
-               tagged too, the skip-vertical-runs rule shared with Create Tags and Stack Tags, and the size
+  Description: Choose and prioritise the MEP categories Smart MEP Tags will tag, whole view or selected
+               elements only, whether linked models are tagged too, the skip-vertical-runs rule shared with Create Tags and Stack Tags, and the size
                limits.
   Author: Ajmal P.S.
-  Version: 1.1.0
-  Last Updated: 2026-10-14
+  Version: 1.2.0
+  Last Updated: 2026-10-15
   Revit Version: 2020 - latest
   Dependencies: AJTools.UI.ModernStyles
 -->
@@ -215,8 +215,33 @@
                     <!-- Run options -->
                     <Border Grid.Row="2" Style="{StaticResource SmartTagOptionsCard}" Margin="0,12,0,0">
                         <StackPanel>
+                            <!-- What to tag: the whole view, or only what was selected first -->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Tag:"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,14,0"/>
+                                <RadioButton x:Name="WholeViewRadio"
+                                             GroupName="SmartTagScope"
+                                             Content="Whole view"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             Margin="0,5,20,5"
+                                             ToolTip="Tag every element of the ticked categories in the active view."/>
+                                <RadioButton x:Name="SelectedOnlyRadio"
+                                             GroupName="SmartTagScope"
+                                             Content="Selected elements only"
+                                             Style="{StaticResource ModernRadioButton}"
+                                             ToolTip="Tag only the elements you select before pressing Smart MEP Tags. Select a linked model to tag inside it."/>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource SmartTagOptionHint}"
+                                       Margin="0,0,0,0"
+                                       Text="Selected elements only: select first, then press Smart MEP Tags. Select a linked model to tag inside it (Revit 2023 and newer: you can also Tab-pick single elements inside a link)."/>
+
                             <CheckBox x:Name="IncludeLinkedBox"
                                       Content="Also tag elements in linked models"
+                                      Margin="0,12,0,5"
                                       Style="{StaticResource ModernCheckBox}"
                                       Checked="OnIncludeLinkedToggled"
                                       Unchecked="OnIncludeLinkedToggled"
@@ -364,7 +389,7 @@
                                 Style="{StaticResource CompactSecondaryButton}"
                                 MinWidth="128"
                                 Click="OnReset"
-                                ToolTip="Tick every category, put each priority and leader setting back to its default, reset the size limits, switch vertical-run skipping back on and linked models off. Nothing is saved until you press Save."/>
+                                ToolTip="Tick every category, put each priority and leader setting back to its default, reset the size limits, switch vertical-run skipping back on, linked models off, and go back to tagging the whole view. Nothing is saved until you press Save."/>
 
                         <Button Grid.Column="2"
                                 x:Name="SaveButton"

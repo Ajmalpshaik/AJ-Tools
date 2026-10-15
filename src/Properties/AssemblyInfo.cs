@@ -41,7 +41,10 @@
  *                       placement number in SmartTagTuning.cs, the placement view picture built once in
  *                       SmartTagPlacementContext, and FindBestTagPosition split into three named stages.
  *                       Every moved routine machine-checked against the original: tags land exactly
- *                       where they did. Builds clean 2020-2027; NOT run in Revit.
+ *                       where they did. ALSO: "Tag: Whole view / Selected elements only" choice in Smart
+ *                       MEP Tagging Settings (default whole view) - select a link to tag inside it, and
+ *                       on Revit 2023+ Tab-picked linked elements count too; nothing selected = a plain
+ *                       message, never a silent whole-view run. Builds clean 2020-2027; NOT run in Revit.
  * v1.57.2 (2026-10-12) - AJMAL'S THREE DECISIONS FROM THE AUDIT. (1) WALL OPENINGS: every host used the
  *                       floor box rule (X widened by the width, Y by the HEIGHT), so on a wall running
  *                       along Y a duct taller than it is wide got an opening as wide as its height

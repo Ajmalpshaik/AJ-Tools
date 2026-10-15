@@ -13,7 +13,7 @@
  *                 The numbers that tune the placement algorithm are all in SmartTagTuning.cs.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.0.0
+ * Version       : 2.1.0
  *
  * Created Date  : 2026-04-20
  * Last Updated  : 2026-10-15
@@ -31,6 +31,8 @@
  * - Called by CmdSmartMepTag. Create Tags, Stack Tags and Fix Tag Clash reuse the step files directly.
  *
  * Changelog     :
+ * v2.1.0 (2026-10-15) - "Selected elements only" option: reads the selection, stops with a plain
+ *                       message when nothing is selected, and passes it to step 2.
  * v2.0.0 (2026-10-15) - Restructured (Ajmal: "make separate code for this algorithm"). This file was
  *                       2,100 lines holding every phase; it now holds only the run, and each phase is
  *                       its own file in a step folder. Routines moved unchanged - tagging results are
@@ -106,6 +108,24 @@ namespace AJTools.Services.SmartTag
                 return Result.Cancelled;
             }
 
+            // "Selected elements only" (Smart MEP Tagging Settings): read the selection before anything
+            // else is asked, and stop with a plain message when nothing is selected - never fall back
+            // to tagging the whole view behind the user's back.
+            SmartTagSelectionFilter selection = null;
+            if (TagClashSettings.ShouldSmartTagTagSelectedOnly())
+            {
+                selection = SmartTagSelectionFilter.FromCurrentSelection(uidoc);
+                if (selection.IsEmpty)
+                {
+                    DialogHelper.ShowInfo(ToolTitle,
+                        "Smart MEP Tags is set to tag selected elements only, but nothing is selected.\n\n"
+                        + "Select the ducts, pipes, cable trays, accessories or equipment to tag - or a linked "
+                        + "model, to tag inside it - then run it again.\n\n"
+                        + "To tag the whole view instead, change it in Smart MEP Tagging Settings.");
+                    return Result.Cancelled;
+                }
+            }
+
             // Show any warnings from pre-flight.
             if (preflight.Warnings.Count > 0)
             {
@@ -131,12 +151,12 @@ namespace AJTools.Services.SmartTag
 
             var results = new List<TagPlacementResult>();
             List<TagCandidate> candidates = SmartTagElementCollector.CollectAndFilterElements(
-                doc, preflight, settingsState, results, out SmartTagLinkedScan linkedScan);
+                doc, preflight, settingsState, results, selection, out SmartTagLinkedScan linkedScan);
             int candidatesAfterFilter = candidates.Count;
 
             if (candidates.Count == 0)
             {
-                DialogHelper.ShowInfo(ToolTitle, SmartTagReportGenerator.BuildNothingToTagMessage(results, linkedScan));
+                DialogHelper.ShowInfo(ToolTitle, SmartTagReportGenerator.BuildNothingToTagMessage(results, linkedScan, selection));
                 RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
                 return Result.Succeeded;
             }
@@ -175,7 +195,7 @@ namespace AJTools.Services.SmartTag
             RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
 
             // ── STEP 5: the report (Step5_Report) ──
-            SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings, linkedScan);
+            SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings, linkedScan, selection);
 
             int successCount = results.Count(r => r.Success);
             return successCount > 0 ? Result.Succeeded : Result.Cancelled;

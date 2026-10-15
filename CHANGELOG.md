@@ -17,6 +17,11 @@ Smart MEP Tags can tag linked models. Builds clean for Revit 2020-2027; **not ye
 - **Revit 2020-2022:** these versions cannot list exactly which linked elements a view shows, so Smart
   MEP Tags works it out from the crop region and the view range (floor plan: view depth up to the cut
   plane). The report says when this was done. Revit 2023 and newer get the exact list from Revit.
+- **New: "Tag: Whole view / Selected elements only"** in Smart MEP Tagging Settings (default whole
+  view, remembered after Revit closes). With "Selected elements only", select first, then press Smart
+  MEP Tags: only the selected elements are tagged. Select a linked model to tag inside it; on Revit 2023
+  and newer, single elements Tab-picked inside a link count too. If nothing is selected the tool says so
+  and stops - it never quietly tags the whole view instead.
 - **Changed: Smart MEP Tagging Settings window** - an "In links" count per category, a live "x of y
   categories ticked" line, the two run options grouped with a help line each, and the "Advanced" tab
   renamed "Size limits".

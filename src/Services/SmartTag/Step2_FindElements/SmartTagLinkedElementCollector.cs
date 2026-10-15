@@ -40,6 +40,7 @@
  *
  * Changelog     :
  * v1.0.0 (2026-10-14) - Initial release (Smart MEP Tags "also tag elements in linked models").
+ *                       2026-10-15: optional link filter for "Selected elements only".
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -124,10 +125,15 @@ namespace AJTools.Services.SmartTag
         /// Finds the linked elements of the given categories that are shown in the view.
         /// Never throws: a link or category that cannot be read contributes nothing.
         /// </summary>
+        /// <param name="readLink">
+        /// Optional: which links to read at all (by link instance id). Null reads every link shown in
+        /// the view. "Selected elements only" passes the links that have something selected in them.
+        /// </param>
         internal static SmartTagLinkedScan Collect(
             Document doc,
             View view,
-            IEnumerable<BuiltInCategory> categories)
+            IEnumerable<BuiltInCategory> categories,
+            Func<ElementId, bool> readLink = null)
         {
             var scan = new SmartTagLinkedScan();
             if (doc == null || view == null || categories == null)
@@ -138,6 +144,9 @@ namespace AJTools.Services.SmartTag
                 return scan;
 
             List<RevitLinkInstance> links = GetLoadedLinksShownInView(doc, view);
+            if (readLink != null)
+                links = links.Where(link => readLink(link.Id)).ToList();
+
             scan.LinksInView = links.Count;
             if (links.Count == 0)
                 return scan;

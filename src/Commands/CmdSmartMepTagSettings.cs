@@ -41,6 +41,7 @@
  *                       message instead of Revit's own error box. Settings behaviour unchanged.
  * v2.1.0 (2026-10-14) - "Also tag elements in linked models" tick box (saved to the settings file, so
  *                       it survives closing Revit) and an "In links" count per category.
+ *                       2026-10-15: "Tag: Whole view / Selected elements only" choice, saved the same way.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -105,7 +106,8 @@ namespace AJTools.Commands
 
             if (!TryPromptSettings(
                     commandData.Application, doc, initial,
-                    out SmartTagSettingsState newState, out bool skipVerticalRuns, out bool includeLinked))
+                    out SmartTagSettingsState newState, out bool skipVerticalRuns, out bool includeLinked,
+                    out bool selectedOnly))
             {
                 return Result.Cancelled;
             }
@@ -115,19 +117,20 @@ namespace AJTools.Commands
             // Skip-vertical-runs is the one tagging setting shared with Create Tags and Stack Tags.
             // Both tick boxes live in the settings file so they survive closing Revit; each TrySet does
             // its own read-modify-write so the Fix Tag Clash settings in the same file are left alone.
-            bool verticalSaved = TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns);
-            bool linkedSaved = TagClashSettings.TrySetSmartTagIncludeLinked(includeLinked);
-            if (!verticalSaved || !linkedSaved)
-            {
-                string which = !verticalSaved && !linkedSaved
-                    ? "the vertical-run and linked-model tick boxes could not be"
-                    : !verticalSaved
-                        ? "the vertical-run tick box could not be"
-                        : "the linked-model tick box could not be";
+            var notSaved = new List<string>();
+            if (!TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns))
+                notSaved.Add("the vertical-run tick box");
+            if (!TagClashSettings.TrySetSmartTagIncludeLinked(includeLinked))
+                notSaved.Add("the linked-model tick box");
+            if (!TagClashSettings.TrySetSmartTagSelectedOnly(selectedOnly))
+                notSaved.Add("the whole view / selected elements choice");
 
+            if (notSaved.Count > 0)
+            {
                 DialogHelper.ShowError(
                     ToolTitle,
-                    "Your categories and priorities were saved, but " + which + ".\n\n"
+                    "Your categories and priorities were saved, but " + string.Join(" and ", notSaved)
+                    + " could not be.\n\n"
                     + "Check that AJ Tools can write to your AppData folder, then set it again.");
                 return Result.Failed;
             }
@@ -141,11 +144,13 @@ namespace AJTools.Commands
             SmartTagSettingsState initialState,
             out SmartTagSettingsState newState,
             out bool skipVerticalRuns,
-            out bool includeLinked)
+            out bool includeLinked,
+            out bool selectedOnly)
         {
             newState = null;
             skipVerticalRuns = TagClashSettings.DefaultSkipVerticalRuns;
             includeLinked = TagClashSettings.DefaultSmartTagIncludeLinked;
+            selectedOnly = TagClashSettings.DefaultSmartTagSelectedOnly;
 
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
             Dictionary<BuiltInCategory, int> inLinkCounts = SmartTagLinkedElementCollector.CountInLoadedLinks(
@@ -184,7 +189,8 @@ namespace AJTools.Commands
 
             TagClashSettingsState storedFile = TagClashSettings.Load();
             var window = new SmartMepTagSettingsWindow(
-                rows, storedFile.SkipVerticalRuns, storedSizeSettings, storedFile.SmartTagIncludeLinked);
+                rows, storedFile.SkipVerticalRuns, storedSizeSettings, storedFile.SmartTagIncludeLinked,
+                storedFile.SmartTagSelectedOnly);
 
             if (uiapp != null)
             {
@@ -199,6 +205,7 @@ namespace AJTools.Commands
 
             skipVerticalRuns = window.SkipVerticalRuns;
             includeLinked = window.IncludeLinked;
+            selectedOnly = window.SelectedOnly;
 
             if (!TryBuildStateFromRows(window.Rows, initialState, out newState))
                 return false;

@@ -3,6 +3,16 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-10-15 (Smart MEP Tags "Selected elements only" — still v1.58.0, same PR)
+
+Ajmal: *"add the tag selected elements only option"* (my suggestion after the restructure). Built as a
+"Tag: Whole view / Selected elements only" choice in Smart MEP Tagging Settings — the same two-way
+choice Revit's own Tag All dialog offers — stored as `smarttag_selected_only`, default whole view.
+Chosen over "use the selection automatically when there is one" because a stray selection would then
+silently shrink a run; the explicit choice plus a clear "nothing is selected" stop cannot surprise.
+Selecting a link tags inside it; on Revit 2023+ Tab-picked linked elements count too
+(`Selection.GetReferences`). New file `Step2_FindElements/SmartTagSelectionFilter.cs`. Built only.
+
 ### 2026-10-15 (Smart MEP Tags restructured — still v1.58.0, same PR)
 
 Ajmal, after the linked-model work: *"you can completely restructure this smart tag tool… the

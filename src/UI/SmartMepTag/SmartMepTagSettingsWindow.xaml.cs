@@ -8,10 +8,10 @@
  *                 rule shared with Create Tags and Stack Tags.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.1.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-10-14
+ * Last Updated  : 2026-10-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -32,6 +32,7 @@
  *   construction - the old grid's "Select a valid priority" failure path no longer exists.
  *
  * Changelog     :
+ * v1.2.0 (2026-10-15) - "Tag: Whole view / Selected elements only" choice.
  * v1.1.0 (2026-10-14) - "Also tag elements in linked models" tick box and an "In links" count column.
  *                       Layout refresh: live "x of y categories ticked" count, the two run options
  *                       grouped in one card with a help line each, "Advanced" tab renamed "Size limits".
@@ -87,6 +88,12 @@ namespace AJTools.UI.SmartMepTag
         /// </summary>
         public bool IncludeLinked { get; private set; }
 
+        /// <summary>
+        /// True for "Selected elements only", false for "Whole view".
+        /// Only meaningful when DialogResult is true.
+        /// </summary>
+        public bool SelectedOnly { get; private set; }
+
         /// <summary>Shortest run worth tagging, mm. 0 = no minimum. Meaningful only when DialogResult is true.</summary>
         public double MinLengthMm { get; private set; }
 
@@ -106,11 +113,13 @@ namespace AJTools.UI.SmartMepTag
         /// <param name="currentSkipVerticalRuns">Skip-vertical-runs value currently stored.</param>
         /// <param name="sizeSettings">Size rules currently stored, used to fill the Size limits tab.</param>
         /// <param name="currentIncludeLinked">Linked-models value currently stored.</param>
+        /// <param name="currentSelectedOnly">Whole-view / selected-only value currently stored.</param>
         public SmartMepTagSettingsWindow(
             IList<SmartTagCategoryRow> rows,
             bool currentSkipVerticalRuns,
             SmartTagSettingsState sizeSettings,
-            bool currentIncludeLinked)
+            bool currentIncludeLinked,
+            bool currentSelectedOnly)
         {
             InitializeComponent();
 
@@ -131,6 +140,8 @@ namespace AJTools.UI.SmartMepTag
             CategoryGrid.ItemsSource = _rows;
             SkipVerticalBox.IsChecked = currentSkipVerticalRuns;
             IncludeLinkedBox.IsChecked = currentIncludeLinked;
+            SelectedOnlyRadio.IsChecked = currentSelectedOnly;
+            WholeViewRadio.IsChecked = !currentSelectedOnly;
 
             SmartTagSettingsState size = sizeSettings ?? SmartTagSettingsTracker.LoadSizeSettingsFromFile();
 
@@ -268,6 +279,8 @@ namespace AJTools.UI.SmartMepTag
 
             SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
             IncludeLinkedBox.IsChecked = TagClashSettings.DefaultSmartTagIncludeLinked;
+            SelectedOnlyRadio.IsChecked = TagClashSettings.DefaultSmartTagSelectedOnly;
+            WholeViewRadio.IsChecked = !TagClashSettings.DefaultSmartTagSelectedOnly;
 
             MinLengthBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinLengthMm);
             MinWidthBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinWidthMm);
@@ -288,6 +301,7 @@ namespace AJTools.UI.SmartMepTag
 
             SkipVerticalRuns = SkipVerticalBox.IsChecked == true;
             IncludeLinked = IncludeLinkedBox.IsChecked == true;
+            SelectedOnly = SelectedOnlyRadio.IsChecked == true;
 
             double minLength;
             double minWidth;

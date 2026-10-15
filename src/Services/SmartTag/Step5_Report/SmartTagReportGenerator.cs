@@ -1,10 +1,11 @@
 // Tool Name: Smart Tag Report Generator
 // Description: Step 5 — the report after all tagging is complete, and the "nothing to tag" message.
 // Author: Ajmal P.S.
-// Version: 1.2.0
+// Version: 1.3.0
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag
-// Changelog: 1.2.0 (2026-10-15) - The "No elements to tag" message moved here from the run
+// Changelog: 1.3.0 (2026-10-15) - Says when only the selected elements were tagged.
+//            1.2.0 (2026-10-15) - The "No elements to tag" message moved here from the run
 //            (BuildNothingToTagMessage), unchanged, so every message the tool shows lives in one file.
 //            1.1.0 (2026-10-14) - Linked models: one line says how many linked elements were found and
 //            tagged and how many links were read (and when the view was estimated, on Revit 2020-2022).
@@ -36,7 +37,8 @@ namespace AJTools.Services.SmartTag
             PreFlightResult preflight,
             List<TagPlacementResult> results,
             List<string> tagWarnings,
-            SmartTagLinkedScan linkedScan = null)
+            SmartTagLinkedScan linkedScan = null,
+            SmartTagSelectionFilter selection = null)
         {
             if (preflight == null || preflight.ActiveView == null || results == null)
             {
@@ -68,6 +70,8 @@ namespace AJTools.Services.SmartTag
             sb.AppendLine(string.Format("View Name:    {0}", preflight.ActiveView.Name));
             sb.AppendLine(string.Format("View Scale:   1:{0}", preflight.ViewScale));
             sb.AppendLine(string.Format("View Type:    {0}", preflight.ViewType));
+            if (selection != null)
+                sb.AppendLine(string.Format("Tagged:       selected elements only ({0} selected)", selection.Count));
             sb.AppendLine();
 
             // ── Counts ──
@@ -146,7 +150,8 @@ namespace AJTools.Services.SmartTag
         /// </summary>
         internal static string BuildNothingToTagMessage(
             List<TagPlacementResult> results,
-            SmartTagLinkedScan linkedScan)
+            SmartTagLinkedScan linkedScan,
+            SmartTagSelectionFilter selection = null)
         {
             // Build a summary of why no candidates were found. Every skip already carries the
             // reason that produced it, so name the filter instead of merging four of them into
@@ -169,7 +174,9 @@ namespace AJTools.Services.SmartTag
                 .FirstOrDefault();
 
             var summary = new System.Text.StringBuilder();
-            summary.AppendLine("No elements to tag in this view.");
+            summary.AppendLine(selection != null
+                ? "None of the selected elements can be tagged."
+                : "No elements to tag in this view.");
             summary.AppendLine();
             summary.AppendLine(string.Format("Analysed: {0}", results.Count));
             summary.AppendLine(string.Format("Already tagged: {0}", alreadyTagged));

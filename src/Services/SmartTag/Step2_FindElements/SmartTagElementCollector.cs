@@ -67,6 +67,10 @@ namespace AJTools.Services.SmartTag
         /// Returns a prioritised list of TagCandidate objects ready for step 3 (tag types).
         /// Also populates the results list with skipped elements and their reasons.
         /// </summary>
+        /// <param name="selection">
+        /// "Selected elements only": the user's selection, and nothing outside it is tagged. Null tags
+        /// the whole view.
+        /// </param>
         /// <param name="linkedScan">
         /// What the linked-model scan found, when "also tag elements in linked models" is on; null when
         /// it is off. The report uses it to say how many links were read.
@@ -76,6 +80,7 @@ namespace AJTools.Services.SmartTag
             PreFlightResult preflight,
             SmartTagSettingsState settingsState,
             List<TagPlacementResult> results,
+            SmartTagSelectionFilter selection,
             out SmartTagLinkedScan linkedScan)
         {
             View activeView = preflight.ActiveView;
@@ -143,6 +148,11 @@ namespace AJTools.Services.SmartTag
                         if (elem == null)
                             continue;
 
+                        // "Selected elements only": anything not selected is simply not looked at,
+                        // the same as an element outside the view.
+                        if (selection != null && !selection.IncludesHostElement(elem.Id))
+                            continue;
+
                         allElements.Add(new ElementWithCategory(elem, bic));
                     }
                 }
@@ -157,11 +167,18 @@ namespace AJTools.Services.SmartTag
             // the placement engine below work on host positions exactly as they do for host elements.
             if (includeLinked)
             {
+                // With "Selected elements only", links with nothing selected in them are not read.
                 linkedScan = SmartTagLinkedElementCollector.Collect(
-                    doc, activeView, GetEnabledCategories(settingsState));
+                    doc, activeView, GetEnabledCategories(settingsState),
+                    selection == null ? (Func<ElementId, bool>)null : selection.MayIncludeLink);
 
                 foreach (SmartTagLinkedElement linked in linkedScan.Elements)
+                {
+                    if (selection != null && !selection.IncludesLinkedElement(linked.Link.Id, linked.Element.Id))
+                        continue;
+
                     allElements.Add(ElementWithCategory.FromLink(linked));
+                }
             }
 
             // ── Build a spatial lookup of all collected element midpoints for density checks ──
