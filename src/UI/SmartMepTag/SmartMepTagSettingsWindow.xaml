@@ -1,10 +1,11 @@
 <!--
   Tool Name: Smart MEP Tagging - Settings
-  Description: Enable/disable and prioritise the MEP categories Smart MEP Tags will process, plus the
-               skip-vertical-runs rule shared with Create Tags and Stack Tags.
+  Description: Choose and prioritise the MEP categories Smart MEP Tags will tag, whether linked models are
+               tagged too, the skip-vertical-runs rule shared with Create Tags and Stack Tags, and the size
+               limits.
   Author: Ajmal P.S.
-  Version: 1.0.1
-  Last Updated: 2026-10-12
+  Version: 1.1.0
+  Last Updated: 2026-10-14
   Revit Version: 2020 - latest
   Dependencies: AJTools.UI.ModernStyles
 -->
@@ -12,10 +13,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Smart MEP Tag Settings - AJ Tools"
-        Width="640"
-        Height="580"
-        MinWidth="560"
-        MinHeight="520"
+        Width="720"
+        Height="640"
+        MinWidth="600"
+        MinHeight="560"
         ResizeMode="CanResize"
         SizeToContent="Manual"
         ShowInTaskbar="False"
@@ -38,6 +39,23 @@
                 <Setter Property="Padding" Value="8,6"/>
                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
             </Style>
+
+            <!-- Grey help line under a tick box, lined up with the tick box's label (18 px box + 8 px gap). -->
+            <Style x:Key="SmartTagOptionHint" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Margin" Value="26,0,0,0"/>
+            </Style>
+
+            <!-- Soft inset card for the run options under the category list. -->
+            <Style x:Key="SmartTagOptionsCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource BackgroundMedium}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="12,8,12,10"/>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -50,11 +68,11 @@
                    HorizontalAlignment="Center"
                    Margin="0,0,0,8"/>
 
-        <Grid Margin="10">
-            <Border Style="{StaticResource PanelCard}">
+        <Grid Margin="12">
+            <Border Style="{StaticResource PanelCard}" Padding="16">
                 <Grid>
                     <!-- Header, tabs, validation, buttons. The validation message and the buttons stay
-                         OUTSIDE the TabControl on purpose: an error raised by a box on Advanced must
+                         OUTSIDE the TabControl on purpose: an error raised by a box on Size limits must
                          still be readable while the other tab is showing. -->
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -64,12 +82,12 @@
                     </Grid.RowDefinitions>
 
                     <!-- Header -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="Smart MEP Tag Settings"
-                                   FontSize="16"
+                                   FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Tick the categories Smart MEP Tags should tag, and set each one's priority. High-priority categories claim the best clash-free positions first in crowded areas."
+                        <TextBlock Text="Choose what Smart MEP Tags tags in the active view. High priority categories get the best clear spots first."
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondary}"
                                    TextWrapping="Wrap"
@@ -85,22 +103,34 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Quick actions -->
-                    <StackPanel Grid.Row="0"
-                                Orientation="Horizontal"
-                                Margin="0,0,0,8">
-                        <Button Content="Tag all"
-                                Style="{StaticResource CompactSecondaryButton}"
-                                MinWidth="80"
-                                Margin="0,0,6,0"
-                                Click="OnTagAll"
-                                ToolTip="Tick every category."/>
-                        <Button Content="Tag none"
-                                Style="{StaticResource CompactSecondaryButton}"
-                                MinWidth="80"
-                                Click="OnTagNone"
-                                ToolTip="Untick every category."/>
-                    </StackPanel>
+                    <!-- Quick actions + live count -->
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <Button Content="Tag all"
+                                    Style="{StaticResource CompactSecondaryButton}"
+                                    MinWidth="80"
+                                    Margin="0,0,6,0"
+                                    Click="OnTagAll"
+                                    ToolTip="Tick every category."/>
+                            <Button Content="Tag none"
+                                    Style="{StaticResource CompactSecondaryButton}"
+                                    MinWidth="80"
+                                    Click="OnTagNone"
+                                    ToolTip="Untick every category."/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="CategoryCountText"
+                                   Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </Grid>
 
                     <!-- Category grid -->
                     <!-- Same two fixes as the Create Tags grid: AutoGenerateColumns defaults to TRUE
@@ -134,36 +164,41 @@
                             </Style>
                         </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Tag?" Width="60">
+                            <DataGridTemplateColumn Header="Tag" Width="56">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"
                                                   Style="{StaticResource ModernCheckBox}"
-                                                  IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                  IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  ToolTip="Tick to tag this category."/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Element Type"
+                            <DataGridTextColumn Header="Category"
                                                 Binding="{Binding CategoryLabel, Mode=OneWay}"
                                                 IsReadOnly="True"
                                                 Width="*"/>
-                            <DataGridTextColumn Header="In Model"
+                            <DataGridTextColumn Header="In model"
                                                 Binding="{Binding CountInModel, Mode=OneWay}"
                                                 IsReadOnly="True"
-                                                Width="90"/>
-                            <DataGridTemplateColumn Header="Priority" Width="130">
+                                                Width="80"/>
+                            <DataGridTextColumn Header="In links"
+                                                Binding="{Binding CountInLinks, Mode=OneWay}"
+                                                IsReadOnly="True"
+                                                Width="80"/>
+                            <DataGridTemplateColumn Header="Priority" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox ItemsSource="{Binding PriorityOptions}"
                                                   SelectedItem="{Binding PriorityText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                   VerticalAlignment="Center"
                                                   Margin="4,2"
-                                                  ToolTip="Controls tagging order: High categories claim the best available positions first."/>
+                                                  ToolTip="Tagging order: High categories claim the best clear spots first."/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Leader?" Width="70">
+                            <DataGridTemplateColumn Header="Leader" Width="68">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox HorizontalAlignment="Center"
@@ -177,22 +212,32 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <!-- Tagging rule shared with Create Tags and Stack Tags -->
-                    <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                        <CheckBox x:Name="SkipVerticalBox"
-                                  Content="Skip vertical ducts, pipes and cable trays"
-                                  Style="{StaticResource ModernCheckBox}"
-                                  ToolTip="A run going straight up or down is skipped instead of tagged."/>
-                        <TextBlock Text="The same setting as on Create Tags Settings - change it in either place and all three tagging tools follow it."
-                                   FontSize="11"
-                                   Foreground="{StaticResource TextSecondary}"
-                                   TextWrapping="Wrap"
-                                   Margin="0,3,0,0"/>
-                    </StackPanel>
+                    <!-- Run options -->
+                    <Border Grid.Row="2" Style="{StaticResource SmartTagOptionsCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <CheckBox x:Name="IncludeLinkedBox"
+                                      Content="Also tag elements in linked models"
+                                      Style="{StaticResource ModernCheckBox}"
+                                      Checked="OnIncludeLinkedToggled"
+                                      Unchecked="OnIncludeLinkedToggled"
+                                      ToolTip="Tags the ticked categories inside every loaded link shown in the view, as well as in this model."/>
+                            <TextBlock x:Name="IncludeLinkedHint"
+                                       Style="{StaticResource SmartTagOptionHint}"
+                                       Text="For example mechanical equipment in a linked MEP model. The tags are placed in this model. Links that are unloaded or hidden in the view are left out."/>
+
+                            <CheckBox x:Name="SkipVerticalBox"
+                                      Content="Skip vertical ducts, pipes and cable trays"
+                                      Style="{StaticResource ModernCheckBox}"
+                                      Margin="0,12,0,5"
+                                      ToolTip="A run going straight up or down is skipped instead of tagged."/>
+                            <TextBlock Style="{StaticResource SmartTagOptionHint}"
+                                       Text="Shared with Create Tags and Stack Tags - change it in any of them and all three follow."/>
+                        </StackPanel>
+                    </Border>
                     </Grid>
                     </TabItem>
 
-                    <TabItem Header="Advanced">
+                    <TabItem Header="Size limits">
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="2,12,8,0">
@@ -319,7 +364,7 @@
                                 Style="{StaticResource CompactSecondaryButton}"
                                 MinWidth="128"
                                 Click="OnReset"
-                                ToolTip="Tick every category, put each priority and leader setting back to its default, reset the size limits, and switch vertical-run skipping back on."/>
+                                ToolTip="Tick every category, put each priority and leader setting back to its default, reset the size limits, switch vertical-run skipping back on and linked models off. Nothing is saved until you press Save."/>
 
                         <Button Grid.Column="2"
                                 x:Name="SaveButton"

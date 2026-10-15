@@ -1,10 +1,13 @@
 // Tool Name: Smart Tag Report Generator
 // Description: Phase 7 — generates a clean formatted report after all tagging is complete.
 // Author: Ajmal P.S.
-// Version: 1.0.1
+// Version: 1.1.0
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag
-// Changelog: 1.0.1 (2026-10-12) - Vertical/minor items get their own line and are counted in Filtered Out,
+// Changelog: 1.1.0 (2026-10-14) - Linked models: one line says how many linked elements were found and
+//            tagged and how many links were read (and when the view was estimated, on Revit 2020-2022).
+//            A linked element in the manual-review list names its link, since its id is the link's.
+//            1.0.1 (2026-10-12) - Vertical/minor items get their own line and are counted in Filtered Out,
 //            a tag Revit refused to create is listed as refused, and the session-telemetry block is gone.
 
 using System.Collections.Generic;
@@ -26,10 +29,12 @@ namespace AJTools.Services.SmartTag
         /// Builds and displays the final report using a TaskDialog.
         /// Shows counts per outcome and lists element IDs that need manual review.
         /// </summary>
+        /// <param name="linkedScan">The linked-model scan, or null when linked elements were not included.</param>
         public static void ShowReport(
             PreFlightResult preflight,
             List<TagPlacementResult> results,
-            List<string> tagWarnings)
+            List<string> tagWarnings,
+            SmartTagLinkedScan linkedScan = null)
         {
             if (preflight == null || preflight.ActiveView == null || results == null)
             {
@@ -83,6 +88,14 @@ namespace AJTools.Services.SmartTag
                 sb.AppendLine(string.Format("Failed (Revit Refused Tag):  {0}", placementRefused));
             sb.AppendLine(string.Format("No Tag Family Found:         {0}", noTagFamily));
 
+            // ── Linked models ──
+            string linkedLine = DescribeLinkedScan(linkedScan, results);
+            if (!string.IsNullOrEmpty(linkedLine))
+            {
+                sb.AppendLine();
+                sb.AppendLine(linkedLine);
+            }
+
             // ── Tag warnings ──
             if (tagWarnings != null && tagWarnings.Count > 0)
             {
@@ -108,9 +121,11 @@ namespace AJTools.Services.SmartTag
                 foreach (TagPlacementResult r in manualReview)
                 {
                     string catName = GetCategoryDisplayName(r.Category);
-                    sb.AppendLine(string.Format("  Element ID: {0}  ({1}){2}",
+                    // A linked element's id is its id inside the link, so say which link.
+                    sb.AppendLine(string.Format("  Element ID: {0}  ({1}){2}{3}",
                         r.ElementId.IntValue(),
                         catName,
+                        r.IsLinked ? " in link " + r.LinkName : "",
                         string.IsNullOrEmpty(r.Note) ? "" : " — " + r.Note));
                 }
             }
@@ -121,6 +136,38 @@ namespace AJTools.Services.SmartTag
                 : "Smart MEP Tag — Complete (No Tags Placed)";
 
             DialogHelper.ShowDialog(title, GetMainInstruction(successCount, totalAnalysed), sb.ToString());
+        }
+
+        /// <summary>
+        /// One plain line about the linked models, or null when linked elements were not included.
+        /// Shared with the "nothing to tag" message so both say the same thing.
+        /// </summary>
+        internal static string DescribeLinkedScan(SmartTagLinkedScan linkedScan, IList<TagPlacementResult> results)
+        {
+            if (linkedScan == null)
+                return null;
+
+            if (linkedScan.LinksInView == 0)
+                return "Linked models: none loaded and shown in this view, so only this model was tagged.";
+
+            int linkedAnalysed = results == null ? 0 : results.Count(r => r != null && r.IsLinked);
+            int linkedTagged = results == null ? 0 : results.Count(r => r != null && r.IsLinked && r.Success);
+
+            string line = string.Format(
+                "Linked models: {0} tagged of {1} linked elements found, across {2} link{3} shown in this view.",
+                linkedTagged,
+                linkedAnalysed,
+                linkedScan.LinksInView,
+                linkedScan.LinksInView == 1 ? "" : "s");
+
+            if (linkedScan.UsedViewEstimate)
+            {
+                line += "\nThe linked elements in this view were worked out from the crop region and view "
+                      + "range (this Revit version cannot list them exactly) - an element hidden one by one "
+                      + "or by a view filter inside a link may still have been tagged.";
+            }
+
+            return line;
         }
 
         /// <summary>

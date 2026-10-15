@@ -187,6 +187,33 @@ place rather than leaving stale info sitting next to the new truth.
   host duct. Note also that for a link reference `Reference.ElementId` is the **RevitLinkInstance** and
   the real element is `Reference.LinkedElementId` — comparing the wrong one makes one dimension to any
   linked element look like a dimension to *every* linked element.
+- **Tagging a linked element (Smart MEP Tags, v1.58.0 — built, not yet tried in Revit)**: the tag is
+  created in the host with `IndependentTag.Create(doc, viewId, new Reference(linkedElement)
+  .CreateLinkReference(linkInstance), …)` — same call, same tag types as a host element; leader logic
+  needs nothing extra because it only reads the tag. A linked element is "already tagged" when any host
+  tag's reference has `LinkedElementId` = the element and `ElementId` = the link instance
+  (`TagCompat.GetTaggedReferences` reads every reference, 2022+ multi-reference tags included).
+  Carry the link's geometry into host coordinates ONCE at collection (`GetTotalTransform()`: box corner
+  by corner, midpoint, `Curve.CreateTransformed`, and `OfVector` for any run direction such as an
+  accessory's connector axis) so every later filter works unchanged. `IsHidden(view)` cannot be asked of
+  a linked element with a host view — skip that filter and rely on the link-level checks.
+- **Which linked elements does a host view show?** Revit **2023+** answers it exactly:
+  `new FilteredElementCollector(hostDoc, viewId, linkInstanceId)` (checked in the Revit API files: in
+  2023, 2024, 2027; NOT in 2020 or 2022 — guard with `#if REVIT2023_OR_GREATER`). Even that one may pass
+  elements outside the crop, so keep the crop test. On **2020–2022** there is no such call; estimate it:
+  only links returned by a view-scoped `OfClass(typeof(RevitLinkInstance))` collector and not
+  `IsHidden(view)`, host category not hidden (`view.GetCategoryHidden`), primary design options only,
+  and the depth — floor plan: view-depth plane up to the CUT plane (above-cut elements are not drawn);
+  ceiling plan: cut plane up to the top; section/elevation: the crop box is the view volume with Z
+  **towards the viewer** (API doc for `View.CropBox`), so `Max.Z` is the near face and `Min.Z` the far
+  clip, which only counts when `VIEWER_BOUND_FAR_CLIPPING` ≠ 0. View-range levels can be the special ids
+  `PlanViewRange.Unlimited` / `LevelAbove` / `LevelBelow` / `Current` — resolve Above/Below against the
+  host levels sorted by `ProjectElevation`. Leave anything unreadable OPEN so the estimate never drops
+  everything. Implemented in `Services/SmartTag/SmartTagLinkedElementCollector.cs`.
+- **Every new key in `TagClash.config` must also be carried through `FixTagClashSettingsWindow.OnSave`.**
+  That window builds a brand-new `TagClashSettingsState` and `Save` rewrites the whole file, so a key it
+  does not copy from `TagClashSettings.Load()` is silently reset whenever Fix Tag Clash Settings is saved.
+  Happened once already (v1.49.7's five Smart Tag values); `smarttag_include_linked` was added there too.
 - **A Coarse view returns no solids.** Revit draws ducts/pipes as single lines there, so `get_Geometry`
   with `Options.View = <coarse view>` gives a valid, non-null `GeometryElement` containing `Line`s and no
   `Solid`. A fallback gated on `geometry != null` therefore never runs. Gate it on "did I actually get a
@@ -1341,14 +1368,33 @@ does not catch that, because whole methods were removed cleanly; only re-reading
   spot elevations/coordinates and revision clouds — `TagClashEngine.CollectStaticObstacles` now covers
   them; the old `SmartTagPlacementEngine.CollectExistingAnnotations` still only sees tags/text/dims.
 
-### Remote container cannot build this project (2026-08-16)
+### The Linux web container CAN build this project — corrected 2026-10-14
 
-Claude Code on the web runs Linux: no `dotnet`, no `msbuild`, no `mono`, and no Revit API assemblies
-(they come from the `Nice3point.Revit.Api.*` NuGet packages). The project is `net472`/`net48` with
-`UseWPF` — **WPF cannot build on Linux at all**, so installing the SDK would not help. Work done there
-is written but **never compiled**. Say so plainly in the report, prefer additive new files over
-rewiring working tools, and leave anything risky for a session that can run
-`msbuild "AJ Tools.sln" -p:Configuration=Release -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true`.
+The 2026-08-16 note here said WPF "cannot build on Linux at all". **Wrong — proven by building.** The
+container has no `dotnet` to start with, and the `dot.net` installer host is refused by the network
+proxy, but Ubuntu's own package works:
+
+```
+apt-get update && apt-get install -y dotnet-sdk-10.0
+dotnet build "src/AJ Tools.csproj" -c "Release R25" -p:Platform=x64 -p:SkipAjToolsAutoDeploy=true \
+    -p:EnableWindowsTargeting=true --no-incremental
+```
+
+`-p:EnableWindowsTargeting=true` is the key — it lets the SDK compile WPF/XAML for Windows targets on
+Linux. All eight configs (`Release`, `Release R21` … `Release R27`) build; the Revit API comes from the
+`Nice3point.Revit.Api.*` NuGet packages as usual, and `~/.nuget/packages/nice3point.revit.api.revitapi/
+<ver>/ref/*/RevitAPI.xml` is then on disk for checking which API members exist in which version
+(compiling against that version is the real proof). Build the **csproj**, not the sln, for the R-configs.
+Auto-deploy is Windows-only, so always pass `-p:SkipAjToolsAutoDeploy=true`.
+**Still impossible here**: running Revit, and creating any WPF window (WPF runtime is Windows-only), so a
+`{StaticResource}` key is only checked by grepping it against `ModernStyles.xaml` — the
+`tools\verify-*.ps1` scripts still need Windows. Say "builds clean, not run in Revit" as always.
+That includes `verify-version-consistency.ps1` — on Linux, grep the new version number and confirm it
+shows in all six places (AssemblyInfo header, both attributes, AssemblyInfo changelog, `CHANGELOG.md`,
+`README.md`). Missed once on 2026-10-14 and caught only before committing.
+Baseline warnings to expect (checked against the unchanged code, 2026-10-14): R21 has CS0618
+obsolete-unit warnings from `RevitCompat` and R22 has CS0618 obsolete-tag warnings from `TagCompat` —
+both are the old-API branches those helpers exist for. Release, R23 and newer build with zero.
 
 ## A see-through window is drawn by the CPU — keep effects off it (2026-08-20, v1.54.0)
 

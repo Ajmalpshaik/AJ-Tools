@@ -1,10 +1,15 @@
 ﻿// Tool Name: Smart MEP Tag Service
 // Description: Orchestrates intelligent MEP element tagging across all phases.
 // Author: Ajmal P.S.
-// Version: 1.1.1
+// Version: 1.2.0
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils, AJTools.Services.ViewCrop
-// Changelog: 1.1.1 (2026-10-12) - Cable trays now obey the width/height minimums (their size was never
+// Changelog: 1.2.0 (2026-10-14) - "Also tag elements in linked models": when ticked in the settings,
+//            elements inside loaded links shown in the view join the run (SmartTagLinkedElementCollector).
+//            Their box, midpoint, run curve and accessory run direction are carried into this model's
+//            coordinates once, so every filter and the placement engine work on them unchanged. Linked
+//            elements are told apart by (link, element), never a bare id. Off by default.
+//            1.1.1 (2026-10-12) - Cable trays now obey the width/height minimums (their size was never
 //            read, so the settings had no effect on them). Minor pipe accessories are reported as a
 //            filtered type, not 'below size threshold', and the report's numbers now add up. The
 //            session-telemetry block left the report. GetDuctWidth and GetElementOrientation opened up
@@ -218,21 +223,32 @@ namespace AJTools.Services.SmartTag
         /// Returns a prioritised list of TagCandidate objects ready for Phase 2.
         /// Also populates the results list with skipped elements and their reasons.
         /// </summary>
+        /// <param name="linkedScan">
+        /// What the linked-model scan found, when "also tag elements in linked models" is on; null when
+        /// it is off. The report uses it to say how many links were read.
+        /// </param>
         public static List<TagCandidate> CollectAndFilterElements(
             Document doc,
             PreFlightResult preflight,
             SmartTagSettingsState settingsState,
-            List<TagPlacementResult> results)
+            List<TagPlacementResult> results,
+            out SmartTagLinkedScan linkedScan)
         {
             View activeView = preflight.ActiveView;
             var candidates = new List<TagCandidate>();
+            linkedScan = null;
 
-            // Read once per run, not per element - this is a file-backed setting.
+            // Read once per run, not per element - these are file-backed settings.
             bool skipVerticalRuns = TagClashSettings.ShouldSkipVerticalRuns();
+            bool includeLinked = TagClashSettings.ShouldSmartTagIncludeLinked();
 
             // ── Collect all existing tags in this view ONCE ──
-            // Used by Filter 3 to skip already-tagged elements.
+            // Used by Filter 3 to skip already-tagged elements. Linked elements are keyed by
+            // (link instance, element) - a bare id would mix them up with this model's own elements.
             HashSet<ElementId> alreadyTaggedIds = CollectAlreadyTaggedElementIds(doc, activeView);
+            HashSet<(long LinkId, long ElementId)> alreadyTaggedLinked = includeLinked
+                ? SmartTagLinkedElementCollector.CollectAlreadyTaggedLinkedKeys(doc, activeView)
+                : new HashSet<(long LinkId, long ElementId)>();
 
             // ── Crop region, measured in the view's own plane ──
             // A crop region bounds what you see ACROSS the view - X and Y in view coordinates. It
@@ -277,10 +293,9 @@ namespace AJTools.Services.SmartTag
 
                     foreach (Element elem in collector)
                     {
-                        // Hard constraint: never tag elements from linked models. Nothing here needs
-                        // to check for that - a collector scoped to the active view only ever returns
-                        // elements of this document, never the contents of a link - so the only guard
-                        // is against a null element.
+                        // A collector scoped to the active view only ever returns elements of this
+                        // document, never the contents of a link - linked elements are added below,
+                        // and only when the user switched that on.
                         if (elem == null)
                             continue;
 
@@ -293,14 +308,29 @@ namespace AJTools.Services.SmartTag
                 }
             }
 
+            // ── Linked models (only when "also tag elements in linked models" is ticked) ──
+            // Their geometry is carried into this model's coordinates once, here, so every filter and
+            // the placement engine below work on host positions exactly as they do for host elements.
+            if (includeLinked)
+            {
+                linkedScan = SmartTagLinkedElementCollector.Collect(
+                    doc, activeView, GetEnabledCategories(settingsState));
+
+                foreach (SmartTagLinkedElement linked in linkedScan.Elements)
+                    allElements.Add(ElementWithCategory.FromLink(linked));
+            }
+
             // ── Build a spatial lookup of all collected element midpoints for density checks ──
-            // We compute midpoints once and reuse them for Filter 5.
-            var midpointLookup = new Dictionary<ElementId, XYZ>();
+            // We compute midpoints once and reuse them for Filter 5. Keyed by the entry itself, not by
+            // ElementId: a linked element can share its id with one of this model's elements.
+            var midpointLookup = new Dictionary<ElementWithCategory, XYZ>();
             foreach (var ewc in allElements)
             {
-                XYZ mid = GetElementMidpoint(ewc.Element, activeView);
+                XYZ mid = ewc.IsLinked
+                    ? ToHostPoint(GetElementMidpoint(ewc.Element, null), ewc.ToHost)
+                    : GetElementMidpoint(ewc.Element, activeView);
                 if (mid != null)
-                    midpointLookup[ewc.Element.Id] = mid;
+                    midpointLookup[ewc] = mid;
             }
 
             // ── Apply filters to each element ──
@@ -312,23 +342,27 @@ namespace AJTools.Services.SmartTag
 
                 // FILTER 1 — VISIBILITY
                 // Element must be visible in the active view (not hidden by workset, filter, or category override).
-                try
+                // A linked element was already checked against the view when the link was read -
+                // IsHidden cannot be asked of it with a view from another model.
+                if (!ewc.IsLinked)
                 {
-                    if (elem.IsHidden(activeView))
+                    try
                     {
-                        results.Add(new TagPlacementResult
+                        if (elem.IsHidden(activeView))
                         {
-                            ElementId = eid, Category = bic, Success = false,
-                            SkipReason = TagSkipReason.FilteredOutVisibility,
-                            Note = "Element is hidden in view"
-                        });
-                        continue;
+                            results.Add(ewc.Skip(TagSkipReason.FilteredOutVisibility, "Element is hidden in view"));
+                            continue;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // If visibility check fails, include the element (safe default).
                     }
                 }
-                catch (Exception)
-                {
-                    // If visibility check fails, include the element (safe default).
-                }
+
+                // The element's box in this model's coordinates. For a linked element it is the box
+                // carried through the link transform, read once when the link was scanned.
+                BoundingBoxXYZ viewBox = ewc.IsLinked ? ewc.HostBox : elem.get_BoundingBox(activeView);
 
                 // FILTER 2 — INSIDE CROP REGION
                 // Element must overlap the crop rectangle in the view plane. Fully outside = exclude.
@@ -336,29 +370,21 @@ namespace AJTools.Services.SmartTag
                 // and the midpoint fallback further down can still place the tag.
                 if (cropModelToView != null)
                 {
-                    BoundingBoxXYZ bbox = elem.get_BoundingBox(activeView);
                     if (!BoundingBoxOverlapsCropInViewPlane(
-                            bbox, cropModelToView, cropMinX, cropMinY, cropMaxX, cropMaxY))
+                            viewBox, cropModelToView, cropMinX, cropMinY, cropMaxX, cropMaxY))
                     {
-                        results.Add(new TagPlacementResult
-                        {
-                            ElementId = eid, Category = bic, Success = false,
-                            SkipReason = TagSkipReason.OutsideCropRegion,
-                            Note = "Element is outside the crop region"
-                        });
+                        results.Add(ewc.Skip(TagSkipReason.OutsideCropRegion, "Element is outside the crop region"));
                         continue;
                     }
                 }
 
                 // FILTER 3 — NOT ALREADY TAGGED
-                if (alreadyTaggedIds.Contains(eid))
+                bool alreadyTagged = ewc.IsLinked
+                    ? alreadyTaggedLinked.Contains(SmartTagLinkedElementCollector.MakeKey(ewc.Link.Id, eid))
+                    : alreadyTaggedIds.Contains(eid);
+                if (alreadyTagged)
                 {
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = eid, Category = bic, Success = false,
-                        SkipReason = TagSkipReason.AlreadyTagged,
-                        Note = "Element already has a tag in this view"
-                    });
+                    results.Add(ewc.Skip(TagSkipReason.AlreadyTagged, "Element already has a tag in this view"));
                     continue;
                 }
 
@@ -367,12 +393,7 @@ namespace AJTools.Services.SmartTag
                 string sizeSkipReason;
                 if (!PassesSizeFilter(elem, bic, settingsState, out sizeSkipReason))
                 {
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = eid, Category = bic, Success = false,
-                        SkipReason = TagSkipReason.FilteredOutSize,
-                        Note = sizeSkipReason
-                    });
+                    results.Add(ewc.Skip(TagSkipReason.FilteredOutSize, sizeSkipReason));
                     continue;
                 }
 
@@ -382,12 +403,7 @@ namespace AJTools.Services.SmartTag
                 string accessorySkipReason;
                 if (IsMinorPipeAccessory(elem, bic, out accessorySkipReason))
                 {
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = eid, Category = bic, Success = false,
-                        SkipReason = TagSkipReason.FilteredOutType,
-                        Note = accessorySkipReason
-                    });
+                    results.Add(ewc.Skip(TagSkipReason.FilteredOutType, accessorySkipReason));
                     continue;
                 }
 
@@ -397,38 +413,28 @@ namespace AJTools.Services.SmartTag
                 // same vertical pipe was treated differently depending on which button was pressed.
                 // The check itself lives in CreateTagsEligibilityFilter so there is a single
                 // implementation; it moves to the shared eligibility block in the wider tidy-up.
+                // A link can be turned in plan but never tilted, so vertical in the link is vertical here.
                 if (skipVerticalRuns
                     && elem is MEPCurve verticalCandidate
                     && CreateTagsEligibilityFilter.IsVerticalMepCurve(verticalCandidate))
                 {
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = eid, Category = bic, Success = false,
-                        SkipReason = TagSkipReason.FilteredOutType,
-                        Note = "Vertical run is excluded"
-                    });
+                    results.Add(ewc.Skip(TagSkipReason.FilteredOutType, "Vertical run is excluded"));
                     continue;
                 }
 
                 // ── Build the candidate ──
                 XYZ midpoint;
-                midpointLookup.TryGetValue(eid, out midpoint);
+                midpointLookup.TryGetValue(ewc, out midpoint);
                 if (midpoint == null)
                 {
                     // Fallback: use bounding box centre.
-                    BoundingBoxXYZ bb = elem.get_BoundingBox(activeView);
-                    midpoint = GetBoundingBoxCenter(bb);
+                    midpoint = GetBoundingBoxCenter(viewBox);
                 }
 
                 if (midpoint == null)
                 {
                     // Cannot determine position — skip.
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = eid, Category = bic, Success = false,
-                        SkipReason = TagSkipReason.FilteredOutVisibility,
-                        Note = "Cannot determine element position"
-                    });
+                    results.Add(ewc.Skip(TagSkipReason.FilteredOutVisibility, "Cannot determine element position"));
                     continue;
                 }
 
@@ -436,29 +442,37 @@ namespace AJTools.Services.SmartTag
                 LocationCurve locCurve = elem.Location as LocationCurve;
                 if (locCurve != null && locCurve.Curve != null)
                 {
-                    elementCurve = locCurve.Curve;
+                    elementCurve = ewc.IsLinked
+                        ? ToHostCurve(locCurve.Curve, ewc.ToHost)
+                        : locCurve.Curve;
                 }
-
-                BoundingBoxXYZ viewBox = elem.get_BoundingBox(activeView);
 
                 // Every category gets a width now, so the placement engine measures each tag's gap
                 // from the element's EDGE ("150 mm from its edge"), not from its centre. Only ducts
                 // had one before; an accessory or a piece of equipment got 0, so its tag sat the gap
                 // from its middle and its own outline could block every side.
-                double hostWidth = GetHostWidth(elem, bic, activeView, viewBox);
+                double hostWidth = GetHostWidth(elem, bic, activeView, viewBox, ewc.IsLinked ? ewc.ToHost : null);
+
+                // A linked run's direction has to be read in this model's coordinates - the link may
+                // be turned in plan - so its orientation comes from the carried-over curve.
+                ElementOrientation orientation = ewc.IsLinked
+                    ? (elementCurve != null ? GetCurveOrientation(elementCurve, activeView) : ElementOrientation.Other)
+                    : GetElementOrientation(elem, activeView);
 
                 // FILTER 5 — DENSITY PRE-CHECK
                 // Count elements within 500mm radius. Flag but don't skip yet — priority decides later.
                 var candidate = new TagCandidate
                 {
                     ElementId = eid,
+                    LinkInstanceId = ewc.IsLinked ? ewc.Link.Id : null,
+                    LinkName = ewc.LinkName,
                     Category = bic,
                     Priority = SmartTagSettingsTracker.ResolvePriority(settingsState, bic),
                     BoundingBox = viewBox,
                     Midpoint = midpoint,
                     ElementCurve = elementCurve,
                     IsDenseZone = false,
-                    Orientation = GetElementOrientation(elem, activeView),
+                    Orientation = orientation,
                     HostWidth = hostWidth
                 };
 
@@ -470,6 +484,31 @@ namespace AJTools.Services.SmartTag
             candidates.Sort((a, b) => a.Priority.CompareTo(b.Priority));
 
             return candidates;
+        }
+
+        /// <summary>A linked-model point in this model's coordinates; null stays null.</summary>
+        private static XYZ ToHostPoint(XYZ point, Transform toHost)
+        {
+            if (point == null)
+                return null;
+
+            return toHost == null ? point : toHost.OfPoint(point);
+        }
+
+        /// <summary>A linked-model curve in this model's coordinates; null when it cannot be moved.</summary>
+        private static Curve ToHostCurve(Curve curve, Transform toHost)
+        {
+            if (curve == null || toHost == null)
+                return curve;
+
+            try
+            {
+                return curve.CreateTransformed(toHost);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         // ─────────────────────────────────────────────
@@ -881,7 +920,16 @@ namespace AJTools.Services.SmartTag
         ///   sides a position that would land on the element itself is rejected.
         /// Anything that cannot be read gives 0, which measures from the centre as before.
         /// </remarks>
-        private static double GetHostWidth(Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox)
+        /// <param name="linkTransform">
+        /// For an element inside a linked model, the link-to-host transform; null for this model's own
+        /// elements. Only the accessory run direction needs it - parameters read the same either way.
+        /// </param>
+        private static double GetHostWidth(
+            Element elem,
+            BuiltInCategory category,
+            View view,
+            BoundingBoxXYZ viewBox,
+            Transform linkTransform = null)
         {
             switch (category)
             {
@@ -898,7 +946,7 @@ namespace AJTools.Services.SmartTag
                     return ReadFirstLengthFeet(elem, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM);
 
                 default:
-                    return GetViewBoxHostWidth(elem, category, view, viewBox);
+                    return GetViewBoxHostWidth(elem, category, view, viewBox, linkTransform);
             }
         }
 
@@ -933,7 +981,7 @@ namespace AJTools.Services.SmartTag
         /// see GetHostWidth for which side is used and why.
         /// </summary>
         private static double GetViewBoxHostWidth(
-            Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox)
+            Element elem, BuiltInCategory category, View view, BoundingBoxXYZ viewBox, Transform linkTransform)
         {
             try
             {
@@ -948,13 +996,20 @@ namespace AJTools.Services.SmartTag
 
                 XYZ run;
                 if ((category == BuiltInCategory.OST_DuctAccessory || category == BuiltInCategory.OST_PipeAccessory)
-                    && TryGetInlineRunDirection(elem, out run)
-                    && !IsSeenEndOn(run, view))
+                    && TryGetInlineRunDirection(elem, out run))
                 {
+                    // A linked accessory's connectors are in the link's coordinates; turn the run into
+                    // this model's before comparing it with the view.
+                    if (linkTransform != null)
+                        run = linkTransform.OfVector(run);
+
                     // A run lying left-right in the view is crossed up-down, and the other way round.
-                    return Math.Abs(run.DotProduct(viewRight)) >= Math.Abs(run.DotProduct(viewUp))
-                        ? sizeAlongUp
-                        : sizeAlongRight;
+                    if (!IsSeenEndOn(run, view))
+                    {
+                        return Math.Abs(run.DotProduct(viewRight)) >= Math.Abs(run.DotProduct(viewUp))
+                            ? sizeAlongUp
+                            : sizeAlongRight;
+                    }
                 }
 
                 return Math.Min(sizeAlongRight, sizeAlongUp);
@@ -1312,7 +1367,26 @@ namespace AJTools.Services.SmartTag
                 if (locCurve == null || locCurve.Curve == null)
                     return ElementOrientation.Other; // Equipment/accessories with no curve direction.
 
-                Curve curve = locCurve.Curve;
+                return GetCurveOrientation(locCurve.Curve, view);
+            }
+            catch (Exception)
+            {
+                return ElementOrientation.Other;
+            }
+        }
+
+        /// <summary>
+        /// The orientation rule of GetElementOrientation, for a run's curve already in this model's
+        /// coordinates - which is how a linked run arrives, so a link turned in plan is classified by
+        /// how it actually sits in the view.
+        /// </summary>
+        internal static ElementOrientation GetCurveOrientation(Curve curve, View view)
+        {
+            try
+            {
+                if (curve == null || view == null)
+                    return ElementOrientation.Other;
+
                 XYZ start = curve.GetEndPoint(0);
                 XYZ end = curve.GetEndPoint(1);
                 XYZ direction = (end - start).Normalize();
@@ -1379,10 +1453,50 @@ namespace AJTools.Services.SmartTag
             public Element Element { get; private set; }
             public BuiltInCategory Category { get; private set; }
 
+            /// <summary>The link the element is seen through; null for this model's own elements.</summary>
+            public RevitLinkInstance Link { get; private set; }
+
+            /// <summary>Link-to-host transform; null for this model's own elements.</summary>
+            public Transform ToHost { get; private set; }
+
+            /// <summary>The element's box in this model's coordinates (linked elements only).</summary>
+            public BoundingBoxXYZ HostBox { get; private set; }
+
+            public string LinkName { get; private set; }
+
+            public bool IsLinked => Link != null;
+
             public ElementWithCategory(Element element, BuiltInCategory category)
             {
                 Element = element;
                 Category = category;
+                LinkName = string.Empty;
+            }
+
+            public static ElementWithCategory FromLink(SmartTagLinkedElement linked)
+            {
+                return new ElementWithCategory(linked.Element, linked.Category)
+                {
+                    Link = linked.Link,
+                    ToHost = linked.ToHost,
+                    LinkName = linked.LinkName,
+                    HostBox = linked.HostBox
+                };
+            }
+
+            /// <summary>A skipped-element result that keeps the link, so the report can name it.</summary>
+            public TagPlacementResult Skip(TagSkipReason reason, string note)
+            {
+                return new TagPlacementResult
+                {
+                    ElementId = Element.Id,
+                    LinkInstanceId = Link?.Id,
+                    LinkName = LinkName,
+                    Category = Category,
+                    Success = false,
+                    SkipReason = reason,
+                    Note = note
+                };
             }
         }
 
@@ -1455,6 +1569,8 @@ namespace AJTools.Services.SmartTag
                     results.Add(new TagPlacementResult
                     {
                         ElementId = candidate.ElementId,
+                        LinkInstanceId = candidate.LinkInstanceId,
+                        LinkName = candidate.LinkName,
                         Category = bic,
                         Success = false,
                         SkipReason = TagSkipReason.NoTagFamilyAvailable,
@@ -1903,7 +2019,8 @@ namespace AJTools.Services.SmartTag
             }
 
             var results = new List<TagPlacementResult>();
-            List<TagCandidate> candidates = CollectAndFilterElements(doc, preflight, settingsState, results);
+            List<TagCandidate> candidates = CollectAndFilterElements(
+                doc, preflight, settingsState, results, out SmartTagLinkedScan linkedScan);
             int candidatesAfterFilter = candidates.Count;
 
             if (candidates.Count == 0)
@@ -1937,6 +2054,12 @@ namespace AJTools.Services.SmartTag
                 summary.AppendLine(string.Format("Below size limits: {0}", belowSize));
                 summary.AppendLine(string.Format("Hidden or no position: {0}", notVisible));
                 summary.AppendLine(string.Format("Excluded type: {0}", excludedType));
+                string linkedLine = SmartTagReportGenerator.DescribeLinkedScan(linkedScan, results);
+                if (!string.IsNullOrEmpty(linkedLine))
+                {
+                    summary.AppendLine();
+                    summary.AppendLine(linkedLine);
+                }
                 if (!string.IsNullOrEmpty(topReason))
                 {
                     summary.AppendLine();
@@ -1982,7 +2105,7 @@ namespace AJTools.Services.SmartTag
             RecordTelemetrySafe(preflight, settingsState, results, candidatesAfterFilter, candidates.Count);
 
             // ── PHASE 7: Generate output report ──
-            SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings);
+            SmartTagReportGenerator.ShowReport(preflight, results, tagWarnings, linkedScan);
 
             int successCount = results.Count(r => r.Success);
             return successCount > 0 ? Result.Succeeded : Result.Cancelled;

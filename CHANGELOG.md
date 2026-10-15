@@ -5,6 +5,22 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.58.0] - 2026-10-14
+
+Smart MEP Tags can tag linked models. Builds clean for Revit 2020-2027; **not yet run in Revit**.
+
+- **New: "Also tag elements in linked models"** tick box in Smart MEP Tagging Settings (off by default,
+  remembered after Revit closes). When it is on, Smart MEP Tags also tags the ticked categories - for
+  example mechanical equipment in a linked MEP model - inside every loaded link shown in the view. The
+  tags are placed in this model. Linked elements already tagged in the view are skipped, and the report
+  says how many linked elements were found and tagged.
+- **Revit 2020-2022:** these versions cannot list exactly which linked elements a view shows, so Smart
+  MEP Tags works it out from the crop region and the view range (floor plan: view depth up to the cut
+  plane). The report says when this was done. Revit 2023 and newer get the exact list from Revit.
+- **Changed: Smart MEP Tagging Settings window** - an "In links" count per category, a live "x of y
+  categories ticked" line, the two run options grouped with a help line each, and the "Advanced" tab
+  renamed "Size limits".
+
 ## [1.57.2] - 2026-10-12
 
 Ajmal's three decisions from the 1.57.1 audit. Builds clean for Revit 2020-2027; **not yet run in Revit**.

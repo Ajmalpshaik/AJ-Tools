@@ -6,10 +6,10 @@
  *                 will process, showing each category's element count in the model.
  *
  * Author        : Ajmal P.S.
- * Version       : 2.0.1
+ * Version       : 2.1.0
  *
  * Created Date  : 2026-04-20
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-10-14
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -39,6 +39,8 @@
  *                       Offset carry-over and saved-state shape unchanged.
  * v2.0.1 (2026-10-12) - An unexpected error while opening or saving the settings now gets a plain
  *                       message instead of Revit's own error box. Settings behaviour unchanged.
+ * v2.1.0 (2026-10-14) - "Also tag elements in linked models" tick box (saved to the settings file, so
+ *                       it survives closing Revit) and an "In links" count per category.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -103,21 +105,29 @@ namespace AJTools.Commands
 
             if (!TryPromptSettings(
                     commandData.Application, doc, initial,
-                    out SmartTagSettingsState newState, out bool skipVerticalRuns))
+                    out SmartTagSettingsState newState, out bool skipVerticalRuns, out bool includeLinked))
             {
                 return Result.Cancelled;
             }
 
             tracker.Save(newState);
 
-            // Skip-vertical-runs is the one tagging setting shared with Create Tags and Stack Tags, and
-            // the only one here that survives closing Revit. TrySetSkipVerticalRuns does the
-            // read-modify-write so the Fix Tag Clash settings in the same file are left alone.
-            if (!TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns))
+            // Skip-vertical-runs is the one tagging setting shared with Create Tags and Stack Tags.
+            // Both tick boxes live in the settings file so they survive closing Revit; each TrySet does
+            // its own read-modify-write so the Fix Tag Clash settings in the same file are left alone.
+            bool verticalSaved = TagClashSettings.TrySetSkipVerticalRuns(skipVerticalRuns);
+            bool linkedSaved = TagClashSettings.TrySetSmartTagIncludeLinked(includeLinked);
+            if (!verticalSaved || !linkedSaved)
             {
+                string which = !verticalSaved && !linkedSaved
+                    ? "the vertical-run and linked-model tick boxes could not be"
+                    : !verticalSaved
+                        ? "the vertical-run tick box could not be"
+                        : "the linked-model tick box could not be";
+
                 DialogHelper.ShowError(
                     ToolTitle,
-                    "Your categories and priorities were saved, but the vertical-run tick box could not be.\n\n"
+                    "Your categories and priorities were saved, but " + which + ".\n\n"
                     + "Check that AJ Tools can write to your AppData folder, then set it again.");
                 return Result.Failed;
             }
@@ -130,12 +140,16 @@ namespace AJTools.Commands
             Document doc,
             SmartTagSettingsState initialState,
             out SmartTagSettingsState newState,
-            out bool skipVerticalRuns)
+            out bool skipVerticalRuns,
+            out bool includeLinked)
         {
             newState = null;
             skipVerticalRuns = TagClashSettings.DefaultSkipVerticalRuns;
+            includeLinked = TagClashSettings.DefaultSmartTagIncludeLinked;
 
             Dictionary<BuiltInCategory, int> inModelCounts = CountElementsInModel(doc);
+            Dictionary<BuiltInCategory, int> inLinkCounts = SmartTagLinkedElementCollector.CountInLoadedLinks(
+                doc, SmartTagSettingsTracker.SupportedCategories);
 
             // The size rules and the per-category leader choices come from the settings file, which is
             // the only tagging store that survives closing Revit.
@@ -146,10 +160,12 @@ namespace AJTools.Commands
             foreach (BuiltInCategory category in SmartTagSettingsTracker.SupportedCategories)
             {
                 int countInModel = inModelCounts.TryGetValue(category, out int count) ? count : 0;
+                int countInLinks = inLinkCounts.TryGetValue(category, out int linkCount) ? linkCount : 0;
                 var row = new SmartTagCategoryRow(
                     category,
                     SmartTagSettingsTracker.GetCategoryLabel(category),
-                    countInModel)
+                    countInModel,
+                    countInLinks)
                 {
                     Enabled = SmartTagSettingsTracker.IsCategoryEnabled(initialState, category),
                     PriorityText = GetPriorityDisplay(SmartTagSettingsTracker.ResolvePriority(initialState, category)),
@@ -166,8 +182,9 @@ namespace AJTools.Commands
                 rows.Add(row);
             }
 
+            TagClashSettingsState storedFile = TagClashSettings.Load();
             var window = new SmartMepTagSettingsWindow(
-                rows, TagClashSettings.ShouldSkipVerticalRuns(), storedSizeSettings);
+                rows, storedFile.SkipVerticalRuns, storedSizeSettings, storedFile.SmartTagIncludeLinked);
 
             if (uiapp != null)
             {
@@ -181,6 +198,7 @@ namespace AJTools.Commands
                 return false;
 
             skipVerticalRuns = window.SkipVerticalRuns;
+            includeLinked = window.IncludeLinked;
 
             if (!TryBuildStateFromRows(window.Rows, initialState, out newState))
                 return false;

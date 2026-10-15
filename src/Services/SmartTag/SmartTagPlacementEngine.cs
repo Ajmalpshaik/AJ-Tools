@@ -1,10 +1,13 @@
 // Tool Name: Smart Tag Placement Engine
 // Description: Phases 3–6 — scoring, clash detection, repositioning, and tag placement.
 // Author: Ajmal P.S.
-// Version: 1.0.1
+// Version: 1.1.0
 // Revit Version: 2020
 // Dependencies: Autodesk.Revit.DB, AJTools.Models.SmartTag, AJTools.Utils
-// Changelog: 1.0.1 (2026-10-12) - A duct whose size cannot be read no longer pulls its tag closer than
+// Changelog: 1.1.0 (2026-10-14) - Tags elements inside linked models: the tag points at a link reference
+//            (the element's reference carried through its link instance). Candidates are told apart by
+//            the candidate itself, not by a bare ElementId, because ids repeat between models.
+//            1.0.1 (2026-10-12) - A duct whose size cannot be read no longer pulls its tag closer than
 //            the set offset (the -1 "unknown" width was halved and used as a distance). Report: a tag
 //            Revit refuses to create is reported as refused, not "No Clean Space". Comments repaired.
 //            No-leader tags: the element's own outline no longer blocks the side the tag belongs on
@@ -1021,7 +1024,7 @@ namespace AJTools.Services.SmartTag
             List<TagCandidate> allCandidates,
             AnnotationSpatialIndex candidateSpatialIndex,
             Dictionary<AnnotationBox, TagCandidate> candidateByBox,
-            HashSet<ElementId> taggedGroupMembers,
+            HashSet<TagCandidate> taggedGroupMembers,
             PreFlightResult preflight,
             AnnotationBox placementBoundary,
             AnnotationSpatialIndex modelObstacleIndex,
@@ -1144,7 +1147,9 @@ namespace AJTools.Services.SmartTag
                         if (leaderDisabledForCategory && modelObstacleIndex != null)
                         {
                             AnnotationBox ownModelBox = null;
-                            if (modelObstacleBoxes != null && candidate.ElementId != null)
+                            // The obstacle boxes are this model's elements only - looking a linked
+                            // element's id up there would find an unrelated host element.
+                            if (modelObstacleBoxes != null && candidate.ElementId != null && !candidate.IsLinked)
                                 modelObstacleBoxes.TryGetValue(candidate.ElementId, out ownModelBox);
 
                             XYZ clearPos = FindFirstClearNoLeaderPosition(
@@ -1222,7 +1227,9 @@ namespace AJTools.Services.SmartTag
 
             foreach (TagCandidate other in nearbyByPosition)
             {
-                if (other.ElementId == candidate.ElementId)
+                // The candidate itself, not "same ElementId": a linked element can share its id with
+                // one of this model's elements.
+                if (ReferenceEquals(other, candidate))
                     continue;
 
                 if (other.Midpoint == null || candidate.Midpoint == null)
@@ -1232,7 +1239,7 @@ namespace AJTools.Services.SmartTag
                 if (dist <= ParallelGroupDistance)
                 {
                     parallelCount++;
-                    if (taggedGroupMembers.Contains(other.ElementId))
+                    if (taggedGroupMembers.Contains(other))
                         groupMemberAlreadyTagged = true;
                 }
             }
@@ -1360,7 +1367,9 @@ namespace AJTools.Services.SmartTag
             }
 
             // Track which elements have been successfully tagged — used for parallel group logic.
-            var taggedGroupMembers = new HashSet<ElementId>();
+            // Held as the candidates themselves: an ElementId alone cannot tell a linked element from
+            // one of this model's own.
+            var taggedGroupMembers = new HashSet<TagCandidate>();
 
             // Process in priority order (candidates are already sorted HIGH → MEDIUM → LOW).
             foreach (TagCandidate candidate in candidates)
@@ -1370,14 +1379,8 @@ namespace AJTools.Services.SmartTag
 
                 if (candidate.TagTypeId == null || candidate.TagTypeId == ElementId.InvalidElementId)
                 {
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = candidate.ElementId,
-                        Category = candidate.Category,
-                        Success = false,
-                        SkipReason = TagSkipReason.NoTagFamilyAvailable,
-                        Note = "Tag type ID was not resolved"
-                    });
+                    results.Add(ResultFor(
+                        candidate, false, TagSkipReason.NoTagFamilyAvailable, "Tag type ID was not resolved"));
                     continue;
                 }
 
@@ -1391,13 +1394,7 @@ namespace AJTools.Services.SmartTag
 
                 if (tagPosition == null)
                 {
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = candidate.ElementId,
-                        Category = candidate.Category,
-                        Success = false,
-                        SkipReason = skipReason
-                    });
+                    results.Add(ResultFor(candidate, false, skipReason, null));
                     continue;
                 }
 
@@ -1407,30 +1404,62 @@ namespace AJTools.Services.SmartTag
 
                 if (placed)
                 {
-                    taggedGroupMembers.Add(candidate.ElementId);
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = candidate.ElementId,
-                        Category = candidate.Category,
-                        Success = true,
-                        SkipReason = TagSkipReason.None
-                    });
+                    taggedGroupMembers.Add(candidate);
+                    results.Add(ResultFor(candidate, true, TagSkipReason.None, null));
                 }
                 else
                 {
                     // A clean spot WAS found - Revit then refused to create or finish the tag there.
                     // That is not "no clean space", so it carries no skip reason (TagSkipReason has no
                     // value for it): failed with None is how the report recognises it.
-                    results.Add(new TagPlacementResult
-                    {
-                        ElementId = candidate.ElementId,
-                        Category = candidate.Category,
-                        Success = false,
-                        SkipReason = TagSkipReason.None,
-                        Note = "Revit could not create the tag at the chosen spot"
-                    });
+                    results.Add(ResultFor(
+                        candidate, false, TagSkipReason.None, "Revit could not create the tag at the chosen spot"));
                 }
             }
+        }
+
+        /// <summary>
+        /// One result line for a candidate, keeping its link so the report can name a linked element.
+        /// </summary>
+        private static TagPlacementResult ResultFor(
+            TagCandidate candidate,
+            bool success,
+            TagSkipReason skipReason,
+            string note)
+        {
+            return new TagPlacementResult
+            {
+                ElementId = candidate.ElementId,
+                LinkInstanceId = candidate.LinkInstanceId,
+                LinkName = candidate.LinkName,
+                Category = candidate.Category,
+                Success = success,
+                SkipReason = skipReason,
+                Note = note
+            };
+        }
+
+        /// <summary>
+        /// The reference a new tag should point at. For this model's own element, the element itself.
+        /// For an element inside a linked model, the element's reference carried through its link
+        /// instance (CreateLinkReference) - that is what lets a host tag sit on a linked element.
+        /// Null when the element (or its link) can no longer be found.
+        /// </summary>
+        private static Reference BuildTagReference(Document doc, TagCandidate candidate)
+        {
+            if (!candidate.IsLinked)
+            {
+                Element hostElement = doc.GetElement(candidate.ElementId);
+                return hostElement == null ? null : new Reference(hostElement);
+            }
+
+            RevitLinkInstance link = doc.GetElement(candidate.LinkInstanceId) as RevitLinkInstance;
+            Document linkDoc = link?.GetLinkDocument();
+            Element linkedElement = linkDoc?.GetElement(candidate.ElementId);
+            if (linkedElement == null)
+                return null;
+
+            return new Reference(linkedElement).CreateLinkReference(link);
         }
 
         /// <summary>
@@ -1480,14 +1509,13 @@ namespace AJTools.Services.SmartTag
                     try
                     {
                         // Revit 2020 API: IndependentTag.Create(Document, View.Id, Reference, bool addLeader, TagMode, TagOrientation, XYZ)
-                        Element targetElement = doc.GetElement(candidate.ElementId);
-                        if (targetElement == null)
+                        // A linked element gets a link reference - same call, same tag type.
+                        Reference elemRef = BuildTagReference(doc, candidate);
+                        if (elemRef == null)
                         {
                             t.RollBack();
                             return false;
                         }
-
-                        Reference elemRef = new Reference(targetElement);
 
                         bool addLeader = candidate.NeedsLeader;
                         TagOrientation orientation = TagOrientation.Horizontal;

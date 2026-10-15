@@ -5,10 +5,10 @@
  * Purpose       : Version-safe access to IndependentTag leader/tagged-reference members across Revit 2020 -> 2027.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-07-07
- * Last Updated  : 2026-07-07
+ * Last Updated  : 2026-10-14
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / .NET Fx 4.8 (2021-2024) | .NET 8 (2025-2026) | .NET 10 (2027 - verify SDK)
@@ -29,6 +29,8 @@
  * - Every version branch lives ONLY in this file so tag tools never branch on Revit version.
  *
  * Changelog     :
+ * v1.1.0 (2026-10-14) - GetTaggedReferences: every reference a tag holds (one on 2020-2021, all of them
+ *                       on 2022+), for telling which linked elements are already tagged.
  * v1.0.0 (2026-07-07) - Initial release: IndependentTag single/multi-reference bridge for Revit 2020 -> 2027.
  *
  * License       : All Rights Reserved
@@ -84,6 +86,23 @@ namespace AJTools.Utils
             return FirstReference(tag);
 #else
             return tag.GetTaggedReference();
+#endif
+        }
+
+        /// <summary>
+        /// Every reference the tag points at. One for a normal tag; several for a multi-reference tag
+        /// (Revit 2022+). Never null.
+        /// </summary>
+        internal static System.Collections.Generic.IList<Reference> GetTaggedReferences(IndependentTag tag)
+        {
+#if REVIT2022_OR_GREATER
+            System.Collections.Generic.IList<Reference> references = tag.GetTaggedReferences();
+            return references ?? new System.Collections.Generic.List<Reference>();
+#else
+            Reference single = tag.GetTaggedReference();
+            return single == null
+                ? new System.Collections.Generic.List<Reference>()
+                : new System.Collections.Generic.List<Reference> { single };
 #endif
         }
 

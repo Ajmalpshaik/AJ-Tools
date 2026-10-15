@@ -1,8 +1,9 @@
 // Tool Name: Smart MEP Tag - Placement Result Model
 // Description: Records the outcome of tagging a single element — success, skip, or failure with reason.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.1.0
 // Revit Version: 2020
+// Changelog: 1.1.0 (2026-10-14) - Carries the link for an element inside a linked model.
 
 using Autodesk.Revit.DB;
 
@@ -14,8 +15,17 @@ namespace AJTools.Models.SmartTag
     /// </summary>
     internal class TagPlacementResult
     {
-        /// <summary>The element that was processed.</summary>
+        /// <summary>The element that was processed (its id inside the link, for a linked element).</summary>
         public ElementId ElementId { get; set; }
+
+        /// <summary>The link instance the element is seen through; null for an element of this model.</summary>
+        public ElementId LinkInstanceId { get; set; }
+
+        /// <summary>Link name for the report; empty for an element of this model.</summary>
+        public string LinkName { get; set; }
+
+        /// <summary>True when the element lives in a linked model.</summary>
+        public bool IsLinked => LinkInstanceId != null && LinkInstanceId != ElementId.InvalidElementId;
 
         /// <summary>The built-in category of the element.</summary>
         public BuiltInCategory Category { get; set; }
