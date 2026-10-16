@@ -1436,6 +1436,20 @@ Baseline warnings to expect (checked against the unchanged code, 2026-10-14): R2
 obsolete-unit warnings from `RevitCompat` and R22 has CS0618 obsolete-tag warnings from `TagCompat` —
 both are the old-API branches those helpers exist for. Release, R23 and newer build with zero.
 
+**Packaging a release from Linux (1.58.0, 2026-10-16)** — two traps, both found by comparing the new zip
+file-by-file with the last published one:
+- **Line endings.** `.gitattributes` is `text=auto`, so this Linux checkout gives the `.cmd`/`.ps1`
+  install scripts and `AJ Tools.addin` LF endings where a Windows checkout gives CRLF. `cmd.exe` can
+  misread LF batch files, so convert those seven files to CRLF in the package before zipping — they
+  then match the previous release byte for byte (apart from real edits).
+- **Tags cannot be pushed from the cloud session.** Branch and `main` pushes go through; `git push
+  origin vX.Y.Z` is refused with HTTP 403 by the session's git proxy (a policy denial — do not retry or
+  route around it). The installer workflow starts only on a tag push, so Ajmal pushes the two tags
+  (installer repo and source repo) from his PC. Never create the release by hand on the website instead.
+The Revit 2025/2026 `AJ Tools.deps.json` also came out shorter than 1.56.2's: it drops entries with no
+runtime files (the Revit API reference packages, analyzers, Microsoft.CSharp). The list of runtime DLLs
+is identical and every one is in the payload — harmless, checked 2026-10-16.
+
 ## A see-through window is drawn by the CPU — keep effects off it (2026-08-20, v1.54.0)
 
 `AllowsTransparency="True"` makes WPF render that window **entirely in software**. There is no GPU
