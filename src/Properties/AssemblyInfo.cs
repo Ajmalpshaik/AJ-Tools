@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.57.2
+ * Version       : 1.58.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-10-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,27 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.58.0 (2026-10-14) - SMART MEP TAGS CAN TAG LINKED MODELS (Ajmal's request: tag mechanical equipment
+ *                       from a linked model). New tick box in Smart MEP Tag Settings, "Also tag elements
+ *                       in linked models" - off by default, saved to the settings file. When on, every
+ *                       loaded link shown in the view is read for the ticked categories and its
+ *                       elements are tagged in this model through a link reference, with the same
+ *                       filters, clash scoring, leader and report as host elements. Revit 2023+ asks
+ *                       Revit which linked elements the view shows; 2020-2022 estimate it from the crop
+ *                       region and view range (the report says so). Linked and host elements are told
+ *                       apart by (link, element), never a bare id. Settings window refreshed: "In links"
+ *                       count per category, a live "x of y categories ticked" line, the two run options
+ *                       grouped with a help line each, "Advanced" tab renamed "Size limits". Fix Tag
+ *                       Clash Settings carries the new value through its save. ALSO (2026-10-15, Ajmal:
+ *                       "make separate code for this algorithm"): Smart MEP Tags restructured into step
+ *                       folders (view check / find elements / tag types / placement / report), every
+ *                       placement number in SmartTagTuning.cs, the placement view picture built once in
+ *                       SmartTagPlacementContext, and FindBestTagPosition split into three named stages.
+ *                       Every moved routine machine-checked against the original: tags land exactly
+ *                       where they did. ALSO: "Tag: Whole view / Selected elements only" choice in Smart
+ *                       MEP Tagging Settings (default whole view) - select a link to tag inside it, and
+ *                       on Revit 2023+ Tab-picked linked elements count too; nothing selected = a plain
+ *                       message, never a silent whole-view run. Builds clean 2020-2027; NOT run in Revit.
  * v1.57.2 (2026-10-12) - AJMAL'S THREE DECISIONS FROM THE AUDIT. (1) WALL OPENINGS: every host used the
  *                       floor box rule (X widened by the width, Y by the HEIGHT), so on a wall running
  *                       along Y a duct taller than it is wide got an opening as wide as its height
@@ -2365,8 +2386,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.57.2.0")]
-[assembly: AssemblyFileVersion("1.57.2.0")]
+[assembly: AssemblyVersion("1.58.0.0")]
+[assembly: AssemblyFileVersion("1.58.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

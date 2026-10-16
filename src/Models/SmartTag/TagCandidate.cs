@@ -1,8 +1,9 @@
 // Tool Name: Smart MEP Tag - Tag Candidate Model
 // Description: Represents an MEP element that passed filtering and is ready for tag placement scoring.
 // Author: Ajmal P.S.
-// Version: 1.0.0
+// Version: 1.1.0
 // Revit Version: 2020
+// Changelog: 1.1.0 (2026-10-14) - Carries the link instance for an element inside a linked model.
 
 using Autodesk.Revit.DB;
 
@@ -14,8 +15,22 @@ namespace AJTools.Models.SmartTag
     /// </summary>
     internal class TagCandidate
     {
-        /// <summary>The Revit element ID.</summary>
+        /// <summary>
+        /// The Revit element ID. For a linked element this is its id INSIDE the link - ids repeat
+        /// between models, so it only means something together with <see cref="LinkInstanceId"/>.
+        /// </summary>
         public ElementId ElementId { get; set; }
+
+        /// <summary>
+        /// The link instance the element is seen through; null for an element of this model.
+        /// </summary>
+        public ElementId LinkInstanceId { get; set; }
+
+        /// <summary>Link name for the report; empty for an element of this model.</summary>
+        public string LinkName { get; set; }
+
+        /// <summary>True when the element lives in a linked model.</summary>
+        public bool IsLinked => LinkInstanceId != null && LinkInstanceId != ElementId.InvalidElementId;
 
         /// <summary>The built-in category (OST_DuctCurves, OST_PipeCurves, etc.).</summary>
         public BuiltInCategory Category { get; set; }

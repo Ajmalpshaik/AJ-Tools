@@ -6,7 +6,7 @@
  *                 sequence - switch the leader on, find where it meets the element, work out the
  *                 elbow, set it - existed FOUR times over, and the copies had quietly drifted apart:
  *
- *                   SmartTagPlacementEngine.ApplyLeaderBehavior      nudge + retry + probe
+ *                   SmartTagCreator.ApplyLeaderBehavior      nudge + retry + probe
  *                   CreateTagsService (via the above)                nudge + retry + probe
  *                   StackTagsService.ApplyFreshLeader                no nudge, no retry, probe
  *                   StackTagsService.TryMoveExistingTag              no nudge, no retry, no probe

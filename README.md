@@ -4,7 +4,7 @@ AJ Tools is the main development repository for the AJ Tools add-in for Autodesk
 builds for Revit 2020 through 2027, and the published installer carries a build for each of those
 versions. Revit 2020 is the most-tested baseline.
 
-Current suite version: **1.57.2** (as reported by `src/Properties/AssemblyInfo.cs` — see
+Current suite version: **1.58.0** (as reported by `src/Properties/AssemblyInfo.cs` — see
 [CHANGELOG.md](CHANGELOG.md))
 
 This repository owns the source code, build and packaging scripts, internal release preparation, and developer-facing documentation. Public installer downloads are published separately in [AJ-Tools-Installer](https://github.com/Ajmalpshaik/AJ-Tools-Installer).

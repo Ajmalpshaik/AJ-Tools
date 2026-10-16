@@ -9,10 +9,10 @@
  *                 multi-key key=value file so one store can carry every clash/tagging value.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-08-16
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-10-14
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,10 @@
  *   Create Tags both read it so the two tools can never disagree about a vertical pipe again.
  *
  * Changelog     :
+ * v1.1.0 (2026-10-14) - Smart MEP Tags' "also tag elements in linked models" tick box is stored here
+ *                       (smarttag_include_linked, default off), with its own read-modify-write setter.
+ *                       2026-10-15: and its "Whole view / Selected elements only" choice
+ *                       (smarttag_selected_only, default whole view).
  * v1.0.1 (2026-10-12) - Moved TrySetSkipVerticalRuns' doc comment back onto it - it had ended up on
  *                       TrySetSmartTagSizeSettings, which then carried two summaries. Comments only.
  * v1.0.0 (2026-08-16) - Initial release.
@@ -98,6 +102,18 @@ namespace AJTools.Utils
         /// </summary>
         public string SmartTagNoLeaderCategories { get; set; }
 
+        /// <summary>
+        /// Smart MEP Tags: also tag elements inside linked models shown in the view. Off by default -
+        /// the tool tagged this model's own elements only until v1.58.0.
+        /// </summary>
+        public bool SmartTagIncludeLinked { get; set; }
+
+        /// <summary>
+        /// Smart MEP Tags: tag only the elements selected when the button is pressed, instead of the
+        /// whole view. Off (whole view) by default.
+        /// </summary>
+        public bool SmartTagSelectedOnly { get; set; }
+
         /// <summary>Overlap below this (mm on the sheet) is ignored - matches Smart MEP Tag's tuned 1.5mm.</summary>
         public double ClashToleranceMm { get; set; }
 
@@ -135,6 +151,8 @@ namespace AJTools.Utils
         internal const bool DefaultSmartTagFilterBySize = true;
         internal const double DefaultSmartTagMinWidthMm = 100.0;
         internal const double DefaultSmartTagMinHeightMm = 0.0;
+        internal const bool DefaultSmartTagIncludeLinked = false;
+        internal const bool DefaultSmartTagSelectedOnly = false;
 
         // LongRunConfirmThreshold moved to DialogHelper in v1.49.5, alongside the ConfirmLongRun call
         // that uses it. It started here because Fix Tag Clash needed it first, but it is a suite-wide
@@ -171,6 +189,12 @@ namespace AJTools.Utils
         // its leader", so an absent or empty entry means exactly that, and a category added to the
         // tool later inherits the right default without needing a migration.
         private const string KeySmartTagNoLeader = "smarttag_no_leader_categories";
+
+        // Smart MEP Tags' linked-model tick box. Kept here for the same survive-a-restart reason.
+        private const string KeySmartTagIncludeLinked = "smarttag_include_linked";
+
+        // Smart MEP Tags' "Whole view / Selected elements only" choice.
+        private const string KeySmartTagSelectedOnly = "smarttag_selected_only";
 
         /// <summary>
         /// Returns the stored settings, falling back to defaults for anything missing or unreadable.
@@ -210,6 +234,10 @@ namespace AJTools.Utils
                 state.SmartTagMinHeightMm = Math.Max(
                     0.0, ReadDouble(values, KeySmartTagMinHeight, DefaultSmartTagMinHeightMm));
                 state.SmartTagNoLeaderCategories = ReadString(values, KeySmartTagNoLeader, string.Empty);
+                state.SmartTagIncludeLinked = ReadBool(
+                    values, KeySmartTagIncludeLinked, DefaultSmartTagIncludeLinked);
+                state.SmartTagSelectedOnly = ReadBool(
+                    values, KeySmartTagSelectedOnly, DefaultSmartTagSelectedOnly);
             }
             catch (Exception)
             {
@@ -247,6 +275,8 @@ namespace AJTools.Utils
                 AppendLine(sb, KeySmartTagMinWidth, FormatNumber(state.SmartTagMinWidthMm));
                 AppendLine(sb, KeySmartTagMinHeight, FormatNumber(state.SmartTagMinHeightMm));
                 AppendLine(sb, KeySmartTagNoLeader, state.SmartTagNoLeaderCategories ?? string.Empty);
+                AppendLine(sb, KeySmartTagIncludeLinked, state.SmartTagIncludeLinked ? "1" : "0");
+                AppendLine(sb, KeySmartTagSelectedOnly, state.SmartTagSelectedOnly ? "1" : "0");
                 AppendLine(sb, KeyClashTolerance, FormatNumber(ClampPositive(state.ClashToleranceMm, DefaultClashToleranceMm)));
                 AppendLine(sb, KeyMinGap, FormatNumber(ClampPositive(state.MinGapMm, DefaultMinGapMm)));
                 AppendLine(sb, KeyFullSearch, state.FullSearch ? "1" : "0");
@@ -310,6 +340,54 @@ namespace AJTools.Utils
         }
 
         /// <summary>
+        /// True when Smart MEP Tags should also tag elements inside linked models shown in the view.
+        /// </summary>
+        internal static bool ShouldSmartTagIncludeLinked()
+        {
+            return Load().SmartTagIncludeLinked;
+        }
+
+        /// <summary>
+        /// Stores Smart MEP Tags' linked-model tick box on its own, leaving everything else in the
+        /// file untouched. Same read-modify-write-and-verify shape as TrySetSkipVerticalRuns.
+        /// </summary>
+        /// <returns>True when the value was stored and read back unchanged.</returns>
+        internal static bool TrySetSmartTagIncludeLinked(bool includeLinked)
+        {
+            TagClashSettingsState current = Load();
+            if (current.SmartTagIncludeLinked == includeLinked)
+                return true;
+
+            current.SmartTagIncludeLinked = includeLinked;
+
+            return Save(current) && Load().SmartTagIncludeLinked == includeLinked;
+        }
+
+        /// <summary>
+        /// True when Smart MEP Tags should tag only the elements selected, not the whole view.
+        /// </summary>
+        internal static bool ShouldSmartTagTagSelectedOnly()
+        {
+            return Load().SmartTagSelectedOnly;
+        }
+
+        /// <summary>
+        /// Stores Smart MEP Tags' "Whole view / Selected elements only" choice on its own, leaving
+        /// everything else in the file untouched. Same read-modify-write-and-verify shape as the others.
+        /// </summary>
+        /// <returns>True when the value was stored and read back unchanged.</returns>
+        internal static bool TrySetSmartTagSelectedOnly(bool selectedOnly)
+        {
+            TagClashSettingsState current = Load();
+            if (current.SmartTagSelectedOnly == selectedOnly)
+                return true;
+
+            current.SmartTagSelectedOnly = selectedOnly;
+
+            return Save(current) && Load().SmartTagSelectedOnly == selectedOnly;
+        }
+
+        /// <summary>
         /// Stores the skip-vertical-runs rule on its own, without disturbing anything else in the file.
         /// Returns false when the value could not be written, so the caller can say so.
         /// </summary>
@@ -366,7 +444,9 @@ namespace AJTools.Utils
                 SmartTagFilterBySize = DefaultSmartTagFilterBySize,
                 SmartTagMinWidthMm = DefaultSmartTagMinWidthMm,
                 SmartTagMinHeightMm = DefaultSmartTagMinHeightMm,
-                SmartTagNoLeaderCategories = string.Empty
+                SmartTagNoLeaderCategories = string.Empty,
+                SmartTagIncludeLinked = DefaultSmartTagIncludeLinked,
+                SmartTagSelectedOnly = DefaultSmartTagSelectedOnly
             };
         }
 

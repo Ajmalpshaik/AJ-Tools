@@ -279,7 +279,9 @@ namespace AJTools.UI.TagClash
                 SmartTagFilterBySize = stored.SmartTagFilterBySize,
                 SmartTagMinWidthMm = stored.SmartTagMinWidthMm,
                 SmartTagMinHeightMm = stored.SmartTagMinHeightMm,
-                SmartTagNoLeaderCategories = stored.SmartTagNoLeaderCategories
+                SmartTagNoLeaderCategories = stored.SmartTagNoLeaderCategories,
+                SmartTagIncludeLinked = stored.SmartTagIncludeLinked,
+                SmartTagSelectedOnly = stored.SmartTagSelectedOnly
             };
 
             DialogResult = true;

@@ -56,7 +56,7 @@ namespace AJTools.Services.CreateTags
 
             View activeView = doc.ActiveView;
 
-            PreFlightResult preflight = SmartMepTagService.RunPreFlightChecks(doc, activeView);
+            PreFlightResult preflight = SmartTagViewCheck.RunPreFlightChecks(doc, activeView);
             if (!preflight.Passed)
             {
                 message = preflight.ErrorMessage;
@@ -102,7 +102,7 @@ namespace AJTools.Services.CreateTags
             double minLengthInternal = CreateTagsSettingsTracker.ResolveMinLengthInternal(settings);
 
             var tally = new SkipTally();
-            HashSet<ElementId> alreadyTagged = SmartMepTagService.CollectAlreadyTaggedElementIds(doc, activeView);
+            HashSet<ElementId> alreadyTagged = SmartTagElementCollector.CollectAlreadyTaggedElementIds(doc, activeView);
 
             int placedCount = 0;
             bool hadCommit = false;
@@ -208,7 +208,7 @@ namespace AJTools.Services.CreateTags
                 return 0;
 
             var familyResults = new List<TagPlacementResult>();
-            List<string> warnings = SmartMepTagService.SelectTagFamilies(
+            List<string> warnings = SmartTagTypeSelector.SelectTagFamilies(
                 doc, preflight, candidates, familyResults);
 
             foreach (TagPlacementResult result in familyResults)
@@ -329,7 +329,7 @@ namespace AJTools.Services.CreateTags
 
         /// <summary>
         /// Creates the tag at the given point for the candidate's element, sets its resolved tag type,
-        /// and attaches a clean L-shaped leader back to the element (reusing SmartTagPlacementEngine's
+        /// and attaches a clean L-shaped leader back to the element (reusing SmartTagCreator's
         /// leader routine - same technique Smart MEP Tag itself uses for freshly created tags).
         /// </summary>
         private static bool TryCreateTagAt(
@@ -369,7 +369,7 @@ namespace AJTools.Services.CreateTags
                 // If type change fails, the default type was used - still acceptable.
             }
 
-            return SmartTagPlacementEngine.ApplyLeaderBehavior(doc, newTag, activeView, leaderLogic);
+            return SmartTagCreator.ApplyLeaderBehavior(doc, newTag, activeView, leaderLogic);
         }
 
         /// <summary>

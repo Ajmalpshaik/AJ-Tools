@@ -6,10 +6,10 @@
  *                 Family, Tags, Text) and every dimension, tag, flow, revision-cloud, and text tool.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.5.1
+ * Version       : 1.5.2
  *
  * Created Date  : 2026-05-10
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-10-14
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -25,6 +25,7 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.5.2 (2026-10-14) - Smart MEP Tags tooltips mention linked models and selected-elements-only.
  * v1.5.1 (2026-10-12) - Purpose text corrected: the Auto Dimension panel was merged into Dimensions
  *                       earlier; the panel list now matches what CreateRibbon builds. No behaviour change.
  * v1.5.0 (2026-08-15) - Auto Dimension panel: the "Auto Duct Dimension" pulldown becomes "Auto MEP
@@ -172,8 +173,8 @@ namespace AJTools.App
             {
                 if (leftStack[0] is PulldownButton smartMepTagPulldown)
                 {
-                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTag", "Smart MEP\nTags", "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement.", typeof(CmdSmartMepTag).FullName, "Smart MEP TAG.png");
-                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTagSettings", "Smart MEP Tagging\nSettings", "Choose which categories Smart MEP Tags will tag, set each one's priority, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Create Tags and Stack Tags.", typeof(CmdSmartMepTagSettings).FullName, "settings.png");
+                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTag", "Smart MEP\nTags", "Analyse the active view and intelligently tag MEP elements (ducts, pipes, equipment, accessories, cable trays) with clash-free placement. Can also tag only the elements you select, and elements in linked models - choose in Smart MEP Tagging Settings.", typeof(CmdSmartMepTag).FullName, "Smart MEP TAG.png");
+                    AddChildPushButton(smartMepTagPulldown, "cmdSmartMepTagSettings", "Smart MEP Tagging\nSettings", "Choose which categories Smart MEP Tags will tag, set each one's priority, choose whole view or selected elements only, whether elements in linked models are tagged too, and turn skipping of vertical runs on or off. The vertical-run setting is shared with Create Tags and Stack Tags.", typeof(CmdSmartMepTagSettings).FullName, "settings.png");
                 }
 
                 if (leftStack[1] is PulldownButton arrangeTagsPulldown)

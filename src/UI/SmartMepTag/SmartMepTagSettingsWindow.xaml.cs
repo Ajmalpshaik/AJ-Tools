@@ -3,14 +3,15 @@
  * Tool Name     : Smart MEP Tagging - Settings (Window)
  * File Name     : SmartMepTagSettingsWindow.xaml.cs
  * Purpose       : WPF settings window - enable/disable and prioritise the MEP categories that
- *                 Smart MEP Tags will process, showing each category's element count in the model,
- *                 plus the skip-vertical-runs rule shared with Create Tags and Stack Tags.
+ *                 Smart MEP Tags will process, showing each category's element count in the model and
+ *                 in loaded links, whether linked models are tagged too, plus the skip-vertical-runs
+ *                 rule shared with Create Tags and Stack Tags.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.2.0
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-07-28
+ * Last Updated  : 2026-10-15
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -31,6 +32,10 @@
  *   construction - the old grid's "Select a valid priority" failure path no longer exists.
  *
  * Changelog     :
+ * v1.2.0 (2026-10-15) - "Tag: Whole view / Selected elements only" choice.
+ * v1.1.0 (2026-10-14) - "Also tag elements in linked models" tick box and an "In links" count column.
+ *                       Layout refresh: live "x of y categories ticked" count, the two run options
+ *                       grouped in one card with a help line each, "Advanced" tab renamed "Size limits".
  * v1.0.0 (2026-07-28) - Initial release. Replaces the WinForms DataGridView dialog in
  *                       CmdSmartMepTagSettings.
  *
@@ -77,6 +82,18 @@ namespace AJTools.UI.SmartMepTag
         /// </remarks>
         public bool SkipVerticalRuns { get; private set; }
 
+        /// <summary>
+        /// Whether Smart MEP Tags also tags elements inside linked models shown in the view.
+        /// Only meaningful when DialogResult is true.
+        /// </summary>
+        public bool IncludeLinked { get; private set; }
+
+        /// <summary>
+        /// True for "Selected elements only", false for "Whole view".
+        /// Only meaningful when DialogResult is true.
+        /// </summary>
+        public bool SelectedOnly { get; private set; }
+
         /// <summary>Shortest run worth tagging, mm. 0 = no minimum. Meaningful only when DialogResult is true.</summary>
         public double MinLengthMm { get; private set; }
 
@@ -94,11 +111,15 @@ namespace AJTools.UI.SmartMepTag
         /// </summary>
         /// <param name="rows">Category rows prebuilt by the command, in display order.</param>
         /// <param name="currentSkipVerticalRuns">Skip-vertical-runs value currently stored.</param>
-        /// <param name="sizeSettings">Size rules currently stored, used to fill the Advanced tab.</param>
+        /// <param name="sizeSettings">Size rules currently stored, used to fill the Size limits tab.</param>
+        /// <param name="currentIncludeLinked">Linked-models value currently stored.</param>
+        /// <param name="currentSelectedOnly">Whole-view / selected-only value currently stored.</param>
         public SmartMepTagSettingsWindow(
             IList<SmartTagCategoryRow> rows,
             bool currentSkipVerticalRuns,
-            SmartTagSettingsState sizeSettings)
+            SmartTagSettingsState sizeSettings,
+            bool currentIncludeLinked,
+            bool currentSelectedOnly)
         {
             InitializeComponent();
 
@@ -118,6 +139,9 @@ namespace AJTools.UI.SmartMepTag
 
             CategoryGrid.ItemsSource = _rows;
             SkipVerticalBox.IsChecked = currentSkipVerticalRuns;
+            IncludeLinkedBox.IsChecked = currentIncludeLinked;
+            SelectedOnlyRadio.IsChecked = currentSelectedOnly;
+            WholeViewRadio.IsChecked = !currentSelectedOnly;
 
             SmartTagSettingsState size = sizeSettings ?? SmartTagSettingsTracker.LoadSizeSettingsFromFile();
 
@@ -140,6 +164,39 @@ namespace AJTools.UI.SmartMepTag
         {
             if (e.PropertyName == nameof(SmartTagCategoryRow.Enabled))
                 Validate();
+        }
+
+        private void OnIncludeLinkedToggled(object sender, RoutedEventArgs e)
+        {
+            // The count line mentions linked elements only while they will be tagged.
+            UpdateCategoryCount();
+        }
+
+        /// <summary>
+        /// "4 of 6 categories ticked - 1,250 elements in the model, 320 in links". Says up front how
+        /// big the run will be, before anything is pressed. The figures are the whole model and every
+        /// loaded link, not just the active view.
+        /// </summary>
+        private void UpdateCategoryCount()
+        {
+            if (CategoryCountText == null || _rows == null)
+                return;
+
+            List<SmartTagCategoryRow> ticked = _rows.Where(row => row.Enabled).ToList();
+            int inModel = ticked.Sum(row => row.CountInModel);
+            int inLinks = ticked.Sum(row => row.CountInLinks);
+
+            string text = string.Format(
+                CultureInfo.CurrentCulture,
+                "{0} of {1} categories ticked - {2:N0} in the model",
+                ticked.Count,
+                _rows.Count,
+                inModel);
+
+            if (IncludeLinkedBox != null && IncludeLinkedBox.IsChecked == true)
+                text += string.Format(CultureInfo.CurrentCulture, ", {0:N0} in links", inLinks);
+
+            CategoryCountText.Text = text;
         }
 
         private void OnValueChanged(object sender, TextChangedEventArgs e)
@@ -221,6 +278,9 @@ namespace AJTools.UI.SmartMepTag
             }
 
             SkipVerticalBox.IsChecked = TagClashSettings.DefaultSkipVerticalRuns;
+            IncludeLinkedBox.IsChecked = TagClashSettings.DefaultSmartTagIncludeLinked;
+            SelectedOnlyRadio.IsChecked = TagClashSettings.DefaultSmartTagSelectedOnly;
+            WholeViewRadio.IsChecked = !TagClashSettings.DefaultSmartTagSelectedOnly;
 
             MinLengthBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinLengthMm);
             MinWidthBox.Text = FormatMm(SmartTagSettingsTracker.DefaultMinWidthMm);
@@ -240,6 +300,8 @@ namespace AJTools.UI.SmartMepTag
                 return;
 
             SkipVerticalRuns = SkipVerticalBox.IsChecked == true;
+            IncludeLinked = IncludeLinkedBox.IsChecked == true;
+            SelectedOnly = SelectedOnlyRadio.IsChecked == true;
 
             double minLength;
             double minWidth;
@@ -269,6 +331,8 @@ namespace AJTools.UI.SmartMepTag
         /// </summary>
         private bool Validate()
         {
+            UpdateCategoryCount();
+
             if (_rows.Count == 0)
             {
                 ErrorText.Text = "No supported categories were found.";
@@ -284,13 +348,13 @@ namespace AJTools.UI.SmartMepTag
             }
 
             // The three mm boxes. Blank and 0 both mean "no minimum" and are valid; only a value that
-            // is not a number, or is negative, is refused. The message names the box, since the error
+            // is not a number, or is negative, is refused. The message names the tab, since the error
             // shows outside the tabs and may be read while the other tab is in front.
             double parsed;
 
             if (!TryReadMm(MinLengthBox, out parsed))
             {
-                ErrorText.Text = "Advanced tab: the shortest run must be a number of mm, 0 or more.";
+                ErrorText.Text = "Size limits tab: the shortest run must be a number of mm, 0 or more.";
                 SaveButton.IsEnabled = false;
                 return false;
             }
@@ -299,14 +363,14 @@ namespace AJTools.UI.SmartMepTag
             {
                 if (!TryReadMm(MinWidthBox, out parsed))
                 {
-                    ErrorText.Text = "Advanced tab: the minimum width must be a number of mm, 0 or more.";
+                    ErrorText.Text = "Size limits tab: the minimum width must be a number of mm, 0 or more.";
                     SaveButton.IsEnabled = false;
                     return false;
                 }
 
                 if (!TryReadMm(MinHeightBox, out parsed))
                 {
-                    ErrorText.Text = "Advanced tab: the minimum height must be a number of mm, 0 or more.";
+                    ErrorText.Text = "Size limits tab: the minimum height must be a number of mm, 0 or more.";
                     SaveButton.IsEnabled = false;
                     return false;
                 }
@@ -332,11 +396,12 @@ namespace AJTools.UI.SmartMepTag
         private bool _useLeader = true;
         private string _priorityText = PriorityLow;
 
-        public SmartTagCategoryRow(BuiltInCategory category, string categoryLabel, int countInModel)
+        public SmartTagCategoryRow(BuiltInCategory category, string categoryLabel, int countInModel, int countInLinks = 0)
         {
             Category = category;
             CategoryLabel = categoryLabel ?? string.Empty;
             CountInModel = countInModel;
+            CountInLinks = countInLinks;
         }
 
         public BuiltInCategory Category { get; }
@@ -344,6 +409,9 @@ namespace AJTools.UI.SmartMepTag
         public string CategoryLabel { get; }
 
         public int CountInModel { get; }
+
+        /// <summary>Elements of this category across every loaded link (each placed copy counted).</summary>
+        public int CountInLinks { get; }
 
         /// <summary>
         /// This category's out-of-the-box priority, set by the command that builds the row. Kept so

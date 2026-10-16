@@ -57,7 +57,7 @@ namespace AJTools.Services.CreateTags
 
             View activeView = doc.ActiveView;
 
-            PreFlightResult preflight = SmartMepTagService.RunPreFlightChecks(doc, activeView);
+            PreFlightResult preflight = SmartTagViewCheck.RunPreFlightChecks(doc, activeView);
             if (!preflight.Passed)
             {
                 message = preflight.ErrorMessage;
@@ -87,7 +87,7 @@ namespace AJTools.Services.CreateTags
             double minLengthInternal = CreateTagsSettingsTracker.ResolveMinLengthInternal(settings);
 
             var tally = new SkipTally();
-            HashSet<ElementId> alreadyTagged = SmartMepTagService.CollectAlreadyTaggedElementIds(doc, activeView);
+            HashSet<ElementId> alreadyTagged = SmartTagElementCollector.CollectAlreadyTaggedElementIds(doc, activeView);
 
             List<TagCandidate> candidates = CreateTagsEligibilityFilter.BuildEligibleCandidates(
                 doc, activeView, selectedIds, settings, minLengthInternal, alreadyTagged, tally);
@@ -99,7 +99,7 @@ namespace AJTools.Services.CreateTags
             }
 
             var familyResults = new List<TagPlacementResult>();
-            List<string> tagWarnings = SmartMepTagService.SelectTagFamilies(doc, preflight, candidates, familyResults);
+            List<string> tagWarnings = SmartTagTypeSelector.SelectTagFamilies(doc, preflight, candidates, familyResults);
             foreach (TagPlacementResult result in familyResults)
                 tally.Add(string.Format("No tag family loaded for {0}", SmartTagSettingsTracker.GetCategoryLabel(result.Category)));
 

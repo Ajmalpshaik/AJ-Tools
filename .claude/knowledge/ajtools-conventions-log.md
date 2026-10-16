@@ -3,6 +3,57 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-10-15 (Smart MEP Tags "Selected elements only" — still v1.58.0, same PR)
+
+Ajmal: *"add the tag selected elements only option"* (my suggestion after the restructure). Built as a
+"Tag: Whole view / Selected elements only" choice in Smart MEP Tagging Settings — the same two-way
+choice Revit's own Tag All dialog offers — stored as `smarttag_selected_only`, default whole view.
+Chosen over "use the selection automatically when there is one" because a stray selection would then
+silently shrink a run; the explicit choice plus a clear "nothing is selected" stop cannot surprise.
+Selecting a link tags inside it; on Revit 2023+ Tab-picked linked elements count too
+(`Selection.GetReferences`). New file `Step2_FindElements/SmartTagSelectionFilter.cs`. Built only.
+
+### 2026-10-15 (Smart MEP Tags restructured — still v1.58.0, same PR)
+
+Ajmal, after the linked-model work: *"you can completely restructure this smart tag tool… the
+algorithm it is very difficult to find and edit. You can make separate code for this algorithm."*
+`SmartMepTagService.cs` (2,100 lines) and `SmartTagPlacementEngine.cs` (1,600) became step folders
+with one job per file, a `SmartTagTuning.cs` holding every placement number, a
+`SmartTagPlacementContext` replacing the 17-value parameter list, and the "where does the tag go"
+routine split into three named stages. Map in `ajtools-conventions.md` ("Smart MEP Tags code map").
+
+**Kept to a pure restructure** — no tag lands anywhere different. Proven by a script comparing every
+routine's code lines old-vs-new after a declared list of intended substitutions; zero unexplained
+differences; all 8 configs built. Folded into 1.58.0 because that version is not released yet.
+"Add more things connected" from the same message was read as permission, not a spec — nothing new
+was added on it; asked Ajmal what he wants next instead of guessing.
+
+### 2026-10-14 (Smart MEP Tags tags linked models — v1.58.0)
+
+Ajmal's request, dictated: a tick box in Smart Tag so it "searches for the linked element", so
+mechanical equipment in a linked model can be tagged; and a better settings window. Read as ONE global
+tick box applying to the categories already ticked (not a per-category column) — the simplest thing
+that matches "one more tick box". Off by default, so nothing changes for anyone who does not tick it.
+
+**Built**: `SmartTagLinkedElementCollector` (new file) finds loaded links shown in the view and their
+elements per ticked category; `SmartMepTagService` folds them into the same filter loop as host
+elements with their geometry already in host coordinates; `SmartTagPlacementEngine` tags them through
+a link reference; the report says how many linked elements were found and tagged. Settings window: the
+tick box, an "In links" count, a live "x of y categories ticked" line, run options grouped in one card,
+"Advanced" renamed "Size limits". Setting stored as `smarttag_include_linked` in `TagClash.config`.
+
+**Decisions worth keeping**: (1) the old code comment called "never tag elements from linked models" a
+hard constraint — it was the tool's original scope, not a rule Ajmal set, and his request supersedes
+it; the default stays off. (2) Linked candidates are compared by the candidate object / (link, id) key,
+never a bare ElementId — the engine had four places (`taggedGroupMembers`, the parallel-group self
+check, the model-obstacle lookup, the midpoint lookup) that would have silently confused a linked fan
+coil with a host duct sharing its id. (3) 2020–2022 use an estimate of what the view shows; the report
+says so instead of pretending it is exact.
+
+**Also found**: the Linux web container CAN build AJ Tools (`dotnet-sdk-10.0` from Ubuntu +
+`EnableWindowsTargeting`) — the old "cannot build" note was corrected in place. All 8 configs built.
+NOT run in Revit; Ajmal to test on 2020 (estimate path) and, if he can, a 2023+ version.
+
 ### 2026-08-19 (Quick Menu customise becomes the wheel itself, drag-and-drop — v1.53.0)
 
 Ajmal ran 1.52.0 and came straight back: *"in the settings window same quick menu view also I need so I
