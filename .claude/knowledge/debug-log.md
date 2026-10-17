@@ -1226,3 +1226,39 @@ Revit, or code-review only) -> date.
   Parameter — their result cannot be seen on screen, so the report is the only proof it worked.
   Smart MEP Tags' gap is now measured from every element's edge (Ajmal's choice).
 - **Verified how**: code review + clean builds; **not run in Revit**. -> 2026-10-12.
+
+### 2026-10-16 (v1.58.0 released end-to-end — built in the cloud, tags pushed from the PC)
+- A cloud session built all 8 configs (2020-2027) from source `20dc78b` and pushed the zip, checksum,
+  README/INSTALL and installer `CHANGELOG.md` to installer `main` (`b9ede8d` "release: v1.58.0"); it
+  could not push tags (see the Linux packaging note in `ajtools-conventions.md`). Finished from the PC
+  on 2026-10-17. Source `master` was `27de368` = `20dc78b` + one knowledge note, no code change.
+- **Checked before publishing**: Windows build of `Release` 0 errors / 0 warnings (deploy skipped);
+  `AJ-Tools-v1.58.0.zip` 57,152,881 bytes, SHA256
+  `40ad0b8948360ea5ebda77f80510e15b6fe332cb472b20ed9e1abcc9b89b96da`, same as `SHA256SUMS.txt`
+  (which ends in a bare LF); all 9 `AJ Tools.dll` (root + Payload 2020-2027) at 1.58.0.0; the six
+  `.cmd`/`.ps1` scripts and `AJ Tools.addin` all CRLF.
+- **Tags**: installer `v1.58.0` on `b9ede8d`, source `v1.58.0` on `20dc78b` (AssemblyVersion 1.58.0.0
+  there). Both annotated, both pushed. The source repo has no workflow, so its tag only marks the commit.
+- **First workflow run was blocked by GitHub billing** — run `39004548359`, the job never started:
+  "recent account payments have failed or your spending limit needs to be increased". Both repos were
+  found **private** (when made private is not known; CLAUDE.md last recorded the source repo as public
+  on 2026-08-20), and Actions on private repos spend the account's paid minutes.
+  Ajmal made both repos public again the same day; `gh run rerun 39004548359` re-ran it on the same
+  tag and it passed in 13 s. No tag was moved or deleted, no release made by hand. If a publish job
+  "fails" in 2 s with no log, read the run annotations (`gh run view <id>`) before suspecting the files.
+- **Published**: "AJ Tools v1.58.0", draft false, marked Latest, zip + `SHA256SUMS.txt` uploaded, notes
+  present (7,638 characters). The asset downloaded with `gh release download` matched the published
+  checksum.
+- **Installed on this PC** from that downloaded zip with `install.cmd` (current user): all 8 years
+  2020-2027 now point at `%AppData%\Autodesk\Revit\Addins\<year>\AJ Tools\AJ Tools.dll`, FileVersion
+  1.58.0.0 each. Nothing under ProgramData or Program Files. The 1.57.2 dev-build folders
+  (`AJ Tools.<stamp>`, two each for 2020/2024/2026/2027) stay on disk: the installer only sweeps
+  `AJ Tools.*.old`, and no manifest points at them, so Revit ignores them.
+- **Small traps on the way**: (1) extracting the zip under a deep folder fails — the deepest file,
+  `Payload\2020\Microsoft.CodeAnalysis.CSharp.Scripting.dll`, goes past Windows' 260-character path
+  limit from a ~180-character base; extract to a short folder. (2) `install.cmd` ends in `pause`, so
+  when run from a tool feed it a keypress (`echo.| install.cmd`) or it waits forever. (3) The run
+  warned that GitHub's `ubuntu-latest` runner moves to Ubuntu 26 from 2026-10-19 — the next release is
+  the first on it. If "Extract release notes" fails there with a correct changelog, suspect the awk
+  version (see the 2026-08-13 awk note in `ajtools-conventions-log.md`), not the entry.
+- **Verified how**: built, checksum-checked, published and installed; **not run in Revit**. -> 2026-10-17.
