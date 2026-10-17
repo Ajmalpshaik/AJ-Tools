@@ -1251,9 +1251,10 @@ Revit, or code-review only) -> date.
   checksum.
 - **Installed on this PC** from that downloaded zip with `install.cmd` (current user): all 8 years
   2020-2027 now point at `%AppData%\Autodesk\Revit\Addins\<year>\AJ Tools\AJ Tools.dll`, FileVersion
-  1.58.0.0 each. Nothing under ProgramData or Program Files. The 1.57.2 dev-build folders
-  (`AJ Tools.<stamp>`, two each for 2020/2024/2026/2027) stay on disk: the installer only sweeps
-  `AJ Tools.*.old`, and no manifest points at them, so Revit ignores them.
+  1.58.0.0 each. Nothing under ProgramData or Program Files. The old dev-build folders
+  (`AJ Tools.<stamp>`, one 1.57.1 + one 1.57.2 each for 2020/2024/2026/2027) were left behind — the
+  installer only sweeps `AJ Tools.*.old`, and no manifest pointed at them. Ajmal had all eight sent to
+  the Recycle Bin the same day (about 230 MB); each year now holds only its `AJ Tools` folder.
 - **Small traps on the way**: (1) extracting the zip under a deep folder fails — the deepest file,
   `Payload\2020\Microsoft.CodeAnalysis.CSharp.Scripting.dll`, goes past Windows' 260-character path
   limit from a ~180-character base; extract to a short folder. (2) `install.cmd` ends in `pause`, so
