@@ -27,8 +27,8 @@ tools, plus a built-in AI shell (AJ AI). Facts a session should not have to redi
 - **No outside-AI connection either (removed v1.57.0, 2026-10-12).** The AJ AI Bridge (named pipe,
   `McpBridgeService`, the "AJ AI" ribbon button), its Node MCP server and the PowerShell callers were all
   deleted at Ajmal's instruction; that job now belongs to his separate Heron AI project — never touch that
-  project from here. The C# pane (with its AI chat, for now), Run Pinned / Saved Scripts, Game Mode and
-  Quick Menu stay. Do not add a bridge back without Ajmal asking. The live-model notes and C# scripts that
+  project from here. The C# pane (with its AI chat, for now), Run Pinned / Saved Scripts and Game Mode
+  stay. Do not add a bridge back without Ajmal asking. The live-model notes and C# scripts that
   went with it were deleted the same day (Heron already covers that work) — git history has them.
 
 **Hard rule — trees you must never edit:** `_backup\`
@@ -49,6 +49,11 @@ is stale: do not edit it, commit from the root only.
 `.gitignore` excludes both `AJ Tools/` and `AJ-Tools-Installer/` (the installer is its own separate
 repository). All GitHub/git work still goes through the `github-aj-tools` skill, and pushing still
 needs Ajmal's explicit yes.
+
+**Tools moved to Heron Tools (v1.59.0, 2026-11-08).** The Quick Menu and the whole View, Datums, Modify
+and Coordination panels now live in Ajmal's separate Heron Tools add-in
+(`D:\06_Development\10_Heron_Tools`, Heron ribbon tab) and were deleted here at his instruction - git
+history has them. Do not add them back to AJ Tools; improve them in Heron Tools.
 
 ## Who you're working with, and how
 
