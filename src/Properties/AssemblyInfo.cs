@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.58.0
+ * Version       : 1.59.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-10-15
@@ -24,6 +24,13 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.59.0 (2026-11-08) - TOOLS MOVED TO HERON TOOLS (Ajmal's instruction). The Quick, View, Datums, Modify
+ *                       and Coordination panels - Quick Menu, View Crop, Annotation Crop, Unhide All, Toggle
+ *                       Links, Filter Pro, Colorize, Highlight Selection, Reset Datums, Level Extents, Flip
+ *                       Bubbles, Match Elevation, Reassign Level, Pin / Unpin, Smart Selection, Element ID
+ *                       tools, 3D Views by Workset, Link Workset - now live in his Heron Tools add-in and were
+ *                       removed here: ribbon entries (RibbonManager v1.16.0), the files only they used, and
+ *                       their icons. Every other tool is unchanged. Minor bump: tools removed, none changed.
  * v1.58.0 (2026-10-14) - SMART MEP TAGS CAN TAG LINKED MODELS (Ajmal's request: tag mechanical equipment
  *                       from a linked model). New tick box in Smart MEP Tag Settings, "Also tag elements
  *                       in linked models" - off by default, saved to the settings file. When on, every
@@ -2386,8 +2393,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.58.0.0")]
-[assembly: AssemblyFileVersion("1.58.0.0")]
+[assembly: AssemblyVersion("1.59.0.0")]
+[assembly: AssemblyFileVersion("1.59.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

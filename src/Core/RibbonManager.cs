@@ -2,15 +2,14 @@
 /*
  * Tool Name     : AJ Tools Ribbon Manager
  * File Name     : RibbonManager.cs
- * Purpose       : Builds the main "AJ Tools" ribbon tab - its panels (Quick, View, Graphics, Datums,
- *                 Modify, MEP, Opening, Coordination, Data, Manage, Family, AI, Game, About) and every button,
- *                 split, and pulldown.
+ * Purpose       : Builds the main "AJ Tools" ribbon tab - its panels (Graphics, MEP, Opening, Data,
+ *                 Manage, Family, AI, Game, About) and every button, split, and pulldown.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.15.1
+ * Version       : 1.16.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-11-08
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -27,6 +26,9 @@
  * - Production-ready implementation.
  *
  * Changelog     :
+ * v1.16.0 (2026-11-08) - The Quick, View, Datums, Modify and Coordination panels were moved to Ajmal's
+ *                       Heron Tools add-in (Heron tab) and removed from this tab at his instruction, with
+ *                       their buttons and builder methods. The remaining panels and buttons are unchanged.
  * v1.15.1 (2026-10-12) - Audit pass: Elements to Ceiling Grid and Flip Bubbles tooltips updated to match
  *                       what the tools do today; comments no longer compare Run Pinned with another
  *                       product; Purpose now lists the Opening panel. Purge Unused tooltips now say what
@@ -149,14 +151,9 @@ namespace AJTools.App
     {
         private enum PanelKey
         {
-            Quick,
-            View,
             Graphics,
-            Datums,
-            Modify,
             Mep,
             Opening,
-            Coordination,
             Data,
             Manage,
             Family,
@@ -197,15 +194,10 @@ namespace AJTools.App
 
             _panelNames = new Dictionary<PanelKey, string>
             {
-                [PanelKey.Quick] = "Quick",
-                [PanelKey.View] = "View",
                 [PanelKey.Graphics] = "Graphics",
-                [PanelKey.Datums] = "Datums",
                 [PanelKey.Family] = "Family",
-                [PanelKey.Modify] = "Modify",
                 [PanelKey.Mep] = "MEP",
                 [PanelKey.Opening] = "Opening",
-                [PanelKey.Coordination] = "Coordination",
                 [PanelKey.Data] = "Data",
                 [PanelKey.Manage] = "Manage",
                 [PanelKey.Ai] = "AI Assistant",
@@ -215,14 +207,9 @@ namespace AJTools.App
 
             _panelOrder = new List<PanelKey>
             {
-                PanelKey.Quick,
-                PanelKey.View,
                 PanelKey.Graphics,
-                PanelKey.Datums,
-                PanelKey.Modify,
                 PanelKey.Mep,
                 PanelKey.Opening,
-                PanelKey.Coordination,
                 PanelKey.Data,
                 PanelKey.Manage,
                 PanelKey.Family,
@@ -235,14 +222,9 @@ namespace AJTools.App
             // To move a tool group to another panel, change the PanelKey used here.
             _toolLayout = new List<ToolPlacement>
             {
-                new ToolPlacement(PanelKey.Quick, BuildQuickPanel),
-                new ToolPlacement(PanelKey.View, BuildViewPanel),
                 new ToolPlacement(PanelKey.Graphics, BuildGraphicsPanel),
-                new ToolPlacement(PanelKey.Datums, BuildDatumsPanel),
-                new ToolPlacement(PanelKey.Modify, BuildModifyPanel),
                 new ToolPlacement(PanelKey.Mep, BuildMepPanel),
                 new ToolPlacement(PanelKey.Opening, BuildOpeningPanel),
-                new ToolPlacement(PanelKey.Coordination, BuildCoordinationPanel),
                 new ToolPlacement(PanelKey.Data, BuildDataPanel),
                 new ToolPlacement(PanelKey.Manage, BuildManagePanel),
                 new ToolPlacement(PanelKey.Family, BuildFamilyPanel),
@@ -327,31 +309,9 @@ namespace AJTools.App
             }
         }
 
-        private void BuildQuickPanel(RibbonPanel panel)
-        {
-            AddTopLevelTool(panel, AddQuickMenuTool());
-        }
-
-        private void BuildViewPanel(RibbonPanel panel)
-        {
-            AddStackedTools(panel, AddViewCropTools(), AddUnhideAllTool(), AddToggleLinksTool());
-            AddStackedTools(panel, AddFilterProTool(), AddColorizeTool(), AddHighlightSelectionTool());
-        }
-
         private void BuildGraphicsPanel(RibbonPanel panel)
         {
             AddStackedTools(panel, AddApplyGraphicsTools(), AddMatchGraphicsTools(), AddResetGraphicsTools());
-        }
-
-        private void BuildDatumsPanel(RibbonPanel panel)
-        {
-            AddStackedTools(panel, AddResetDatumsTools(), AddLevelExtentsTools(), AddFlipDatumBubblesTool());
-        }
-
-        private void BuildModifyPanel(RibbonPanel panel)
-        {
-            AddStackedTools(panel, AddMatchElevationTool(), AddReassignLevelTool(), AddPinElementsTool());
-            AddTopLevelTool(panel, AddSmartSelectionTool());
         }
 
         private void BuildMepPanel(RibbonPanel panel)
@@ -363,11 +323,6 @@ namespace AJTools.App
         private void BuildOpeningPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddMepOpeningsTool());
-        }
-
-        private void BuildCoordinationPanel(RibbonPanel panel)
-        {
-            AddStackedTools(panel, AddFindElementTools(), AddWorkset3DViewsTool(), AddSetLinkWorksetTool());
         }
 
         private void BuildDataPanel(RibbonPanel panel)
@@ -400,38 +355,6 @@ namespace AJTools.App
         private void BuildAboutPanel(RibbonPanel panel)
         {
             AddTopLevelTool(panel, AddAboutTool());
-        }
-
-        private TopLevelToolSpec AddQuickMenuTool()
-        {
-            // Self-contained like Game Mode: the whole tool is src/QuickMenu + Resources\QuickMenu.png
-            // + this one entry, so it can be removed cleanly if it is ever unwanted.
-            // "Quick Menu" is the permanent default face (added first, IsSynchronizedWithCurrentItem
-            // = false) and "Customise" only lives in the dropdown - the same pattern as the Opening
-            // and Run Pinned split buttons.
-            return CreateSplitToolSpec(
-                "Quick\nMenu",
-                "Open the quick tool wheel around the mouse pointer - your own favourite AJ Tools " +
-                "buttons in a ring, like a game weapon wheel. Point at one and click and it runs, or " +
-                "press its number (1-9). Esc closes it, S opens the customise list. " +
-                "TIP: give this button a Revit keyboard shortcut (File > Options > User Interface > " +
-                "Keyboard Shortcuts, search \"Quick Menu\") so the wheel opens right where you are " +
-                "working instead of up by the ribbon.",
-                "QuickMenu.png",
-                "QuickMenu.png",
-                splitButton => splitButton.IsSynchronizedWithCurrentItem = false,
-                CreateSplitChildTool(
-                    "Quick\nMenu",
-                    "Open the quick tool wheel around the mouse pointer. Point at a tool and click to run it.",
-                    typeof(AJTools.Commands.QuickMenu.CmdQuickMenu),
-                    "QuickMenu.png",
-                    "QuickMenu.png"),
-                CreateSplitChildTool(
-                    "Customise",
-                    "Choose which AJ Tools button sits in each slot of the wheel, how many slots there are, and how big the wheel opens.",
-                    typeof(AJTools.Commands.QuickMenu.CmdQuickMenuSettings),
-                    "settings.png",
-                    "settings.png"));
         }
 
         private TopLevelToolSpec AddGameModeTool()
@@ -494,93 +417,6 @@ namespace AJTools.App
                     typeof(AJTools.AiShell.Commands.ShowSavedScriptsCommand),
                     "CSharp_with_AI.png",
                     "CSharp_with_AI.png"));
-        }
-
-        private TopLevelToolSpec AddToggleLinksTool()
-        {
-            return CreatePushToolSpec(
-                "Toggle\nLink",
-                "Toggle visibility of all Revit Links in the active view.",
-                typeof(CmdToggleRevitLinks),
-                "Toggle Links.png",
-                "Toggle Links.png",
-                pushButton => pushButton.AvailabilityClassName = typeof(CmdRevitLinkToggleAvailability).FullName);
-        }
-
-        private TopLevelToolSpec AddUnhideAllTool()
-        {
-            return CreatePushToolSpec(
-                "Unhide\nAll",
-                "Unhide all elements in the active view (Temporary Hide/Isolate + hidden items).",
-                typeof(CmdUnhideAll),
-                "Unhide All.png",
-                "Unhide All.png",
-                pushButton => pushButton.AvailabilityClassName = typeof(CmdGraphicalViewAvailability).FullName);
-        }
-
-        private TopLevelToolSpec AddSmartSelectionTool()
-        {
-            return CreatePushToolSpec(
-                "Smart\nSelection",
-                "Pick one reference element, then one window or crossing-select - only elements of the same category are added.",
-                typeof(CmdSmartSelection),
-                "cursor.png",
-                "cursor.png",
-                pushButton =>
-                {
-                    pushButton.LongDescription = "Pick a reference element (e.g. one duct), then window-select or crossing-select once across the view - only elements sharing that category are added; everything else caught in the box is skipped automatically. The matched elements stay selected for whatever you do next.";
-                });
-        }
-
-        private TopLevelToolSpec AddPinElementsTool()
-        {
-            return CreatePushToolSpec(
-                "Pin / Unpin\nElements",
-                "Pin/unpin separated Sheet groups (Title Blocks, Placed Views, Legends, Schedules) with Active Sheet Only or All Sheets mode, and Model groups (Duct, Pipe, Cable Tray, Generic Models, Mechanical Equipment, Plumbing Fixtures, Electrical Equipment, Grids, Levels).",
-                typeof(CmdPinElements),
-                "apply.png",
-                "apply.png");
-        }
-
-        private TopLevelToolSpec AddFilterProTool()
-        {
-            return CreatePushToolSpec(
-                "Filter\nPro",
-                "Create parameter filters quickly (category, parameter, values) and apply them to the active view.",
-                typeof(CmdFilterPro),
-                "FilterPro.png",
-                "FilterPro.png",
-                pushButton => pushButton.AvailabilityClassName = typeof(CmdFilterProAvailability).FullName);
-        }
-
-        private TopLevelToolSpec AddColorizeTool()
-        {
-            return CreatePushToolSpec(
-                "Colorize",
-                "Colorize elements by category or by parameter value directly in the active view (or selected views) - no view filter is created.",
-                typeof(CmdColorize),
-                "Colorize.png",
-                "Colorize.png",
-                pushButton =>
-                {
-                    pushButton.LongDescription = "Pick categories (and optionally a parameter and values, using the same category/parameter/value engine as Filter Pro), choose graphics options, then Shuffle Colors applies the overrides directly to matched elements in the active view or selected views - click it again anytime to re-shuffle.";
-                    pushButton.AvailabilityClassName = typeof(CmdColorizeAvailability).FullName;
-                });
-        }
-
-        private TopLevelToolSpec AddHighlightSelectionTool()
-        {
-            return CreatePushToolSpec(
-                "Highlight\nSelection",
-                "Color the selected elements red and every other element in the active view gray, for instant visual identification.",
-                typeof(CmdHighlightSelection),
-                "Highlight Selection.png",
-                "Highlight Selection.png",
-                pushButton =>
-                {
-                    pushButton.LongDescription = "Select elements first (or click with nothing selected to pick them), then click Highlight Selection - the selection turns red and everything else in the active view turns gray. Use the Reset Graphics tools (Graphics panel) afterward to clear the colors.";
-                    pushButton.AvailabilityClassName = typeof(CmdGraphicalViewAvailability).FullName;
-                });
         }
 
         private TopLevelToolSpec AddApplyGraphicsTools()
@@ -658,21 +494,6 @@ namespace AJTools.App
                     pushButton => pushButton.AvailabilityClassName = typeof(CmdGraphicalViewAvailability).FullName));
         }
 
-        private TopLevelToolSpec AddWorkset3DViewsTool()
-        {
-            return CreatePulldownToolSpec(
-                "3D\nViews",
-                "3D view creation tools.",
-                "3D Views.png",
-                "3D Views.png",
-                CreateSplitChildTool(
-                    "Create 3D Views\nby Workset",
-                    "Create one 3D view per user workset and isolate each workset in its matching view.",
-                    typeof(Cmd3DViewsAsPerWorkset),
-                    "3D Views.png",
-                    "3D Views.png"));
-        }
-
         private TopLevelToolSpec AddTransferTools()
         {
             return CreatePulldownToolSpec(
@@ -706,118 +527,6 @@ namespace AJTools.App
                     "Transfer View Template.png"));
         }
 
-        private TopLevelToolSpec AddFindElementTools()
-        {
-            return CreatePulldownToolSpec(
-                "Element\nID",
-                "Element ID tools for current and linked models.",
-                "linkedID.png",
-                "linkedID.png",
-                CreateSplitChildTool(
-                    "Get Element ID\nfrom Selection",
-                    "Pick any element (model or linked) and view its Element ID with source info.",
-                    typeof(CmdLinkedElementIdViewer),
-                    "Linked ID of Selection.png",
-                    "Linked ID of Selection.png"),
-                CreateSplitChildTool(
-                    "Find Element\nby Element ID",
-                    "Search by Element ID in current or linked models and zoom to it.",
-                    typeof(CmdLinkedElementSearch),
-                    "View by Linked ID.png",
-                    "View by Linked ID.png"));
-        }
-
-        private TopLevelToolSpec AddSetLinkWorksetTool()
-        {
-            return CreatePushToolSpec(
-                "Link\nWorkset",
-                "Assign selected Revit links and CAD imports to a workset.",
-                typeof(CmdSetLinkWorkset),
-                "Set Link Workset.png",
-                "Set Link Workset.png");
-        }
-
-        private TopLevelToolSpec AddResetDatumsTools()
-        {
-            return CreateSplitToolSpec(
-                "Reset Grid / Level\nExtents to 3D",
-                "Reset grid or level datum extents back to 3D.",
-                "Resetto3DExtents.png",
-                "Resetto3DExtents.png",
-                CreateSplitChildTool(
-                    "Reset Grid\nExtents to 3D",
-                    "Reset all visible grids to 3D extents in this view.",
-                    typeof(CmdResetDatumsGrids),
-                    "Resetto3DExtents.png",
-                    "Resetto3DExtents.png"),
-                CreateSplitChildTool(
-                    "Reset Level\nExtents to 3D",
-                    "Reset all visible levels to 3D extents in this view.",
-                    typeof(CmdResetDatumsLevels),
-                    "Resetto3DExtents.png",
-                    "Resetto3DExtents.png"),
-                CreateSplitChildTool(
-                    "Reset Grid / Level\nExtents to 3D",
-                    "Reset both grids and levels visible in this view.",
-                    typeof(CmdResetDatums),
-                    "Resetto3DExtents.png",
-                    "Resetto3DExtents.png"));
-        }
-
-        private TopLevelToolSpec AddLevelExtentsTools()
-        {
-            return CreateSplitToolSpec(
-                "Modify Level\nExtents",
-                "Match or maximize level 3D extents.",
-                "Level Extents.png",
-                "Level Extents.png",
-                CreateSplitChildTool(
-                    "Match Level\nExtents",
-                    "Select one source level, then pick target levels one-by-one to match extents (Esc to finish).",
-                    typeof(CmdExtendLevelsBySelected),
-                    "Level Extents.png",
-                    "Level Extents.png"),
-                CreateSplitChildTool(
-                    "Maximize Level Extents\nto Section Box",
-                    "Maximize all level 3D extents to the active 3D view's section box.",
-                    typeof(CmdMaximizeLevelsBySectionBox),
-                    "Level Extents.png",
-                    "Level Extents.png"));
-        }
-
-        private TopLevelToolSpec AddViewCropTools()
-        {
-            return CreatePulldownToolSpec(
-                "View\nCrop",
-                "View crop and annotation crop tools.",
-                "view crop 3d extents.png",
-                "view crop 3d extents.png",
-                CreateSplitChildTool(
-                    "Crop View\nby Elements",
-                    "Auto-fit the crop region of plan views. Pick 'Visible elements' or 'All model elements' in the settings dialog.",
-                    typeof(CmdViewCropByAllModelElements),
-                    "view crop 3d extents.png",
-                    "view crop 3d extents.png",
-                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPlanViewAvailability).FullName),
-                CreateSplitChildTool(
-                    "Set Annotation Crop\nby View Crop",
-                    "Enable annotation crop in selected views and set equal offsets on all sides using each view's active crop box.",
-                    typeof(CmdSetAnnotationCropByViewCrop),
-                    "view crop 3d extents.png",
-                    "view crop 3d extents.png",
-                    pushButton => pushButton.AvailabilityClassName = typeof(CmdPlanViewAvailability).FullName));
-        }
-
-        private TopLevelToolSpec AddFlipDatumBubblesTool()
-        {
-            return CreatePushToolSpec(
-                "Flip Grid /\nLevel Bubbles",
-                "Toggle which datum end shows the bubble for grids or levels - pick them one at a time (each flips instantly), or window-select a batch to flip in one undo step.",
-                typeof(CmdFlipGridBubble),
-                "GridbubbleFlip.png",
-                "GridbubbleFlip.png");
-        }
-
         private TopLevelToolSpec AddConvertSharedParametersTool()
         {
             return CreatePushToolSpec(
@@ -826,43 +535,6 @@ namespace AJTools.App
                 typeof(SharedParamToFamilyParamCommand),
                 "Share To Family.png",
                 "Share To Family.png");
-        }
-
-        private TopLevelToolSpec AddMatchElevationTool()
-        {
-            return CreateSplitToolSpec(
-                "Match MEP Element\nElevation",
-                "Match center, top, or bottom elevation from a source MEP element to others.",
-                "Match Elevation.png",
-                "Match Elevation.png",
-                CreateSplitChildTool(
-                    "Match Center\nElevation",
-                    "Match center elevation from a source MEP element to selected targets.",
-                    typeof(CmdMatchElevation),
-                    "Match Elevation.png",
-                    "Match Elevation.png"),
-                CreateSplitChildTool(
-                    "Match Top\nElevation",
-                    "Match top elevation from a source MEP element to selected targets.",
-                    typeof(CmdMatchElevationTop),
-                    "Match Elevation.png",
-                    "Match Elevation.png"),
-                CreateSplitChildTool(
-                    "Match Bottom\nElevation",
-                    "Match bottom elevation from a source MEP element to selected targets.",
-                    typeof(CmdMatchElevationBottom),
-                    "Match Elevation.png",
-                    "Match Elevation.png"));
-        }
-
-        private TopLevelToolSpec AddReassignLevelTool()
-        {
-            return CreatePushToolSpec(
-                "Reassign\nReference Level",
-                "Reassign supported MEP elements from one level to another without moving them physically - whole project, or just your current selection.",
-                typeof(CmdReassignLevel),
-                "Reassign Level.png",
-                "Reassign Level.png");
         }
 
         private TopLevelToolSpec AddLocationDataTool()

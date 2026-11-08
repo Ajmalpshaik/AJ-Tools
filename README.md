@@ -44,12 +44,8 @@ Revit API, but get less hands-on testing.
 
 AJ Tools provides commands for:
 
-- view, crop, filter, and link visibility control
 - graphics override apply, match, and reset
-- grid and level datum extents and bubble control
-- MEP elevation matching, level reassignment, and element pinning
 - MEP connection, ceiling-grid snapping, HVAC schematic generation, and domestic water pipe sizing
-- element ID lookup across host and linked models, workset 3D views, and link workset assignment
 - location data assignment and duct standards calculation
 - transfer of view templates, schedules, legends, and drafting views between open projects
 - purge utilities for unplaced views (3D, sections, schedules, legends, drafting views), unused
@@ -62,8 +58,9 @@ AJ Tools provides commands for:
 - a built-in "C#" pane: script editor and runner with an AI chat that writes C# for the open model
 - Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
   identification, temporary hiding, snag marking, and selection carried back into Revit
-- Quick Menu: a customisable radial tool wheel that opens around the mouse pointer and runs any
-  AJ Tools ribbon button or Revit built-in command
+
+In v1.59.0 the Quick Menu and the View, Datums, Modify and Coordination tools (Filter Pro, Colorize, View Crop, Unhide All, Toggle Links, Highlight Selection, datum extents and bubbles, Match Elevation, Reassign Level, Pin / Unpin, Smart Selection, Element ID tools, 3D Views by Workset, Link Workset) moved to Ajmal's separate **Heron Tools** add-in (Heron ribbon tab) and were
+removed from AJ Tools.
 
 ## Repository Layout
 
@@ -77,8 +74,8 @@ Generated build outputs such as `src/bin`, `src/obj`, `dist/release`, packaged D
 
 ## Revit Ribbon Tabs
 
-The add-in registers **two** ribbon tabs: `AJ Tools` (view, graphics, datum, MEP, coordination, data,
-manage, family, AI Assistant, Game and Quick Menu panels) and `AJ Annotation` (dimensions, annotation,
+The add-in registers **two** ribbon tabs: `AJ Tools` (graphics, MEP, opening, data, manage, family,
+AI Assistant, Game and About panels) and `AJ Annotation` (dimensions, annotation,
 text, family and tags panels). The full panel-by-panel tool list lives in one place only,
 [docs/USAGE.md](docs/USAGE.md), so it cannot drift out of step with a second copy here.
 

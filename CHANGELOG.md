@@ -5,6 +5,19 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.59.0] - 2026-11-08
+
+Tools moved to Heron Tools. Builds clean for Revit 2020-2027; **not yet run in Revit**.
+
+- **Moved to Heron Tools** (Ajmal's separate add-in, on the Heron ribbon tab) and **removed from AJ Tools**
+  at his instruction: the Quick panel (Quick Menu), the View panel (View Crop, Annotation Crop, Unhide All,
+  Toggle Links, Filter Pro, Colorize, Highlight Selection), the Datums panel (Reset Datums, Level Extents,
+  Flip Bubbles), the Modify panel (Match Elevation, Reassign Level, Pin / Unpin, Smart Selection) and the
+  Coordination panel (Element ID tools, 3D Views by Workset, Link Workset).
+- 106 source files and 17 icons that only those tools used were deleted; git history keeps them.
+- Every other panel and button is unchanged: Graphics, MEP, Opening, Data, Manage, Family, AI Assistant,
+  Game, About, and the whole AJ Annotation tab.
+
 ## [1.58.0] - 2026-10-14
 
 Smart MEP Tags can tag linked models. Builds clean for Revit 2020-2027; **not yet run in Revit**.
