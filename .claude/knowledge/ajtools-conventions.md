@@ -946,6 +946,19 @@ back into a catch-all.
   For pixel-exact overlay placement + FPS mouse-look, stay in device pixels end-to-end
   (`GetWindowRectangle` → `SetWindowPos`, `GetCursorPos`/`SetCursorPos`) and no DPI conversion is
   ever needed, even on mixed-DPI dual monitors.
+- **Drawing your own 3D inside a Revit view (DirectContext3D) — NOT yet verified live** (Game Mode
+  third-person character, v1.60.0, 2026-11-21). Every member used (`IDirectContext3DServer`,
+  `DrawContext.FlushBuffer`, `VertexBuffer`/`IndexBuffer`, `EffectInstance`, `MultiServerService`
+  `AddServer`/`SetActiveServers`) is identical in the 2020, 2025 and 2027 API reference files; only the
+  `DirectContext3DDocumentUtils` handle methods were removed by 2027 (not used). Shape chosen: ONE
+  static server, registered the first time it is needed inside the frame ExternalEvent (registration
+  needs an API context), and never removed — `CanExecute` returns false unless a game is running in
+  third person in the game view. Removing it would need an API context the HUD's stop paths don't
+  have, so every stop path just sets `GameCharacterServer.Pose.Visible = false`. Buffers are built
+  fresh inside every `RenderScene` (they may only be used there, and Revit can invalidate them); the
+  character is ~17 boxes, so that is cheap. Things Ajmal's first live test must confirm: it shows at
+  all, `RefreshActiveView` triggers the redraw every frame, colours are lit (not black), and the
+  `GetBoundingBox` does not upset Game Mode's `ZoomToFit`. Update this bullet with the result.
 
 **Selection-based tool scope — reuse this shape rather than reinventing it**
 - When a tool needs both a "whole project/model" mode and a "just what I selected" mode (first done for

@@ -3,6 +3,20 @@
 > Dated history behind the rules in [`ajtools-conventions.md`](ajtools-conventions.md). Newest entries first.
 > Read this only for the story behind a decision, or what happened on a date — not for the rules themselves.
 
+### 2026-11-21 (Game Mode third-person view — v1.60.0)
+
+Ajmal asked for a 3D character in Game Mode, third person ("not first person i need thred person
+view"). A browser-based 3D library was ruled out (needs a web control — against the no-web rule — and
+cannot sit see-through over the Revit view). A real downloaded character was the plan, but the cloud
+session's network blocks the asset sites, so Ajmal agreed to a code-built blocky mannequin first
+("let me see this and we will bring real one"). Built: `GameCharacterServer.cs` (draws it in the view
+via Revit's own 3D graphics service) and `GameMotionEngine.ThirdPerson.cs` (camera 3000 mm back,
+500 mm right, 1900 mm pivot height, pulls in 250 mm short of a wall, min 300 mm; limb swing from the
+distance walked, 900 mm stride). New remappable key ThirdPerson, default Q. Aim rays start from the
+camera in third person so shots still land on the crosshair. The on-screen gun hides in third person.
+Later swap-in of a real character: only `BuildBody` needs to change (the mesh source), not the camera.
+Built clean on Release, R25 and R27 from the Linux container; NOT run in Revit.
+
 ### 2026-10-15 (Smart MEP Tags "Selected elements only" — still v1.58.0, same PR)
 
 Ajmal: *"add the tag selected elements only option"* (my suggestion after the restructure). Built as a

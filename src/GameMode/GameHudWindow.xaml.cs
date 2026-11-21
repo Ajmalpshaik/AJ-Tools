@@ -12,10 +12,10 @@
  *                   GameHudWindow.Photo.cs    - K photo mode
  *
  * Author        : Ajmal P.S.
- * Version       : 1.9.6
+ * Version       : 1.10.0
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-11-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -39,6 +39,11 @@
  * - ALL instance fields and consts of the class live in THIS file (partial-class house style).
  *
  * Changelog     :
+ * v1.10.0 (2026-11-21) - Third-person view: its key (default Q) toggles input.ThirdPerson with a
+ *                       toast; the on-screen gun is hidden while in third person (the character is
+ *                       the player now - every tool still works from the crosshair); the help card
+ *                       lists the key; every stop path hides the character so it never stays drawn
+ *                       in the game view after the game ends.
  * v1.9.6 (2026-10-12) - (1) Snag report written on EVERY exit: StopGame (Esc then Esc, the ribbon
  *                       toggle, "Revit stopped accepting game frames") and the overlay closing now
  *                       call the engine's FinishSnagReport() - before, only an engine-side stop
@@ -320,6 +325,7 @@ namespace AJTools.UI.GameMode
             _session.Running = false;
             _session.Hud.Alive = false;
             _session.Hud.StopReason = reason;
+            AJTools.Services.GameMode.GameCharacterServer.Pose.Visible = false;
             BeginEndSequence(reason);
         }
 
@@ -353,6 +359,7 @@ namespace AJTools.UI.GameMode
 
             _closedDown = true;
             _session.Running = false;
+            AJTools.Services.GameMode.GameCharacterServer.Pose.Visible = false;
 
             // The overlay can also close without StopGame (e.g. Revit closing its owner window).
             // Make sure the snag report still gets written; a no-op if it already was.

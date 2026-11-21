@@ -8,10 +8,10 @@
  *                 the scroll wheel, the number keys 1-9 and the arrow keys stay fixed.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.1
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-07-29
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-11-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -23,6 +23,7 @@
  *                 actions fall back to their defaults.
  *
  * Changelog     :
+ * v1.1.0 (2026-11-21) - New action ThirdPerson (default Q): third-person view on / off.
  * v1.0.1 (2026-10-12) - Load fix: a saved line is now accepted when its action id is one of
  *                       Actions. It used to require the action to still hold a key at that moment,
  *                       so a layout with two keys swapped (e.g. forward on S, back on W) reloaded
@@ -84,6 +85,7 @@ namespace AJTools.Services.GameMode
         public const string Help = "Help";
         public const string Pause = "Pause";
         public const string Professional = "Professional";
+        public const string ThirdPerson = "ThirdPerson";
 
         public static readonly IReadOnlyList<GameKeyAction> Actions = new List<GameKeyAction>
         {
@@ -110,7 +112,8 @@ namespace AJTools.Services.GameMode
             new GameKeyAction(SpeedDown,    "Speed down",                            Key.OemMinus),
             new GameKeyAction(Help,         "Help card on / off",                    Key.H),
             new GameKeyAction(Pause,        "Pause",                                 Key.P),
-            new GameKeyAction(Professional, "Professional mode - no gun shown",      Key.N)
+            new GameKeyAction(Professional, "Professional mode - no gun shown",      Key.N),
+            new GameKeyAction(ThirdPerson,  "Third-person view on / off",            Key.Q)
         };
 
         private readonly Dictionary<string, Key> _keyByAction = new Dictionary<string, Key>();

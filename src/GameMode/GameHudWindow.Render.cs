@@ -222,6 +222,7 @@ namespace AJTools.UI.GameMode
                 "SELECT\tshot selects in Revit (again = unselect), stays after exit",
                 "RESET\t" + key(GameKeyBindings.ResetGraphics) + " = reset ALL element colors in the game view",
                 "NO GUN\t" + key(GameKeyBindings.Professional) + " = professional mode for meetings (remembered)",
+                "VIEW\t" + key(GameKeyBindings.ThirdPerson) + " = third person (see your character) / first person",
                 "TELEPORT\thold " + key(GameKeyBindings.Teleport) + " - see the jump arc, release = go",
                 "POSITIONS\t" + key(GameKeyBindings.SavePosition) + " saves a spot (list left)  |  1..9 = go  |  " +
                     key(GameKeyBindings.Tour) + " = tour",

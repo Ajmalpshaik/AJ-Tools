@@ -372,6 +372,9 @@ namespace AJTools.UI.GameMode
                 case GameKeyBindings.Professional:
                     if (!e.IsRepeat) { ToggleProfessionalMode(); }
                     break;
+                case GameKeyBindings.ThirdPerson:
+                    if (!e.IsRepeat) { ToggleThirdPerson(); }
+                    break;
                 default:
                     return;
             }

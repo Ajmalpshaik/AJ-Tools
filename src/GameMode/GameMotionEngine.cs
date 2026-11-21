@@ -9,12 +9,13 @@
  *                   GameMotionEngine.Movement.cs - walking physics, collision, gravity, stairs
  *                   GameMotionEngine.Extras.cs   - teleport, saved positions, cleaner/snag/selector
  *                                                  shots, reset graphics, tour mode
+ *                   GameMotionEngine.ThirdPerson.cs - third-person camera + the character's pose
  *
  * Author        : Ajmal P.S.
- * Version       : 1.7.2
+ * Version       : 1.8.0
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-11-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -38,6 +39,12 @@
  * - ALL instance fields of the class live in THIS file (partial-class house style).
  *
  * Changelog     :
+ * v1.8.0 (2026-11-21) - THIRD-PERSON VIEW (ThirdPerson partial): when the HUD turns it on, the camera
+ *                       sits 3000 mm behind and 500 mm right of the player, slides in when a wall
+ *                       is behind, and the code-built character (GameCharacterServer) is drawn where
+ *                       the player stands, limbs swinging with the distance walked. Aim rays
+ *                       (laser, teleport, cleaner / snag / selector shots) start from the camera in
+ *                       third person, so they still land on the crosshair. First person unchanged.
  * v1.7.2 (2026-10-12) - Snag report fix: the punch list was only ever written by Stop(), which runs
  *                       only when the ENGINE ends the game - every normal exit (Esc then Esc, the
  *                       ribbon toggle, closing the overlay) sets Running=false in the HUD first, so
@@ -154,6 +161,13 @@ namespace AJTools.Services.GameMode
         private int _tourIndex;
         private double _tourDwellLeft;
 
+        // Third-person view: last camera eye (aim rays start here), last character position
+        // (distance walked drives the limb swing), walk cycle phase and current swing size.
+        private XYZ _thirdPersonEye;
+        private XYZ _characterLastFeet;
+        private double _walkPhaseRad;
+        private double _swingAmplitudeRad;
+
         public GameMotionEngine(GameSession session)
         {
             _session = session;
@@ -249,6 +263,7 @@ namespace AJTools.Services.GameMode
 
                 // Teleport, bookmarks, cleaner/snag shots, unhide.
                 position = HandleExtras(uidoc, gameView, input, hud, position, forward);
+                // (HandleExtras aims from AimOrigin(position) - the camera in third person.)
 
                 // Tour mode drives the position by itself while active.
                 position = HandleTour(input, hud, position, dt);
@@ -330,10 +345,13 @@ namespace AJTools.Services.GameMode
 
                 _session.Position = position;
 
+                // --- Third person: camera behind the player + the character's pose for this frame ---
+                XYZ eye = UpdateThirdPerson(gameView, input, position, forward, right, dt);
+
                 // --- Apply the camera. NO transaction - verified live: no undo entries, persists. ---
                 try
                 {
-                    gameView.SetOrientation(new ViewOrientation3D(position, up, forward));
+                    gameView.SetOrientation(new ViewOrientation3D(eye, up, forward));
                 }
                 catch (Exception ex)
                 {
@@ -348,7 +366,7 @@ namespace AJTools.Services.GameMode
                 GameRayHit aimHit = null;
                 if (laserSelected || input.TeleportAimHold)
                 {
-                    aimHit = _collision.CastNearest(position, forward, GameTuning.AimRangeFt);
+                    aimHit = _collision.CastNearest(AimOrigin(position), forward, GameTuning.AimRangeFt);
                 }
                 hud.LaserHasHit = laserSelected && aimHit != null;
                 hud.LaserDistanceMm = aimHit != null ? aimHit.DistanceFt / Constants.MM_TO_FEET : 0;
@@ -523,6 +541,7 @@ namespace AJTools.Services.GameMode
             _session.Running = false;
             _session.Hud.Alive = false;
             _session.Hud.StopReason = reason;
+            GameCharacterServer.Pose.Visible = false;
         }
 
         /// <summary>

@@ -34,7 +34,7 @@ namespace AJTools.Services.GameMode
             if (input.TeleportQueued)
             {
                 input.TeleportQueued = false;
-                GameRayHit target = _collision.CastNearest(position, forward, GameTuning.AimRangeFt);
+                GameRayHit target = _collision.CastNearest(AimOrigin(position), forward, GameTuning.AimRangeFt);
                 if (target != null)
                 {
                     position = target.Point - (forward * (GameTuning.BodyRadiusFt * 2.0));
@@ -87,7 +87,7 @@ namespace AJTools.Services.GameMode
             if (input.CleanShotQueued)
             {
                 input.CleanShotQueued = false;
-                GameRayHit victim = _collision.CastNearest(position, forward, GameTuning.AimRangeFt);
+                GameRayHit victim = _collision.CastNearest(AimOrigin(position), forward, GameTuning.AimRangeFt);
                 if (victim == null || victim.ResolvedElement == null)
                 {
                     hud.Toast("No element hit");
@@ -126,7 +126,7 @@ namespace AJTools.Services.GameMode
             if (input.SnagShotQueued)
             {
                 input.SnagShotQueued = false;
-                GameRayHit victim = _collision.CastNearest(position, forward, GameTuning.AimRangeFt);
+                GameRayHit victim = _collision.CastNearest(AimOrigin(position), forward, GameTuning.AimRangeFt);
                 if (victim == null || victim.ResolvedElement == null)
                 {
                     hud.Toast("No element hit");
@@ -159,7 +159,7 @@ namespace AJTools.Services.GameMode
             if (input.SelectShotQueued)
             {
                 input.SelectShotQueued = false;
-                GameRayHit victim = _collision.CastNearest(position, forward, GameTuning.AimRangeFt);
+                GameRayHit victim = _collision.CastNearest(AimOrigin(position), forward, GameTuning.AimRangeFt);
                 if (victim == null || victim.ResolvedElement == null)
                 {
                     hud.Toast("No element hit");

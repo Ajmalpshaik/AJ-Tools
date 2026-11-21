@@ -249,6 +249,27 @@ namespace AJTools.UI.GameMode
                 : "Professional mode OFF - guns are back");
         }
 
+        /// <summary>
+        /// Third-person view on / off. The character takes the gun's place on screen, so the gun
+        /// is hidden while it is on; every tool keeps working from the crosshair.
+        /// </summary>
+        private void ToggleThirdPerson()
+        {
+            GameInputState input = _session.Input;
+            input.ThirdPerson = !input.ThirdPerson;
+            _firing = false;
+            ApplyWeaponVisuals();
+            _session.Hud.Toast(input.ThirdPerson
+                ? "Third-person view ON (" + _keys.Label(GameKeyBindings.ThirdPerson) + " = back to first person)"
+                : "First-person view");
+        }
+
+        /// <summary>No gun on screen: professional mode, or the character is shown (third person).</summary>
+        private bool GunHidden
+        {
+            get { return _professional || _session.Input.ThirdPerson; }
+        }
+
         private void ApplyWeaponVisuals()
         {
             // Ajmal's color scheme (2026-07-29): GUN amber, LASER green, CLEANER black & white,
@@ -311,8 +332,8 @@ namespace AJTools.UI.GameMode
                 Opacity = 0.9
             };
 
-            // Professional mode: no gun ever - hide every weapon visual and stop here.
-            if (_professional)
+            // Professional mode / third person: no gun - hide every weapon visual and stop here.
+            if (GunHidden)
             {
                 RifleImage.Visibility = System.Windows.Visibility.Collapsed;
                 SnagImage.Visibility = System.Windows.Visibility.Collapsed;
@@ -453,7 +474,7 @@ namespace AJTools.UI.GameMode
         {
             // No gun on screen (professional mode or holstered): beams read as a handheld
             // pointer from the bottom of the view.
-            if (_professional || _holstered)
+            if (GunHidden || _holstered)
             {
                 return new Point(ActualWidth / 2.0, ActualHeight + 30);
             }
@@ -563,7 +584,7 @@ namespace AJTools.UI.GameMode
             Point center = GetCenterPoint();
 
             // Muzzle flash + recoil belong to a visible gun only.
-            if (!_professional)
+            if (!GunHidden)
             {
                 MuzzleFlash.BeginAnimation(OpacityProperty, new DoubleAnimation(0.95, 0.0, TimeSpan.FromMilliseconds(90)));
             }
@@ -585,7 +606,7 @@ namespace AJTools.UI.GameMode
             };
             BulletDot.BeginAnimation(OpacityProperty, bulletFade);
 
-            if (!_professional)
+            if (!GunHidden)
             {
                 // Recoil kicks straight back along the 45-degree barrel axis (down-right on screen).
                 var recoilTime = TimeSpan.FromMilliseconds(55);

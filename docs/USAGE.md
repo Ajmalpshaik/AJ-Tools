@@ -78,6 +78,12 @@ back), O runs a tour of every saved position, K saves a clean screenshot, V is a
 J resets element graphics in the view, N is professional mode (hides the weapon permanently, everything
 still works), M mutes. Esc pauses so Revit stays usable; Esc again exits.
 
+Q switches to third-person view: a simple blocky character stands where you are and swings its arms and
+legs as you walk, with the camera 3000 mm behind and 500 mm to the right (it slides closer when a wall is
+behind you). The character is drawn inside the view, so walls hide it; nothing is added to the model. The
+gun is not shown in third person, but every tool still works from the crosshair. Q again returns to first
+person.
+
 Press Esc then S to remap any key - bindings are remembered between sessions.
 
 On exit, any snags you marked are written to a report in Documents\AJ Game Snags. The only model change
