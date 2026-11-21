@@ -5,6 +5,18 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.61.0] - 2026-11-21
+
+Game Mode real third-person character. **Not yet run in Revit.**
+
+- **New: a real character in third person.** The blocky figure is replaced by a site worker in a yellow
+  hard hat, 1850 mm tall. He stands and breathes when you stop, walks with **W** and runs with **Shift**,
+  blending smoothly between them. His legs speed up as you go faster, up to a limit, so at the game's fast
+  speeds his feet slide a little.
+- Plain colours (skin, shirt, vest, trousers, hard hat), drawn inside the view so walls still hide him.
+  Nothing is added to the model.
+- If the character file is missing, the old blocky figure is shown instead, so third person always works.
+
 ## [1.60.0] - 2026-11-21
 
 Game Mode third-person view. Builds clean for Revit 2020, 2025 and 2027; **not yet run in Revit**.

@@ -1674,3 +1674,17 @@ changelog.
   windows declare MotionEaseOut" claim (Game HUD does not), inconsistent style counts, and a README stuck
   at 1.39.1. LESSON: exact counts in prose rot fast — let the scripts report them.
   Clean on Release + R25, all verification scripts pass. Not loaded in Revit by the assistant.
+
+## 2026-11-21 — Game Mode real third-person character (suite 1.61.0)
+- Built: the blocky third-person figure is replaced by a real skinned character (site worker, hard hat,
+  1850 mm) read from `src/Resources/GameCharacter.gltf`, animated Idle / Walk / Run. New
+  `GameCharacterModel.cs` (glTF reader), `GameCharacterAnimator.cs` (clips, cross-fade, skinning);
+  `GameCharacterServer` v1.1.0 draws it, blocky figure kept as the fallback.
+- Decision: character files are loaded from `Resources\` beside the DLL at runtime (same as
+  `GameGun.png`), not embedded in the DLL — the csproj already copies everything under Resources.
+- Decision: ship a TRIMMED copy of a free CC0 model (one mesh, its skin, flat colours, three clips,
+  scale tracks dropped, neutral generator string) — 470 KB instead of 1.8 MB, and no outside names
+  inside the file (rule 11). Only CC0 assets for the public repo; licences that require a credit file
+  would break rule 11.
+- Not yet run in Revit (built clean on Release, R25 and R27). The reader + animator were run outside
+  Revit in a throwaway console test: same standing pose as an independent maths check, 0.13 ms/frame.

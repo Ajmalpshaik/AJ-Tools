@@ -12,7 +12,7 @@
  *                   GameMotionEngine.ThirdPerson.cs - third-person camera + the character's pose
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.0
+ * Version       : 1.8.1
  *
  * Created Date  : 2026-07-28
  * Last Updated  : 2026-11-21
@@ -39,6 +39,9 @@
  * - ALL instance fields of the class live in THIS file (partial-class house style).
  *
  * Changelog     :
+ * v1.8.1 (2026-11-21) - Third person passes the player's ground speed and walk / run state to
+ *                       GameCharacterServer.Advance every frame, which drives the real character's
+ *                       stand / walk / run animation (suite 1.61.0).
  * v1.8.0 (2026-11-21) - THIRD-PERSON VIEW (ThirdPerson partial): when the HUD turns it on, the camera
  *                       sits 3000 mm behind and 500 mm right of the player, slides in when a wall
  *                       is behind, and the code-built character (GameCharacterServer) is drawn where

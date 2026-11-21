@@ -78,8 +78,8 @@ back), O runs a tour of every saved position, K saves a clean screenshot, V is a
 J resets element graphics in the view, N is professional mode (hides the weapon permanently, everything
 still works), M mutes. Esc pauses so Revit stays usable; Esc again exits.
 
-Q switches to third-person view: a simple blocky character stands where you are and swings its arms and
-legs as you walk, with the camera 3000 mm behind and 500 mm to the right (it slides closer when a wall is
+Q switches to third-person view: a site worker in a hard hat stands where you are - breathing when you
+stop, walking with W, running with Shift - with the camera 3000 mm behind and 500 mm to the right (it slides closer when a wall is
 behind you). The character is drawn inside the view, so walls hide it; nothing is added to the model. The
 gun is not shown in third person, but every tool still works from the crosshair. Q again returns to first
 person.
