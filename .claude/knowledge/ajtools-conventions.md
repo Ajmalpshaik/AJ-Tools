@@ -909,10 +909,9 @@ back into a catch-all.
 - `msbuild` is not on PATH on this machine. Resolve it with
   `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe"`
   → currently `C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe`.
-- **`Release R27` cannot be built on this machine right now**: the installed .NET SDK is 9.0.316 and R27
-  targets `net10.0-windows` → `NETSDK1045: The current .NET SDK does not support targeting .NET 10.0`.
-  This is an environment gap, not a code fault — don't chase it as a regression. R25 (`net8.0-windows`)
-  is the newest config that currently compiles here.
+- **`Release R27` builds here again** (checked 2026-11-21: `dotnet build -c "Release R27"` clean, 0
+  warnings). It used to fail with `NETSDK1045` (`net10.0-windows` on an old .NET 9 SDK); the current PC
+  has the .NET 10 SDK. If NETSDK1045 ever comes back, it is an SDK gap on that PC, not a code fault.
 
 **Feature-folder layout for big multi-file tools (Ajmal's own rule, 2026-07-29)**
 - A large tool (Game Mode is the template) lives in ONE folder under src/ (like AiShell), NOT spread
@@ -946,8 +945,11 @@ back into a catch-all.
   For pixel-exact overlay placement + FPS mouse-look, stay in device pixels end-to-end
   (`GetWindowRectangle` → `SetWindowPos`, `GetCursorPos`/`SetCursorPos`) and no DPI conversion is
   ever needed, even on mixed-DPI dual monitors.
-- **Drawing your own 3D inside a Revit view (DirectContext3D) — NOT yet verified live** (Game Mode
-  third-person character, v1.60.0, 2026-11-21). Every member used (`IDirectContext3DServer`,
+- **Drawing your own 3D inside a Revit view (DirectContext3D) — WORKS live in Revit 2020** (Game Mode
+  third-person character, v1.60.0, 2026-11-21). Ajmal's live test the same day, Revit 2020: the
+  character shows and he was happy with it ("yes, it's nice"). He did not answer the item-by-item
+  checklist, so these are still NOT confirmed: walls hiding it, camera sliding in at a wall, Q back to
+  the gun, character gone after exit, and the frame-ms figure. Not yet tried on 2021-2027. Every member used (`IDirectContext3DServer`,
   `DrawContext.FlushBuffer`, `VertexBuffer`/`IndexBuffer`, `EffectInstance`, `MultiServerService`
   `AddServer`/`SetActiveServers`) is identical in the 2020, 2025 and 2027 API reference files; only the
   `DirectContext3DDocumentUtils` handle methods were removed by 2027 (not used). Shape chosen: ONE
@@ -956,9 +958,17 @@ back into a catch-all.
   third person in the game view. Removing it would need an API context the HUD's stop paths don't
   have, so every stop path just sets `GameCharacterServer.Pose.Visible = false`. Buffers are built
   fresh inside every `RenderScene` (they may only be used there, and Revit can invalidate them); the
-  character is ~17 boxes, so that is cheap. Things Ajmal's first live test must confirm: it shows at
-  all, `RefreshActiveView` triggers the redraw every frame, colours are lit (not black), and the
-  `GetBoundingBox` does not upset Game Mode's `ZoomToFit`. Update this bullet with the result.
+  character is ~17 boxes, so that is cheap.
+  **Skinned meshes through the same service (v1.61.0, built clean, NOT yet seen in Revit):** in 2020 the only vertex formats are
+  Position / PositionColored / PositionNormal / PositionNormalColored (read from the 2020 RevitAPI.xml)
+  — NO texture coordinates, so a character must use flat material colours (one buffer per colour) or
+  per-vertex colours; image-textured models lose their look. Index buffers are 16-bit: the 2020 API file
+  says the buffer is "measured in short integers" and a triangle takes 3 of them, so keep each buffer
+  under 65,535 vertices. Pose + skin once per GAME frame (engine calls
+  `GameCharacterServer.Advance`), never inside `RenderScene`, which Revit may call several times per frame.
+  glTF -> Revit axes: file (Y up, facing +Z, +X = character's left) maps to (forward, left, up) =
+  (file Z, file X, file Y) — a cyclic swap, so triangle winding is kept. glTF colours are linear light:
+  convert to sRGB before `new Color(...)` or everything looks too dark.
 
 **Selection-based tool scope — reuse this shape rather than reinventing it**
 - When a tool needs both a "whole project/model" mode and a "just what I selected" mode (first done for

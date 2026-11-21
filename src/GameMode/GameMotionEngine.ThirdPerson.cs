@@ -4,8 +4,8 @@
  * File Name     : GameMotionEngine.ThirdPerson.cs
  * Purpose       : Partial of GameMotionEngine: the third-person camera (behind and right of the
  *                 player, sliding in when a wall is behind) and the character's pose for this frame
- *                 (where it stands, which way it faces, how far its arms and legs swing). The
- *                 character itself is drawn by GameCharacterServer. See GameMotionEngine.cs for the
+ *                 (where it stands, which way it faces, how fast it moves - which drives its stand /
+ *                 walk / run animation). The character itself is drawn by GameCharacterServer. See GameMotionEngine.cs for the
  *                 class metadata, fields and full changelog.
  *
  * Author        : Ajmal P.S.
@@ -71,11 +71,12 @@ namespace AJTools.Services.GameMode
             }
             _characterLastFeet = feet;
 
-            double speedFtPerSec = walkedFt / dt;
+            double speedFtPerSec = dt > 1e-6 ? walkedFt / dt : 0.0;
+            bool running = speedFtPerSec > GameTuning.WalkSpeedFtPerSec * 1.6;
             double targetSwing = 0.0;
             if (speedFtPerSec > 0.2)
             {
-                targetSwing = speedFtPerSec > GameTuning.WalkSpeedFtPerSec * 1.6 ? RunSwingRad : WalkSwingRad;
+                targetSwing = running ? RunSwingRad : WalkSwingRad;
             }
 
             _swingAmplitudeRad += (targetSwing - _swingAmplitudeRad) * Math.Min(1.0, dt * SwingEasePerSec);
@@ -90,6 +91,9 @@ namespace AJTools.Services.GameMode
             pose.KneeRightRad = _swingAmplitudeRad * 1.2 * (0.5 - (0.5 * cos));
             pose.ViewId = ElementIdHelper.GetIntegerValue(gameView.Id);
             pose.Visible = true;
+
+            // The real character (if its file loaded): stand / walk / run to match this frame.
+            GameCharacterServer.Advance(dt, speedFtPerSec, running);
 
             // --- Camera: behind + right of the player's head, never through a wall ---
             XYZ pivot = new XYZ(feet.X, feet.Y, feet.Z + GameTuning.ThirdPersonPivotFt);

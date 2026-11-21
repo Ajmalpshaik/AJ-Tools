@@ -5,7 +5,7 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.60.0
+ * Version       : 1.61.0
  *
  * Created Date  : 2025-12-10
  * Last Updated  : 2026-11-21
@@ -24,6 +24,15 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.61.0 (2026-11-21) - GAME MODE REAL THIRD-PERSON CHARACTER (Ajmal's request). The blocky character is
+ *                       replaced by a real skinned figure - a site worker in a hard hat, 1850 mm tall -
+ *                       read from Resources\GameCharacter.gltf (free CC0 model, trimmed to one mesh,
+ *                       six colours and three clips). It stands breathing when you stop, walks with W
+ *                       and runs with Shift, cross-fading between them (leg speed capped, so feet slide a
+ *                       little at the game's fast speeds). New
+ *                       GameCharacterModel (file reader) and GameCharacterAnimator (bones + skinning);
+ *                       GameCharacterServer v1.1.0 draws it and falls back to the blocky character if
+ *                       the file is missing. Minor bump: new capability in an existing tool.
  * v1.60.0 (2026-11-21) - GAME MODE THIRD-PERSON VIEW (Ajmal's request). Q (remappable) switches between
  *                       first and third person. In third person the camera sits 3000 mm behind and
  *                       500 mm right of the player and slides in when a wall is behind; a simple
@@ -2400,8 +2409,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.60.0.0")]
-[assembly: AssemblyFileVersion("1.60.0.0")]
+[assembly: AssemblyVersion("1.61.0.0")]
+[assembly: AssemblyFileVersion("1.61.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

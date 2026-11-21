@@ -2,14 +2,16 @@
 /*
  * Tool Name     : AJ Game Mode (third-person character)
  * File Name     : GameCharacterServer.cs
- * Purpose       : Draws the third-person player character - a simple blocky mannequin built in code
- *                 (head, body, arms, legs, feet) - INSIDE the game view, so walls, ducts and slabs
- *                 hide it properly when it walks behind them. Arms and legs swing while walking or
- *                 running and come to rest when the player stops. Nothing is added to the model:
- *                 the character is screen graphics only, gone when the game ends.
+ * Purpose       : Draws the third-person player character INSIDE the game view, so walls, ducts and
+ *                 slabs hide it properly when it walks behind them. The character is a real skinned
+ *                 figure (a site worker in a hard hat) read from Resources\GameCharacter.gltf and
+ *                 animated by GameCharacterAnimator (stands, walks with W, runs with Shift). If that
+ *                 file is missing or cannot be read, the old code-built blocky mannequin is drawn
+ *                 instead, so third person always works. Nothing is added to the model: the
+ *                 character is screen graphics only, gone when the game ends.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.0.0
+ * Version       : 1.1.0
  *
  * Created Date  : 2026-11-21
  * Last Updated  : 2026-11-21
@@ -18,9 +20,11 @@
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
  * Platform      : C# Revit Add-in
  *
- * Dependencies  : Autodesk Revit API (DirectContext3D, ExternalService), AJTools.Utils
+ * Dependencies  : Autodesk Revit API (DirectContext3D, ExternalService), AJTools.Utils,
+ *                 GameCharacterModel, GameCharacterAnimator
  *
- * Input         : GameCharacterPose - written every frame by GameMotionEngine (third-person view).
+ * Input         : GameCharacterPose + Advance() - both written every frame by GameMotionEngine
+ *                 (third-person view).
  * Output        : Shaded triangles drawn by Revit in the game view only. NO model change, NO
  *                 transaction, NO undo entry.
  *
@@ -37,9 +41,19 @@
  *   cheap, and it avoids keeping GPU buffers across redraws (Revit can invalidate them).
  * - All body sizes are stated in mm and converted to feet once via Constants.MM_TO_FEET.
  *
+ * - The real character: posed once per game frame by Advance() (called by the motion engine), then
+ *   each redraw only turns the posed mesh into Revit coordinates - file Y-up / facing +Z / +X left
+ *   becomes Revit Z-up / facing the game yaw - scaled to CharacterHeightMm, feet on the floor. One
+ *   buffer per colour (6), ~4,600 vertices, far inside the 16-bit index limit per buffer.
+ * - Colours come from the file's flat material colours (converted from linear to screen colour),
+ *   except the file's black "Skin" and white "Face" (eyes), which are swapped for a normal skin tone
+ *   and dark eyes.
+ *
  * Changelog     :
  * v1.0.0 (2026-11-21) - Initial release: code-built blocky mannequin, walk/run limb swing, visor
  *                       stripe on the face so the facing direction reads at a glance.
+ * v1.1.0 (2026-11-21) - Real skinned character from Resources\GameCharacter.gltf with Idle / Walk /
+ *                       Run clips; the blocky mannequin stays as the fallback.
  *
  * License       : All Rights Reserved
  * Repo          : AJ-Tools
@@ -87,6 +101,24 @@ namespace AJTools.Services.GameMode
 
         /// <summary>The pose the next redraw uses (engine writes, server reads - same UI thread).</summary>
         internal static readonly GameCharacterPose Pose = new GameCharacterPose();
+
+        /// <summary>Height of the real character, top of the hard hat, in mm.</summary>
+        private const double CharacterHeightMm = 1850.0;
+
+        // The real character (null = not loaded / could not load -> blocky fallback).
+        private static GameCharacterAnimator _animator;
+        private static bool _loadTried;
+
+        /// <summary>Why the real character is not used (null while it loads fine). For diagnosis.</summary>
+        internal static string CharacterProblem { get; private set; }
+
+        // Colour swaps for the shipped file (by material name): its skin is black and its eyes white.
+        private static readonly Dictionary<string, Color> ColorOverrides =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Skin", new Color(224, 182, 142) },
+                { "Face", new Color(38, 30, 26) }
+            };
 
         // Colour groups: one vertex buffer + one effect each.
         private const int GroupSkin = 0;
@@ -153,6 +185,40 @@ namespace AJTools.Services.GameMode
             }
         }
 
+        /// <summary>
+        /// Moves the character's animation on by one game frame. Called by the motion engine every
+        /// third-person frame, after it has written Pose. Loads the character file the first time.
+        /// Never throws - any failure just means the blocky fallback is drawn.
+        /// </summary>
+        internal static void Advance(double dt, double speedFtPerSec, bool running)
+        {
+            try
+            {
+                if (!_loadTried)
+                {
+                    _loadTried = true;
+                    string dir = System.IO.Path.GetDirectoryName(typeof(GameCharacterServer).Assembly.Location);
+                    string problem;
+                    GameCharacterModel model = GameCharacterModel.TryLoad(dir, out problem);
+                    if (model != null)
+                    {
+                        _animator = new GameCharacterAnimator(model, CharacterHeightMm * Constants.MM_TO_FEET);
+                    }
+                    CharacterProblem = problem;
+                }
+
+                if (_animator != null)
+                {
+                    _animator.Advance(dt, speedFtPerSec, running);
+                }
+            }
+            catch (Exception ex)
+            {
+                _animator = null;
+                CharacterProblem = "character animation failed: " + ex.Message;
+            }
+        }
+
         // ---------------- IExternalServer ----------------
 
         public Guid GetServerId() { return ServerGuid; }
@@ -205,6 +271,13 @@ namespace AJTools.Services.GameMode
                     return;
                 }
 
+                GameCharacterAnimator animator = _animator;
+                if (animator != null && animator.HasPose)
+                {
+                    DrawCharacter(animator);
+                    return;
+                }
+
                 var groups = new List<Box>[GroupCount];
                 for (int i = 0; i < GroupCount; i++)
                 {
@@ -226,7 +299,114 @@ namespace AJTools.Services.GameMode
             }
         }
 
-        // ---------------- Body ----------------
+        // ---------------- Real character ----------------
+
+        /// <summary>
+        /// Draws the posed character: file axes (Y up, facing +Z, +X = its left) become the game's
+        /// frame (Z up, facing the yaw, +Y = its left), scaled to height with the soles on the floor.
+        /// </summary>
+        private static void DrawCharacter(GameCharacterAnimator animator)
+        {
+            GameCharacterModel model = animator.Model;
+            float[][] positions = animator.Positions;
+            float[][] normals = animator.Normals;
+
+            XYZ feet = Pose.Feet ?? XYZ.Zero;
+            double cos = Math.Cos(Pose.YawRad);
+            double sin = Math.Sin(Pose.YawRad);
+            double scale = animator.UnitsToFeet;
+            double floor = animator.FloorOffsetUnits;
+
+            for (int p = 0; p < positions.Length; p++)
+            {
+                GameCharacterModel.Part part = model.Parts[p];
+                float[] pos = positions[p];
+                float[] nor = normals[p];
+                int vertexCount = part.VertexCount;
+                int triangleCount = part.Indices.Length / 3;
+                if (vertexCount == 0 || triangleCount == 0 || vertexCount > 65535)
+                {
+                    continue;
+                }
+
+                Color color = PartColor(model.Materials[part.Material]);
+                var format = new VertexFormat(VertexFormatBits.PositionNormal);
+                EffectInstance effect = MakeEffect(color);
+
+                int vertexFloats = vertexCount * VertexPositionNormal.GetSizeInFloats();
+                var vertexBuffer = new VertexBuffer(vertexFloats);
+                vertexBuffer.Map(vertexFloats);
+                VertexStreamPositionNormal vertices = vertexBuffer.GetVertexStreamPositionNormal();
+                for (int v = 0; v < vertexCount; v++)
+                {
+                    int o = v * 3;
+                    // File -> character frame: forward = file Z, left = file X, up = file Y.
+                    double fx = pos[o + 2] * scale;
+                    double fy = pos[o] * scale;
+                    double fz = (pos[o + 1] - floor) * scale;
+                    double nx = nor[o + 2];
+                    double ny = nor[o];
+                    double nz = nor[o + 1];
+                    var point = new XYZ(
+                        feet.X + (fx * cos) - (fy * sin),
+                        feet.Y + (fx * sin) + (fy * cos),
+                        feet.Z + fz);
+                    var normal = new XYZ((nx * cos) - (ny * sin), (nx * sin) + (ny * cos), nz);
+                    vertices.AddVertex(new VertexPositionNormal(point, normal));
+                }
+                vertexBuffer.Unmap();
+
+                int indexShorts = triangleCount * IndexTriangle.GetSizeInShortInts();
+                var indexBuffer = new IndexBuffer(indexShorts);
+                indexBuffer.Map(indexShorts);
+                IndexStreamTriangle triangles = indexBuffer.GetIndexStreamTriangle();
+                int[] idx = part.Indices;
+                for (int t = 0; t < triangleCount; t++)
+                {
+                    triangles.AddTriangle(new IndexTriangle(idx[t * 3], idx[(t * 3) + 1], idx[(t * 3) + 2]));
+                }
+                indexBuffer.Unmap();
+
+                DrawContext.FlushBuffer(
+                    vertexBuffer, vertexCount,
+                    indexBuffer, indexShorts,
+                    format, effect,
+                    PrimitiveType.TriangleList, 0, triangleCount);
+            }
+        }
+
+        /// <summary>The colour for one material: a swap from ColorOverrides, else its file colour.</summary>
+        private static Color PartColor(GameCharacterModel.Material material)
+        {
+            Color swap;
+            if (material.Name != null && ColorOverrides.TryGetValue(material.Name, out swap))
+            {
+                return swap;
+            }
+            double[] c = material.BaseColorLinear;
+            return new Color(ToScreen(c[0]), ToScreen(c[1]), ToScreen(c[2]));
+        }
+
+        /// <summary>glTF colours are linear light; Revit wants screen (sRGB) values 0-255.</summary>
+        private static byte ToScreen(double linear)
+        {
+            linear = Math.Max(0.0, Math.Min(1.0, linear));
+            double s = linear <= 0.0031308 ? linear * 12.92 : (1.055 * Math.Pow(linear, 1.0 / 2.4)) - 0.055;
+            return (byte)Math.Round(Math.Max(0.0, Math.Min(1.0, s)) * 255.0);
+        }
+
+        private static EffectInstance MakeEffect(Color color)
+        {
+            var effect = new EffectInstance(VertexFormatBits.PositionNormal);
+            effect.SetColor(color);
+            effect.SetDiffuseColor(color);
+            effect.SetAmbientColor(Scale(color, 0.55));
+            effect.SetEmissiveColor(Scale(color, 0.15));
+            effect.SetSpecularColor(new Color(30, 30, 30));
+            return effect;
+        }
+
+        // ---------------- Blocky fallback body ----------------
 
         /// <summary>One box: a frame (rotation + origin) plus centre and half sizes in that frame, feet.</summary>
         private struct Box
