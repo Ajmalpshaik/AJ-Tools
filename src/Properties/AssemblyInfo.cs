@@ -5,10 +5,10 @@
  * Purpose       : Defines assembly-level metadata and suite version for the AJ Tools add-in.
  *
  * Author        : Ajmal P.S.
- * Version       : 1.59.0
+ * Version       : 1.60.0
  *
  * Created Date  : 2025-12-10
- * Last Updated  : 2026-10-15
+ * Last Updated  : 2026-11-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -24,6 +24,13 @@
  * - Bump rules: patch on internal refactor with no new tool; minor when a tool is added; major on suite restructure.
  *
  * Changelog     :
+ * v1.60.0 (2026-11-21) - GAME MODE THIRD-PERSON VIEW (Ajmal's request). Q (remappable) switches between
+ *                       first and third person. In third person the camera sits 3000 mm behind and
+ *                       500 mm right of the player and slides in when a wall is behind; a simple
+ *                       blocky character built in code is drawn inside the game view (Revit's own 3D
+ *                       graphics service - walls and ducts hide it properly), arms and legs swinging
+ *                       while walking or running. Nothing is added to the model. All tools still work
+ *                       from the crosshair. Minor bump: new feature in an existing tool.
  * v1.59.0 (2026-11-08) - TOOLS MOVED TO HERON TOOLS (Ajmal's instruction). The Quick, View, Datums, Modify
  *                       and Coordination panels - Quick Menu, View Crop, Annotation Crop, Unhide All, Toggle
  *                       Links, Filter Pro, Colorize, Highlight Selection, Reset Datums, Level Extents, Flip
@@ -2393,8 +2400,8 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.59.0.0")]
-[assembly: AssemblyFileVersion("1.59.0.0")]
+[assembly: AssemblyVersion("1.60.0.0")]
+[assembly: AssemblyFileVersion("1.60.0.0")]
 
 // AJ Tools is a Revit add-in: Windows-only by definition, on every supported Revit version.
 // On the .NET 5+ targets (Revit 2025+) the SDK would normally stamp this assembly with

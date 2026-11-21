@@ -56,7 +56,7 @@ AJ Tools provides commands for:
 - intelligent MEP tagging, tag creation and stacking, tag clash fixing, tag rearranging, and L-shape
   leaders
 - a built-in "C#" pane: script editor and runner with an AI chat that writes C# for the open model
-- Game Mode: a first-person walkthrough inside a real Revit perspective view, with element
+- Game Mode: a first- or third-person walkthrough inside a real Revit perspective view, with element
   identification, temporary hiding, snag marking, and selection carried back into Revit
 
 In v1.59.0 the Quick Menu and the View, Datums, Modify and Coordination tools (Filter Pro, Colorize, View Crop, Unhide All, Toggle Links, Highlight Selection, datum extents and bubbles, Match Elevation, Reassign Level, Pin / Unpin, Smart Selection, Element ID tools, 3D Views by Workset, Link Workset) moved to Ajmal's separate **Heron Tools** add-in (Heron ribbon tab) and were

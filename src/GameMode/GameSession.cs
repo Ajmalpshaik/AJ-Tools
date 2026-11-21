@@ -7,10 +7,10 @@
  *                 motion engine, and all movement tuning constants (defined in mm, used in feet).
  *
  * Author        : Ajmal P.S.
- * Version       : 1.8.2
+ * Version       : 1.9.0
  *
  * Created Date  : 2026-07-28
- * Last Updated  : 2026-10-12
+ * Last Updated  : 2026-11-21
  *
  * Target Revit  : 2020 - latest (A: 2020-2024 / B: 2025-2026 / C: 2027+ - verify newest)
  * Framework     : .NET Fx 4.7.2 (2020) / verify 4.8 (2021-2024) | .NET 8 (2025-2026) | 2027+ verify Autodesk SDK
@@ -30,6 +30,8 @@
  *   ribbon entry removes the whole tool.
  *
  * Changelog     :
+ * v1.9.0 (2026-11-21) - ThirdPerson input (HUD toggles it with its key, the engine reads it each frame)
+ *                       for the new third-person view with the code-built character.
  * v1.8.2 (2026-10-12) - The session now owns the game's key bindings (Keys), shared by the HUD and
  *                       the engine, so the engine's toasts ("press B to save one") name the key
  *                       actually bound instead of the default; the HUD and the Key Settings window
@@ -120,6 +122,14 @@ namespace AJTools.Services.GameMode
         public const double MouseDegPerPixel = 0.15;
         public const double PitchClampDeg = 85.0;
 
+        // --- Third-person camera ---
+        public const double ThirdPersonBackMm = 3000.0;      // camera distance behind the player
+        public const double ThirdPersonPivotMm = 1900.0;     // camera height above the floor (pitch 0)
+        public const double ThirdPersonShoulderMm = 500.0;   // camera shifted right, so the crosshair is clear
+        public const double ThirdPersonWallGapMm = 250.0;    // gap kept to a wall behind the player
+        public const double ThirdPersonMinBackMm = 300.0;    // closest the camera ever comes
+        public const double StrideMm = 900.0;                // one step of the character's walk
+
         // --- Frame pacing ---
         public const int FrameIntervalMs = 33;          // HUD timer tick (~30 fps target)
 
@@ -136,6 +146,12 @@ namespace AJTools.Services.GameMode
         public static double DoorPassExtraFt { get { return DoorPassExtraMm * Constants.MM_TO_FEET; } }
         public static double FloorSearchFt { get { return FloorSearchMm * Constants.MM_TO_FEET; } }
         public static double AimRangeFt { get { return AimRangeMm * Constants.MM_TO_FEET; } }
+        public static double ThirdPersonBackFt { get { return ThirdPersonBackMm * Constants.MM_TO_FEET; } }
+        public static double ThirdPersonPivotFt { get { return ThirdPersonPivotMm * Constants.MM_TO_FEET; } }
+        public static double ThirdPersonShoulderFt { get { return ThirdPersonShoulderMm * Constants.MM_TO_FEET; } }
+        public static double ThirdPersonWallGapFt { get { return ThirdPersonWallGapMm * Constants.MM_TO_FEET; } }
+        public static double ThirdPersonMinBackFt { get { return ThirdPersonMinBackMm * Constants.MM_TO_FEET; } }
+        public static double StrideFt { get { return StrideMm * Constants.MM_TO_FEET; } }
     }
 
     /// <summary>
@@ -190,6 +206,10 @@ namespace AJTools.Services.GameMode
 
         // Shot sound effects on/off (M toggles)
         public bool SoundOn = true;
+
+        // Third-person view on/off (owned by the HUD, read by the engine every frame): the camera
+        // sits behind the player and the code-built character is drawn in the game view.
+        public bool ThirdPerson;
     }
 
     /// <summary>

@@ -5,6 +5,19 @@ Release tags should use `vX.Y.Z`. Older legacy tags with other formats remain in
 
 ## [Unreleased]
 
+## [1.60.0] - 2026-11-21
+
+Game Mode third-person view. Builds clean for Revit 2020, 2025 and 2027; **not yet run in Revit**.
+
+- **New: third-person view in Game Mode.** Press **Q** (changeable in Key Settings) to switch between first
+  and third person. In third person a simple blocky character stands where you are, faces where you look,
+  and swings its arms and legs while you walk or run. The camera sits 3000 mm behind and 500 mm to the right,
+  and slides closer when a wall is behind you.
+- The character is drawn inside the model view, so walls and ducts hide it when it walks behind them. Nothing
+  is added to the model, and it is gone when the game ends.
+- In third person the gun is not shown; laser, teleport, cleaner, snag and selector still work from the
+  crosshair.
+
 ## [1.59.0] - 2026-11-08
 
 Tools moved to Heron Tools. Builds clean for Revit 2020-2027; **not yet run in Revit**.
